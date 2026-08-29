@@ -43,6 +43,10 @@ async function filesDigest(root: string): Promise<string> {
     .digest("hex");
 }
 
+async function fileDigest(file: string): Promise<string> {
+  return createHash("sha256").update(await fs.readFile(file)).digest("hex");
+}
+
 async function transactionCount(repository: string): Promise<number> {
   try {
     return (await fs.readdir(path.join(repository, ".lifecycle/data/.transactions"))).length;
@@ -101,7 +105,7 @@ function outputPayload(
     return {
       ...generic,
       title: "Resolved supporting question",
-      kind: "empirical",
+      kind: "preferential",
       question: "What evidence bounds this product?",
       state: "answered",
       blocking_impact: "No open product work remains blocked.",
@@ -219,7 +223,7 @@ afterEach(async () => {
 });
 
 describe("installed v2 cutover journey", () => {
-  it("runs fresh Phase 0 and a rejected-then-corrected atomic Review", async () => {
+  it("runs fresh Phase 0 through corrected Review into the first Phase 1 run loop", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-installed-cutover-"));
     temporaryRoots.push(root);
     const packageRoot = path.join(root, "package");
@@ -237,6 +241,8 @@ describe("installed v2 cutover journey", () => {
     );
     expect(installed.status, installed.stderr).toBe(0);
     const executable = path.join(installRoot, "node_modules/mdlm/dist/mdlm.js");
+    const archiveDigest = await fileDigest(archive);
+    const executableDigest = await fileDigest(executable);
 
     const initialized = successful(
       run(process.execPath, [executable, "init", repository, "--json"], root),
@@ -306,8 +312,10 @@ describe("installed v2 cutover journey", () => {
     expect(submitted.settlement.execution).toEqual(expect.any(String));
     let rejectedReview = false;
     let correctedReview = false;
+    let phase1RunOrResult = false;
+    let phase1Boundary: Record<string, any> | undefined;
     const scenarios: string[] = [];
-    for (let step = 0; step < 15 && !correctedReview; step += 1) {
+    for (let step = 0; step < 60 && !phase1RunOrResult; step += 1) {
       const outcome = successful(
         run(process.execPath, [executable, "next", "--json"], repository),
         `installed mdlm next step ${step}`,
@@ -315,6 +323,16 @@ describe("installed v2 cutover journey", () => {
       expect(["assignment", "attention-required"]).toContain(outcome.outcome);
       const packet = outcome.assignment.packet;
       scenarios.push(packet.scenario.reference);
+      const outputTypes = packet.outputs.map((output: Record<string, unknown>) => output.type);
+      if (
+        correctedReview
+        && outcome.phase.startsWith("phase-1-product-assurance@")
+        && outputTypes.some((type: string) => type === "RUN" || type === "RES")
+      ) {
+        phase1RunOrResult = true;
+        phase1Boundary = outcome;
+        break;
+      }
       const response = completedResponse(packet);
       if (!rejectedReview && packet.scenario.reference.startsWith("review-phase-0-")) {
         const leasePath = path.join(repository, ".lifecycle/work/active-assignment.json");
@@ -422,5 +440,21 @@ describe("installed v2 cutover journey", () => {
     }
     expect(rejectedReview).toBe(true);
     expect(correctedReview, scenarios.join(" -> ")).toBe(true);
+    expect(phase1RunOrResult, scenarios.join(" -> ")).toBe(true);
+    console.log(JSON.stringify({
+      archive: { name: path.basename(archive), sha256: archiveDigest },
+      executable: { relativePath: "node_modules/mdlm/dist/mdlm.js", sha256: executableDigest },
+      package: initialized.package,
+      repository: phase1Boundary?.repository,
+      phase: phase1Boundary?.phase,
+      assignment: {
+        id: phase1Boundary?.assignment.id,
+        scenario: phase1Boundary?.assignment.packet.scenario.reference,
+        outputs: phase1Boundary?.assignment.packet.outputs.map(
+          (output: Record<string, unknown>) => ({ handle: output.handle, type: output.type }),
+        ),
+      },
+      scenarios,
+    }));
   }, 600_000);
 });
