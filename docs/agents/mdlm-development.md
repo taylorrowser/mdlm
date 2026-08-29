@@ -19,6 +19,22 @@ authority is unavailable.
 
 The host operating policy at `/home/ubuntu/git/mdlm-successor-demos/operations/OPERATING-POLICY.md` owns portfolio slot composition, nonlearning controls, defect lead-time tracking, resource scheduling, and pointers to the exact evidence, recovery, and one-shot release runbooks. Follow both documents. If they conflict, preserve evidence and stop for a policy decision.
 
+## Operator-contract work
+
+Keep the ordinary public path to one `mdlm next --json` call and one
+`mdlm scenario submit --json` call. `mdlm-next@2` includes the complete
+`mdlm-assignment-packet@3`; the harness returns
+`mdlm-assignment-response@2`; submission returns
+`mdlm-submission-outcome@1`. Keep `deriveOperatorOutcome` pure. Keep repository
+authentication and exact lease recovery in `claimNextWork`, and canonical
+validation plus atomic publication in `submitAssignmentResponse`.
+
+The kernel owns integrity, identity, authority binding, atomicity, terminal
+precedence, and no-replay settlement. The Process Package owns process-specific
+eligibility and ordering. The harness transports packets and responses. Remove
+ordinary-path code that ranks work, reconstructs packets, copies authority from
+prose, predicts durable IDs, or recreates a status/next/prepare state machine.
+
 ## Keep four kinds of work moving
 
 Run these lanes independently. Independent issue work may proceed in parallel
@@ -36,7 +52,8 @@ gate is pending, change its runbook or design only to close an observed blocker.
 
 An eligible demo lane is initialized under the exact identity required by [Portfolio discipline](#portfolio-discipline), has clean Git state and valid integrity, has no uncertain-publication or provenance stop, and has one sole owner.
 
-When no exact quiet-window reservation is active under the host operating policy,
+When no exact quiet-window reservation or stakeholder-authorized architecture
+sprint exception is active under the host operating policy,
 keep exactly three eligible lifecycle operators: one persistent Codex reference
 lane and two ordinary Pi agent sessions using the current evaluation model.
 Treat every missing retained slot or manager as an operating incident. Follow
@@ -56,6 +73,15 @@ Pause demos only during an authenticated active qualification quiet window.
 Restore the old-qualified fleet as soon as the window clears, whether
 qualification passes or fails, and replace slots only as qualified replacements
 start.
+
+An operator-contract cutover may use a recorded stakeholder-authorized sprint
+exception instead. Preserve every lane at its authenticated boundary. After the
+cutover acceptance checks pass, launch one fresh disposable canary under exact
+source, Process Package, artifact, runner, model, and harness identities. Restore
+the three-slot fleet only after that canary completes Phase 0, including a
+rejected then corrected Review proposal, and enters the first Phase 1 RUN/RES
+loop without a contract, authority-envelope, missing-input, generated-ID, or
+ambiguous-publication failure.
 
 Continue each lane through accepted Reviews, publications, qualification, and Phase entry. Its operational endpoint is the controller result `Lifecycle Complete` or `Profile Boundary Reached`, or a package-declared terminal outcome. The exact stop conditions in the host policy's linked recovery runbook mark the lane stopped or blocked, not complete.
 
@@ -86,11 +112,12 @@ The integration lane owns expensive checks:
 
 Feature and fix writers rely on focused checks instead of repeating the full suite. Integration failures create focused follow-up work. They do not erase valid operational evidence.
 
-In repository tests, drive the normal successful transaction through
-`LifecycleTransactionDriver.assignment()`, `commit()`, and explicit
-`materialize()`. Keep direct compiled-CLI coverage for transport trust and use
-the lower-level command helpers only when a test must inspect malformed, stale,
-replay, authority, provenance, or other failure behavior.
+In repository tests, protect the pure decision with direct
+`deriveOperatorOutcome` cases and freeze the serialized public contract through
+real `claimNextWork` packets and `submitAssignmentResponse` outcomes. Keep one
+compiled public transaction per fixed trust boundary. Use lower-level helpers
+only for malformed, stale, replay, authority, provenance, or other failure
+behavior that the public transaction cannot isolate.
 
 Assert the current Process Package version or digest only when package
 selection, provenance, or migration is the behavior under test. Transaction
@@ -111,11 +138,12 @@ permutations through the package or evaluator interface. When a slow file does
 protect a changed seam, run that one file as the diff-focused regression instead
 of repeating the release suite.
 
-Before qualification, exercise the complete supported suite and every required
-compiled, packaged, and installed public path. Source-level tests do not prove a
-public CLI or installed artifact. Keep intentionally failing historical red
-evidence outside default suite discovery while preserving its exact bytes and
-purpose.
+Use `npm run test:fast` for the bounded decision, package-fixture, and public
+contract loop. Use `npm run test:cutover` once on an integrated candidate for
+both builds, the MDLM-Pi contract, and the installed journey. Source-level tests
+do not prove a public CLI or installed artifact. Keep intentionally failing
+historical red evidence outside default suite discovery while preserving its
+exact bytes and purpose.
 
 The host operating policy alone owns lifecycle pauses and every reservation and restoration rule, including breach reporting. Follow its `RELEASE-QUALIFICATION.md` pointer for gate preparation, execution, one-shot treatment, outcome classification, and manifest requirements inside an active reservation.
 
@@ -169,7 +197,8 @@ Keep release candidates separate from demo history. Demo records answer what hap
 
 ## Phase expansion boundary
 
-Keep Phase 3 and later Process Package work behind the two-product,
+After the cutover canary restores the fleet, keep Phase 3 and later Process
+Package work behind the two-product,
 same-identity Phase 2 reliability gate owned by [issue
 #222](https://github.com/taylorrowser/mdlm/issues/222). Apply that issue's exact
 pass criteria. After the gate passes, add one complete operational slice at a

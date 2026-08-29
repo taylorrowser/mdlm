@@ -106,16 +106,24 @@ A versioned contract for agent work with typed inputs, outputs, prohibited input
 _Avoid_: Workflow step, command
 
 **Assignment**:
-An exact state-bound projection of one Scenario transaction prepared for one agent to return a proposal; it is orchestration context, not authoritative Lifecycle Data.
+An exact state-bound claim on one Scenario transaction. It carries the complete Assignment Packet for one agent to return a response and is orchestration context, not authoritative Lifecycle Data.
 _Avoid_: Durable task, permission to select unrelated work
+
+**Assignment Packet**:
+The complete harness-neutral work contract included in an Assignment or Attention Required Operator Outcome, including exact inputs, schemas, authority, outputs, completion conditions, and a response scaffold.
+_Avoid_: Prepared Assignment, prompt alone
 
 **Scenario Proposal**:
 Complete candidate publication content for one exact Assignment that becomes Lifecycle Data only after canonical validation and publication.
 _Avoid_: Published lifecycle truth, partial direct Markdown edits
 
 **Assignment Response**:
-A versioned harness-neutral return for one exact Assignment containing either a complete Scenario Proposal or a typed inability to complete; only a valid proposal can publish Lifecycle Data.
+A versioned harness-neutral return for one exact Assignment containing either a complete Scenario Proposal using packet-local output handles or a typed inability to complete; only a valid proposal can publish Lifecycle Data.
 _Avoid_: Free-form completion prose, partial proposal
+
+**Submission Outcome**:
+The stable result of submitting one Assignment Response: accepted with a publication receipt, rejected without publication, or settlement required because publication closure is uncertain.
+_Avoid_: Assignment disposition, command exit status
 
 **Operator Outcome**:
 One exact result of normal repository and Process Package reevaluation: Assignment, Attention Required, Profile Boundary Reached, Lifecycle Complete, Process Dead End, or Invalid.

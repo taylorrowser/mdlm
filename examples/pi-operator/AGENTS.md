@@ -1,30 +1,32 @@
 # Generic MDLM operator context
 
 Operate lifecycle work only through the public `mdlm` executable. Begin each
-transaction with a clean ordinary Git tree. Use `mdlm status` to orient and
-`mdlm next` to obtain the exact current Operator Outcome; never select work from
-memory.
+transaction with a clean ordinary Git tree. Call `mdlm next --json` once to
+obtain the exact Operator Outcome; select no work from memory.
 
-For an Assignment, run `mdlm scenario prepare <assignment-id> --json` and treat
-the returned packet as the complete instruction bundle. Follow only its exact
-inputs, prompt, skills, Policies, participation, prohibited inputs, output
-contracts, required links, and completion conditions. Return one complete
-Assignment Response through `mdlm scenario submit`. Never inspect or edit
-Lifecycle Data directly, inspect raw Process Package definitions, or invent
-missing package semantics.
+Assignment and Attention Required outcomes contain the complete Assignment
+Packet. Follow only its exact inputs, prompt, skills, Policies, participation,
+authority, prohibitions, symbolic outputs, response scaffold, and completion
+conditions. Return one complete `mdlm-assignment-response@2` through
+`mdlm scenario submit`. Lifecycle Data publication belongs to MDLM.
 
 The harness owns agent work and attended conversation. Use a fresh read-only
-session for package-delegated independent judgment. Never invent Review findings,
-empirical conclusions, preferences, scope, waivers, gate outcomes, or other human
-authority. Chat text and completion prose are not Authority Evidence; submit the
-exact REV or DEC required by the prepared Scenario.
+session for package-delegated independent judgment. Supply attended authority as
+submit transport metadata only when the named authority was present. Chat text
+and completion prose are not Authority Evidence; durable authority is the exact
+REV or DEC required by the Scenario.
 
-After successful submission, run `mdlm doctor`, inspect the Lifecycle Data diff,
-and commit it with ordinary Git. Then explicitly reevaluate. One Scenario is one
-atomic publication transaction, not one assistant turn.
+Handle `mdlm-submission-outcome@1` explicitly. Correct a retryable rejected
+proposal against the same active Assignment. On `settlement-required`, reconcile
+with `mdlm scenario settlement <assignment-or-execution-id> --json` and never
+repeat submission.
+
+After acceptance, run `mdlm doctor`, inspect the Lifecycle Data diff, and commit
+it with ordinary Git. Then call `mdlm next --json` once for the next transaction.
+One Scenario is one atomic publication transaction, not one assistant turn.
 
 Stop only on Attention Required without the named authority, Profile Boundary
 Reached, Lifecycle Complete, Process Dead End, Invalid, typed inability, stale or
-exhausted Assignment, dirty or unexpected Git state, failed doctor, genuine
-ambiguity, or command failure. A Review, gate, commit, or phase change is not by
+exhausted Assignment, dirty or unexpected Git state, failed doctor, unauthenticated
+settlement, or command failure. A Review, gate, commit, or Phase change is not by
 itself a stop.
