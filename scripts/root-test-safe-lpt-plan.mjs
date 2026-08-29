@@ -54,12 +54,10 @@ const laneIds = Object.freeze(
 // Canceled, failed, and unadmitted outcomes are retained as status evidence
 // only and never become successful timing inputs.
 const evidence = [
-  ["test/phase-1-hardening-routes.test.ts", "process-repository-safe", "process/repository", 101_498, ["pass", 95_510], ["pass", 169_240], ["pass", 204_380]],
   ["test/phase-0-corrected-gate-route.test.ts", "process-repository-safe", "process/repository", 85_291, ["pass", 79_880], ["pass", 125_060], ["pass", 177_060]],
   ["test/phase-0-intent-candidate-currentness-route.test.ts", "process-repository-safe", "process/repository", 72_074, ["pass", 88_280], ["pass", 88_340], ["pass", 137_270]],
   ["test/load-scenario-participation.test.ts", "canonical-evaluator-safe", "canonical/evaluator", 70_789, ["pass", 112_360], ["pass", 183_740], ["canceled", null]],
   ["test/mdlm-command-application.test.ts", "process-repository-safe", "process/repository", 63_686, ["pass", 94_310], ["pass", 127_930], ["pass", 94_080]],
-  ["test/phase-2-hardening-routes.test.ts", "process-repository-safe", "process/repository", 59_745, ["pass", 126_580], ["pass", 165_350], ["pass", 132_070]],
   ["test/mdlm-clean-onboarding-transaction.test.ts", "process-repository-safe", "process/repository", 58_206, ["pass", 90_230], ["pass", 125_440], ["pass", 92_150]],
   ["test/mdlm-assignment-state.test.ts", "process-repository-safe", "process/repository", 57_581, ["pass", 121_500], ["pass", 159_940], ["pass", 126_480]],
   ["test/mdlm-init.test.ts", "process-repository-safe", "process/repository", 55_478, ["pass", 91_840], ["pass", 125_550], ["pass", 94_240]],
@@ -97,9 +95,7 @@ export const safeLptEvidence = Object.freeze(evidence.map(([
   split,
 ]) => {
   const selectedBaseEstimateMs = max3[0] === "pass" ? max3[1] : focusedModelFallbackMs;
-  const modeledContractDeltaMs = file === "test/phase-1-hardening-routes.test.ts"
-    ? SAFE_LPT_PHASE_1_CLEANUP_CONTRACT_DELTA_MS
-    : 0;
+  const modeledContractDeltaMs = 0;
   return Object.freeze({
     file,
     runtimeClass,

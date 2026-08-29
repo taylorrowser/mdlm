@@ -1,0 +1,32 @@
+{
+  "ok": true,
+  "command": "next",
+  "package": {
+    "id": "mdlm-bootstrap",
+    "version": "0.79.0",
+    "reference": "mdlm-bootstrap@0.79.0",
+    "language": "mdlm-expression@1",
+    "digest": "sha256:3268712b6a316bd378a485c894417f9013afd6529eddda1aaf19c37c7b467574"
+  },
+  "contract": "mdlm-next@1",
+  "phase": "phase-0-wayfinding@5",
+  "assignment": {
+    "id": "9f9f2de7-e410-446f-bc2b-32ccabb2432b"
+  },
+  "materializedExecutions": [],
+  "outcome": "assignment",
+  "diagnostics": [],
+  "operatorInstructions": {
+    "contract": "mdlm-operator-instructions@1",
+    "guidePath": "MDLM.md",
+    "action": "prepare-assignment",
+    "disposition": "continuation",
+    "commands": [
+      "mdlm scenario prepare 9f9f2de7-e410-446f-bc2b-32ccabb2432b --json",
+      "mdlm scenario submit <response-file> --json",
+      "mdlm doctor --json",
+      "mdlm next --json"
+    ],
+    "text": "Begin this Assignment now. Complete only this Assignment within its exact authority and publication boundaries; do not replay it. Submit its exact response, run doctor, inspect and narrowly commit only the published transaction, then run mdlm next --json. Do not stop merely to report a fresh Assignment: begin that Assignment now and repeat this one-Assignment loop until attended authority is unavailable, an integrity failure occurs, or MDLM returns a package-declared stop, Profile Boundary Reached, Lifecycle Complete, Process Dead End, or Invalid."
+  }
+}
