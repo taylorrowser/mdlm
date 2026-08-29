@@ -6,6 +6,28 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 const temporaryRoots: string[] = [];
+const preservedRoots = new Set<string>();
+
+async function preserveFailureEvidence(
+  root: string,
+  evidence: Record<string, unknown>,
+): Promise<string> {
+  const evidencePath = path.join(root, "installed-cutover-failure.json");
+  await fs.writeFile(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
+  preservedRoots.add(root);
+  process.stderr.write(
+    `INSTALLED_CUTOVER_FAILURE path=${evidencePath}\n${JSON.stringify(evidence)}\n`,
+  );
+  return evidencePath;
+}
+
+function gitIdentity(repository: string): { head: string; tree: string } {
+  const head = run("git", ["rev-parse", "HEAD"], repository);
+  const tree = run("git", ["rev-parse", "HEAD^{tree}"], repository);
+  expect(head.status, head.stderr).toBe(0);
+  expect(tree.status, tree.stderr).toBe(0);
+  return { head: head.stdout.trim(), tree: tree.stdout.trim() };
+}
 
 function run(command: string, arguments_: string[], cwd: string, input?: string) {
   return spawnSync(command, arguments_, {
@@ -272,11 +294,30 @@ function completedResponse(packet: Record<string, any>) {
 
 afterEach(async () => {
   await Promise.all(temporaryRoots.splice(0).map((root) =>
-    fs.rm(root, { recursive: true, force: true })
+    preservedRoots.has(root)
+      ? Promise.resolve()
+      : fs.rm(root, { recursive: true, force: true })
   ));
 });
 
 describe("installed v2 cutover journey", () => {
+  it("preserves exact evidence for an unexpected terminal outcome", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-installed-evidence-"));
+    temporaryRoots.push(root);
+    const evidence = {
+      source: { head: "source-head", tree: "source-tree" },
+      package: { reference: "package@1", digest: "sha256:package" },
+      artifact: { archiveSha256: "archive", executableSha256: "executable" },
+      repository: { head: "repository-head", tree: "repository-tree" },
+      trace: [{ scenario: "scenario@1", assignment: "assignment-1" }],
+      terminal: { outcome: "process-dead-end", blockers: [] },
+    };
+    const evidencePath = await preserveFailureEvidence(root, evidence);
+    expect(JSON.parse(await fs.readFile(evidencePath, "utf8"))).toEqual(evidence);
+    expect(preservedRoots.has(root)).toBe(true);
+    preservedRoots.delete(root);
+  });
+
   it("runs fresh Phase 0 through corrected Review into the first Phase 1 run loop", async () => {
     expect(answeredQuestionPayload({ payload: { kind: "preferential", state: "open" } }))
       .toMatchObject({ kind: "preferential", state: "answered", attended_answer: expect.any(String) });
@@ -392,6 +433,15 @@ describe("installed v2 cutover journey", () => {
     expect(submitted).not.toHaveProperty("orchestration");
     expect(submitted.receipt.publications).toHaveLength(3);
     expect(submitted.settlement.execution).toEqual(expect.any(String));
+    const trace = [{
+      phase: next.phase,
+      scenario: next.assignment.packet.scenario.reference,
+      assignment: next.assignment.id,
+      execution: submitted.settlement.execution,
+      responseDigest: submitted.responseDigest,
+      settlement: submitted.settlement,
+      publications: submitted.receipt.publications,
+    }];
     let rejectedReview = false;
     let correctedReview = false;
     let phase1RunOrResult = false;
@@ -402,7 +452,31 @@ describe("installed v2 cutover journey", () => {
         run(process.execPath, [executable, "next", "--json"], repository),
         `installed mdlm next step ${step}`,
       );
-      expect(["assignment", "attention-required"]).toContain(outcome.outcome);
+      if (!["assignment", "attention-required"].includes(outcome.outcome)) {
+        const evidence = {
+          source: {
+            ...gitIdentity(process.cwd()),
+            worktree: process.cwd(),
+          },
+          package: initialized.package,
+          artifact: {
+            archive: path.basename(archive),
+            archiveSha256: archiveDigest,
+            executable: "node_modules/mdlm/dist/mdlm.js",
+            executableSha256: executableDigest,
+          },
+          repository: {
+            ...gitIdentity(repository),
+            path: repository,
+            dataDigest: await filesDigest(path.join(repository, ".lifecycle/data")),
+            authenticated: outcome.repository,
+          },
+          trace,
+          terminal: outcome,
+        };
+        const evidencePath = await preserveFailureEvidence(root, evidence);
+        throw new Error(`Unexpected installed outcome; evidence=${evidencePath}`);
+      }
       const packet = outcome.assignment.packet;
       scenarios.push(packet.scenario.reference);
       const outputTypes = packet.outputs.map((output: Record<string, unknown>) => output.type);
@@ -509,6 +583,15 @@ describe("installed v2 cutover journey", () => {
         `installed submit ${packet.scenario.reference}`,
       );
       expect(accepted.outcome).toBe("accepted");
+      trace.push({
+        phase: outcome.phase,
+        scenario: packet.scenario.reference,
+        assignment: outcome.assignment.id,
+        execution: accepted.settlement.execution,
+        responseDigest: accepted.responseDigest,
+        settlement: accepted.settlement,
+        publications: accepted.receipt.publications,
+      });
       if (rejectedReview && packet.scenario.reference.startsWith("review-phase-0-")) {
         expect(accepted.receipt.publications.map(
           (publication: Record<string, unknown>) => publication.handle,
