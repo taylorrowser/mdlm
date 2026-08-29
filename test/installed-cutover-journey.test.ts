@@ -221,19 +221,19 @@ function completedResponse(packet: Record<string, any>) {
     ...scaffold,
     proposal: {
       ...scaffold.proposal,
-      outputs: scaffold.proposal.outputs
-        .filter((output: Record<string, unknown>) =>
-          !(omitOptionalEmpiricalDecision
-            && output.type === "DEC"
-            && packet.outputs.find(
-              (declared: Record<string, unknown>) => declared.handle === output.handle,
-            )?.cardinality === "zero-or-one")
-        )
-        .map((output: Record<string, unknown>) => ({
-          ...output,
-          payload: outputPayload(packet, output),
-          body: `# ${String(output.handle)}\n`,
-        })),
+      outputs: scaffold.proposal.outputs.map((output: Record<string, unknown>) =>
+        omitOptionalEmpiricalDecision
+          && output.type === "DEC"
+          && packet.outputs.find(
+            (declared: Record<string, unknown>) => declared.handle === output.handle,
+          )?.cardinality === "zero-or-one"
+          ? output
+          : {
+              ...output,
+              payload: outputPayload(packet, output),
+              body: `# ${String(output.handle)}\n`,
+            }
+      ),
     },
   };
 }
@@ -361,6 +361,11 @@ describe("installed v2 cutover journey", () => {
         break;
       }
       const response = completedResponse(packet);
+      expect(response.proposal.outputs.map(
+        (output: Record<string, unknown>) => output.handle,
+      )).toEqual(packet.responseScaffold.proposal.outputs.map(
+        (output: Record<string, unknown>) => output.handle,
+      ));
       if (!rejectedReview && packet.scenario.reference.startsWith("review-phase-0-")) {
         const leasePath = path.join(repository, ".lifecycle/work/active-assignment.json");
         const before = {
