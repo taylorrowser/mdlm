@@ -79,6 +79,21 @@ function inputData(packet: Record<string, any>, name: string): Record<string, an
   );
 }
 
+function answeredQuestionPayload(question: Record<string, any>): Record<string, unknown> {
+  const { attended_answer: _attendedAnswer, ...payload } = question.payload;
+  return question.payload.kind === "preferential"
+    ? {
+        ...payload,
+        state: "answered",
+        attended_answer: "Build a CLI that counts ampersand bytes in UTF-8 input.",
+      }
+    : {
+        ...payload,
+        state: "answered",
+        evidence_available: true,
+      };
+}
+
 function outputPayload(
   packet: Record<string, any>,
   output: Record<string, any>,
@@ -95,11 +110,7 @@ function outputPayload(
   ];
   const generic = requiredPayload(packet.schemas[output.type].payload);
   if (scenario === "resolve-question" && output.type === "QST") {
-    return {
-      ...question.payload,
-      state: "answered",
-      attended_answer: "Build a CLI that counts ampersand bytes in UTF-8 input.",
-    };
+    return answeredQuestionPayload(question);
   }
   if (output.type === "QST") {
     return {
@@ -203,15 +214,26 @@ function outputPayload(
 
 function completedResponse(packet: Record<string, any>) {
   const scaffold = packet.responseScaffold;
+  const omitOptionalEmpiricalDecision =
+    packet.scenario.reference.split("@")[0] === "resolve-question"
+    && inputData(packet, "question")[0]?.payload.kind === "empirical";
   return {
     ...scaffold,
     proposal: {
       ...scaffold.proposal,
-      outputs: scaffold.proposal.outputs.map((output: Record<string, unknown>) => ({
-        ...output,
-        payload: outputPayload(packet, output),
-        body: `# ${String(output.handle)}\n`,
-      })),
+      outputs: scaffold.proposal.outputs
+        .filter((output: Record<string, unknown>) =>
+          !(omitOptionalEmpiricalDecision
+            && output.type === "DEC"
+            && packet.outputs.find(
+              (declared: Record<string, unknown>) => declared.handle === output.handle,
+            )?.cardinality === "zero-or-one")
+        )
+        .map((output: Record<string, unknown>) => ({
+          ...output,
+          payload: outputPayload(packet, output),
+          body: `# ${String(output.handle)}\n`,
+        })),
     },
   };
 }
@@ -224,6 +246,11 @@ afterEach(async () => {
 
 describe("installed v2 cutover journey", () => {
   it("runs fresh Phase 0 through corrected Review into the first Phase 1 run loop", async () => {
+    expect(answeredQuestionPayload({ payload: { kind: "preferential", state: "open" } }))
+      .toMatchObject({ kind: "preferential", state: "answered", attended_answer: expect.any(String) });
+    expect(answeredQuestionPayload({
+      payload: { kind: "empirical", state: "open", attended_answer: "invalid carryover" },
+    })).toEqual({ kind: "empirical", state: "answered", evidence_available: true });
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-installed-cutover-"));
     temporaryRoots.push(root);
     const packageRoot = path.join(root, "package");
