@@ -52,6 +52,7 @@ const classification = Object.freeze({
   "test/load-scenario-participation.test.ts": [CANONICAL_IN_PROCESS_KIND, "temporary Process Package rewrite and in-process compilation/evaluation"],
   "test/mdlm-assignment-state.test.ts": [PROCESS_REPOSITORY_KIND, "repository, Git, and public command application"],
   "test/mdlm-clean-onboarding-transaction.test.ts": [PROCESS_REPOSITORY_KIND, "compiled CLI, repository, and Git"],
+  "test/mdlm-cli-output.test.ts": [PROCESS_REPOSITORY_KIND, "side-effecting command application and delayed piped stdout completion"],
   "test/mdlm-command-application.test.ts": [PROCESS_REPOSITORY_KIND, "repository, public command application, and compiled CLI helper"],
   "test/mdlm-init.test.ts": [PROCESS_REPOSITORY_KIND, "compiled CLI, Git, FIFO, and package/distribution copies"],
   "test/mdlm-pilot-assessment.test.ts": [PROCESS_REPOSITORY_KIND, "compiled CLI and temporary repository"],

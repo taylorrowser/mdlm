@@ -119,6 +119,12 @@ compiled public transaction per fixed trust boundary. Use lower-level helpers
 only for malformed, stale, replay, authority, provenance, or other failure
 behavior that the public transaction cannot isolate.
 
+Treat a side-effecting CLI command's result bytes as part of transaction
+closure. Await stdout and stderr write completion before the executable exits,
+and test that boundary with a delayed stream callback. An exit code alone does
+not prove the caller received the result needed to authenticate the side
+effect.
+
 Assert the current Process Package version or digest only when package
 selection, provenance, or migration is the behavior under test. Transaction
 tests assert their own public contract and leave current package identity to
