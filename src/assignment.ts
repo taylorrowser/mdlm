@@ -1300,7 +1300,7 @@ interface ExactBaselineMaterialization {
   evidenceTypes: Set<string>;
 }
 
-export function exactBaselineMaterialization(
+function exactBaselineMaterializationContract(
   scenario: VersionedDefinition,
 ): ExactBaselineMaterialization | undefined {
   const value = scenario.kernel_materialization;
@@ -1308,13 +1308,6 @@ export function exactBaselineMaterialization(
     return undefined;
   const marker = value as Record<string, unknown>;
   if (marker.kind !== "exact-baseline@1") return undefined;
-  const declaredOutputs = Array.isArray(scenario.outputs)
-    ? scenario.outputs.map(object).filter((output) => output !== undefined)
-    : [];
-  if (
-    declaredOutputs.length !== 1 ||
-    declaredOutputs[0]?.name !== marker.output
-  ) return undefined;
   const string = (name: string) =>
     typeof marker[name] === "string" ? marker[name] as string : "";
   const strings = (candidate: unknown) =>
@@ -1348,6 +1341,19 @@ export function exactBaselineMaterialization(
     evidenceSubjectTypes: strings(marker.evidence_subject_types),
     evidenceTypes: strings(marker.evidence_types),
   };
+}
+
+export function exactBaselineMaterialization(
+  scenario: VersionedDefinition,
+): ExactBaselineMaterialization | undefined {
+  const materialization = exactBaselineMaterializationContract(scenario);
+  const declaredOutputs = Array.isArray(scenario.outputs)
+    ? scenario.outputs.map(object).filter((output) => output !== undefined)
+    : [];
+  return materialization && declaredOutputs.length === 1 &&
+      declaredOutputs[0]?.name === materialization.output
+    ? materialization
+    : undefined;
 }
 
 function inputEntities(
@@ -2432,6 +2438,7 @@ function scenarioProposalFromResponse(
     output.handle,
     output.type,
   ]));
+  const materialization = exactBaselineMaterializationContract(exact.scenario);
   const outputs: ScenarioProposal["outputs"] = [];
   for (const [index, expectedOutput] of scaffold.proposal.outputs.entries()) {
     const output = supplied.get(expectedOutput.handle)!;
@@ -2453,13 +2460,26 @@ function scenarioProposalFromResponse(
         `proposal.outputs.${output.handle}.links`,
       );
     }
+    const subject = materialization &&
+        exact.dryRun.expectedOutputs[index]!.name === materialization.output
+      ? inputEntities(exact, materialization.subjectInput)[0]
+      : undefined;
+    const kernelPayload = materialization && subject?.identity.revision_id
+      ? exactBaselineProposal(
+          output.type,
+          subject,
+          inputEntities(exact, materialization.supportInput),
+          materialization,
+          0,
+        ).outputs[0]?.lifecycleDatum.payload
+      : undefined;
     outputs.push({
       localId: output.handle,
       name: exact.dryRun.expectedOutputs[index]!.name,
       invocation: 0,
       lifecycleDatum: {
         type: output.type,
-        payload: output.payload,
+        payload: kernelPayload ?? output.payload,
         links: links as { type: string; target: string }[],
         body: output.body,
       },
@@ -2497,6 +2517,7 @@ function packet(
       .map(({ type, ...schema }) => [type, schema]),
   );
   const { skills, ...prompt } = exact.dryRun.prompt;
+  const materialization = exactBaselineMaterializationContract(exact.scenario);
   const work = exact.lease.obligation
     ? { kind: "obligation" as const, ...exact.lease.obligation }
     : {
@@ -2537,17 +2558,21 @@ function packet(
       standingDelegation: exact.dryRun.standingDelegation ?? null,
     },
     prohibitions: exact.dryRun.prohibitedInputs,
-    outputs: exact.dryRun.expectedOutputs.map(({ types, ...output }) => ({
-      ...output,
-      handle: outputHandles.get(output.name) ?? output.name,
-      type: types[0]!,
-      payloadSummary: {
-        required: Array.isArray(schemas[types[0]!]?.payload.required)
-          ? schemas[types[0]!]!.payload.required as string[]
-          : [],
-        kernelManaged: [],
-      },
-    })),
+    outputs: exact.dryRun.expectedOutputs.map(({ types, ...output }) => {
+      return {
+        ...output,
+        handle: outputHandles.get(output.name) ?? output.name,
+        type: types[0]!,
+        payloadSummary: {
+          required: Array.isArray(schemas[types[0]!]?.payload.required)
+            ? schemas[types[0]!]!.payload.required as string[]
+            : [],
+          kernelManaged: materialization?.output === output.name
+            ? Object.values(materialization.payloadFields)
+            : [],
+        },
+      };
+    }),
     completion: exact.dryRun.completion,
     responseSchema: assignmentResponseSchema(lease.id),
     responseScaffold: responseSkeleton,

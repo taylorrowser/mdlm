@@ -53,6 +53,7 @@ completion: >-
   && review_context.payload.kind == "review-context"
   && review_context.payload.scope == subject.identity.revision_id
   && review_context.storage.frozen == true
+  && exists("valid-review-contexts-for@1", {subject: subject})
   && review.payload.review_kind == "phase-0-candidate"
   && review.payload.outcome in ["pass", "fail", "cancelled"]
 resolves: [phase-0-candidate-review-required]

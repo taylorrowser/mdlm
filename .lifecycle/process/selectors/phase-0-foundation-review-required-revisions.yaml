@@ -1,11 +1,11 @@
 kind: selector-definition
 id: phase-0-foundation-review-required-revisions
 version: 1
-description: Exact active Phase 0 MAP, PSP, and STK Revisions requiring independent judgment.
+description: Exact active Phase 0 MAP, PSP, STK, and DEC Revisions requiring independent judgment.
 parameters: []
 result_kind: revision
 query:
-  from: {collection: revisions, types: [MAP, PSP, STK]}
+  from: {collection: revisions, types: [MAP, PSP, STK, DEC]}
   as: subject
   where: >-
     policy("review-applicability@1", {subject: subject}).required == true

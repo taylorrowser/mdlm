@@ -17,7 +17,12 @@ query:
     && state(context, "validity") == "valid"
     && !every("valid-review-contexts-for@1", {subject: subject}, exact => exact != context)
     && context.provenance.process_ref == process.current_ref
-    && context.provenance.scenario == "create-review-context@2"
+    && context.provenance.scenario in [
+      "create-review-context@2",
+      "review-phase-0-foundation@1",
+      "review-phase-0-candidate@1",
+      "review-phase-1-assurance@1"
+    ]
     && none("newer-revisions-for@1", {subject: context})
   distinct: true
   order_by: [identity.revision_id]
