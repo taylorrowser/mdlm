@@ -16,7 +16,14 @@ query:
       {review: review, subject: subject}) == 1
     && (
       (exists("intent-candidates-matching-subject@1", {subject: subject})
-        && exists("valid-product-simplification-reviews@1", {review: review}))
+        && (
+          exists("valid-product-simplification-reviews@1", {review: review})
+          || (
+            review.provenance.scenario == "review-phase-0-candidate@1"
+            && review.payload.review_kind == "phase-0-candidate"
+            && review.integrity.scenario_execution_valid == true
+          )
+        ))
       || (exists("planning-dwp-matching-subject@1", {subject: subject})
         && exists("valid-dwp-product-simplification-reviews@1", {review: review}))
       || (none("intent-candidates-matching-subject@1", {subject: subject})
