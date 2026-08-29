@@ -26,29 +26,6 @@ interface DefinitionCatalogs {
   primitives: Record<string, VersionedDefinition>;
 }
 
-type ManifestCatalogGroup =
-  | "templates"
-  | "types"
-  | "policies"
-  | "states"
-  | "selectors"
-  | "obligations"
-  | "scenarios"
-  | "phases"
-  | "aliases";
-
-const manifestCatalogGroups: ManifestCatalogGroup[] = [
-  "templates",
-  "types",
-  "policies",
-  "states",
-  "selectors",
-  "obligations",
-  "scenarios",
-  "phases",
-  "aliases",
-];
-
 function referenceId(reference: unknown): string | undefined {
   if (typeof reference !== "string") return undefined;
   return /^(.*)@[1-9][0-9]*$/.exec(reference)?.[1];
@@ -102,42 +79,6 @@ function validateUnversionedReferences(
       message: `Unknown ${definitionKind} reference '${reference}'`,
     }];
   });
-}
-
-function validateManifestCatalog(
-  manifest: unknown,
-  definitions: DefinitionCatalogs,
-): ProcessDiagnostic[] {
-  if (typeof manifest !== "object" || manifest === null) return [];
-  const catalogValue = (manifest as Record<string, unknown>).catalog;
-  if (typeof catalogValue !== "object" || catalogValue === null) return [];
-  const catalog = catalogValue as Record<string, unknown>;
-  const diagnostics: ProcessDiagnostic[] = [];
-  for (const group of manifestCatalogGroups) {
-    const listed = new Set(
-      Array.isArray(catalog[group])
-        ? catalog[group].filter((id): id is string => typeof id === "string")
-        : [],
-    );
-    const loaded = new Set(Object.keys(definitions[group]));
-    const missing = [...loaded].filter((id) => !listed.has(id)).sort();
-    const unknown = [...listed].filter((id) => !loaded.has(id)).sort();
-    if (missing.length === 0 && unknown.length === 0) continue;
-    const details = [
-      ...(missing.length > 0
-        ? [`missing from manifest: ${missing.join(", ")}`]
-        : []),
-      ...(unknown.length > 0
-        ? [`not found in package: ${unknown.join(", ")}`]
-        : []),
-    ];
-    diagnostics.push({
-      code: "manifest-catalog-disagreement",
-      path: `manifest.catalog.${group}`,
-      message: `Manifest catalog '${group}' does not match loaded definitions; ${details.join("; ")}`,
-    });
-  }
-  return diagnostics;
 }
 
 function validateReferences(
@@ -771,7 +712,6 @@ export function validateDefinitionGraph(
   definitions: DefinitionCatalogs,
 ): ProcessDiagnostic[] {
   return [
-    ...validateManifestCatalog(manifest, definitions),
     ...validateReferences(definitions, manifest),
     ...validateTemplateCycles(definitions),
     ...validateExpressionDependencyCycles({

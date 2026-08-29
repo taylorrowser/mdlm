@@ -1,4 +1,4 @@
-# MDLM bootstrap Example Process Package v0.74
+# MDLM bootstrap Example Process Package v0.81
 
 This package is the bounded Example Process Package shipped with the
 concept-validating MDLM profile. It defines `MAP`, `QST`, `DEC`, `ART`, `PSP`,
@@ -7,8 +7,9 @@ concept-validating MDLM profile. It defines `MAP`, `QST`, `DEC`, `ART`, `PSP`,
 not types recognized by the MDLM kernel.
 
 The package declares `mdlm-expression@1` and binds its `BSL` type to the
-`exact-baseline@1` Kernel Capability. Textual expressions, package catalogs, and
-all cross-definition contracts are validated when the package loads.
+`exact-baseline@1` Kernel Capability. Definition files are the only catalog and
+phase-membership source. The loader derives both rather than validating a
+second list in the manifest or phase files.
 
 ## Ownership boundary
 
@@ -27,7 +28,8 @@ are derived from kernel primitives through typed expressions.
 
 Package loading:
 
-1. validates the manifest and authored catalogs;
+1. validates the manifest and generates catalogs and phase membership from the
+   exact definition files;
 2. compiles every expression-bearing field from textual source;
 3. resolves each lifecycle type through its single Payload Template chain;
 4. validates outgoing-link ownership and exact cross-definition references;
@@ -53,8 +55,8 @@ transactions.
 
 ### Phase 0 — wayfinding and accepted intent
 
-The package derives MAP, PSP, and STK work; exact Review Contexts; independent
-Reviews; bounded same-lineage Correction; product-simplification Review; candidate
+The package derives MAP, PSP, and STK work; atomic Review Context and REV
+transactions; bounded same-lineage Correction; product-simplification Review; candidate
 baselines; attended Gate Sign-off; and mechanically accepted intent. Failed
 Reviews and gate rejection remain immutable evidence and route to causal
 Correction, fresh Review, and return to the same gate.
@@ -75,7 +77,8 @@ Deferral and cancellation require exact scoped Decision evidence and Review.
 
 The package derives reviewed verification strategy, qualified environment,
 pilot-verification definition, bounded repository target evidence,
-source-independent implementation, exact run/result evidence, and fresh Review.
+source-independent implementation, exact run/result evidence, and atomic Review
+Context plus REV publication.
 Failed VSP, ENV, VER, and VAI Reviews route through bounded same-lineage
 Correction. Corrected assurance requires fresh qualification, context, Review,
 and run evidence; prior immutable evidence cannot satisfy changed dependencies.
@@ -111,7 +114,7 @@ demonstrated, but ceremony remained high and scope removal was not demonstrated.
 ## Supported operation
 
 A repository is created with `mdlm init <destination>`. Normal work proceeds only
-through `mdlm status`, `mdlm next`, `mdlm scenario prepare`, harness-owned work,
+through `mdlm next`, harness-owned work using the included Assignment packet,
 `mdlm scenario submit`, `mdlm doctor`, read-only inspection, and ordinary Git.
 Scenario submission is the canonical publication boundary for normal
 Scenario-owned Lifecycle Data.

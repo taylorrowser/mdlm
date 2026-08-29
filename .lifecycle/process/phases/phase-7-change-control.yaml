@@ -1,6 +1,6 @@
 kind: phase-definition
 id: phase-7-change-control
-version: 4
+version: 5
 order: 7
 name: Exact problem and change control
 purpose: Protect accepted stakeholder intent and shared accepted SYS requirements through exact reviewed impact, attended disposition, serial selective original-V replacement, and closure evidence.
@@ -10,31 +10,10 @@ omitted_capabilities:
   - accepted-baseline promotion after replacement verification
   - generalized future requirement levels and multi-group reconciliation
 entry: 'process.integrity.package_valid == true'
-scenarios:
-  - report-problem@1
-  - analyze-change-impact@2
-  - create-review-context@1
-  - review-datum-in-context@2
-  - approve-change-request@3
-  - revise-requirement-under-change@3
-  - reevaluate-shared-system-consumer@1
-  - create-stakeholder-change-candidate@1
-  - revise-stakeholder-change-after-review@2
-  - revise-change-disposition-after-review@1
-  - close-change-request@4
-  - record-consequential-decision@1
-obligations:
-  - review-context-required@2
-  - passing-review-required@2
-  - problem-report-required@1
-  - change-impact-required@1
-  - change-approval-required@2
-  - change-revision-required@2
-  - shared-system-consumer-reevaluation-required@1
-  - stakeholder-change-candidate-required@1
-  - stakeholder-change-review-correction-required@2
-  - change-disposition-review-correction-required@1
-  - change-closure-required@2
+routing:
+  eligible_when: dispatchable
+  status_order: [ready, awaiting-review, failed, stale, blocked]
+  tie_breakers: [subject, obligation]
 outputs: [PRB, CHG, DEC, STK, SYS, DWP, BSL, REV]
 progression: null
 gate:

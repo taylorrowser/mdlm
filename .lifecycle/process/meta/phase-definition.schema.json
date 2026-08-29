@@ -4,7 +4,7 @@
   "title": "MDLM phase definition",
   "type": "object",
   "additionalProperties": false,
-  "required": ["kind", "id", "version", "order", "name", "purpose", "coverage", "entry", "scenarios", "obligations", "outputs", "gate", "progression"],
+  "required": ["kind", "id", "version", "order", "name", "purpose", "coverage", "entry", "routing", "outputs", "gate", "progression"],
   "properties": {
     "kind": {"const": "phase-definition"},
     "id": {"type": "string", "pattern": "^phase-[0-9]+-[a-z0-9-]+$"},
@@ -27,8 +27,28 @@
         }
       }
     },
-    "scenarios": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"}, "minItems": 1, "uniqueItems": true},
-    "obligations": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"}, "uniqueItems": true},
+    "routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eligible_when", "status_order", "tie_breakers"],
+      "properties": {
+        "eligible_when": {"const": "dispatchable"},
+        "status_order": {
+          "type": "array",
+          "items": {"enum": ["ready", "awaiting-review", "failed", "stale", "blocked"]},
+          "minItems": 5,
+          "maxItems": 5,
+          "uniqueItems": true
+        },
+        "tie_breakers": {
+          "type": "array",
+          "prefixItems": [{"const": "subject"}, {"const": "obligation"}],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        }
+      }
+    },
     "outputs": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{3,8}$"}, "minItems": 1, "uniqueItems": true},
     "progression": {
       "oneOf": [

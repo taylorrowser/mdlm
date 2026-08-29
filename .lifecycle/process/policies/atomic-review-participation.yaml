@@ -1,0 +1,26 @@
+kind: policy-definition
+id: atomic-review-participation
+version: 1
+description: Delegate one exact atomic context-and-Review transaction to an independent reviewer without scheduled attention.
+parameters:
+  - {name: subject, kind: revision, types: [MAP, PSP, STK, VSP, ENV, VER, VAI, BSL]}
+result_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  additionalProperties: false
+  required: [authority_mode, authority, delegation_allowed, attention_timing, attention_checkpoint, consolidation_group]
+  properties:
+    authority_mode: {type: string, enum: [autonomous, delegated, attended]}
+    authority: {type: string, minLength: 1}
+    delegation_allowed: {type: boolean}
+    attention_timing: {type: string, enum: [none, immediate, checkpoint]}
+    attention_checkpoint: {type: [string, 'null']}
+    consolidation_group: {type: [string, 'null']}
+default:
+  authority_mode: delegated
+  authority: stakeholder
+  delegation_allowed: true
+  attention_timing: none
+  attention_checkpoint: null
+  consolidation_group: null
+rules: []

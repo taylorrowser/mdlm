@@ -1,0 +1,60 @@
+kind: scenario-definition
+id: review-phase-0-candidate
+version: 1
+description: Independently judge one exact Phase 0 intent candidate and publish its Review Context with the REV.
+kernel_materialization:
+  kind: exact-baseline@1
+  output: review_context
+  subject_input: subject
+  support_input: review_context_members
+  payload_fields: {title: title, kind: kind, role: role, scope: scope, group: group, members: definition_members, evidence: evidence}
+  title_prefix: 'Review context for '
+  baseline_kind: review-context
+  baseline_role: review-context
+  baseline_group: DEFAULT
+  evidence_subject_types: []
+  evidence_types: []
+phases: [phase-0-wayfinding]
+inputs:
+  - {name: subject, types: [BSL], cardinality: one, identity: revision}
+  - {name: review_context_members, types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS], cardinality: zero-or-more, identity: revision}
+outputs:
+  - {name: review_context, handle: context, types: [BSL], cardinality: one, required_links: []}
+  - name: review
+    handle: review
+    types: [REV]
+    cardinality: one
+    required_payload: {review_kind: phase-0-candidate}
+    required_links:
+      - {link: reviews, target: {input: subject}}
+      - {link: contextualizes, target: {output: review_context}}
+prompt_ref: prompts/review-phase-0-candidate.md@1
+skills:
+  - reference: skills/contextual-artifact-review.md@2
+    summary: Judge one exact candidate against all definition members, corrections, Questions, Decisions, and authority evidence.
+input_summaries:
+  subject: The exact frozen Phase 0 intent candidate under judgment.
+  review_context_members: Every exact definition member and current correction, Question, Decision, and authority record needed for judgment.
+review_contract:
+  required_evidence: [review_context_members]
+  allowed_findings: [scope, traceability, consistency, evidence]
+  summary_rule: State whether the candidate is complete, internally consistent, scope challenged, and supported by exact authority.
+  correction_authorities: [author, stakeholder, package-evidence]
+review_policy_ref: review-applicability@1
+review_policy_arguments: {subject: subject}
+participation:
+  policy_ref: atomic-review-participation@1
+  arguments: {subject: subject}
+authority_evidence: {output: review, type: REV}
+standing_delegation: {selector_ref: applicable-authority-delegations-for@1, target_input: subject, authority: stakeholder, delegate: independent-reviewer}
+completion_summary: Publish exactly one candidate Review Context and its exact REV in one transaction.
+completion: >-
+  execution.integrity.contract_valid == true
+  && review_context.payload.kind == "review-context"
+  && review_context.payload.scope == subject.identity.revision_id
+  && review_context.storage.frozen == true
+  && review.payload.review_kind == "phase-0-candidate"
+  && review.payload.outcome in ["pass", "fail", "cancelled"]
+resolves: [phase-0-candidate-review-required]
+prohibited_inputs: [product source code, product unit tests, mutable latest aliases]
+batching: single

@@ -2,7 +2,7 @@ kind: obligation-definition
 id: review-context-required
 version: 2
 description: Every review-required revision must appear in an exact valid frozen review-context baseline before judgment.
-phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-2-pilot-assessment, phase-7-change-control]
+phases: [phase-2-system-definition, phase-2-pilot-assessment, phase-7-change-control]
 for_each: 'select("review-required-revisions@1", {})'
 subject_as: subject
 satisfied_when: 'exists("valid-review-contexts-for@1", {subject: subject})'
@@ -39,7 +39,7 @@ status_rules:
     reason: A deterministic exact review context can be created now.
 default_status: ready
 resolve_with:
-  scenario: create-review-context@1
+  scenario: create-review-context@2
   inputs:
     subject: subject
     context_members: 'select("review-context-members-for@1", {subject: subject})'

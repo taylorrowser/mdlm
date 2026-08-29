@@ -1,0 +1,17 @@
+kind: selector-definition
+id: phase-0-candidate-review-required-revisions
+version: 1
+description: Exact active Phase 0 intent candidates requiring independent judgment.
+parameters: []
+result_kind: baseline
+query:
+  from: {collection: baselines, types: [BSL]}
+  as: subject
+  where: >-
+    subject.identity.type == "BSL"
+    && subject.payload.kind == "intent-level-candidate"
+    && subject.payload.role == "candidate"
+    && state(subject, "disposition") == "active"
+    && none("newer-revisions-for@1", {subject: subject})
+  distinct: true
+  order_by: [identity.id, identity.revision]

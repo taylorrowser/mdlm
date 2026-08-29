@@ -24,7 +24,7 @@ query:
       && none("newer-revisions-for@1", {subject: question})
       && every("structural-review-contexts-cited-by@1", {review: review}, context =>
         context.provenance.process_ref == process.current_ref
-        && context.provenance.scenario == "create-review-context@1"
+        && context.provenance.scenario == "create-review-context@2"
         && context.payload.scope == decision.identity.revision_id
         && exists("review-context-contains-member@1",
           {context: context, required_member: question})
