@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -18,6 +19,37 @@ function run(command: string, arguments_: string[], cwd: string, input?: string)
 function successful(result: ReturnType<typeof run>, command: string) {
   expect(result.status, `${command}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(0);
   return JSON.parse(result.stdout) as Record<string, any>;
+}
+
+async function filesDigest(root: string): Promise<string> {
+  const entries: [string, string][] = [];
+  async function visit(directory: string): Promise<void> {
+    try {
+      for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
+        const absolute = path.join(directory, entry.name);
+        if (entry.isDirectory()) await visit(absolute);
+        else entries.push([
+          path.relative(root, absolute),
+          (await fs.readFile(absolute)).toString("base64"),
+        ]);
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+  }
+  await visit(root);
+  return createHash("sha256")
+    .update(JSON.stringify(entries.sort(([left], [right]) => left.localeCompare(right))))
+    .digest("hex");
+}
+
+async function transactionCount(repository: string): Promise<number> {
+  try {
+    return (await fs.readdir(path.join(repository, ".lifecycle/data/.transactions"))).length;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return 0;
+    throw error;
+  }
 }
 
 function requiredPayload(schema: Record<string, any>): Record<string, unknown> {
@@ -285,6 +317,49 @@ describe("installed v2 cutover journey", () => {
       scenarios.push(packet.scenario.reference);
       const response = completedResponse(packet);
       if (!rejectedReview && packet.scenario.reference.startsWith("review-phase-0-")) {
+        const leasePath = path.join(repository, ".lifecycle/work/active-assignment.json");
+        const before = {
+          data: await filesDigest(path.join(repository, ".lifecycle/data")),
+          lease: await fs.readFile(leasePath, "utf8"),
+          transactions: await transactionCount(repository),
+        };
+        const reviewOutput = response.proposal.outputs.find(
+          (output: Record<string, unknown>) => output.type === "REV",
+        );
+        for (const linkType of ["reviews", "contextualizes"]) {
+          const mismatched = structuredClone(response);
+          const wrongTarget = linkType === "reviews"
+            ? inputData(packet, "review_context_members").find(
+              (datum) => datum.revision_id !== inputData(packet, "subject")[0]!.revision_id,
+            )!.revision_id
+            : inputData(packet, "subject")[0]!.revision_id;
+          mismatched.proposal.outputs.find(
+            (output: Record<string, unknown>) => output.type === "REV",
+          ).links.find(
+            (link: Record<string, unknown>) => link.type === linkType,
+          ).target = { datum: wrongTarget };
+          const rejectedLink = run(
+            process.execPath,
+            [executable, "scenario", "submit", "-", "--json"],
+            repository,
+            `${JSON.stringify(mismatched)}\n`,
+          );
+          expect(rejectedLink.status).toBe(1);
+          expect(JSON.parse(rejectedLink.stdout)).toMatchObject({
+            outcome: "rejected",
+            assignment: { id: outcome.assignment.id },
+            retryable: true,
+            correctionConsumed: false,
+            diagnostics: expect.arrayContaining([expect.objectContaining({
+              code: "assignment-response-links-invalid",
+              path: "proposal.outputs.review.links",
+            })]),
+          });
+          expect(await filesDigest(path.join(repository, ".lifecycle/data"))).toBe(before.data);
+          expect(await fs.readFile(leasePath, "utf8")).toBe(before.lease);
+          expect(await transactionCount(repository)).toBe(before.transactions);
+        }
+        expect(reviewOutput).toBeDefined();
         const invalid = structuredClone(response);
         invalid.proposal.outputs.find(
           (output: Record<string, unknown>) => output.type === "REV",

@@ -2450,6 +2450,13 @@ function scenarioProposalFromResponse(
         `proposal.outputs.${output.handle}.type`,
       );
     }
+    if (JSON.stringify(output.links) !== JSON.stringify(expectedOutput.links)) {
+      return failure(
+        "assignment-response-links-invalid",
+        `Symbolic output '${output.handle}' must preserve the exact links in the Assignment packet`,
+        `proposal.outputs.${output.handle}.links`,
+      );
+    }
     const links = expectedOutput.links.map((link) => ({
       type: link.type,
       target: internalLinkTarget(exact, output.type, link, outputTypes),

@@ -230,12 +230,15 @@ export function scenarioOutputContractDiagnostics(
           }
         }
         const reviewContract = object(scenario.review_contract);
+        const reviewEvidence = authorityEvidenceContract(scenario.authority_evidence);
         const allowedCorrectionAuthorities = array(
           reviewContract?.correction_authorities,
         );
         const correctionAuthority = value.lifecycleDatum.payload.correction_authority;
         if (
-          types.includes("REV") &&
+          reviewContract &&
+          reviewEvidence?.output === name &&
+          reviewEvidence.type === value.lifecycleDatum.type &&
           typeof correctionAuthority === "string" &&
           allowedCorrectionAuthorities.length > 0 &&
           !allowedCorrectionAuthorities.includes(correctionAuthority)

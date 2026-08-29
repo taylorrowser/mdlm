@@ -304,6 +304,34 @@ describe("focused v2 fault-injection gate", () => {
     expect(diagnostics).toEqual(expect.arrayContaining([
       expect.objectContaining({ code: "scenario-review-correction-authority-invalid" }),
     ]));
+
+    const packageOwnedReview = structuredClone(scenario);
+    packageOwnedReview.outputs[1].types = ["PKG"];
+    packageOwnedReview.authority_evidence = { output: "review", type: "PKG" };
+    const packageOwnedDiagnostics = scenarioOutputContractDiagnostics(
+      packageOwnedReview,
+      [{ inputs: [] }],
+      [{
+        name: "review_context",
+        invocation: 0,
+        lifecycleDatum: { type: "BSL", payload: {}, links: [], body: "" },
+      }, {
+        name: "review",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "PKG",
+          payload: {
+            review_kind: "phase-0-foundation",
+            correction_authority: "unbounded-operator",
+          },
+          links: [],
+          body: "",
+        },
+      }],
+    );
+    expect(packageOwnedDiagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "scenario-review-correction-authority-invalid" }),
+    ]));
   });
 
   it("repeats schema and identity rejection without transaction or correction consumption", async () => {
@@ -326,8 +354,34 @@ describe("focused v2 fault-injection gate", () => {
     expect(mismatched.value.diagnostics).toEqual(expect.arrayContaining([
       expect.objectContaining({ code: "assignment-unavailable" }),
     ]));
-    response.proposal.outputs[0].stableId = "MAP-agent-authored";
-    response.proposal.outputs[0].revisionId = "MAP-agent-authored-r00001";
+    for (const [field, identity] of [
+      ["stableId", "MAP-agent-authored"],
+      ["revisionId", "MAP-agent-authored-r00001"],
+    ]) {
+      const authoredIdentity = structuredClone(response);
+      authoredIdentity.proposal.outputs[0][field] = identity;
+      const identityRejected = await command(
+        repository,
+        ["scenario", "submit", "-", "--json"],
+        `${JSON.stringify(authoredIdentity)}\n`,
+      );
+      expect(identityRejected.status).toBe(1);
+      expect(identityRejected.value).toMatchObject({
+        outcome: "rejected",
+        correctionConsumed: false,
+        retryable: true,
+      });
+      expect(identityRejected.value.diagnostics).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          code: "assignment-response-invalid",
+          path: "response/proposal/outputs/0",
+        }),
+      ]));
+      expect(await filesDigest(path.join(repository, ".lifecycle/data"))).toBe(before.data);
+      expect(await fs.readFile(leasePath, "utf8")).toBe(before.lease);
+      expect(await transactionCount(repository)).toBe(before.transactions);
+    }
+
     response.proposal.outputs[1].payload = null;
     const source = `${JSON.stringify(response)}\n`;
 
