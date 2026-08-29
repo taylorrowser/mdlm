@@ -2,6 +2,11 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { operatorInstructions } from "../src/operator-instructions.js";
+import {
+  assertAssignmentPacketV3,
+  exactBaselineMaterialization,
+  inspectSubmissionSettlement,
+} from "../src/assignment.js";
 
 const root = path.join(
   process.cwd(),
@@ -41,6 +46,7 @@ describe("operator contract v2 fixtures", () => {
         },
       });
       expect(value.assignment.packet).toHaveProperty("responseSchema");
+      expect(() => assertAssignmentPacketV3(value.assignment.packet)).not.toThrow();
     }
   });
 
@@ -81,5 +87,53 @@ describe("operator contract v2 fixtures", () => {
     });
     expect(instructions.action).toBe("execute-assignment");
     expect(instructions.commands.join(" ")).not.toContain("scenario prepare");
+  });
+
+  it("only auto-materializes a context-only Scenario", () => {
+    const marker = {
+      kind: "exact-baseline@1",
+      output: "context",
+      subject_input: "subject",
+      support_input: "members",
+      payload_fields: {
+        title: "title", kind: "kind", role: "role", scope: "scope",
+        group: "group", members: "members", evidence: "evidence",
+      },
+      title_prefix: "Context", baseline_kind: "review-context",
+      baseline_role: "review", baseline_group: "DEFAULT",
+      evidence_subject_types: [], evidence_types: [],
+    };
+    const scenario = { kernel_materialization: marker, outputs: [{ name: "context" }] };
+    expect(exactBaselineMaterialization(scenario as never)).toBeDefined();
+    expect(exactBaselineMaterialization({
+      ...scenario,
+      outputs: [{ name: "context" }, { name: "review" }],
+    } as never)).toBeUndefined();
+  });
+
+  it("recovers the persisted no-replay settlement identity", async () => {
+    const repository = await fs.mkdtemp(path.join(process.cwd(), ".tmp-settlement-"));
+    try {
+      const target = path.join(repository, ".lifecycle/work/submission-settlement.json");
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await fs.writeFile(target, `${JSON.stringify({
+        contract: "mdlm-pending-settlement@1",
+        assignment: "assignment-1",
+        execution: "execution-1",
+        responseDigest: "sha256:response",
+      })}\n`);
+      const result = await inspectSubmissionSettlement(repository, "execution-1");
+      expect(result).toMatchObject({
+        ok: true,
+        value: {
+          outcome: "settlement-required",
+          responseDigest: "sha256:response",
+          settlement: { assignment: "assignment-1", execution: "execution-1" },
+          orchestration: { replay: false },
+        },
+      });
+    } finally {
+      await fs.rm(repository, { recursive: true, force: true });
+    }
   });
 });

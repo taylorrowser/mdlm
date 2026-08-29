@@ -56,6 +56,7 @@ import { withRepositoryLock } from "./repository-lock.js";
 
 const executeFile = promisify(execFile);
 const leaseRelativePath = ".lifecycle/work/active-assignment.json";
+const settlementRelativePath = ".lifecycle/work/submission-settlement.json";
 // Every lease writer takes this lock. The first response to acquire it owns the
 // Assignment outcome; a valid proposal retains ownership through publication
 // and lease retirement. Waiters reread the exact lease and return unavailable.
@@ -353,30 +354,24 @@ export interface AssignmentPacket {
   package: PackageExecutionIdentity;
   repository: RepositoryFingerprint;
   phase: string;
-  obligation: AssignmentLease["obligation"];
-  progression?: NonNullable<AssignmentLease["progression"]>;
+  work: {
+    kind: "obligation" | "phase-progression";
+    instance: string;
+    definition: string;
+    subject: string;
+  };
   scenario: {
     reference: string;
     definition: { id: string; version: number };
+    prompt: Omit<ScenarioDryRun["prompt"], "skills">;
+    skills: ScenarioDryRun["prompt"]["skills"];
   };
-  prompt: ScenarioDryRun["prompt"];
   exactInputs: ScenarioDryRunInvocation[];
-  allowedProjections: {
-    exactLifecycleData: string[];
-    exactLifecycleDataDigests: Record<string, string>;
-    inputSchemas: {
-      type: string;
-      envelope: Record<string, unknown>;
-      payload: Record<string, unknown>;
-      outgoingLinks: Record<string, unknown>[];
-    }[];
-    outputSchemas: {
-      type: string;
-      envelope: Record<string, unknown>;
-      payload: Record<string, unknown>;
-      outgoingLinks: Record<string, unknown>[];
-    }[];
-  };
+  schemas: Record<string, {
+    envelope: Record<string, unknown>;
+    payload: Record<string, unknown>;
+    outgoingLinks: Record<string, unknown>[];
+  }>;
   policies: ScenarioDryRun["policies"];
   participation: NonNullable<ScenarioDryRun["participation"]>;
   authority: {
@@ -390,14 +385,17 @@ export interface AssignmentPacket {
     standingDelegation: ScenarioDryRun["standingDelegation"] | null;
   };
   prohibitions: string[];
-  outputs: (ScenarioDryRun["expectedOutputs"][number] & { handle: string })[];
-  outputLinks: {
-    output: string;
-    requiredLinks: ScenarioDryRun["expectedOutputs"][number]["requiredLinks"];
-  }[];
+  outputs: (Omit<ScenarioDryRun["expectedOutputs"][number], "types"> & {
+    handle: string;
+    type: string;
+    payloadSummary: {
+      required: string[];
+      kernelManaged: string[];
+    };
+  })[];
   completion: ScenarioDryRun["completion"];
   responseSchema: Record<string, unknown>;
-  responseScaffold?: AssignmentResponseSkeleton;
+  responseScaffold: AssignmentResponseSkeleton;
   checkpointConversation?: CheckpointConversation;
 }
 
@@ -557,6 +555,47 @@ async function writeLease(
   await fs.mkdir(path.dirname(target), { recursive: true });
   await fs.writeFile(temporary, `${JSON.stringify(lease, null, 2)}\n`);
   await fs.rename(temporary, target);
+}
+
+interface PendingSettlement {
+  contract: "mdlm-pending-settlement@1";
+  assignment: string;
+  execution: string;
+  responseDigest: string;
+}
+
+function settlementPath(repositoryRoot: string): string {
+  return path.join(repositoryRoot, settlementRelativePath);
+}
+
+async function writePendingSettlement(
+  repositoryRoot: string,
+  settlement: PendingSettlement,
+): Promise<void> {
+  const target = settlementPath(repositoryRoot);
+  const temporary = `${target}.${randomUUID()}.tmp`;
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(temporary, `${JSON.stringify(settlement, null, 2)}\n`);
+  await fs.rename(temporary, target);
+}
+
+async function readPendingSettlement(
+  repositoryRoot: string,
+): Promise<PendingSettlement | undefined> {
+  try {
+    const value = JSON.parse(
+      await fs.readFile(settlementPath(repositoryRoot), "utf8"),
+    ) as Partial<PendingSettlement>;
+    return value.contract === "mdlm-pending-settlement@1" &&
+        typeof value.assignment === "string" &&
+        typeof value.execution === "string" &&
+        typeof value.responseDigest === "string"
+      ? value as PendingSettlement
+      : undefined;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
+  }
 }
 
 function object(value: unknown): Record<string, unknown> | undefined {
@@ -1261,7 +1300,7 @@ interface ExactBaselineMaterialization {
   evidenceTypes: Set<string>;
 }
 
-function exactBaselineMaterialization(
+export function exactBaselineMaterialization(
   scenario: VersionedDefinition,
 ): ExactBaselineMaterialization | undefined {
   const value = scenario.kernel_materialization;
@@ -1269,6 +1308,13 @@ function exactBaselineMaterialization(
     return undefined;
   const marker = value as Record<string, unknown>;
   if (marker.kind !== "exact-baseline@1") return undefined;
+  const declaredOutputs = Array.isArray(scenario.outputs)
+    ? scenario.outputs.map(object).filter((output) => output !== undefined)
+    : [];
+  if (
+    declaredOutputs.length !== 1 ||
+    declaredOutputs[0]?.name !== marker.output
+  ) return undefined;
   const string = (name: string) =>
     typeof marker[name] === "string" ? marker[name] as string : "";
   const strings = (candidate: unknown) =>
@@ -2118,8 +2164,12 @@ function parseAssignmentResponse(
   };
 }
 
-type ProjectedTypeSchema =
-  AssignmentPacket["allowedProjections"]["outputSchemas"][number];
+type ProjectedTypeSchema = {
+  type: string;
+  envelope: Record<string, unknown>;
+  payload: Record<string, unknown>;
+  outgoingLinks: Record<string, unknown>[];
+};
 
 function projectedTypeSchemas(
   processPackage: ProcessPackage,
@@ -2143,7 +2193,7 @@ function projectedTypeSchemas(
 function inputSchemas(
   processPackage: ProcessPackage,
   dryRun: ScenarioDryRun,
-): AssignmentPacket["allowedProjections"]["inputSchemas"] {
+): ProjectedTypeSchema[] {
   return projectedTypeSchemas(
     processPackage,
     dryRun.invocations.flatMap((invocation) =>
@@ -2157,7 +2207,7 @@ function inputSchemas(
 function outputSchemas(
   processPackage: ProcessPackage,
   dryRun: ScenarioDryRun,
-): AssignmentPacket["allowedProjections"]["outputSchemas"] {
+): ProjectedTypeSchema[] {
   return projectedTypeSchemas(
     processPackage,
     dryRun.expectedOutputs.flatMap((output) => output.types),
@@ -2437,7 +2487,6 @@ function packet(
   lease: AssignmentLease,
 ): AssignmentPacket {
   const participation = exact.dryRun.participation ?? [];
-  const exactData = exactLifecycleData(exact.dryRun);
   const responseSkeleton = assignmentResponseSkeleton(exact, lease);
   const outputHandles = new Map(
     (Array.isArray(exact.scenario.outputs) ? exact.scenario.outputs : [])
@@ -2450,29 +2499,37 @@ function packet(
           : String(output!.name),
       ]),
   );
-  return {
+  if (!responseSkeleton) {
+    throw new Error(`Scenario '${exact.lease.scenario}' cannot render one symbolic Assignment response`);
+  }
+  const schemas = Object.fromEntries(
+    [...inputSchemas(exact.processPackage, exact.dryRun), ...outputSchemas(exact.processPackage, exact.dryRun)]
+      .map(({ type, ...schema }) => [type, schema]),
+  );
+  const { skills, ...prompt } = exact.dryRun.prompt;
+  const work = exact.lease.obligation
+    ? { kind: "obligation" as const, ...exact.lease.obligation }
+    : {
+        kind: "phase-progression" as const,
+        instance: exact.lease.progression!.instance,
+        definition: exact.lease.progression!.nextPhase,
+        subject: exact.lease.progression!.subjects[0] ?? exact.lease.phase,
+      };
+  const rendered: AssignmentPacket = {
     contract: "mdlm-assignment-packet@3",
     assignment: { id: lease.id },
     package: exact.lease.package,
     repository: exact.lease.repository,
     phase: exact.lease.phase,
-    obligation: exact.lease.obligation,
-    ...(exact.lease.progression
-      ? { progression: exact.lease.progression }
-      : {}),
+    work,
     scenario: {
       reference: exact.lease.scenario,
       definition: { id: exact.scenario.id, version: exact.scenario.version },
+      prompt,
+      skills,
     },
-    prompt: exact.dryRun.prompt,
     exactInputs: exact.dryRun.invocations,
-    allowedProjections: {
-      exactLifecycleData: exactData,
-      exactLifecycleDataDigests:
-        exact.inspection.exactLifecycleDataDigests(exactData),
-      inputSchemas: inputSchemas(exact.processPackage, exact.dryRun),
-      outputSchemas: outputSchemas(exact.processPackage, exact.dryRun),
-    },
+    schemas,
     policies: exact.dryRun.policies,
     participation,
     authority: {
@@ -2490,17 +2547,20 @@ function packet(
       standingDelegation: exact.dryRun.standingDelegation ?? null,
     },
     prohibitions: exact.dryRun.prohibitedInputs,
-    outputs: exact.dryRun.expectedOutputs.map((output) => ({
+    outputs: exact.dryRun.expectedOutputs.map(({ types, ...output }) => ({
       ...output,
       handle: outputHandles.get(output.name) ?? output.name,
-    })),
-    outputLinks: exact.dryRun.expectedOutputs.map((output) => ({
-      output: output.name,
-      requiredLinks: output.requiredLinks,
+      type: types[0]!,
+      payloadSummary: {
+        required: Array.isArray(schemas[types[0]!]?.payload.required)
+          ? schemas[types[0]!]!.payload.required as string[]
+          : [],
+        kernelManaged: [],
+      },
     })),
     completion: exact.dryRun.completion,
     responseSchema: assignmentResponseSchema(lease.id),
-    ...(responseSkeleton ? { responseScaffold: responseSkeleton } : {}),
+    responseScaffold: responseSkeleton,
     ...(exact.classification.kind === "attention-required" &&
         exact.classification.checkpointConversation
       ? {
@@ -2509,6 +2569,43 @@ function packet(
         }
       : {}),
   };
+  assertAssignmentPacketV3(rendered);
+  return rendered;
+}
+
+/** Keep every real claim on the same serialized seam frozen by the v2 fixtures. */
+export function assertAssignmentPacketV3(value: unknown): asserts value is AssignmentPacket {
+  const candidate = object(value);
+  const scenario = object(candidate?.scenario);
+  const scaffold = object(candidate?.responseScaffold);
+  const required = [
+    "assignment",
+    "package",
+    "repository",
+    "phase",
+    "work",
+    "scenario",
+    "exactInputs",
+    "schemas",
+    "outputs",
+    "policies",
+    "participation",
+    "authority",
+    "prohibitions",
+    "completion",
+    "responseScaffold",
+    "responseSchema",
+  ];
+  if (
+    candidate?.contract !== "mdlm-assignment-packet@3" ||
+    required.some((key) => !(key in candidate)) ||
+    !scenario || !("prompt" in scenario) || !("skills" in scenario) ||
+    scaffold?.contract !== "mdlm-assignment-response@2" ||
+    "allowedProjections" in candidate || "outputLinks" in candidate ||
+    "prompt" in candidate || "obligation" in candidate || "progression" in candidate
+  ) {
+    throw new Error("Assignment packet does not satisfy mdlm-assignment-packet@3");
+  }
 }
 
 function dispositionBase(assignmentId: string): {
@@ -2769,6 +2866,8 @@ export async function submitAssignmentResponse(
     );
   }
   const proposal = normalized.value;
+  const responseDigest = sha256(responseSource);
+  const executionId = settlementIdentity(`${lease.id}:${responseDigest}`);
   const submission = {
     scenarioReference: exact.value.lease.scenario,
     proposal: {
@@ -2776,7 +2875,7 @@ export async function submitAssignmentResponse(
       completionEvidence: proposal.completionEvidence,
     },
     assignment: lease.id,
-    responseDigest: sha256(responseSource),
+    responseDigest,
     suppliedAuthorities: [
       ...new Set([
         ...(exact.value.dryRun.participation?.flatMap((item) =>
@@ -2803,11 +2902,23 @@ export async function submitAssignmentResponse(
           leasePath(repositoryRoot),
         );
     };
-    const prepared = preparedScenarioSubmission(
-      repositoryRoot,
-      exact.value,
-      verifyAssignment,
-    );
+    const prepared = {
+      ...preparedScenarioSubmission(
+        repositoryRoot,
+        exact.value,
+        verifyAssignment,
+      ),
+      executionId,
+      beginPublication: async (publishedExecution: string, publishedDigest: string) => {
+        await renew();
+        await writePendingSettlement(repositoryRoot, {
+          contract: "mdlm-pending-settlement@1",
+          assignment: lease.id,
+          execution: publishedExecution,
+          responseDigest: publishedDigest,
+        });
+      },
+    };
     const submitted = exact.value.lease.obligation
       ? await submitPreparedResolverScenario(
           repositoryRoot,
@@ -2840,7 +2951,21 @@ export async function submitAssignmentResponse(
       )) return writeStaleDisposition(repositoryRoot, lease, renew);
       if (submitted.diagnostics.some((diagnostic) =>
         diagnostic.code === "scenario-publication-failed"
-      )) return { ok: false, diagnostics: submitted.diagnostics };
+      )) {
+        return {
+          ok: false,
+          value: {
+            contract: "mdlm-submission-outcome@1",
+            outcome: "settlement-required",
+            assignment: { id: lease.id },
+            responseDigest,
+            settlement: { assignment: lease.id, execution: executionId },
+            reason: "publication-closure-uncertain",
+            orchestration: { action: "inspect-settlement", replay: false },
+          },
+          diagnostics: submitted.diagnostics,
+        };
+      }
       return writeMalformedResponse(
         repositoryRoot,
         lease,
@@ -2851,6 +2976,7 @@ export async function submitAssignmentResponse(
     }
     await renew();
     await fs.rm(leasePath(repositoryRoot), { force: true });
+    await fs.rm(settlementPath(repositoryRoot), { force: true });
     const execution = submitted.value;
     return {
       ok: true,
@@ -2858,8 +2984,8 @@ export async function submitAssignmentResponse(
         contract: "mdlm-submission-outcome@1",
         outcome: "accepted",
         assignment: { id: lease.id },
-        responseDigest: sha256(responseSource),
-        settlement: { assignment: lease.id, execution: execution.id },
+        responseDigest,
+        settlement: { assignment: lease.id, execution: executionId },
         receipt: {
           publications: execution.outputs.map((output, index) => ({
             handle: proposal.outputs[index]!.localId ?? output.name,
@@ -2909,6 +3035,25 @@ export async function inspectSubmissionSettlement(
   if (direct.ok) {
     return { ok: true, value: acceptedSettlement(direct.value), diagnostics: [] };
   }
+  const pending = await readPendingSettlement(repositoryRoot);
+  if (pending && (pending.assignment === identity || pending.execution === identity)) {
+    return {
+      ok: true,
+      value: {
+        contract: "mdlm-submission-outcome@1",
+        outcome: "settlement-required",
+        assignment: { id: pending.assignment },
+        responseDigest: pending.responseDigest,
+        settlement: {
+          assignment: pending.assignment,
+          execution: pending.execution,
+        },
+        reason: "publication-closure-uncertain",
+        orchestration: { action: "inspect-settlement", replay: false },
+      },
+      diagnostics: [],
+    };
+  }
   const transactionsRoot = path.join(
     repositoryRoot,
     ".lifecycle/data/.transactions",
@@ -2957,7 +3102,7 @@ export async function inspectSubmissionSettlement(
       responseDigest: sha256(""),
       settlement: {
         assignment: identity,
-        execution: settlementIdentity(identity),
+        execution: identity,
       },
       reason: "publication-closure-uncertain",
       orchestration: { action: "inspect-settlement", replay: false },

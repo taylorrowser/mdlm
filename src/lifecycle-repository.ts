@@ -650,7 +650,7 @@ function scenarioExecutionStructureValid(
   const commonValid =
     execution.contract === "mdlm-scenario-execution@4" &&
     execution.adapter === undefined &&
-    response?.contract === "mdlm-assignment-response@1" &&
+    response?.contract === "mdlm-assignment-response@2" &&
     typeof response.assignment === "string" &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
       .test(response.assignment) &&

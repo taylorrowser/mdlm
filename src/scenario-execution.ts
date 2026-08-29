@@ -1005,7 +1005,7 @@ async function submitScenario(
     .sort();
   const discoveredObligations = resultingObligations
     .filter((id) => !beforeObligations.has(id));
-  const executionId = randomUUID();
+  const executionId = prepared?.executionId ?? randomUUID();
   const { skills: _availableSkills, ...prompt } = dryRun.prompt;
   const executionBase = {
     contract: "mdlm-scenario-execution@4" as const,
@@ -1051,6 +1051,7 @@ async function submitScenario(
     data: datum,
   }));
   const execution: ScenarioExecution = { ...executionBase, outputs: provisionalOutputs };
+  await prepared?.beginPublication?.(executionId, submittedResponse.digest);
   const published = await (prepared?.publishMutation ?? publishScenarioMutation)(
     repositoryRoot,
     processPackage,
@@ -1118,6 +1119,8 @@ export async function submitResolverScenario(
 }
 
 export interface PreparedScenarioSubmission {
+  executionId?: string;
+  beginPublication?: (executionId: string, responseDigest: string) => Promise<void>;
   dryRun: ScenarioDryRun;
   evaluation: LifecycleEvaluation;
   scenario: VersionedDefinition;
