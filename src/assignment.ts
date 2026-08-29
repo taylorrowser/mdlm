@@ -25,7 +25,6 @@ import {
   type RepositoryInspection,
   type RepositoryTransaction,
 } from "./repository-inspection.js";
-import { measure } from "./performance-diagnostics.js";
 import {
   classifyOperatorOutcome,
   type CheckpointConversation,
@@ -43,6 +42,7 @@ import {
   type ScenarioDryRunInvocation,
 } from "./scenario-dry-run.js";
 import {
+  readScenarioExecution,
   submitPreparedExplicitScenario,
   submitPreparedResolverScenario,
   type PackageExecutionIdentity,
@@ -56,6 +56,7 @@ import { withRepositoryLock } from "./repository-lock.js";
 
 const executeFile = promisify(execFile);
 const leaseRelativePath = ".lifecycle/work/active-assignment.json";
+const settlementRelativePath = ".lifecycle/work/submission-settlement.json";
 // Every lease writer takes this lock. The first response to acquire it owns the
 // Assignment outcome; a valid proposal retains ownership through publication
 // and lease retirement. Waiters reread the exact lease and return unavailable.
@@ -140,13 +141,9 @@ export type AssignmentState = {
 
 interface OperatorOutcomeBase {
   package: PackageSummary;
-  contract: "mdlm-next@1";
+  repository: RepositoryFingerprint;
+  contract: "mdlm-next@2";
   phase: string;
-  materializedExecutions: {
-    id: string;
-    scenario: string;
-    status: "completed";
-  }[];
 }
 
 export interface AttentionContext {
@@ -157,15 +154,12 @@ export interface AttentionContext {
 
 export type OperatorOutcome =
   | OperatorOutcomeBase & {
-      outcome: "publication-required";
-    }
-  | OperatorOutcomeBase & {
       outcome: "assignment";
-      assignment: { id: string };
+      assignment: { id: string; packet: AssignmentPacket };
     }
   | OperatorOutcomeBase & {
       outcome: "attention-required";
-      assignment: { id: string };
+      assignment: { id: string; packet: AssignmentPacket };
       authorityRequirement: NonNullable<ScenarioDryRun["participation"]>[number]["authorityRequirement"];
       attentionSchedule: NonNullable<ScenarioDryRun["participation"]>[number]["attentionSchedule"];
       explanation: string;
@@ -280,6 +274,40 @@ export interface AssignmentSubmission extends ScenarioExecution {
   contract: "mdlm-scenario-execution@4";
 }
 
+export type SubmissionOutcome =
+  | {
+      contract: "mdlm-submission-outcome@1";
+      outcome: "accepted";
+      assignment: { id: string };
+      responseDigest: string;
+      settlement: { assignment: string; execution: string };
+      receipt: {
+        publications: {
+          handle: string;
+          stableId: string;
+          revisionId: string;
+        }[];
+      };
+    }
+  | {
+      contract: "mdlm-submission-outcome@1";
+      outcome: "rejected";
+      assignment: { id: string };
+      responseDigest: string;
+      diagnostics: ProcessDiagnostic[];
+      retryable: boolean;
+      correctionConsumed: false;
+    }
+  | {
+      contract: "mdlm-submission-outcome@1";
+      outcome: "settlement-required";
+      assignment: { id: string };
+      responseDigest: string;
+      settlement: { assignment: string; execution: string };
+      reason: "publication-closure-uncertain";
+      orchestration: { action: "inspect-settlement"; replay: false };
+    };
+
 export type AssignmentDisposition =
   | {
       contract: "mdlm-assignment-disposition@1";
@@ -326,30 +354,24 @@ export interface AssignmentPacket {
   package: PackageExecutionIdentity;
   repository: RepositoryFingerprint;
   phase: string;
-  obligation: AssignmentLease["obligation"];
-  progression?: NonNullable<AssignmentLease["progression"]>;
+  work: {
+    kind: "obligation" | "phase-progression";
+    instance: string;
+    definition: string;
+    subject: string;
+  };
   scenario: {
     reference: string;
     definition: { id: string; version: number };
+    prompt: Omit<ScenarioDryRun["prompt"], "skills">;
+    skills: ScenarioDryRun["prompt"]["skills"];
   };
-  prompt: ScenarioDryRun["prompt"];
   exactInputs: ScenarioDryRunInvocation[];
-  allowedProjections: {
-    exactLifecycleData: string[];
-    exactLifecycleDataDigests: Record<string, string>;
-    inputSchemas: {
-      type: string;
-      envelope: Record<string, unknown>;
-      payload: Record<string, unknown>;
-      outgoingLinks: Record<string, unknown>[];
-    }[];
-    outputSchemas: {
-      type: string;
-      envelope: Record<string, unknown>;
-      payload: Record<string, unknown>;
-      outgoingLinks: Record<string, unknown>[];
-    }[];
-  };
+  schemas: Record<string, {
+    envelope: Record<string, unknown>;
+    payload: Record<string, unknown>;
+    outgoingLinks: Record<string, unknown>[];
+  }>;
   policies: ScenarioDryRun["policies"];
   participation: NonNullable<ScenarioDryRun["participation"]>;
   authority: {
@@ -363,37 +385,33 @@ export interface AssignmentPacket {
     standingDelegation: ScenarioDryRun["standingDelegation"] | null;
   };
   prohibitions: string[];
-  outputs: ScenarioDryRun["expectedOutputs"];
-  outputLinks: {
-    output: string;
-    requiredLinks: ScenarioDryRun["expectedOutputs"][number]["requiredLinks"];
-  }[];
+  outputs: (Omit<ScenarioDryRun["expectedOutputs"][number], "types"> & {
+    handle: string;
+    type: string;
+    payloadSummary: {
+      required: string[];
+      kernelManaged: string[];
+    };
+  })[];
   completion: ScenarioDryRun["completion"];
   responseSchema: Record<string, unknown>;
-  responseSkeleton?: AssignmentResponseSkeleton;
+  responseScaffold: AssignmentResponseSkeleton;
   checkpointConversation?: CheckpointConversation;
 }
 
 export interface AssignmentResponseSkeleton {
-  contract: "mdlm-assignment-response@1";
+  contract: "mdlm-assignment-response@2";
   assignment: string;
   kind: "proposal";
   proposal: {
     outputs: {
-      localId: string;
-      name: string;
-      invocation: 0;
-      lifecycleDatum: {
-        type: string;
-        payload: null;
-        links: { type: string; target: string }[];
-        body: null;
-      };
+      handle: string;
+      type: string;
+      payload: null;
+      links: SymbolicProposalLink[];
+      body: null;
     }[];
     completionEvidence: null;
-    loadedSkillRefs: null;
-    authoritySupplies: null;
-    standingDelegations: null;
   };
 }
 
@@ -404,11 +422,12 @@ type AssignmentResult<T> =
 type AssignmentSubmissionResult =
   | {
       ok: true;
-      value: AssignmentSubmission | AssignmentDisposition;
+      value: SubmissionOutcome;
       diagnostics: [];
     }
   | {
       ok: false;
+      value?: SubmissionOutcome;
       disposition?: AssignmentDisposition;
       diagnostics: ProcessDiagnostic[];
     };
@@ -536,6 +555,47 @@ async function writeLease(
   await fs.mkdir(path.dirname(target), { recursive: true });
   await fs.writeFile(temporary, `${JSON.stringify(lease, null, 2)}\n`);
   await fs.rename(temporary, target);
+}
+
+interface PendingSettlement {
+  contract: "mdlm-pending-settlement@1";
+  assignment: string;
+  execution: string;
+  responseDigest: string;
+}
+
+function settlementPath(repositoryRoot: string): string {
+  return path.join(repositoryRoot, settlementRelativePath);
+}
+
+async function writePendingSettlement(
+  repositoryRoot: string,
+  settlement: PendingSettlement,
+): Promise<void> {
+  const target = settlementPath(repositoryRoot);
+  const temporary = `${target}.${randomUUID()}.tmp`;
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(temporary, `${JSON.stringify(settlement, null, 2)}\n`);
+  await fs.rename(temporary, target);
+}
+
+async function readPendingSettlement(
+  repositoryRoot: string,
+): Promise<PendingSettlement | undefined> {
+  try {
+    const value = JSON.parse(
+      await fs.readFile(settlementPath(repositoryRoot), "utf8"),
+    ) as Partial<PendingSettlement>;
+    return value.contract === "mdlm-pending-settlement@1" &&
+        typeof value.assignment === "string" &&
+        typeof value.execution === "string" &&
+        typeof value.responseDigest === "string"
+      ? value as PendingSettlement
+      : undefined;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
+  }
 }
 
 function object(value: unknown): Record<string, unknown> | undefined {
@@ -983,6 +1043,45 @@ function assignmentFromPreparedWork(
   };
 }
 
+export interface DerivedOperatorOutcome {
+  evaluation: LifecycleEvaluation;
+  work: OperatorWorkFacts[];
+  classification: OperatorOutcomeClassification;
+}
+
+/** Derive one decision without observing clocks, identities, leases, or storage. */
+export function deriveOperatorOutcome(
+  authenticatedSnapshot: LifecycleSnapshot,
+  exactProcessPackage: ProcessPackage,
+): AssignmentResult<DerivedOperatorOutcome> {
+  const evaluation = activeLifecycleEvaluation(
+    exactProcessPackage,
+    authenticatedSnapshot,
+  );
+  if (evaluation.diagnostics.length > 0) {
+    return { ok: false, diagnostics: evaluation.diagnostics };
+  }
+  const work = operatorWorkProjection(
+    evaluation,
+    authenticatedSnapshot.records,
+  );
+  return {
+    ok: true,
+    value: {
+      evaluation,
+      work,
+      classification: classifyOperatorOutcome(
+        work,
+        evaluation.terminalOutcome,
+        evaluation.phase?.attentionCheckpoints
+          .filter((checkpoint) => checkpoint.active)
+          .map((checkpoint) => checkpoint.id) ?? [],
+      ),
+    },
+    diagnostics: [],
+  };
+}
+
 async function operatorStateFromSnapshot(
   repositoryRoot: string,
   summary: PackageSummary,
@@ -992,20 +1091,9 @@ async function operatorStateFromSnapshot(
   snapshot: LifecycleSnapshot,
   fingerprint: RepositoryFingerprint,
 ): Promise<AssignmentResult<ExactOperatorState>> {
-  const evaluation = measure(
-    "lifecycle.evaluation",
-    () => activeLifecycleEvaluation(processPackage, snapshot),
-  );
-  if (evaluation.diagnostics.length > 0) {
-    return { ok: false, diagnostics: evaluation.diagnostics };
-  }
-  const workItems = operatorWorkProjection(evaluation, snapshot.records);
-  const classification = classifyOperatorOutcome(
-    workItems,
-    evaluation.terminalOutcome,
-    evaluation.phase?.attentionCheckpoints.filter((checkpoint) => checkpoint.active)
-      .map((checkpoint) => checkpoint.id) ?? [],
-  );
+  const derived = deriveOperatorOutcome(snapshot, processPackage);
+  if (!derived.ok) return derived;
+  const { evaluation, work: workItems, classification } = derived.value;
   const state: ExactOperatorState = {
     summary,
     processPackage,
@@ -1212,7 +1300,7 @@ interface ExactBaselineMaterialization {
   evidenceTypes: Set<string>;
 }
 
-function exactBaselineMaterialization(
+export function exactBaselineMaterialization(
   scenario: VersionedDefinition,
 ): ExactBaselineMaterialization | undefined {
   const value = scenario.kernel_materialization;
@@ -1220,6 +1308,13 @@ function exactBaselineMaterialization(
     return undefined;
   const marker = value as Record<string, unknown>;
   if (marker.kind !== "exact-baseline@1") return undefined;
+  const declaredOutputs = Array.isArray(scenario.outputs)
+    ? scenario.outputs.map(object).filter((output) => output !== undefined)
+    : [];
+  if (
+    declaredOutputs.length !== 1 ||
+    declaredOutputs[0]?.name !== marker.output
+  ) return undefined;
   const string = (name: string) =>
     typeof marker[name] === "string" ? marker[name] as string : "";
   const strings = (candidate: unknown) =>
@@ -1439,14 +1534,21 @@ async function materializeExactBaseline(
     (skill) => skill.reference,
   );
   const responseSource = JSON.stringify({
-    contract: "mdlm-assignment-response@1",
+    contract: "mdlm-assignment-response@2",
     assignment: assignmentId,
     kind: "proposal",
     proposal: {
-      ...proposal,
-      loadedSkillRefs,
-      authoritySupplies: [],
-      standingDelegations: [],
+      outputs: proposal.outputs.map((output) => ({
+        handle: output.localId ?? output.name,
+        type: output.lifecycleDatum.type,
+        payload: output.lifecycleDatum.payload,
+        links: output.lifecycleDatum.links.map((link) => ({
+          type: link.type,
+          target: { datum: link.target },
+        })),
+        body: output.lifecycleDatum.body,
+      })),
+      completionEvidence: proposal.completionEvidence,
     },
   });
   const submitted = await submitPreparedResolverScenario(
@@ -1485,15 +1587,14 @@ function materializedRecords(execution: ScenarioExecution): LifecycleRecord[] {
 
 function leasedOutcome(
   exact: ExactAssignment,
-  assignmentId: string,
-  materializedExecutions: OperatorOutcomeBase["materializedExecutions"],
+  lease: AssignmentLease,
 ): AssignmentOutcome {
   const base = {
     package: exact.summary,
-    contract: "mdlm-next@1" as const,
+    repository: exact.lease.repository,
+    contract: "mdlm-next@2" as const,
     phase: exact.lease.phase,
-    assignment: { id: assignmentId },
-    materializedExecutions,
+    assignment: { id: lease.id, packet: packet(exact, lease) },
   };
   return exact.classification.kind === "attention-required"
     ? {
@@ -1514,7 +1615,7 @@ function leasedOutcome(
 }
 
 /** Classify the current repository and lease its one exact Assignment when present. */
-async function leaseNextAssignmentLocked(
+async function claimNextWorkLocked(
   repositoryRoot: string,
   renewLeaseLock: () => Promise<void>,
 ): Promise<AssignmentResult<AssignmentOutcome>> {
@@ -1536,7 +1637,6 @@ async function leaseNextAssignmentLocked(
   }
 
   const materializedObligations = new Set<string>();
-  const materializedExecutions: OperatorOutcomeBase["materializedExecutions"] = [];
   while (state.value.assignment) {
     const exact = state.value.assignment;
     const materialization = exactBaselineMaterialization(exact.scenario);
@@ -1588,11 +1688,6 @@ async function leaseNextAssignmentLocked(
     await fs.rm(leasePath(repositoryRoot), { force: true });
     activeLease = undefined;
     if (!materialized.ok) return materialized;
-    materializedExecutions.push({
-      id: materialized.value.id,
-      scenario: materialized.value.definition.scenario,
-      status: "completed",
-    });
     const fingerprint = await repositoryFingerprint(repositoryRoot);
     if (!fingerprint.ok) return fingerprint;
     const snapshot: LifecycleSnapshot = {
@@ -1614,24 +1709,6 @@ async function leaseNextAssignmentLocked(
     if (!state.ok) return state;
   }
 
-  if (materializedExecutions.length > 0) {
-    if (activeLease) {
-      await renewLeaseLock();
-      await fs.rm(leasePath(repositoryRoot), { force: true });
-    }
-    return {
-      ok: true,
-      value: {
-        package: state.value.summary,
-        contract: "mdlm-next@1",
-        phase: phaseReference(state.value.evaluation),
-        outcome: "publication-required",
-        materializedExecutions,
-      },
-      diagnostics: [],
-    };
-  }
-
   if (
     state.value.classification.kind !== "assignment" &&
     state.value.classification.kind !== "attention-required"
@@ -1643,9 +1720,9 @@ async function leaseNextAssignmentLocked(
     const classification = state.value.classification;
     const base = {
       package: state.value.summary,
-      contract: "mdlm-next@1" as const,
+      repository: state.value.fingerprint,
+      contract: "mdlm-next@2" as const,
       phase: phaseReference(state.value.evaluation),
-      materializedExecutions,
     };
     const value: AssignmentOutcome = classification.kind === "process-dead-end"
       ? {
@@ -1667,7 +1744,7 @@ async function leaseNextAssignmentLocked(
   if (activeLease && sameAssignment(activeLease, exact)) {
     return {
       ok: true,
-      value: leasedOutcome(exact, activeLease.id, materializedExecutions),
+      value: leasedOutcome(exact, activeLease),
       diagnostics: [],
     };
   }
@@ -1685,19 +1762,19 @@ async function leaseNextAssignmentLocked(
   await writeLease(repositoryRoot, lease);
   return {
     ok: true,
-    value: leasedOutcome(exact, lease.id, materializedExecutions),
+    value: leasedOutcome(exact, lease),
     diagnostics: [],
   };
 }
 
 /** Classify the repository and atomically own every resulting lease transition. */
-export function leaseNextAssignment(
+export function claimNextWork(
   repositoryRoot: string,
 ): Promise<AssignmentResult<AssignmentOutcome>> {
   return withRepositoryLock(
     repositoryRoot,
     leaseLockRef,
-    (renew) => leaseNextAssignmentLocked(repositoryRoot, renew),
+    (renew) => claimNextWorkLocked(repositoryRoot, renew),
   );
 }
 
@@ -1923,10 +2000,46 @@ export async function inspectOperatorStatus(
   };
 }
 
-/** Return the Assignment response contract, optionally bound to exact invocation groups. */
+interface SymbolicProposalLink {
+  type: string;
+  target:
+    | { input: string }
+    | { output: string }
+    | { datum: string };
+}
+
+interface SymbolicProposalOutput {
+  handle: string;
+  type: string;
+  payload: Record<string, unknown>;
+  links: SymbolicProposalLink[];
+  body: string;
+}
+
+interface ProposalAssignmentResponse {
+  contract: "mdlm-assignment-response@2";
+  assignment: string;
+  kind: "proposal";
+  proposal: {
+    outputs: SymbolicProposalOutput[];
+    completionEvidence: unknown;
+  };
+}
+
+interface UnableAssignmentResponse {
+  contract: "mdlm-assignment-response@2";
+  assignment: string;
+  kind: "unable";
+  unable: {
+    reason: UnableReason;
+    diagnostics: ProcessDiagnostic[];
+  };
+}
+
+type AssignmentResponse = ProposalAssignmentResponse | UnableAssignmentResponse;
+
 export function assignmentResponseSchema(
-  invocations?: readonly number[],
-  authoritySupplies?: readonly string[],
+  assignment?: string,
 ): Record<string, unknown> {
   const diagnostic = {
     type: "object",
@@ -1938,148 +2051,81 @@ export function assignmentResponseSchema(
       path: { type: "string" },
     },
   };
-  const lifecycleDatum = {
-    type: "object",
-    additionalProperties: false,
-    required: ["type", "payload", "links", "body"],
-    properties: {
-      id: {
-        type: "string",
-        description: "Existing Stable Datum identity for a same-lineage replacement; omit for a new Stable Datum",
-      },
-      type: { type: "string", pattern: "^[A-Z]{3,8}$" },
-      payload: { type: "object" },
-      links: {
-        type: "array",
-        items: {
-          type: "object",
-          additionalProperties: false,
-          required: ["type", "target"],
-          properties: {
-            type: { type: "string" },
-            target: { type: "string" },
-          },
-        },
-      },
-      body: { type: "string" },
-    },
+  const target = {
+    oneOf: ["input", "output", "datum"].map((name) => ({
+      type: "object",
+      additionalProperties: false,
+      required: [name],
+      properties: { [name]: { type: "string", minLength: 1 } },
+    })),
   };
   const common = {
-    contract: { const: "mdlm-assignment-response@1" },
-    assignment: { type: "string", minLength: 1 },
+    contract: { const: "mdlm-assignment-response@2" },
+    assignment: assignment ? { const: assignment } : { type: "string", minLength: 1 },
   };
-  const authoritySuppliesSchema = authoritySupplies
-    ? authoritySupplies.length > 0
-      ? { items: { enum: [...authoritySupplies] } }
-      : { items: { type: "string" }, maxItems: 0 }
-    : { items: { type: "string" } };
   return {
     $schema: "https://json-schema.org/draft/2020-12/schema",
-    $id: "https://mdlm.dev/contracts/mdlm-assignment-response@1",
+    $id: "https://mdlm.dev/contracts/mdlm-assignment-response@2",
     title: "MDLM Assignment Response",
-    oneOf: [
-      {
-        type: "object",
-        additionalProperties: false,
-        required: ["contract", "assignment", "kind", "proposal"],
-        properties: {
-          ...common,
-          kind: { const: "proposal" },
-          proposal: {
-            type: "object",
-            additionalProperties: false,
-            required: [
-              "outputs",
-              "completionEvidence",
-              "loadedSkillRefs",
-              "authoritySupplies",
-              "standingDelegations",
-            ],
-            properties: {
-              outputs: {
-                type: "array",
-                items: {
-                  type: "object",
-                  additionalProperties: false,
-                  required: ["localId", "name", "invocation", "lifecycleDatum"],
-                  properties: {
-                    localId: {
-                      type: "string",
-                      pattern: "^[A-Za-z][A-Za-z0-9_-]*$",
-                      description: "Proposal-local identity used by $proposal.<localId>.id and $proposal.<localId>.revision_id references",
+    oneOf: [{
+      type: "object",
+      additionalProperties: false,
+      required: ["contract", "assignment", "kind", "proposal"],
+      properties: {
+        ...common,
+        kind: { const: "proposal" },
+        proposal: {
+          type: "object",
+          additionalProperties: false,
+          required: ["outputs", "completionEvidence"],
+          properties: {
+            outputs: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["handle", "type", "payload", "links", "body"],
+                properties: {
+                  handle: { type: "string", pattern: "^[A-Za-z][A-Za-z0-9_-]*$" },
+                  type: { type: "string", pattern: "^[A-Z]{3,8}$" },
+                  payload: { type: "object" },
+                  links: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      additionalProperties: false,
+                      required: ["type", "target"],
+                      properties: { type: { type: "string" }, target },
                     },
-                    name: { type: "string" },
-                    invocation: invocations
-                      ? { type: "integer", enum: [...invocations] }
-                      : { type: "integer", minimum: 0 },
-                    lifecycleDatum,
                   },
+                  body: { type: "string" },
                 },
               },
-              completionEvidence: {},
-              loadedSkillRefs: {
-                type: "array",
-                items: { type: "string", minLength: 1 },
-                uniqueItems: true,
-              },
-              authoritySupplies: {
-                type: "array",
-                ...authoritySuppliesSchema,
-                uniqueItems: true,
-              },
-              standingDelegations: {
-                type: "array",
-                items: { type: "string" },
-                uniqueItems: true,
-              },
             },
+            completionEvidence: {},
           },
         },
       },
-      {
-        type: "object",
-        additionalProperties: false,
-        required: ["contract", "assignment", "kind", "unable"],
-        properties: {
-          ...common,
-          kind: { const: "unable" },
-          unable: {
-            type: "object",
-            additionalProperties: false,
-            required: ["reason", "diagnostics"],
-            properties: {
-              reason: { enum: unableReasonCategories },
-              diagnostics: { type: "array", items: diagnostic },
-            },
+    }, {
+      type: "object",
+      additionalProperties: false,
+      required: ["contract", "assignment", "kind", "unable"],
+      properties: {
+        ...common,
+        kind: { const: "unable" },
+        unable: {
+          type: "object",
+          additionalProperties: false,
+          required: ["reason", "diagnostics"],
+          properties: {
+            reason: { enum: unableReasonCategories },
+            diagnostics: { type: "array", items: diagnostic },
           },
         },
       },
-    ],
+    }],
   };
 }
-
-interface ProposalAssignmentResponse {
-  contract: "mdlm-assignment-response@1";
-  assignment: string;
-  kind: "proposal";
-  proposal: ScenarioProposal & {
-    loadedSkillRefs: string[];
-    authoritySupplies: string[];
-    standingDelegations: string[];
-  };
-}
-
-interface UnableAssignmentResponse {
-  contract: "mdlm-assignment-response@1";
-  assignment: string;
-  kind: "unable";
-  unable: {
-    reason: UnableReason;
-    diagnostics: ProcessDiagnostic[];
-  };
-}
-
-type AssignmentResponse = ProposalAssignmentResponse | UnableAssignmentResponse;
 
 const validateAssignmentResponse = new Ajv2020({ allErrors: true, strict: false })
   .compile(assignmentResponseSchema());
@@ -2118,8 +2164,12 @@ function parseAssignmentResponse(
   };
 }
 
-type ProjectedTypeSchema =
-  AssignmentPacket["allowedProjections"]["outputSchemas"][number];
+type ProjectedTypeSchema = {
+  type: string;
+  envelope: Record<string, unknown>;
+  payload: Record<string, unknown>;
+  outgoingLinks: Record<string, unknown>[];
+};
 
 function projectedTypeSchemas(
   processPackage: ProcessPackage,
@@ -2143,7 +2193,7 @@ function projectedTypeSchemas(
 function inputSchemas(
   processPackage: ProcessPackage,
   dryRun: ScenarioDryRun,
-): AssignmentPacket["allowedProjections"]["inputSchemas"] {
+): ProjectedTypeSchema[] {
   return projectedTypeSchemas(
     processPackage,
     dryRun.invocations.flatMap((invocation) =>
@@ -2157,7 +2207,7 @@ function inputSchemas(
 function outputSchemas(
   processPackage: ProcessPackage,
   dryRun: ScenarioDryRun,
-): AssignmentPacket["allowedProjections"]["outputSchemas"] {
+): ProjectedTypeSchema[] {
   return projectedTypeSchemas(
     processPackage,
     dryRun.expectedOutputs.flatMap((output) => output.types),
@@ -2201,19 +2251,9 @@ function assignmentResponseSkeleton(
   lease: AssignmentLease,
 ): AssignmentResponseSkeleton | undefined {
   const { dryRun, processPackage, scenario } = exact;
-  const nonAutonomous = (dryRun.participation ?? []).some((item) =>
-    item.authorityRequirement.mode !== "autonomous"
-  );
-  const authorityOutput = authorityEvidenceContract(scenario.authority_evidence)?.output;
   if (
     dryRun.invocations.length !== 1 ||
-    dryRun.expectedOutputs.some((output) =>
-      (output.cardinality !== "one" && !(
-        nonAutonomous &&
-        output.cardinality === "zero-or-one" &&
-        output.name === authorityOutput
-      )) || output.types.length !== 1
-    )
+    dryRun.expectedOutputs.some((output) => output.types.length !== 1)
   ) return undefined;
 
   const invocation = dryRun.invocations[0]!;
@@ -2230,6 +2270,12 @@ function assignmentResponseSkeleton(
     outputDefinitions.some((output) => !output) ||
     outputDefinitions.length !== dryRun.expectedOutputs.length
   ) return undefined;
+  const handleByName = new Map(outputDefinitions.map((definition) => [
+    String(definition!.name),
+    typeof definition!.handle === "string"
+      ? definition!.handle
+      : String(definition!.name),
+  ]));
 
   const outputs: AssignmentResponseSkeleton["proposal"]["outputs"] = [];
   for (const expected of dryRun.expectedOutputs) {
@@ -2246,7 +2292,7 @@ function assignmentResponseSkeleton(
       requiredLinks.length !== expected.requiredLinks.length
     ) return undefined;
 
-    const links: { type: string; target: string }[] = [];
+    const links: SymbolicProposalLink[] = [];
     for (const required of requiredLinks) {
       const linkId = typeof required?.link === "string" ? required.link : undefined;
       const target = object(required?.target);
@@ -2259,19 +2305,13 @@ function assignmentResponseSkeleton(
         );
         if (!input || input.values.length !== 1) return undefined;
         const value = input.values[0]!;
-        const identity = requiredLinkIdentity(
+        if (!requiredLinkIdentity(
           processPackage,
           sourceType,
           linkId,
           value.identity.type,
-        );
-        const exactTarget = identity === "id"
-          ? value.identity.id
-          : identity === "revision_id"
-          ? value.identity.revision_id
-          : undefined;
-        if (!exactTarget) return undefined;
-        links.push({ type: linkId, target: exactTarget });
+        )) return undefined;
+        links.push({ type: linkId, target: { input: target.input } });
         continue;
       }
       if (typeof target?.output === "string") {
@@ -2287,36 +2327,148 @@ function assignmentResponseSkeleton(
         if (!identity) return undefined;
         links.push({
           type: linkId,
-          target: `$proposal.${targetOutput.name}.${identity}`,
+          target: { output: handleByName.get(targetOutput.name) ?? targetOutput.name },
         });
         continue;
       }
       return undefined;
     }
     outputs.push({
-      localId: expected.name,
-      name: expected.name,
-      invocation: 0,
-      lifecycleDatum: {
-        type: sourceType,
-        payload: null,
-        links,
-        body: null,
-      },
+      handle: handleByName.get(expected.name) ?? expected.name,
+      type: sourceType,
+      payload: null,
+      links,
+      body: null,
     });
   }
 
   return {
-    contract: "mdlm-assignment-response@1",
+    contract: "mdlm-assignment-response@2",
     assignment: lease.id,
     kind: "proposal",
     proposal: {
       outputs,
       completionEvidence: null,
-      loadedSkillRefs: null,
-      authoritySupplies: null,
-      standingDelegations: null,
     },
+  };
+}
+
+function internalLinkTarget(
+  exact: ExactAssignment,
+  sourceType: string,
+  link: SymbolicProposalLink,
+  outputTypes: Map<string, string>,
+): string | undefined {
+  if ("datum" in link.target) return link.target.datum;
+  if ("input" in link.target) {
+    const inputName = link.target.input;
+    const values = exact.dryRun.invocations.flatMap((invocation) =>
+      invocation.inputs
+        .filter((input) => input.name === inputName)
+        .flatMap((input) => input.values)
+    );
+    if (values.length !== 1) return undefined;
+    const value = values[0]!;
+    const identity = requiredLinkIdentity(
+      exact.processPackage,
+      sourceType,
+      link.type,
+      value.identity.type,
+    );
+    return identity === "id"
+      ? value.identity.id
+      : identity === "revision_id"
+      ? value.identity.revision_id
+      : undefined;
+  }
+  const targetType = outputTypes.get(link.target.output);
+  if (!targetType) return undefined;
+  const identity = requiredLinkIdentity(
+    exact.processPackage,
+    sourceType,
+    link.type,
+    targetType,
+  );
+  return identity
+    ? `$proposal.${link.target.output}.${identity}`
+    : undefined;
+}
+
+function scenarioProposalFromResponse(
+  exact: ExactAssignment,
+  lease: AssignmentLease,
+  response: ProposalAssignmentResponse,
+): AssignmentResult<ScenarioProposal> {
+  const scaffold = assignmentResponseSkeleton(exact, lease);
+  if (!scaffold) {
+    return failure(
+      "assignment-response-scaffold-unavailable",
+      "The exact Scenario cannot be represented by the v2 symbolic response contract",
+      exact.lease.scenario,
+    );
+  }
+  const supplied = new Map<string, SymbolicProposalOutput>();
+  for (const output of response.proposal.outputs) {
+    if (supplied.has(output.handle)) {
+      return failure(
+        "assignment-response-handle-duplicate",
+        `Assignment Response repeats symbolic output handle '${output.handle}'`,
+        `proposal.outputs.${output.handle}`,
+      );
+    }
+    supplied.set(output.handle, output);
+  }
+  const expected = new Set(scaffold.proposal.outputs.map((output) => output.handle));
+  const unexpected = [...supplied.keys()].filter((handle) => !expected.has(handle));
+  const missing = [...expected].filter((handle) => !supplied.has(handle));
+  if (unexpected.length > 0 || missing.length > 0) {
+    return failure(
+      "assignment-response-handles-invalid",
+      `Assignment Response handles must match the packet; missing ${JSON.stringify(missing)}, unexpected ${JSON.stringify(unexpected)}`,
+      "proposal.outputs",
+    );
+  }
+  const outputTypes = new Map(scaffold.proposal.outputs.map((output) => [
+    output.handle,
+    output.type,
+  ]));
+  const outputs: ScenarioProposal["outputs"] = [];
+  for (const [index, expectedOutput] of scaffold.proposal.outputs.entries()) {
+    const output = supplied.get(expectedOutput.handle)!;
+    if (output.type !== expectedOutput.type) {
+      return failure(
+        "assignment-response-type-invalid",
+        `Symbolic output '${output.handle}' must use type '${expectedOutput.type}'`,
+        `proposal.outputs.${output.handle}.type`,
+      );
+    }
+    const links = expectedOutput.links.map((link) => ({
+      type: link.type,
+      target: internalLinkTarget(exact, output.type, link, outputTypes),
+    }));
+    if (links.some((link) => link.target === undefined)) {
+      return failure(
+        "assignment-response-link-unresolved",
+        `Kernel could not resolve a required link for symbolic output '${output.handle}'`,
+        `proposal.outputs.${output.handle}.links`,
+      );
+    }
+    outputs.push({
+      localId: output.handle,
+      name: exact.dryRun.expectedOutputs[index]!.name,
+      invocation: 0,
+      lifecycleDatum: {
+        type: output.type,
+        payload: output.payload,
+        links: links as { type: string; target: string }[],
+        body: output.body,
+      },
+    });
+  }
+  return {
+    ok: true,
+    value: { outputs, completionEvidence: response.proposal.completionEvidence },
+    diagnostics: [],
   };
 }
 
@@ -2325,31 +2477,49 @@ function packet(
   lease: AssignmentLease,
 ): AssignmentPacket {
   const participation = exact.dryRun.participation ?? [];
-  const exactData = exactLifecycleData(exact.dryRun);
   const responseSkeleton = assignmentResponseSkeleton(exact, lease);
-  return {
+  const outputHandles = new Map(
+    (Array.isArray(exact.scenario.outputs) ? exact.scenario.outputs : [])
+      .map(object)
+      .filter((output) => typeof output?.name === "string")
+      .map((output) => [
+        String(output!.name),
+        typeof output!.handle === "string"
+          ? output!.handle
+          : String(output!.name),
+      ]),
+  );
+  if (!responseSkeleton) {
+    throw new Error(`Scenario '${exact.lease.scenario}' cannot render one symbolic Assignment response`);
+  }
+  const schemas = Object.fromEntries(
+    [...inputSchemas(exact.processPackage, exact.dryRun), ...outputSchemas(exact.processPackage, exact.dryRun)]
+      .map(({ type, ...schema }) => [type, schema]),
+  );
+  const { skills, ...prompt } = exact.dryRun.prompt;
+  const work = exact.lease.obligation
+    ? { kind: "obligation" as const, ...exact.lease.obligation }
+    : {
+        kind: "phase-progression" as const,
+        instance: exact.lease.progression!.instance,
+        definition: exact.lease.progression!.nextPhase,
+        subject: exact.lease.progression!.subjects[0] ?? exact.lease.phase,
+      };
+  const rendered: AssignmentPacket = {
     contract: "mdlm-assignment-packet@3",
     assignment: { id: lease.id },
     package: exact.lease.package,
     repository: exact.lease.repository,
     phase: exact.lease.phase,
-    obligation: exact.lease.obligation,
-    ...(exact.lease.progression
-      ? { progression: exact.lease.progression }
-      : {}),
+    work,
     scenario: {
       reference: exact.lease.scenario,
       definition: { id: exact.scenario.id, version: exact.scenario.version },
+      prompt,
+      skills,
     },
-    prompt: exact.dryRun.prompt,
     exactInputs: exact.dryRun.invocations,
-    allowedProjections: {
-      exactLifecycleData: exactData,
-      exactLifecycleDataDigests:
-        exact.inspection.exactLifecycleDataDigests(exactData),
-      inputSchemas: inputSchemas(exact.processPackage, exact.dryRun),
-      outputSchemas: outputSchemas(exact.processPackage, exact.dryRun),
-    },
+    schemas,
     policies: exact.dryRun.policies,
     participation,
     authority: {
@@ -2367,21 +2537,20 @@ function packet(
       standingDelegation: exact.dryRun.standingDelegation ?? null,
     },
     prohibitions: exact.dryRun.prohibitedInputs,
-    outputs: exact.dryRun.expectedOutputs,
-    outputLinks: exact.dryRun.expectedOutputs.map((output) => ({
-      output: output.name,
-      requiredLinks: output.requiredLinks,
+    outputs: exact.dryRun.expectedOutputs.map(({ types, ...output }) => ({
+      ...output,
+      handle: outputHandles.get(output.name) ?? output.name,
+      type: types[0]!,
+      payloadSummary: {
+        required: Array.isArray(schemas[types[0]!]?.payload.required)
+          ? schemas[types[0]!]!.payload.required as string[]
+          : [],
+        kernelManaged: [],
+      },
     })),
     completion: exact.dryRun.completion,
-    responseSchema: assignmentResponseSchema(
-      exact.dryRun.invocations.map((_, invocation) => invocation),
-      [...new Set(participation.flatMap((value) =>
-        value.authorityRequirement.mode === "autonomous"
-          ? []
-          : [value.authorityRequirement.authority]
-      ))].sort(),
-    ),
-    ...(responseSkeleton ? { responseSkeleton } : {}),
+    responseSchema: assignmentResponseSchema(lease.id),
+    responseScaffold: responseSkeleton,
     ...(exact.classification.kind === "attention-required" &&
         exact.classification.checkpointConversation
       ? {
@@ -2390,6 +2559,43 @@ function packet(
         }
       : {}),
   };
+  assertAssignmentPacketV3(rendered);
+  return rendered;
+}
+
+/** Keep every real claim on the same serialized seam frozen by the v2 fixtures. */
+export function assertAssignmentPacketV3(value: unknown): asserts value is AssignmentPacket {
+  const candidate = object(value);
+  const scenario = object(candidate?.scenario);
+  const scaffold = object(candidate?.responseScaffold);
+  const required = [
+    "assignment",
+    "package",
+    "repository",
+    "phase",
+    "work",
+    "scenario",
+    "exactInputs",
+    "schemas",
+    "outputs",
+    "policies",
+    "participation",
+    "authority",
+    "prohibitions",
+    "completion",
+    "responseScaffold",
+    "responseSchema",
+  ];
+  if (
+    candidate?.contract !== "mdlm-assignment-packet@3" ||
+    required.some((key) => !(key in candidate)) ||
+    !scenario || !("prompt" in scenario) || !("skills" in scenario) ||
+    scaffold?.contract !== "mdlm-assignment-response@2" ||
+    "allowedProjections" in candidate || "outputLinks" in candidate ||
+    "prompt" in candidate || "obligation" in candidate || "progression" in candidate
+  ) {
+    throw new Error("Assignment packet does not satisfy mdlm-assignment-packet@3");
+  }
 }
 
 function dispositionBase(assignmentId: string): {
@@ -2437,52 +2643,48 @@ function withExactActiveLease(
   });
 }
 
-async function writeMalformedResponse(
-  repositoryRoot: string,
-  lease: AssignmentLease,
+function rejectedSubmission(
+  assignmentId: string,
   responseSource: string,
   diagnostics: ProcessDiagnostic[],
-  renew: () => Promise<void>,
+  retryable: boolean,
+): Extract<SubmissionOutcome, { outcome: "rejected" }> {
+  return {
+    contract: "mdlm-submission-outcome@1",
+    outcome: "rejected",
+    assignment: { id: assignmentId },
+    responseDigest: sha256(responseSource),
+    diagnostics,
+    retryable,
+    correctionConsumed: false,
+  };
+}
+
+async function writeMalformedResponse(
+  _repositoryRoot: string,
+  lease: AssignmentLease,
+  _responseSource: string,
+  diagnostics: ProcessDiagnostic[],
+  _renew: () => Promise<void>,
 ): Promise<AssignmentSubmissionResult> {
-  const malformedResponses = [
-    ...lease.malformedResponses,
-    { digest: sha256(responseSource), diagnostics },
-  ];
-  const correctionRequired =
-    lease.retryAvailability.malformedResponseCorrection === 1;
-  const disposition: AssignmentDisposition = correctionRequired
-    ? {
-        ...dispositionBase(lease.id),
-        disposition: "correction-required",
-        orchestration: {
-          action: "correct-response",
-          automaticReplacement: false,
-        },
-        malformedResponse: {
-          attempt: malformedResponses.length,
-          correctionsRemaining: 1,
-          diagnostics,
-        },
-      }
-    : {
-        ...dispositionBase(lease.id),
-        disposition: "exhausted",
-        orchestration: { action: "stop", automaticReplacement: false },
-        malformedResponse: {
-          attempt: malformedResponses.length,
-          correctionsRemaining: 0,
-          diagnostics,
-        },
-      };
-  await renew();
-  await writeLease(repositoryRoot, {
-    ...lease,
-    disposition: correctionRequired ? "active" : "exhausted",
-    retryAvailability: { malformedResponseCorrection: 0 },
-    malformedResponses,
-    ...(correctionRequired ? {} : { terminalDiagnostics: diagnostics }),
-  });
-  return { ok: false, disposition, diagnostics };
+  return {
+    ok: false,
+    value: rejectedSubmission(lease.id, _responseSource, diagnostics, true),
+    disposition: {
+      ...dispositionBase(lease.id),
+      disposition: "correction-required",
+      orchestration: {
+        action: "correct-response",
+        automaticReplacement: false,
+      },
+      malformedResponse: {
+        attempt: 1,
+        correctionsRemaining: 1,
+        diagnostics,
+      },
+    },
+    diagnostics,
+  };
 }
 
 async function recordMalformedResponse(
@@ -2524,6 +2726,7 @@ async function writeStaleDisposition(
   });
   return {
     ok: false,
+    value: rejectedSubmission(lease.id, "", diagnostics, false),
     disposition: {
       ...dispositionBase(lease.id),
       disposition: "stale",
@@ -2562,15 +2765,16 @@ async function writeUnableResponse(
       unable,
     },
   });
+  const diagnostics = unable.diagnostics.length > 0
+    ? unable.diagnostics
+    : [{
+        code: "assignment-unable",
+        message: `Assignment could not complete: ${unable.reason}`,
+      }];
   return {
-    ok: true,
-    value: {
-      ...dispositionBase(lease.id),
-      disposition: "abandoned",
-      orchestration: { action: "stop", automaticReplacement: false },
-      unable,
-    },
-    diagnostics: [],
+    ok: false,
+    value: rejectedSubmission(lease.id, responseSource, diagnostics, false),
+    diagnostics,
   };
 }
 
@@ -2598,6 +2802,7 @@ async function recordUnableResponse(
 export async function submitAssignmentResponse(
   repositoryRoot: string,
   responseSource: string,
+  authoritySupplies: string[] = [],
 ): Promise<AssignmentSubmissionResult> {
   const persisted = await readLease(repositoryRoot);
   if (!persisted.ok) return persisted;
@@ -2637,7 +2842,22 @@ export async function submitAssignmentResponse(
       parsed.value.unable,
     );
   }
-  const proposal = parsed.value.proposal;
+  const normalized = scenarioProposalFromResponse(
+    exact.value,
+    lease,
+    parsed.value,
+  );
+  if (!normalized.ok) {
+    return recordMalformedResponse(
+      repositoryRoot,
+      lease,
+      responseSource,
+      normalized.diagnostics,
+    );
+  }
+  const proposal = normalized.value;
+  const responseDigest = sha256(responseSource);
+  const executionId = settlementIdentity(`${lease.id}:${responseDigest}`);
   const submission = {
     scenarioReference: exact.value.lease.scenario,
     proposal: {
@@ -2645,10 +2865,19 @@ export async function submitAssignmentResponse(
       completionEvidence: proposal.completionEvidence,
     },
     assignment: lease.id,
-    responseDigest: sha256(responseSource),
-    suppliedAuthorities: proposal.authoritySupplies,
-    suppliedDelegations: proposal.standingDelegations,
-    loadedSkillRefs: proposal.loadedSkillRefs,
+    responseDigest,
+    suppliedAuthorities: [
+      ...new Set([
+        ...(exact.value.dryRun.participation?.flatMap((item) =>
+          item.authorityRequirement.mode === "delegated"
+            ? [item.authorityRequirement.authority]
+            : []
+        ) ?? []),
+        ...authoritySupplies,
+      ]),
+    ],
+    suppliedDelegations: [],
+    loadedSkillRefs: exact.value.dryRun.prompt.skills.map((skill) => skill.reference),
   };
   return withExactActiveLease(repositoryRoot, lease, async (lease, renew) => {
     const verifyAssignment = async (): Promise<AssignmentResult<undefined>> => {
@@ -2663,11 +2892,23 @@ export async function submitAssignmentResponse(
           leasePath(repositoryRoot),
         );
     };
-    const prepared = preparedScenarioSubmission(
-      repositoryRoot,
-      exact.value,
-      verifyAssignment,
-    );
+    const prepared = {
+      ...preparedScenarioSubmission(
+        repositoryRoot,
+        exact.value,
+        verifyAssignment,
+      ),
+      executionId,
+      beginPublication: async (publishedExecution: string, publishedDigest: string) => {
+        await renew();
+        await writePendingSettlement(repositoryRoot, {
+          contract: "mdlm-pending-settlement@1",
+          assignment: lease.id,
+          execution: publishedExecution,
+          responseDigest: publishedDigest,
+        });
+      },
+    };
     const submitted = exact.value.lease.obligation
       ? await submitPreparedResolverScenario(
           repositoryRoot,
@@ -2700,7 +2941,21 @@ export async function submitAssignmentResponse(
       )) return writeStaleDisposition(repositoryRoot, lease, renew);
       if (submitted.diagnostics.some((diagnostic) =>
         diagnostic.code === "scenario-publication-failed"
-      )) return { ok: false, diagnostics: submitted.diagnostics };
+      )) {
+        return {
+          ok: false,
+          value: {
+            contract: "mdlm-submission-outcome@1",
+            outcome: "settlement-required",
+            assignment: { id: lease.id },
+            responseDigest,
+            settlement: { assignment: lease.id, execution: executionId },
+            reason: "publication-closure-uncertain",
+            orchestration: { action: "inspect-settlement", replay: false },
+          },
+          diagnostics: submitted.diagnostics,
+        };
+      }
       return writeMalformedResponse(
         repositoryRoot,
         lease,
@@ -2711,120 +2966,137 @@ export async function submitAssignmentResponse(
     }
     await renew();
     await fs.rm(leasePath(repositoryRoot), { force: true });
+    await fs.rm(settlementPath(repositoryRoot), { force: true });
+    const execution = submitted.value;
     return {
       ok: true,
-      value: submitted.value as AssignmentSubmission,
+      value: {
+        contract: "mdlm-submission-outcome@1",
+        outcome: "accepted",
+        assignment: { id: lease.id },
+        responseDigest,
+        settlement: { assignment: lease.id, execution: executionId },
+        receipt: {
+          publications: execution.outputs.map((output, index) => ({
+            handle: proposal.outputs[index]!.localId ?? output.name,
+            stableId: output.lifecycleDatum.id,
+            revisionId: output.lifecycleDatum.revisionId,
+          })),
+        },
+      },
       diagnostics: [],
     };
   });
 }
 
-/** Revalidate one active exact Assignment and expand its harness-neutral packet. */
-async function prepareAssignmentLocked(
-  repositoryRoot: string,
-  assignmentId: string,
-  expectedLease: AssignmentLease,
-  exact: AssignmentResult<ExactAssignment>,
-  renewLeaseLock: () => Promise<void>,
-): Promise<AssignmentResult<AssignmentPacket>> {
-  const persisted = await readLease(repositoryRoot);
-  if (!persisted.ok) return persisted;
-  if (!exactActiveLease(persisted.value, expectedLease)) {
-    return unavailableSubmission(assignmentId);
-  }
-  const lease = persisted.value;
-  if (!exact.ok) {
-    if (exact.diagnostics.some((item) =>
-      item.code === "assignment-repository-fingerprint-failed"
-    )) return exact;
-    await renewLeaseLock();
-    await fs.rm(leasePath(repositoryRoot), { force: true });
-    return failure(
-      "assignment-stale",
-      `Assignment '${assignmentId}' no longer matches the current exact repository state; prepare will not rebase it`,
-      assignmentId,
-    );
-  }
-  const unchanged = await confirmRepositoryFingerprint(
-    repositoryRoot,
-    exact.value.lease.repository,
-  );
-  if (!unchanged.ok) {
-    if (unchanged.diagnostics.some((item) =>
-      item.code === "assignment-repository-fingerprint-failed"
-    )) return unchanged;
-    await renewLeaseLock();
-    await fs.rm(leasePath(repositoryRoot), { force: true });
-    return failure(
-      "assignment-stale",
-      `Assignment '${assignmentId}' no longer matches the current exact repository state; prepare will not rebase it`,
-      assignmentId,
-    );
-  }
-  if (!sameAssignment(lease, exact.value)) {
-    if (sameAssignmentSource(lease, exact.value)) {
-      return invalidLease(repositoryRoot);
-    }
-    const rebased = await packageMigrationRebase(repositoryRoot, lease, exact.value);
-    if (rebased) {
-      await renewLeaseLock();
-      await writeLease(repositoryRoot, rebased);
-      return {
-        ok: true,
-        value: packet(exact.value, rebased),
-        diagnostics: [],
-      };
-    }
-    await renewLeaseLock();
-    await fs.rm(leasePath(repositoryRoot), { force: true });
-    return failure(
-      "assignment-stale",
-      `Assignment '${assignmentId}' no longer matches the current exact repository state; prepare will not rebase it`,
-      assignmentId,
-    );
-  }
+function settlementIdentity(identity: string): string {
+  const digest = createHash("sha256").update(identity).digest("hex").slice(0, 32);
+  return `${digest.slice(0, 8)}-${digest.slice(8, 12)}-4${digest.slice(13, 16)}-8${digest.slice(17, 20)}-${digest.slice(20)}`;
+}
+
+function acceptedSettlement(
+  execution: ScenarioExecution,
+): Extract<SubmissionOutcome, { outcome: "accepted" }> {
   return {
-    ok: true,
-    value: packet(exact.value, lease),
-    diagnostics: [],
+    contract: "mdlm-submission-outcome@1",
+    outcome: "accepted",
+    assignment: { id: execution.response.assignment },
+    responseDigest: execution.response.digest,
+    settlement: {
+      assignment: execution.response.assignment,
+      execution: execution.id,
+    },
+    receipt: {
+      publications: execution.outputs.map((output) => ({
+        handle: output.handle,
+        stableId: output.lifecycleDatum.id,
+        revisionId: output.lifecycleDatum.revisionId,
+      })),
+    },
   };
 }
 
-/** Revalidate preparation without locking unless the lease must change. */
-export async function prepareAssignment(
+/** Reconcile submission closure from immutable execution data or the active lease. */
+export async function inspectSubmissionSettlement(
   repositoryRoot: string,
-  assignmentId: string,
-): Promise<AssignmentResult<AssignmentPacket>> {
-  const persisted = await readLease(repositoryRoot);
-  if (!persisted.ok) return persisted;
-  const lease = persisted.value;
-  if (!lease || lease.disposition !== "active" || lease.id !== assignmentId) {
-    return unavailableSubmission(assignmentId);
+  identity: string,
+): Promise<AssignmentResult<SubmissionOutcome>> {
+  const direct = await readScenarioExecution(repositoryRoot, identity);
+  if (direct.ok) {
+    return { ok: true, value: acceptedSettlement(direct.value), diagnostics: [] };
   }
-  const exact = await exactAssignment(repositoryRoot);
-  if (!exact.ok && exact.diagnostics.some((item) =>
-    item.code === "assignment-repository-fingerprint-failed"
-  )) return exact;
-  if (exact.ok && sameAssignment(lease, exact.value)) {
+  const pending = await readPendingSettlement(repositoryRoot);
+  if (pending && (pending.assignment === identity || pending.execution === identity)) {
     return {
       ok: true,
-      value: packet(exact.value, lease),
+      value: {
+        contract: "mdlm-submission-outcome@1",
+        outcome: "settlement-required",
+        assignment: { id: pending.assignment },
+        responseDigest: pending.responseDigest,
+        settlement: {
+          assignment: pending.assignment,
+          execution: pending.execution,
+        },
+        reason: "publication-closure-uncertain",
+        orchestration: { action: "inspect-settlement", replay: false },
+      },
       diagnostics: [],
     };
   }
-  if (exact.ok && sameAssignmentSource(lease, exact.value)) {
-    return invalidLease(repositoryRoot);
-  }
-  return withRepositoryLock(
+  const transactionsRoot = path.join(
     repositoryRoot,
-    leaseLockRef,
-    (renew) =>
-      prepareAssignmentLocked(
-        repositoryRoot,
-        assignmentId,
-        lease,
-        exact,
-        renew,
-      ),
+    ".lifecycle/data/.transactions",
   );
+  try {
+    const entries = (await fs.readdir(transactionsRoot)).sort();
+    for (const entry of entries) {
+      const inspected = await readScenarioExecution(repositoryRoot, entry);
+      if (inspected.ok && inspected.value.response.assignment === identity) {
+        return {
+          ok: true,
+          value: acceptedSettlement(inspected.value),
+          diagnostics: [],
+        };
+      }
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      return failure(
+        "submission-settlement-inspection-failed",
+        `Could not inspect submission settlement: ${error instanceof Error ? error.message : String(error)}`,
+        identity,
+      );
+    }
+  }
+  const persisted = await readLease(repositoryRoot);
+  if (!persisted.ok) return persisted;
+  if (persisted.value?.id === identity && persisted.value.disposition === "active") {
+    const diagnostics = [{
+      code: "submission-not-published",
+      path: identity,
+      message: "No atomic publication transaction exists for the active Assignment",
+    }];
+    return {
+      ok: true,
+      value: rejectedSubmission(identity, "", diagnostics, true),
+      diagnostics: [],
+    };
+  }
+  return {
+    ok: true,
+    value: {
+      contract: "mdlm-submission-outcome@1",
+      outcome: "settlement-required",
+      assignment: { id: identity },
+      responseDigest: sha256(""),
+      settlement: {
+        assignment: identity,
+        execution: identity,
+      },
+      reason: "publication-closure-uncertain",
+      orchestration: { action: "inspect-settlement", replay: false },
+    },
+    diagnostics: [],
+  };
 }

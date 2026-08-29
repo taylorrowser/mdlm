@@ -207,10 +207,10 @@ describe("self-guiding public CLI", () => {
     expect(assignment.operatorInstructions).toEqual(expect.objectContaining({
       contract: "mdlm-operator-instructions@1",
       guidePath: "MDLM.md",
-      action: "prepare-assignment",
+      action: "execute-assignment",
       disposition: "continuation",
       commands: expect.arrayContaining([
-        `mdlm scenario prepare ${assignment.assignment.id} --json`,
+        "mdlm scenario submit <response-file> --json",
         "mdlm doctor --json",
         "mdlm next --json",
       ]),
@@ -239,14 +239,13 @@ describe("self-guiding public CLI", () => {
       "mdlm init <destination>",
       "mdlm start [--json]",
       "mdlm next [--json]",
-      "mdlm scenario prepare <assignment-id> [--json]",
       "mdlm scenario submit [response-file|-] [--json]",
       "mdlm doctor [--json]",
     ]) expect(help.stdout).toContain(command);
   });
 });
 
-describe("mdlm-next@1 operator instruction contract", () => {
+describe("mdlm-next@2 operator instruction contract", () => {
   const assignment = { id: "assignment-1" };
 
   it("keeps a persistent coordinator moving through fresh Assignments", () => {
@@ -267,7 +266,7 @@ describe("mdlm-next@1 operator instruction contract", () => {
   });
 
   it.each([
-    ["assignment", "prepare-assignment", "continuation"],
+    ["assignment", "execute-assignment", "continuation"],
     ["attention-required", "obtain-attention", "continuation"],
     ["profile-boundary-reached", "stop-success", "successful-stop"],
     ["lifecycle-complete", "stop-success", "successful-stop"],
@@ -284,26 +283,8 @@ describe("mdlm-next@1 operator instruction contract", () => {
     );
   });
 
-  it("names every materialized execution at the publication boundary", () => {
-    const materializedExecutions = [
-      { id: "execution-2", scenario: "freeze-baseline@1" },
-      { id: "execution-1", scenario: "freeze-context@2" },
-    ];
-    const instructions = operatorInstructions({
-      outcome: "assignment",
-      assignment,
-      materializedExecutions,
-    });
-
-    expect(instructions).toEqual(expect.objectContaining({
-      action: "publish-materialized-executions",
-      disposition: "continuation",
-      commands: ["mdlm doctor --json", "mdlm next --json"],
-      materializedExecutions,
-    }));
-    expect(instructions.text).toContain("execution-2 (freeze-baseline@1)");
-    expect(instructions.text).toContain("execution-1 (freeze-context@2)");
-    expect(instructions.text).toContain("No Assignment is leased");
+  it("does not recreate preparation choreography", () => {
+    const instructions = operatorInstructions({ outcome: "assignment", assignment });
     expect(instructions.commands.join(" ")).not.toContain("scenario prepare");
   });
 });
