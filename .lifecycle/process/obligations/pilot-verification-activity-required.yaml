@@ -16,7 +16,7 @@ status_rules:
           {requirement: requirement})})
     reason: Pilot activity authoring waits for a passing independent Review of its exact strategy Revision so failed planning does not fan out.
     blocked_by:
-      - obligation: passing-review-required@2
+      - obligation: phase-1-assurance-review-required@1
         subjects: 'select("verification-strategies-for-requirement@1", {requirement: requirement})'
   - status: blocked
     priority: 200

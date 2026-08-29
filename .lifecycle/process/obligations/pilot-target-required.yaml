@@ -20,7 +20,7 @@ status_rules:
           none("passing-reviews-for@1", {subject: activity}))
     reason: Disposable pilot controls wait for independent Review of the exact VER they will exercise.
     blocked_by:
-      - obligation: passing-review-required@2
+      - obligation: phase-1-assurance-review-required@1
         subjects: 'select("pilot-verification-activities-for-requirement@1", {requirement: requirement})'
   - status: ready
     priority: 100

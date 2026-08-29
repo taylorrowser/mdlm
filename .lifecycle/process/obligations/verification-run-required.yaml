@@ -31,7 +31,7 @@ status_rules:
         {subject: one("environments-for-implementation@1", {implementation: implementation})})
     reason: The qualified environment must pass contextual review before pilot use.
     blocked_by:
-      - obligation: passing-review-required@2
+      - obligation: phase-1-assurance-review-required@1
         subjects: 'select("environments-for-implementation@1", {implementation: implementation})'
   - status: awaiting-review
     priority: 200
@@ -42,9 +42,9 @@ status_rules:
         {subject: one("verification-activities-for-implementation@1", {implementation: implementation})}))
     reason: The source-independent pilot activity and its implementation require independent review before execution.
     blocked_by:
-      - obligation: passing-review-required@2
+      - obligation: phase-1-assurance-review-required@1
         subjects: '[implementation]'
-      - obligation: passing-review-required@2
+      - obligation: phase-1-assurance-review-required@1
         subjects: 'select("verification-activities-for-implementation@1", {implementation: implementation})'
   - status: ready
     priority: 100
