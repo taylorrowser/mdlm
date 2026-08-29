@@ -560,6 +560,14 @@ describe("Phase 0 missing hardening routes", () => {
       state: "answered",
       blocking_impact: "No impact on this foundation.",
     }, { scenario: "resolve-question@2" });
+    const mapReviewContext = foundation.reviews.find((item) =>
+      item.datum.type === "BSL" &&
+      item.datum.payload.scope === foundation.map.datum.revision_id
+    )!;
+    mapReviewContext.datum.payload.definition_members = [
+      foundation.map.datum.revision_id,
+      latestLinked.datum.revision_id,
+    ];
     const records = [
       ...foundation.members,
       ...foundation.reviews,
