@@ -175,6 +175,39 @@ describe("initial product-intent authority selectors", () => {
     processPackage = await canonicalProcessPackage();
   });
 
+  it("includes the current exact Question indexed by a MAP in its Review Context", () => {
+    const question = record("QST", "QST-2K7M9Q4D8F", {
+      title: "Choose the product",
+      kind: "preferential",
+      intent_scope: "product",
+      question: "What product should this repository build?",
+      state: "open",
+      blocking_impact: "PSP compilation waits for the stakeholder answer.",
+    }, { scenario: "establish-initial-wayfinding-map@2" });
+    const answered = record("QST", question.datum.id, {
+      ...question.datum.payload,
+      state: "answered",
+      attended_answer: "Build one ASCII caret-count CLI.",
+    }, {
+      revision: 2,
+      scenario: "resolve-question@2",
+    });
+    const map = record("MAP", "MAP-2K7M9Q4D8F", {
+      title: "Initial product frontier",
+      purpose: "Track the one unresolved product choice.",
+      frontier: ["Product intent is preferential and blocks PSP compilation."],
+    }, {
+      links: [{ type: "indexes", target: question.datum.id }],
+      scenario: "establish-initial-wayfinding-map@2",
+    });
+
+    expect(selectedBy(
+      [map, question, answered],
+      "review-context-members-for@1",
+      { subject: map.datum.revision_id },
+    )).toEqual([answered.datum.revision_id]);
+  });
+
   it("keeps optional Question work hidden until initial product intent passes Review", () => {
     const fixture = routeFixture();
     const optional = record("QST", "QST-4J6NW2H8DV", {

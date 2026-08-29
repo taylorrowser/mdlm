@@ -1,6 +1,6 @@
 ---
 id: establish-initial-wayfinding-map
-version: 2
+version: 3
 scenario: establish-initial-wayfinding-map
 ---
 
@@ -26,6 +26,10 @@ than restating its claims. Publish other legitimate initial empirical or
 preferential questions through the optional `questions` output and index them
 from the MAP. Do not invent stakeholder preference or turn the map into an
 imperative workflow.
+
+Use `$proposal.*` references only in declared response link targets. Never copy
+one into payload text or the Markdown body because proposal-local names do not
+survive publication.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
 `skills/author-preflight.md@2` contract.

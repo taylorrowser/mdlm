@@ -106,6 +106,11 @@ query:
       || (subject.identity.type in ["MAP", "PSP", "STK"]
         && !every("product-answer-review-support-for-foundation-subject@1",
           {subject: subject}, support => support != member))
+      || (subject.identity.type == "MAP"
+        && member.identity.type == "QST"
+        && none("newer-revisions-for@1", {subject: member})
+        && exists("revision-links-question@1",
+          {subject: subject, question: member}))
       || (subject.identity.type == "STK"
         && member.identity.type == "PSP"
         && !every("stakeholder-requirements-for-review-context@1",

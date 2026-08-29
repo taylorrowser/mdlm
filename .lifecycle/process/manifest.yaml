@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.78.0
+version: 0.79.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -581,7 +581,7 @@ catalog:
 assets:
   prompts:
     - prompts/chart-wayfinding-map.md@1
-    - prompts/establish-initial-wayfinding-map.md@2
+    - prompts/establish-initial-wayfinding-map.md@3
     - prompts/build-exploratory-prototype.md@1
     - prompts/compile-psp.md@3
     - prompts/draft-stakeholder-requirements.md@3
