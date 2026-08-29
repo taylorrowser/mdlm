@@ -76,10 +76,10 @@ import {
   type OperatorInstructions,
 } from "./operator-instructions.js";
 import {
+  claimNextWork,
   inspectAssignmentState,
   inspectOperatorStatus,
-  leaseNextAssignment,
-  prepareAssignment,
+  inspectSubmissionSettlement,
   repositoryFingerprint,
   submitAssignmentResponse,
   type AssignmentDisposition,
@@ -88,6 +88,7 @@ import {
   type AssignmentState,
   type AssignmentSubmission,
   type OperatorStatus,
+  type SubmissionOutcome,
 } from "./assignment.js";
 import {
   readSelection,
@@ -152,17 +153,17 @@ interface StartBriefing {
 interface CommandResultBase {
   ok: boolean;
   command?: string;
-  contract?: AssignmentOutcome["contract"] | AssignmentPacket["contract"] | AssignmentSubmission["contract"] | AssignmentDisposition["contract"] | AssignmentState["contract"] | OperatorStatus["contract"] | StartBriefing["contract"];
-  outcome?: AssignmentOutcome["outcome"] | "invalid";
-  materializedExecutions?: AssignmentOutcome["materializedExecutions"];
-  assignment?: { id: string };
+  contract?: AssignmentOutcome["contract"] | AssignmentPacket["contract"] | AssignmentSubmission["contract"] | AssignmentDisposition["contract"] | AssignmentState["contract"] | OperatorStatus["contract"] | StartBriefing["contract"] | SubmissionOutcome["contract"];
+  outcome?: AssignmentOutcome["outcome"] | SubmissionOutcome["outcome"] | "invalid";
+  assignment?: { id: string; packet?: AssignmentPacket };
   scenarioReference?: string;
   disposition?: AssignmentDisposition["disposition"] | Extract<AssignmentState, { selected: true }>["disposition"];
   retryAvailability?: Extract<AssignmentState, { selected: true }>["retryAvailability"];
   malformedResponses?: Extract<AssignmentState, { selected: true }>["malformedResponses"];
   response?: Extract<AssignmentState, { selected: true }>["response"];
   terminalDiagnostics?: Extract<AssignmentState, { selected: true }>["terminalDiagnostics"];
-  orchestration?: AssignmentDisposition["orchestration"];
+  orchestration?: AssignmentDisposition["orchestration"] |
+    Extract<SubmissionOutcome, { outcome: "settlement-required" }>["orchestration"];
   unable?: Extract<AssignmentDisposition, { disposition: "abandoned" }>["unable"];
   malformedResponse?: Extract<AssignmentDisposition, {
     disposition: "correction-required" | "exhausted";
@@ -210,6 +211,12 @@ interface CommandResultBase {
   baselineDiff?: BaselineDiff;
   baselineRepositoryVerification?: BaselineRepositoryVerification;
   execution?: ScenarioExecution;
+  responseDigest?: string;
+  settlement?: Extract<SubmissionOutcome, { outcome: "accepted" | "settlement-required" }>["settlement"];
+  receipt?: Extract<SubmissionOutcome, { outcome: "accepted" }>["receipt"];
+  retryable?: boolean;
+  correctionConsumed?: false;
+  reason?: Extract<SubmissionOutcome, { outcome: "settlement-required" }>["reason"];
   backlinks?: BacklinkInspection;
   trace?: GraphTrace;
   index?: RepositoryIndexSummary;
@@ -217,13 +224,7 @@ interface CommandResultBase {
   diagnostics: ProcessDiagnostic[];
 }
 
-type PreparedAssignmentCommandResult = CommandResultBase & AssignmentPacket & {
-  ok: true;
-  command: "scenario.prepare";
-  diagnostics: [];
-};
-
-type CommandResult = CommandResultBase | PreparedAssignmentCommandResult;
+type CommandResult = CommandResultBase;
 
 const executeFile = promisify(execFile);
 const operatorGuidePath = "MDLM.md";
@@ -234,8 +235,8 @@ Agent-guided lifecycle commands:
   mdlm init <destination>
   mdlm start [--json]
   mdlm next [--json]
-  mdlm scenario prepare <assignment-id> [--json]
-  mdlm scenario submit [response-file|-] [--json]
+  mdlm scenario submit [response-file|-] [--authority <authority-id>] [--json]
+  mdlm scenario settlement <assignment-or-execution-id> [--json]
   mdlm doctor [--json]`;
 
 function failure(
@@ -1227,7 +1228,7 @@ async function startBriefing(repositoryRoot: string): Promise<CommandResult> {
 async function showNextAssignment(
   repositoryRoot: string,
 ): Promise<CommandResult> {
-  const leased = await leaseNextAssignment(repositoryRoot);
+  const leased = await claimNextWork(repositoryRoot);
   return leased.ok
     ? {
         ok: true,
@@ -1238,10 +1239,9 @@ async function showNextAssignment(
     : {
         ok: false,
         command: "next",
-        contract: "mdlm-next@1",
+        contract: "mdlm-next@2",
         outcome: "invalid",
         integrity: { status: "invalid" },
-        materializedExecutions: [],
         diagnostics: leased.diagnostics,
       };
 }
@@ -1291,29 +1291,11 @@ async function showAssignmentState(
       };
 }
 
-async function prepareExactAssignment(
-  repositoryRoot: string,
-  assignmentId: string,
-): Promise<CommandResult> {
-  const prepared = await prepareAssignment(repositoryRoot, assignmentId);
-  return prepared.ok
-    ? {
-        ok: true,
-        command: "scenario.prepare",
-        ...prepared.value,
-        diagnostics: [],
-      }
-    : {
-        ok: false,
-        command: "scenario.prepare",
-        diagnostics: prepared.diagnostics,
-      };
-}
-
 async function submitExactAssignment(
   repositoryRoot: string,
   responsePath: string | undefined,
   standardInput: string | undefined,
+  authoritySupplies: string[],
 ): Promise<CommandResult> {
   let source: string;
   if (responsePath && responsePath !== "-") {
@@ -1340,29 +1322,25 @@ async function submitExactAssignment(
       command: "scenario.submit",
     };
   }
-  const submitted = await submitAssignmentResponse(repositoryRoot, source);
+  const submitted = await submitAssignmentResponse(
+    repositoryRoot,
+    source,
+    authoritySupplies,
+  );
   if (!submitted.ok) {
     return {
       ok: false,
       command: "scenario.submit",
-      ...(submitted.disposition ?? {}),
+      ...(submitted.value ?? submitted.disposition ?? {}),
       diagnostics: submitted.diagnostics,
     };
   }
-  return submitted.value.contract === "mdlm-assignment-disposition@1"
-    ? {
-        ok: true,
-        command: "scenario.submit",
-        ...submitted.value,
-        diagnostics: [],
-      }
-    : {
-        ok: true,
-        command: "scenario.submit",
-        contract: submitted.value.contract,
-        execution: submitted.value,
-        diagnostics: [],
-      };
+  return {
+    ok: true,
+    command: "scenario.submit",
+    ...submitted.value,
+    diagnostics: [],
+  };
 }
 
 async function showScenarioExecution(
@@ -1394,6 +1372,25 @@ async function showScenarioExecution(
         package: selected.summary,
         selected: true,
         diagnostics: execution.diagnostics,
+      };
+}
+
+async function showSubmissionSettlement(
+  repositoryRoot: string,
+  identity: string,
+): Promise<CommandResult> {
+  const inspected = await inspectSubmissionSettlement(repositoryRoot, identity);
+  return inspected.ok
+    ? {
+        ok: true,
+        command: "scenario.settlement",
+        ...inspected.value,
+        diagnostics: [],
+      }
+    : {
+        ok: false,
+        command: "scenario.settlement",
+        diagnostics: inspected.diagnostics,
       };
 }
 
@@ -1957,7 +1954,9 @@ function commandOperands(arguments_: string[]): string[] {
   return arguments_.filter((argument, index) =>
     argument !== "--json" &&
     argument !== "--ref" &&
-    arguments_[index - 1] !== "--ref"
+    arguments_[index - 1] !== "--ref" &&
+    argument !== "--authority" &&
+    arguments_[index - 1] !== "--authority"
   );
 }
 
@@ -2097,25 +2096,17 @@ async function dispatchCommand(
           contract: "mdlm-assignment-state@1",
         };
   }
-  if (operands[0] === "scenario" && operands[1] === "prepare") {
-    const prepareArguments = arguments_.filter((argument) => argument !== "--json");
-    return prepareArguments.length === 3 &&
-        prepareArguments[2] && !prepareArguments[2].startsWith("--")
-      ? prepareExactAssignment(repositoryRoot, prepareArguments[2])
-      : {
-          ...failure(
-            "scenario-prepare-arguments-invalid",
-            "Expected 'mdlm scenario prepare <assignment-id>'",
-          ),
-          command: "scenario.prepare",
-        };
-  }
   if (operands[0] === "scenario" && operands[1] === "submit") {
-    const submitArguments = arguments_.filter((argument) => argument !== "--json");
+    const submitArguments = operands;
     return submitArguments.length <= 3 &&
         (submitArguments.length < 3 || submitArguments[2] === "-" ||
           !submitArguments[2]?.startsWith("--"))
-      ? submitExactAssignment(repositoryRoot, submitArguments[2], standardInput)
+      ? submitExactAssignment(
+          repositoryRoot,
+          submitArguments[2],
+          standardInput,
+          optionValues(arguments_, "--authority"),
+        )
       : {
           ...failure(
             "scenario-submit-arguments-invalid",
@@ -2123,6 +2114,12 @@ async function dispatchCommand(
           ),
           command: "scenario.submit",
         };
+  }
+  if (
+    operands[0] === "scenario" && operands[1] === "settlement" &&
+    operands.length === 3 && operands[2]
+  ) {
+    return showSubmissionSettlement(repositoryRoot, operands[2]);
   }
   if (
     operands[0] === "scenario" && operands[1] === "execution" &&
@@ -2187,7 +2184,7 @@ async function executeCommand(
       ? {
           ...failed,
           command: "next",
-          contract: "mdlm-next@1",
+          contract: "mdlm-next@2",
           outcome: "invalid",
           integrity: { status: "invalid" },
         }
@@ -2209,15 +2206,17 @@ async function executeCommand(
       result = {
         ...result,
         command: "next",
-        contract: "mdlm-next@1",
+        contract: "mdlm-next@2",
         outcome: "invalid",
         integrity: { status: "invalid" },
-        materializedExecutions: result.materializedExecutions ?? [],
       };
     }
     result = {
       ...result,
-      operatorInstructions: operatorInstructions(result),
+      operatorInstructions: operatorInstructions({
+        outcome: result.outcome as AssignmentOutcome["outcome"] | "invalid",
+        ...(result.assignment ? { assignment: result.assignment } : {}),
+      }),
     };
   }
   return {
@@ -2226,8 +2225,7 @@ async function executeCommand(
         (result.contract && arguments_[0] !== "status" &&
           arguments_[0] !== "start") ||
         arguments_[0] === "next" ||
-        (arguments_[0] === "scenario" &&
-          (arguments_[1] === "prepare" || arguments_[1] === "submit"))
+        (arguments_[0] === "scenario" && arguments_[1] === "submit")
       ? JSON.stringify(result, null, 2)
       : renderCommandResult(result)}\n`,
   };

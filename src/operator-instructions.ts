@@ -1,6 +1,5 @@
 export type OperatorInstructionAction =
-  | "publish-materialized-executions"
-  | "prepare-assignment"
+  | "execute-assignment"
   | "obtain-attention"
   | "stop-success"
   | "stop-failure";
@@ -12,12 +11,10 @@ export interface OperatorInstructions {
   disposition: "continuation" | "successful-stop" | "unsuccessful-stop";
   commands: string[];
   text: string;
-  materializedExecutions?: { id: string; scenario: string }[];
 }
 
 export interface OperatorInstructionSource {
   outcome?:
-    | "publication-required"
     | "assignment"
     | "attention-required"
     | "profile-boundary-reached"
@@ -25,7 +22,6 @@ export interface OperatorInstructionSource {
     | "process-dead-end"
     | "invalid";
   assignment?: { id: string };
-  materializedExecutions?: { id: string; scenario: string }[];
 }
 
 const base = {
@@ -37,26 +33,12 @@ const base = {
 export function operatorInstructions(
   source: OperatorInstructionSource,
 ): OperatorInstructions {
-  const materialized = source.materializedExecutions ?? [];
-  if (materialized.length > 0) {
-    const names = materialized.map(({ id, scenario }) => `${id} (${scenario})`);
-    return {
-      ...base,
-      action: "publish-materialized-executions",
-      disposition: "continuation",
-      commands: ["mdlm doctor --json", "mdlm next --json"],
-      materializedExecutions: materialized,
-      text: `Inspect these materialized executions: ${names.join(", ")}. Run doctor, inspect and commit only their exact transaction data, then run mdlm next --json for a fresh outcome. No Assignment is leased at this publication boundary.`,
-    };
-  }
-
   if (source.outcome === "assignment" && source.assignment) {
     return {
       ...base,
-      action: "prepare-assignment",
+      action: "execute-assignment",
       disposition: "continuation",
       commands: [
-        `mdlm scenario prepare ${source.assignment.id} --json`,
         "mdlm scenario submit <response-file> --json",
         "mdlm doctor --json",
         "mdlm next --json",
@@ -71,12 +53,11 @@ export function operatorInstructions(
       action: "obtain-attention",
       disposition: "continuation",
       commands: [
-        `mdlm scenario prepare ${source.assignment.id} --json`,
         "mdlm scenario submit <response-file> --json",
         "mdlm doctor --json",
         "mdlm next --json",
       ],
-      text: "Prepare this exact Assignment and use only its projected Authority Requirement and attention context. If the named authority is unavailable under the current run's explicit authority record, stop and report the requirement instead of inventing authority. After publication, run doctor, narrowly commit the transaction, and run mdlm next --json again.",
+      text: "Use this exact Assignment packet and its projected Authority Requirement and attention context. If the named authority is unavailable under the current run's explicit authority record, stop and report the requirement instead of inventing authority. After publication, run doctor, narrowly commit the transaction, and run mdlm next --json again.",
     };
   }
 

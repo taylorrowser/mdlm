@@ -56,6 +56,7 @@ export interface ScenarioProposal {
 }
 
 export interface ScenarioExecutionOutput {
+  handle: string;
   name: string;
   invocation: number;
   lifecycleDatum: {
@@ -89,7 +90,7 @@ export interface ScenarioExecution {
   id: string;
   status: "completed";
   response: {
-    contract: "mdlm-assignment-response@1";
+    contract: "mdlm-assignment-response@2";
     assignment: string;
     digest: string;
   };
@@ -1011,7 +1012,7 @@ async function submitScenario(
     id: executionId,
     status: "completed" as const,
     response: {
-      contract: "mdlm-assignment-response@1" as const,
+      contract: "mdlm-assignment-response@2" as const,
       assignment: submittedResponse.assignment,
       digest: submittedResponse.digest,
     },
@@ -1037,6 +1038,7 @@ async function submitScenario(
     discoveredObligations,
   };
   const provisionalOutputs: ScenarioExecutionOutput[] = outputData.map(({ proposal, datum }) => ({
+    handle: proposal.localId ?? proposal.name,
     name: proposal.name,
     invocation: proposal.invocation,
     lifecycleDatum: {
@@ -1242,14 +1244,14 @@ export async function readScenarioExecution(
     const response = object(parsed?.response);
     if (
       parsed?.contract !== "mdlm-scenario-execution@4" ||
-      response?.contract !== "mdlm-assignment-response@1"
+      response?.contract !== "mdlm-assignment-response@2"
     ) {
       return {
         ok: false,
         diagnostics: [{
           code: "unsupported-scenario-execution-contract",
           path: executionId,
-          message: `Scenario Execution '${executionId}' is not Assignment Response-backed mdlm-scenario-execution@4`,
+        message: `Scenario Execution '${executionId}' is not v2 Assignment Response-backed mdlm-scenario-execution@4`,
         }],
       };
     }
