@@ -19,8 +19,10 @@ function record(
   payload: Record<string, unknown>,
   scenario: string,
   links: { type: string; target: string }[] = [],
+  revision = 1,
 ): LifecycleRecord {
   const value = lifecycleRecord(type, id, payload, {
+    revision,
     links,
     createdBy: { process_ref: processRef, scenario },
     storage: { editable: false, frozen: true },
@@ -32,6 +34,7 @@ function record(
 function atomicReview(
   subject: LifecycleRecord,
   suffix: string,
+  support: LifecycleRecord[] = [],
 ): [LifecycleRecord, LifecycleRecord] {
   const context = record("BSL", `BSL-${suffix}`, {
     title: `Review context for ${subject.datum.revision_id}`,
@@ -39,7 +42,10 @@ function atomicReview(
     role: "review-context",
     scope: subject.datum.revision_id,
     group: "DEFAULT",
-    definition_members: [subject.datum.revision_id],
+    definition_members: [
+      subject.datum.revision_id,
+      ...support.map((item) => item.datum.revision_id),
+    ].sort(),
     evidence: [],
   }, "review-phase-0-foundation@1");
   const review = record("REV", `REV-${suffix}`, {
@@ -105,15 +111,40 @@ describe("atomic Phase 0 Review liveness", () => {
       frontier: ["product-intent"],
     }, "establish-initial-wayfinding-map@2");
     const mapReview = atomicReview(map, "MAPCTX1");
+    const question = record("QST", "QST-ATOMIC1", {
+      title: "Choose the product",
+      kind: "preferential",
+      intent_scope: "product",
+      question: "What product should this repository build?",
+      state: "open",
+      blocking_impact: "The product specification waits for an answer.",
+    }, "establish-initial-wayfinding-map@2");
+    const boundary = record("BSL", "BSL-BOUND1", {
+      title: "Initial product source boundary",
+      kind: "source-boundary",
+      role: "source-boundary",
+      scope: question.datum.revision_id,
+      group: "SAME-LINEAGE",
+      definition_members: [question.datum.revision_id],
+      evidence: [],
+    }, "freeze-source-boundary@1");
+    const answered = record("QST", question.datum.id, {
+      ...question.datum.payload,
+      state: "answered",
+      attended_answer: "Build one bounded command.",
+    }, "resolve-question@2", [], 2);
     const decision = record("DEC", "DEC-ATOMIC1", {
       title: "Choose the product boundary",
       kind: "scope",
       decision: "Build one bounded command.",
       rationale: "The attended answer selected one product.",
-      effective_scope: "product",
-    }, "resolve-question@2");
+      effective_scope: answered.datum.revision_id,
+    }, "resolve-question@2", [
+      { type: "resolves", target: question.datum.revision_id },
+      { type: "resolves", target: answered.datum.revision_id },
+    ]);
 
-    const mapRecords = [map, ...mapReview, decision];
+    const mapRecords = [map, ...mapReview, question, boundary, answered, decision];
     expect(selected(mapRecords, "valid-review-contexts-for@1", {
       subject: map.datum.revision_id,
     })).toEqual([mapReview[0].datum.revision_id]);
@@ -136,12 +167,27 @@ describe("atomic Phase 0 Review liveness", () => {
       dispatchable: true,
     }));
 
-    const afterDecisionReview = work([
+    const decisionReview = atomicReview(
+      decision,
+      "DECCTX1",
+      [question, boundary, answered],
+    );
+    const completeRecords = [
       map,
       ...mapReview,
+      question,
+      boundary,
+      answered,
       decision,
-      ...atomicReview(decision, "DECCTX1"),
-    ]);
+      ...decisionReview,
+    ];
+    expect(selected(
+      completeRecords,
+      "applicable-product-answer-reviews-for-decision@1",
+      { decision: decision.datum.revision_id },
+    )).toEqual([decisionReview[1].datum.revision_id]);
+
+    const afterDecisionReview = work(completeRecords);
     expect(afterDecisionReview).not.toContainEqual(expect.objectContaining({
       scenario: "review-phase-0-foundation@1",
       dispatchable: true,

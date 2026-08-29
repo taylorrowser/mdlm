@@ -9,7 +9,10 @@ query:
   from: {relation: incoming-links, of: decision, link: reviews, emit: source, types: [REV]}
   as: review
   where: >-
-    review.provenance.scenario == "review-datum-in-context@3"
+    review.provenance.scenario in [
+      "review-datum-in-context@3",
+      "review-phase-0-foundation@1"
+    ]
     && review.payload.outcome == "pass"
     && none("newer-revisions-for@1", {subject: review})
   distinct: true
