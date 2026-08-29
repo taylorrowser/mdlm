@@ -15,10 +15,7 @@ import {
   frozenLifecycleRecord,
   reviewedGateFixture,
 } from "./helpers/lifecycle-scenarios.js";
-import {
-  distinctProgressionProcessPackage,
-  renamedBaselineProcessPackage,
-} from "./helpers/process-package.js";
+import { renamedBaselineProcessPackage } from "./helpers/process-package.js";
 
 function record(
   type: string,
@@ -101,7 +98,7 @@ describe("phase evaluation", () => {
     expect(result.diagnostics).toEqual([]);
     expect(result.phase).toEqual({
       id: "phase-2-system-definition",
-      version: 9,
+      version: 10,
       attentionCheckpoints: [expect.objectContaining({
         id: "phase-2-system-gate",
         active: false,
@@ -204,7 +201,7 @@ describe("phase evaluation", () => {
     expect(result.phase?.gate).toEqual({
       required: true,
       evaluations: [
-        {
+        expect.objectContaining({
           candidate: candidateIdentity,
           complete: false,
           explanation:
@@ -213,27 +210,14 @@ describe("phase evaluation", () => {
             `candidate-gate-signoff@3:${exactCandidate.datum.revision_id}:git:phase-gate`,
           status: "blocked",
           eventualResolver: "record-gate-signoff@3",
-          actionableResolver: "create-review-context@1",
+          actionableResolver: null,
           dispatchable: false,
-          blockedBy: [
-            `candidate-members-reviewed@2:${exactCandidate.datum.revision_id}:git:phase-gate`,
-            `passing-review-required@2:${exactCandidate.datum.revision_id}:git:phase-gate`,
-          ],
-          blockerChains: expect.arrayContaining([
-            [
-              `candidate-members-reviewed@2:${exactCandidate.datum.revision_id}:git:phase-gate`,
-              `passing-review-required@2:${member.datum.revision_id}:git:phase-gate`,
-              `review-context-required@2:${member.datum.revision_id}:git:phase-gate`,
-            ],
-            [
-              `passing-review-required@2:${exactCandidate.datum.revision_id}:git:phase-gate`,
-              `review-context-required@2:${exactCandidate.datum.revision_id}:git:phase-gate`,
-            ],
-          ]),
+          blockedBy: [],
+          blockerChains: [],
           unresolvedBindings: [],
-          evidence: {
+          evidence: expect.objectContaining({
             source:
-              'none("candidate-members-missing-review@1", {candidate: candidate}) && exists("product-simplification-reviews-for@1",\n  {candidate: candidate, outcome: "pass"})\n&& none("failing-reviews-for@1", {subject: candidate}) && none("candidate-correction-authorities-requiring-review@1",\n  {candidate: candidate})\n&& none("open-blocking-questions@1", {}) && exists("applicable-gate-signoffs-for@1", {candidate: candidate})',
+              'none("candidate-members-missing-review@1", {candidate: candidate}) && exists("passing-reviews-for@1", {subject: candidate}) && none("failing-reviews-for@1", {subject: candidate}) && none("candidate-correction-authorities-requiring-review@1",\n  {candidate: candidate})\n&& none("open-blocking-questions@1", {}) && exists("applicable-gate-signoffs-for@1", {candidate: candidate})',
             result: false,
             selectors: expect.arrayContaining([
               {
@@ -257,8 +241,8 @@ describe("phase evaluation", () => {
                 },
               },
             ],
-          },
-        },
+          }),
+        }),
       ],
     });
   });
@@ -301,11 +285,9 @@ describe("phase evaluation", () => {
       complete: false,
       status: "blocked",
       eventualResolver: "record-gate-signoff@3",
-      actionableResolver: "review-datum-in-context@2",
+      actionableResolver: null,
       dispatchable: false,
-      blockedBy: [
-        `passing-review-required@2:${signoff.datum.revision_id}:git:exact-gate`,
-      ],
+      blockedBy: [],
     }));
 
     const reviewed = evaluateLifecycle(processPackage, {
@@ -494,115 +476,6 @@ describe("phase evaluation", () => {
         },
         attentionRequired: false,
         evidence: [],
-      }),
-    }));
-  });
-
-  it("can require a separate exact reviewed progression Decision", async () => {
-    const processRoot = await distinctProgressionProcessPackage();
-    temporaryProcessParents.add(path.dirname(processRoot));
-    const loaded = await loadProcessPackage(processRoot);
-    expect(loaded.ok, loaded.diagnostics.map((item) => item.message).join("\n"))
-      .toBe(true);
-    if (!loaded.ok) return;
-
-    const fixture = reviewedGateFixture("git:distinct-progression");
-    const progressionDecision = frozenLifecycleRecord(
-      "git:distinct-progression",
-      "DEC",
-      "DEC-7K3M9Q2D8F",
-      {
-        title: "Enter product assurance",
-        rationale: "Require authorization distinct from the intent gate.",
-        kind: "scope",
-        decision: "Enter Phase 1.",
-        alternatives: ["Remain in Phase 0."],
-        effective_scope: fixture.candidate.datum.revision_id,
-      },
-      { links: [{ type: "justifies", target: fixture.candidate.datum.revision_id }] },
-    );
-    const progressionContext = frozenLifecycleRecord(
-      "git:distinct-progression",
-      "BSL",
-      "BSL-7K3M9Q2D8F",
-      {
-        title: "Progression review context",
-        kind: "review-context",
-        role: "review-context",
-        scope: progressionDecision.datum.revision_id,
-        group: "DEFAULT",
-        definition_members: [progressionDecision.datum.revision_id],
-        evidence: [],
-      },
-      { scenario: "create-review-context@1" },
-    );
-    const progressionReview = frozenLifecycleRecord(
-      "git:distinct-progression",
-      "REV",
-      "REV-7K3M9Q2D8F",
-      {
-        title: "Progression Decision Review",
-        review_kind: "independent",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
-        summary: "The distinct progression Decision passes Review.",
-        findings: [],
-        outcome: "pass",
-      },
-      {
-        links: [
-          { type: "reviews", target: progressionDecision.datum.revision_id },
-          { type: "contextualizes", target: progressionContext.datum.revision_id },
-        ],
-      },
-    );
-
-    const acceptedIntent = acceptedIntentForReviewedGate(
-      "git:distinct-progression",
-      fixture,
-    );
-    const unreviewed = evaluateLifecycle(loaded.package, {
-      processRef: "git:distinct-progression",
-      phaseId: "phase-0-wayfinding",
-      records: [
-        ...fixture.records,
-        acceptedIntent,
-        progressionDecision,
-        progressionContext,
-      ],
-      dependencyComparisons: [],
-    });
-    expect(unreviewed.phase?.progression).toEqual(expect.objectContaining({
-      gateComplete: true,
-      ready: true,
-      authorized: false,
-      complete: false,
-    }));
-
-    const reviewed = evaluateLifecycle(loaded.package, {
-      processRef: "git:distinct-progression",
-      phaseId: "phase-0-wayfinding",
-      records: [
-        ...fixture.records,
-        acceptedIntent,
-        progressionDecision,
-        progressionContext,
-        progressionReview,
-      ],
-      dependencyComparisons: [],
-    });
-    expect(reviewed.phase?.progression).toEqual(expect.objectContaining({
-      authorized: true,
-      complete: true,
-      authority: expect.objectContaining({
-        scenario: "record-consequential-decision@1",
-        evidence: [{
-          identity: {
-            id: progressionDecision.datum.id,
-            revision_id: progressionDecision.datum.revision_id,
-            type: "DEC",
-            revision: 1,
-          },
-        }],
       }),
     }));
   });

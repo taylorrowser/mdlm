@@ -30,7 +30,7 @@ export function reviewedGateFixture(processRef: string) {
     group: "DEFAULT",
     definition_members: [],
     evidence: [],
-  }, { scenario: "create-candidate-baseline@1" });
+  }, { scenario: "create-phase-0-intent-candidate@1" });
   const candidateContext = frozenLifecycleRecord(
     processRef,
     "BSL",
@@ -44,20 +44,24 @@ export function reviewedGateFixture(processRef: string) {
       definition_members: [candidate.datum.revision_id],
       evidence: [],
     },
-    { scenario: "create-review-context@1" },
+    { scenario: "review-phase-0-candidate@1" },
   );
   const candidateReview = frozenLifecycleRecord(processRef, "REV", "REV-4K3M9Q2D8F", {
     title: "Candidate review",
-    review_kind: "simplification-product-definition",
-    rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+    review_kind: "phase-0-candidate",
+    rubric_ref: "policies/rubrics/bootstrap-review.md@3",
     summary: "The exact candidate is the smallest sufficient product definition.",
+    findings: [],
     outcome: "pass",
+    correction_authority: "author",
   }, {
+    scenario: "review-phase-0-candidate@1",
     links: [
       { type: "reviews", target: candidate.datum.revision_id },
       { type: "contextualizes", target: candidateContext.datum.revision_id },
     ],
   });
+  candidateReview.integrity.scenario_execution_valid = true;
   const signoff = frozenLifecycleRecord(processRef, "DEC", "DEC-4K3M9Q2D8F", {
     title: "Intent gate sign-off",
     rationale: "Authorize this exact candidate.",
@@ -67,30 +71,38 @@ export function reviewedGateFixture(processRef: string) {
     alternatives: ["Revise."],
     effective_scope: candidate.datum.revision_id,
   }, {
+    scenario: "record-gate-signoff@3",
     links: [{ type: "justifies", target: candidate.datum.revision_id }],
   });
+  signoff.integrity.scenario_execution_valid = true;
   const signoffContext = frozenLifecycleRecord(processRef, "BSL", "BSL-4K3M9Q2D8H", {
     title: "Sign-off review context",
     kind: "review-context",
     role: "review-context",
     scope: signoff.datum.revision_id,
     group: "DEFAULT",
-    definition_members: [signoff.datum.revision_id],
+    definition_members: [
+      signoff.datum.revision_id,
+      candidate.datum.revision_id,
+    ],
     evidence: [],
-  }, { scenario: "create-review-context@1" });
+  }, { scenario: "review-phase-0-foundation@1" });
   const signoffReview = frozenLifecycleRecord(processRef, "REV", "REV-4K3M9Q2D8G", {
     title: "Sign-off review",
-    review_kind: "independent",
-    rubric_ref: "policies/rubrics/bootstrap-review.md@1",
+    review_kind: "phase-0-foundation",
+    rubric_ref: "policies/rubrics/bootstrap-review.md@3",
     summary: "The exact sign-off passes review.",
     findings: [],
     outcome: "pass",
+    correction_authority: "author",
   }, {
+    scenario: "review-phase-0-foundation@1",
     links: [
       { type: "reviews", target: signoff.datum.revision_id },
       { type: "contextualizes", target: signoffContext.datum.revision_id },
     ],
   });
+  signoffReview.integrity.scenario_execution_valid = true;
   return {
     candidate,
     candidateContext,

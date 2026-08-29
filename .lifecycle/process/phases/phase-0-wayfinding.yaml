@@ -15,8 +15,7 @@ attention_checkpoints:
       && every("candidate-baselines-of-kind@1",
         {baseline_kind: "intent-level-candidate"}, candidate =>
           none("candidate-members-missing-review@1", {candidate: candidate})
-          && exists("product-simplification-reviews-for@1",
-            {candidate: candidate, outcome: "pass"})
+          && exists("passing-reviews-for@1", {subject: candidate})
           && none("failing-reviews-for@1", {subject: candidate})
           && none("candidate-correction-authorities-requiring-review@1",
             {candidate: candidate}))
@@ -33,8 +32,7 @@ progression:
     && every("candidate-baselines-of-kind@1",
       {baseline_kind: "intent-level-candidate"}, candidate =>
         none("candidate-members-missing-review@1", {candidate: candidate})
-        && exists("product-simplification-reviews-for@1",
-          {candidate: candidate, outcome: "pass"})
+        && exists("passing-reviews-for@1", {subject: candidate})
         && none("failing-reviews-for@1", {subject: candidate})
         && none("candidate-correction-authorities-requiring-review@1",
           {candidate: candidate})
@@ -64,8 +62,7 @@ gate:
   obligation: candidate-gate-signoff@3
   completion: >-
     none("candidate-members-missing-review@1", {candidate: candidate})
-    && exists("product-simplification-reviews-for@1",
-      {candidate: candidate, outcome: "pass"})
+    && exists("passing-reviews-for@1", {subject: candidate})
     && none("failing-reviews-for@1", {subject: candidate})
     && none("candidate-correction-authorities-requiring-review@1",
       {candidate: candidate})
