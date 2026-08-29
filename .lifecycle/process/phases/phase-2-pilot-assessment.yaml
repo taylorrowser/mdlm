@@ -1,6 +1,6 @@
 kind: phase-definition
 id: phase-2-pilot-assessment
-version: 3
+version: 4
 order: 2
 name: Phase 0–2 pilot assessment
 purpose: Review durable pilot measurements and record an exact proceed, change, or stop Decision before Example Process Package work expands into Phases 3–6.
@@ -15,25 +15,10 @@ entry: >-
   && exists("complete-phase-2-level-candidates@1", {})
   && every("complete-phase-2-level-candidates@1", {}, candidate =>
     exists("applicable-gate-signoffs-for@1", {candidate: candidate}))
-scenarios:
-  - record-pilot-observation@2
-  - prepare-pilot-assessment-context@1
-  - assess-phase-0-2-pilot@1
-  - revise-pilot-assessment-after-review@2
-  - create-review-context@1
-  - review-datum-in-context@2
-  - decide-pilot-expansion@2
-  - revise-pilot-expansion-decision-after-review@1
-  - record-consequential-decision@1
-obligations:
-  - review-context-required@2
-  - passing-review-required@2
-  - pilot-observation-required@1
-  - pilot-assessment-context-required@1
-  - pilot-assessment-required@1
-  - pilot-assessment-review-correction-required@1
-  - pilot-expansion-decision-required@1
-  - pilot-expansion-decision-review-correction-required@1
+routing:
+  eligible_when: dispatchable
+  status_order: [ready, awaiting-review, failed, stale, blocked]
+  tie_breakers: [subject, obligation]
 outputs: [PAS, REV, DEC, BSL]
 progression:
   next_phase: phase-7-change-control

@@ -13,7 +13,7 @@ query:
     && context.payload.role == "review-context"
     && context.payload.scope == subject.identity.revision_id
     && context.storage.frozen == true
-    && context.provenance.scenario == "create-review-context@1"
+    && context.provenance.scenario == "create-review-context@2"
     && none("newer-revisions-for@1", {subject: context})
   distinct: true
   order_by: [identity.revision_id]

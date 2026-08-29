@@ -90,6 +90,27 @@ export function validateScenarioContracts(
         message: `Scenario '${scenario.id}' declares input '${prohibitedInput}' as prohibited`,
       });
     });
+    const inputSummaries = record(scenario.input_summaries);
+    for (const name of Object.keys(inputSummaries ?? {})) {
+      if (inputNames.has(name)) continue;
+      diagnostics.push({
+        code: "unknown-scenario-input-summary",
+        path: `scenarios.${scenario.id}.input_summaries.${name}`,
+        message: `Scenario '${scenario.id}' summarizes undeclared input '${name}'`,
+      });
+    }
+    const reviewContract = record(scenario.review_contract);
+    const requiredEvidence = Array.isArray(reviewContract?.required_evidence)
+      ? reviewContract.required_evidence
+      : [];
+    requiredEvidence.forEach((name, index) => {
+      if (typeof name !== "string" || inputNames.has(name)) return;
+      diagnostics.push({
+        code: "unknown-review-evidence-input",
+        path: `scenarios.${scenario.id}.review_contract.required_evidence[${index}]`,
+        message: `Scenario '${scenario.id}' requires evidence from undeclared input '${name}'`,
+      });
+    });
 
     const outputs = Array.isArray(scenario.outputs) ? scenario.outputs : [];
     const outputsByName = new Map(
@@ -101,6 +122,17 @@ export function validateScenarioContracts(
       }),
     );
     const outputNames = new Set(outputsByName.keys());
+    const outputHandles = outputs.flatMap((outputValue) => {
+      const handle = record(outputValue)?.handle;
+      return typeof handle === "string" ? [handle] : [];
+    });
+    if (new Set(outputHandles).size !== outputHandles.length) {
+      diagnostics.push({
+        code: "duplicate-scenario-output-handle",
+        path: `scenarios.${scenario.id}.outputs`,
+        message: `Scenario '${scenario.id}' declares duplicate symbolic output handles`,
+      });
+    }
     outputs.forEach((outputValue, outputIndex) => {
       const output = record(outputValue);
       const outputName = String(output?.name);

@@ -1,6 +1,6 @@
 kind: phase-definition
 id: phase-0-wayfinding
-version: 5
+version: 6
 order: 0
 name: Wayfinding bootstrap
 purpose: Establish reviewed, scope-challenged product intent and stakeholder commitments for explicit user approval.
@@ -21,46 +21,10 @@ attention_checkpoints:
           && none("candidate-correction-authorities-requiring-review@1",
             {candidate: candidate}))
       && none("open-blocking-questions@1", {})
-scenarios:
-  - chart-wayfinding-map@1
-  - establish-initial-wayfinding-map@2
-  - build-exploratory-prototype@1
-  - compile-psp@3
-  - draft-stakeholder-requirements@2
-  - create-review-context@1
-  - review-datum-in-context@2
-  - resolve-question@2
-  - revise-question-decision-after-review@1
-  - revise-foundation-correction-decision-after-review@1
-  - revise-candidate-correction-decision-after-review@1
-  - resolve-question-with-prototype@2
-  - create-phase-0-intent-candidate@1
-  - record-gate-signoff@3
-  - record-consequential-decision@1
-  - revise-foundation-after-review@5
-  - escalate-foundation-review-correction@3
-  - revise-intent-candidate-after-review@3
-  - revise-gate-signoff-after-review@2
-  - accept-phase-0-intent@1
-obligations:
-  - initial-wayfinding-map-required@2
-  - product-specification-required@2
-  - stakeholder-requirements-required@1
-  - intent-candidate-required@3
-  - foundation-review-correction-required@5
-  - foundation-review-escalation-required@2
-  - intent-candidate-review-correction-required@3
-  - gate-signoff-review-correction-required@2
-  - review-context-required@2
-  - passing-review-required@2
-  - open-question-resolution@3
-  - question-decision-review-correction-required@1
-  - foundation-correction-decision-review-correction-required@1
-  - candidate-correction-decision-review-correction-required@1
-  - prototype-question-resolution@1
-  - candidate-members-reviewed@2
-  - candidate-gate-signoff@3
-  - intent-approval-required@1
+routing:
+  eligible_when: dispatchable
+  status_order: [ready, awaiting-review, failed, stale, blocked]
+  tie_breakers: [subject, obligation]
 outputs: [MAP, QST, DEC, ART, PSP, STK, REV, BSL]
 progression:
   next_phase: phase-1-product-assurance

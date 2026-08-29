@@ -1,6 +1,6 @@
 kind: scenario-definition
 id: create-review-context
-version: 1
+version: 2
 description: Deterministically freeze one primary subject with the exact parent, sibling, decision, and candidate context needed for review.
 kernel_materialization:
   kind: exact-baseline@1
@@ -21,7 +21,7 @@ kernel_materialization:
   baseline_group: DEFAULT
   evidence_subject_types: [ENV]
   evidence_types: [RES, RUN, VAI, VER]
-phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-2-pilot-assessment, phase-7-change-control]
+phases: [phase-2-system-definition, phase-2-pilot-assessment, phase-7-change-control]
 inputs:
   - {name: subject, types: [MAP, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS], cardinality: one, identity: revision}
   - {name: context_members, types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS], cardinality: zero-or-more, identity: revision}

@@ -2,7 +2,7 @@ kind: obligation-definition
 id: passing-review-required
 version: 2
 description: Every review-required exact revision needs a current valid passing REV in a valid frozen context.
-phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-2-pilot-assessment, phase-7-change-control]
+phases: [phase-2-system-definition, phase-2-pilot-assessment, phase-7-change-control]
 for_each: 'select("review-required-revisions@1", {})'
 subject_as: subject
 satisfied_when: >-
@@ -33,7 +33,7 @@ status_rules:
     reason: Exact context exists and an independent review is required.
 default_status: blocked
 resolve_with:
-  scenario: review-datum-in-context@2
+  scenario: review-datum-in-context@3
   inputs:
     subject: subject
     review_context: 'one("valid-review-contexts-for@1", {subject: subject})'

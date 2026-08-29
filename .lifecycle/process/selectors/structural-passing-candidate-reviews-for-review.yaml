@@ -9,7 +9,7 @@ query:
   from: {relation: incoming-links, of: candidate, link: reviews, emit: source, types: [REV]}
   as: review
   where: >-
-    review.provenance.scenario == "review-datum-in-context@2"
+    review.provenance.scenario == "review-datum-in-context@3"
     && review.payload.review_kind == "simplification-product-definition"
     && review.payload.outcome == "pass"
     && !present(review.payload.simplification)

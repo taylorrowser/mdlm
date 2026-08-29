@@ -1,0 +1,36 @@
+kind: obligation-definition
+id: phase-0-foundation-review-required
+version: 1
+description: Each active Phase 0 foundation Revision needs one atomic Review Context and passing independent Review.
+phases: [phase-0-wayfinding]
+for_each: 'select("phase-0-foundation-review-required-revisions@1", {})'
+subject_as: subject
+satisfied_when: >-
+  exists("passing-reviews-for@1", {subject: subject})
+  && none("failing-reviews-for@1", {subject: subject})
+status_rules:
+  - status: failed
+    priority: 300
+    when: 'exists("failing-reviews-for@1", {subject: subject})'
+    reason: The current exact foundation Revision has a failed Review.
+  - status: blocked
+    priority: 200
+    when: >-
+      subject.identity.type == "STK"
+      && !every("current-product-specifications@1", {}, product_specification =>
+        every("stakeholder-requirements-for-review-context@1",
+          {product_specification: product_specification}, requirement =>
+            requirement != subject)
+        || exists("passing-reviews-for@1", {subject: product_specification}))
+    reason: An STK Review waits for passing Reviews of its exact current PSP parents.
+  - status: awaiting-review
+    priority: 100
+    when: 'true'
+    reason: The exact foundation Revision and its required context can be reviewed atomically.
+default_status: awaiting-review
+resolve_with:
+  scenario: review-phase-0-foundation@1
+  inputs:
+    subject: subject
+    review_context_members: 'select("review-context-members-for@1", {subject: subject})'
+waiver_policy_ref: waiver-applicability@1

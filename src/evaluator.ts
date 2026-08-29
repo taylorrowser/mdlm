@@ -1039,13 +1039,13 @@ class LifecycleEvaluator {
       }),
     ).values()];
 
-    const statusOrder: Record<string, number> = {
-      ready: 0,
-      "awaiting-review": 1,
-      failed: 2,
-      stale: 3,
-      blocked: 4,
-    };
+    const routing = object(
+      this.processPackage.phases[this.snapshot.phaseId]?.routing,
+    ) ?? {};
+    const declaredStatusOrder = array(routing.status_order);
+    const statusOrder = Object.fromEntries(
+      declaredStatusOrder.map((status, index) => [String(status), index]),
+    );
     const looseEnds = obligations
       .filter(
         (obligation) =>

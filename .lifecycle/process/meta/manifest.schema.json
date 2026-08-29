@@ -4,7 +4,7 @@
   "title": "MDLM process package manifest",
   "type": "object",
   "additionalProperties": false,
-  "required": ["kind", "id", "version", "status", "description", "kernel_contract", "artifact_format", "references", "language", "compatibility", "catalog", "assets", "profiles", "provenance"],
+  "required": ["kind", "id", "version", "status", "description", "kernel_contract", "artifact_format", "references", "language", "compatibility", "profiles", "provenance"],
   "properties": {
     "kind": {"const": "process-package-manifest"},
     "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
@@ -31,18 +31,6 @@
       "type": "object",
       "properties": {
         "repository_migration": {"enum": ["compatible", "fresh-only"]}
-      }
-    },
-    "catalog": {"type": "object"},
-    "assets": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "array",
-        "uniqueItems": true,
-        "items": {
-          "type": "string",
-          "pattern": "^(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*\\.(?:md|yaml)@[1-9][0-9]*$"
-        }
       }
     },
     "profiles": {"type": "object"},

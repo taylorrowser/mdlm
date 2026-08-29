@@ -1,0 +1,16 @@
+kind: selector-definition
+id: phase-1-assurance-review-required-revisions
+version: 1
+description: Exact active Phase 1 assurance Revisions requiring independent judgment.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [VSP, ENV, VER, VAI]}
+  as: subject
+  where: >-
+    policy("review-applicability@1", {subject: subject}).required == true
+    && state(subject, "disposition") == "active"
+    && none("newer-revisions-for@1", {subject: subject})
+    && none("implemented-changes-impacting-revision@2", {subject: subject})
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

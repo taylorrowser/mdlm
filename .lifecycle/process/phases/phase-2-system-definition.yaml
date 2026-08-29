@@ -1,6 +1,6 @@
 kind: phase-definition
 id: phase-2-system-definition
-version: 9
+version: 10
 order: 2
 name: System definition tracer
 purpose: Preflight coherent topology, then plan, review, execute, and semantically simplify proportional many-to-many decomposition into exact reviewed SYS candidates.
@@ -25,57 +25,10 @@ attention_checkpoints:
           && exists("passing-reviews-for@1", {subject: candidate})
           && none("failing-reviews-for@1", {subject: candidate}))
       && none("open-blocking-questions@1", {})
-scenarios:
-  - define-system-architecture@3
-  - define-interface-control-specification@2
-  - define-decomposition-work-package@3
-  - replan-stale-decomposition-work-package@1
-  - execute-decomposition-work-package@2
-  - create-review-context@1
-  - create-phase-2-definition-review-context@1
-  - review-datum-in-context@2
-  - simplify-architecture-and-interfaces@2
-  - revise-phase-2-subject-after-simplification@1
-  - revise-phase-2-definition-set-after-simplification@1
-  - revise-phase-2-subject-after-review@1
-  - reevaluate-shared-system-consumer@1
-  - revise-phase-2-candidate-after-review@1
-  - resolve-phase-2-ambiguity@1
-  - complete-decomposition-work-package@2
-  - resolve-question@2
-  - resolve-question-with-prototype@2
-  - create-candidate-baseline@1
-  - create-decomposition-group-candidate@1
-  - create-system-level-candidate@1
-  - record-gate-signoff@3
-  - accept-phase-2-system@1
-  - record-consequential-decision@1
-obligations:
-  - review-context-required@2
-  - passing-review-required@2
-  - open-question-resolution@3
-  - prototype-question-resolution@1
-  - system-architecture-required@1
-  - interface-control-specification-required@1
-  - decomposition-planning-required@1
-  - stale-decomposition-plan-correction-required@1
-  - decomposition-execution-required@1
-  - decomposition-output-reviews-required@1
-  - phase-2-definition-review-context-required@1
-  - architecture-interface-simplification-required@1
-  - phase-2-simplification-correction-required@1
-  - phase-2-definition-consistency-correction-required@1
-  - phase-2-review-correction-required@1
-  - shared-system-consumer-reevaluation-required@1
-  - phase-2-candidate-correction-required@1
-  - phase-2-ambiguity-resolution-required@1
-  - decomposition-completion-required@1
-  - decomposition-parent-coverage-required@1
-  - decomposition-group-candidate-required@1
-  - system-level-candidate-required@1
-  - candidate-members-reviewed@2
-  - candidate-gate-signoff@3
-  - system-acceptance-required@1
+routing:
+  eligible_when: dispatchable
+  status_order: [ready, awaiting-review, failed, stale, blocked]
+  tie_breakers: [subject, obligation]
 outputs: [SYS, ASP, ICSP, DWP, REV, BSL, QST, DEC, ART]
 progression:
   next_phase: phase-2-pilot-assessment

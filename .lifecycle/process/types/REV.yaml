@@ -1,6 +1,6 @@
 kind: type-definition
 id: REV
-version: 7
+version: 8
 name: Review
 description: Immutable judgment about one exact primary subject in one exact frozen context.
 extends: titled-datum@1
@@ -14,7 +14,9 @@ payload_schema:
   type: object
   required: [rubric_ref, outcome]
   properties:
-    review_kind: {enum: [contextual, simplification-product-definition, simplification-architecture-interfaces, cross-group, gate]}
+    review_kind: {enum: [phase-0-foundation, phase-0-candidate, phase-1-assurance, contextual, simplification-product-definition, simplification-architecture-interfaces, cross-group, gate]}
+    reviewer: {type: string, minLength: 1}
+    summary: {type: string, minLength: 1}
     decomposition_plan_revision: {type: string, pattern: '^DWP-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
     rubric_ref: {type: string, pattern: '^policies/rubrics/.+\.md@[1-9][0-9]*$'}
     findings:
@@ -124,7 +126,7 @@ payload_schema:
                 - {required: [scope_reduction]}
     correction_authority:
       description: Classifies whether a failed Review needs stakeholder judgment or can be corrected from exact package evidence.
-      enum: [stakeholder, package-evidence]
+      enum: [author, stakeholder, package-evidence]
     outcome: {enum: [open, pass, fail, cancelled]}
     cancellation_reason: {type: string, minLength: 1}
   allOf:
@@ -133,7 +135,20 @@ payload_schema:
           outcome: {const: fail}
         required: [outcome]
       then: {required: [correction_authority]}
-      else: {not: {required: [correction_authority]}}
+      else:
+        if:
+          properties:
+            review_kind: {enum: [phase-0-foundation, phase-0-candidate, phase-1-assurance]}
+          required: [review_kind]
+        then:
+          properties: {correction_authority: {const: author}}
+          required: [correction_authority]
+        else: {not: {required: [correction_authority]}}
+    - if:
+        properties:
+          review_kind: {enum: [phase-0-foundation, phase-0-candidate, phase-1-assurance]}
+        required: [review_kind]
+      then: {required: [reviewer, summary, findings, correction_authority]}
     - if:
         properties:
           findings:
