@@ -26,13 +26,7 @@ const bundledProcessPackage = fileURLToPath(
 );
 const operatorAssetRoot = fileURLToPath(new URL("../operator/", import.meta.url));
 
-const operatorFiles = [
-  ["MDLM.md", "MDLM.md"],
-  ["AGENTS.md", "AGENTS.md"],
-  ["CLAUDE.md", "CLAUDE.md"],
-  ["SKILL.md", ".agents/skills/mdlm/SKILL.md"],
-  ["SKILL.md", ".claude/skills/mdlm/SKILL.md"],
-] as const;
+const operatorGuide = "MDLM.md";
 
 export type RepositoryInitialization =
   | {
@@ -91,11 +85,10 @@ async function prepareRepository(
     path.join(preparationRoot, ".gitignore"),
     ".lifecycle/generated/\n.lifecycle/work/\n",
   );
-  for (const [source, destination] of operatorFiles) {
-    const destinationPath = path.join(preparationRoot, destination);
-    await fs.mkdir(path.dirname(destinationPath), { recursive: true });
-    await fs.copyFile(path.join(operatorAssetRoot, source), destinationPath);
-  }
+  await fs.copyFile(
+    path.join(operatorAssetRoot, operatorGuide),
+    path.join(preparationRoot, operatorGuide),
+  );
 }
 
 async function git(

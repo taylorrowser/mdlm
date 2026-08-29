@@ -29,6 +29,8 @@ const base = {
   guidePath: "MDLM.md" as const,
 };
 
+const loopReminder = "Own the lifecycle loop. For continuing outcomes, complete and submit the exact Assignment, then run mdlm next --json again. On Attention Required, ask the named authority. Stop only when this outcome or an integrity boundary says to stop.";
+
 /** Project the immediate safe operator boundary without changing the outcome. */
 export function operatorInstructions(
   source: OperatorInstructionSource,
@@ -43,7 +45,7 @@ export function operatorInstructions(
         "mdlm doctor --json",
         "mdlm next --json",
       ],
-      text: "Begin this Assignment now. Complete only this Assignment within its exact authority and publication boundaries; do not replay it. Submit its exact response, run doctor, inspect and narrowly commit only the published transaction, then run mdlm next --json. Do not stop merely to report a fresh Assignment: begin that Assignment now and repeat this one-Assignment loop until attended authority is unavailable, an integrity failure occurs, or MDLM returns a package-declared stop, Profile Boundary Reached, Lifecycle Complete, Process Dead End, or Invalid.",
+      text: `${loopReminder} Begin this Assignment now within its exact authority and no-replay boundaries.`,
     };
   }
 
@@ -57,7 +59,7 @@ export function operatorInstructions(
         "mdlm doctor --json",
         "mdlm next --json",
       ],
-      text: "Use this exact Assignment packet and its projected Authority Requirement and attention context. If the named authority is unavailable under the current run's explicit authority record, stop and report the requirement instead of inventing authority. After publication, run doctor, narrowly commit the transaction, and run mdlm next --json again.",
+      text: `${loopReminder} Ask authorityRequirement.authority using only the returned attention context, then resume this exact Assignment. Never invent or self-supply authority.`,
     };
   }
 
@@ -70,7 +72,7 @@ export function operatorInstructions(
       action: "stop-success",
       disposition: "successful-stop",
       commands: [],
-      text: `Stop successfully at ${source.outcome === "lifecycle-complete" ? "Lifecycle Complete" : "Profile Boundary Reached"}. Preserve the exact outcome evidence.`,
+      text: `${loopReminder} This outcome says to stop successfully at ${source.outcome === "lifecycle-complete" ? "Lifecycle Complete" : "Profile Boundary Reached"}; preserve its exact evidence.`,
     };
   }
 
@@ -79,8 +81,8 @@ export function operatorInstructions(
     action: "stop-failure",
     disposition: "unsuccessful-stop",
     commands: [],
-    text: source.outcome === "process-dead-end"
-      ? "Stop unsuccessfully at Process Dead End and preserve its exact blockers."
-      : "Stop unsuccessfully at Invalid and preserve its exact diagnostics.",
+    text: `${loopReminder} ${source.outcome === "process-dead-end"
+      ? "This outcome says to stop unsuccessfully at Process Dead End; preserve its exact blockers."
+      : "This outcome says to stop unsuccessfully at Invalid; preserve its exact diagnostics."}`,
   };
 }

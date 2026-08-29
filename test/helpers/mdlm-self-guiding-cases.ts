@@ -64,7 +64,7 @@ describe("self-guiding public CLI", () => {
     await fs.rm(parent, { recursive: true, force: true });
   });
 
-  it("installs one portable guide and equivalent thin provider pointers", async () => {
+  it("installs one portable guide without provider-specific instruction copies", async () => {
     const distribution = path.join(parent, "distribution");
     const installedRepository = path.join(parent, "installed-repository");
     await copyPublicDistribution(distribution);
@@ -75,40 +75,18 @@ describe("self-guiding public CLI", () => {
     );
     expect(initialized.status, initialized.stderr).toBe(0);
     repository = installedRepository;
-    const installedPaths = [
-      "MDLM.md",
+    const guide = await fs.readFile(path.join(repository, "MDLM.md"), "utf8");
+    expect(guide).toContain("Own the loop");
+    expect(guide).toContain("ask the authority named in `authorityRequirement`");
+    for (const relativePath of [
       "AGENTS.md",
       "CLAUDE.md",
       ".agents/skills/mdlm/SKILL.md",
       ".claude/skills/mdlm/SKILL.md",
-    ];
-    for (const relativePath of installedPaths) {
-      await expect(fs.readFile(path.join(repository, relativePath), "utf8"))
-        .resolves.not.toBe("");
-    }
-    expect(await fs.readFile(
-      path.join(repository, ".agents/skills/mdlm/SKILL.md"),
-      "utf8",
-    )).toBe(await fs.readFile(
-      path.join(repository, ".claude/skills/mdlm/SKILL.md"),
-      "utf8",
-    ));
-    for (const skillPath of [
-      ".agents/skills/mdlm/SKILL.md",
-      ".claude/skills/mdlm/SKILL.md",
     ]) {
-      const guideFromSkill = path.resolve(
-        path.dirname(path.join(repository, skillPath)),
-        "../../../MDLM.md",
-      );
-      expect(await fs.readFile(guideFromSkill, "utf8")).toBe(
-        await fs.readFile(path.join(repository, "MDLM.md"), "utf8"),
-      );
+      await expect(fs.stat(path.join(repository, relativePath)))
+        .rejects.toMatchObject({ code: "ENOENT" });
     }
-    const guide = await fs.readFile(path.join(repository, "MDLM.md"), "utf8");
-    expect(guide).toContain("do not rely on a console or\ntool rendering");
-    expect(guide).toContain("`allowedProjections.outputSchemas`");
-    expect(guide).toContain("checklist of every\nrequired payload property");
     expect(git(repository, "rev-list", "--count", "HEAD").stdout).toBe("1\n");
     expect(git(repository, "status", "--porcelain").stdout).toBe("");
   });
@@ -185,18 +163,19 @@ describe("self-guiding public CLI", () => {
   });
 
   it("reports staged-only, worktree-only, and staged-plus-worktree changes", async () => {
-    await fs.appendFile(path.join(repository, "AGENTS.md"), "staged only\n");
-    expect(git(repository, "add", "AGENTS.md").status).toBe(0);
+    await fs.appendFile(path.join(repository, ".gitignore"), "staged only\n");
+    expect(git(repository, "add", ".gitignore").status).toBe(0);
     await fs.appendFile(path.join(repository, "MDLM.md"), "worktree only\n");
-    await fs.appendFile(path.join(repository, "CLAUDE.md"), "staged part\n");
-    expect(git(repository, "add", "CLAUDE.md").status).toBe(0);
-    await fs.appendFile(path.join(repository, "CLAUDE.md"), "worktree part\n");
+    const dataMarker = ".lifecycle/data/.gitkeep";
+    await fs.appendFile(path.join(repository, dataMarker), "staged part\n");
+    expect(git(repository, "add", dataMarker).status).toBe(0);
+    await fs.appendFile(path.join(repository, dataMarker), "worktree part\n");
 
     const start = execute(repository, ["start", "--json"]);
     expect(start.status, start.stderr).toBe(0);
     expect(JSON.parse(start.stdout).git).toEqual({
       clean: false,
-      trackedPaths: ["AGENTS.md", "CLAUDE.md", "MDLM.md"],
+      trackedPaths: [".gitignore", ".lifecycle/data/.gitkeep", "MDLM.md"],
       untrackedPaths: [],
     });
   });
@@ -239,7 +218,7 @@ describe("self-guiding public CLI", () => {
       "mdlm init <destination>",
       "mdlm start [--json]",
       "mdlm next [--json]",
-      "mdlm scenario submit [response-file|-] [--json]",
+      "mdlm scenario submit [response-file|-] [--authority <authority-id>] [--json]",
       "mdlm doctor [--json]",
     ]) expect(help.stdout).toContain(command);
   });
@@ -254,15 +233,10 @@ describe("mdlm-next@2 operator instruction contract", () => {
       assignment,
     });
 
-    expect(instructions.text).toContain("Begin this Assignment now");
-    expect(instructions.text).toContain(
-      "Do not stop merely to report a fresh Assignment",
-    );
-    expect(instructions.text).toContain("one-Assignment loop");
-    expect(instructions.text).toContain("attended authority is unavailable");
-    expect(instructions.text).toContain("integrity failure");
-    expect(instructions.text).toContain("Profile Boundary Reached");
-    expect(instructions.text).toContain("Lifecycle Complete");
+    expect(instructions.text).toContain("Own the lifecycle loop");
+    expect(instructions.text).toContain("run mdlm next --json again");
+    expect(instructions.text).toContain("ask the named authority");
+    expect(instructions.text).toContain("no-replay boundaries");
   });
 
   it.each([
@@ -273,7 +247,8 @@ describe("mdlm-next@2 operator instruction contract", () => {
     ["process-dead-end", "stop-failure", "unsuccessful-stop"],
     ["invalid", "stop-failure", "unsuccessful-stop"],
   ] as const)("maps %s to %s", (outcome, action, disposition) => {
-    expect(operatorInstructions({ outcome, assignment })).toEqual(
+    const instructions = operatorInstructions({ outcome, assignment });
+    expect(instructions).toEqual(
       expect.objectContaining({
         contract: "mdlm-operator-instructions@1",
         guidePath: "MDLM.md",
@@ -281,6 +256,8 @@ describe("mdlm-next@2 operator instruction contract", () => {
         disposition,
       }),
     );
+    expect(instructions.text).toContain("Own the lifecycle loop");
+    expect(instructions.text).toContain("ask the named authority");
   });
 
   it("does not recreate preparation choreography", () => {
