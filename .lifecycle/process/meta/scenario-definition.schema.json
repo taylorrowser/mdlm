@@ -179,6 +179,12 @@
         "handle": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
         "types": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{3,8}$"}, "minItems": 1, "uniqueItems": true},
         "cardinality": {"enum": ["one", "one-or-more", "zero-or-one", "zero-or-more"]},
+        "identity_from": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["input"],
+          "properties": {"input": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}}
+        },
         "required_links": {"type": "array", "items": {"$ref": "#/$defs/requiredLink"}},
         "required_payload": {
           "type": "object",

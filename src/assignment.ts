@@ -388,6 +388,7 @@ export interface AssignmentPacket {
   outputs: (Omit<ScenarioDryRun["expectedOutputs"][number], "types"> & {
     handle: string;
     type: string;
+    identity?: { input: string };
     payloadSummary: {
       required: string[];
       kernelManaged: string[];
@@ -2559,10 +2560,17 @@ function packet(
     },
     prohibitions: exact.dryRun.prohibitedInputs,
     outputs: exact.dryRun.expectedOutputs.map(({ types, ...output }) => {
+      const definition = (Array.isArray(exact.scenario.outputs)
+        ? exact.scenario.outputs.map(object)
+        : []).find((candidate) => candidate?.name === output.name);
+      const identityFrom = object(definition?.identity_from);
       return {
         ...output,
         handle: outputHandles.get(output.name) ?? output.name,
         type: types[0]!,
+        ...(typeof identityFrom?.input === "string"
+          ? { identity: { input: identityFrom.input } }
+          : {}),
         payloadSummary: {
           required: Array.isArray(schemas[types[0]!]?.payload.required)
             ? schemas[types[0]!]!.payload.required as string[]

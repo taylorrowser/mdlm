@@ -792,9 +792,21 @@ async function submitScenario(
     ...dryRun.policies.map((policy) => policy.reference),
     ...participationPolicyReferences,
   ])].sort();
+  const outputDefinitions = Array.isArray(scenario.outputs)
+    ? scenario.outputs.map(object)
+    : [];
   const outputOccurrences = new Map<string, number>();
   const outputIdentities = proposal.outputs.map((proposal) => {
-    const requestedId = proposal.lifecycleDatum.id;
+    const definition = outputDefinitions.find((candidate) =>
+      candidate?.name === proposal.name
+    );
+    const identityInput = object(definition?.identity_from)?.input;
+    const boundIdentity = typeof identityInput === "string"
+      ? dryRun.invocations[proposal.invocation]?.inputs.find((input) =>
+        input.name === identityInput
+      )?.values[0]?.identity
+      : undefined;
+    const requestedId = proposal.lifecycleDatum.id ?? boundIdentity?.id;
     let id = requestedId;
     if (!id) {
       const occurrenceKey = `${proposal.invocation}\0${proposal.name}`;

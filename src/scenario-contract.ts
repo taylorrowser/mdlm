@@ -160,6 +160,28 @@ export function validateScenarioContracts(
     outputs.forEach((outputValue, outputIndex) => {
       const output = record(outputValue);
       const outputName = String(output?.name);
+      const identityFrom = record(output?.identity_from);
+      if (typeof identityFrom?.input === "string") {
+        const input = inputsByName.get(identityFrom.input);
+        const outputTypes = Array.isArray(output?.types) ? output.types : [];
+        const inputTypes = Array.isArray(input?.types) ? input.types : [];
+        if (!input) {
+          diagnostics.push({
+            code: "unknown-output-identity-input",
+            path: `scenarios.${scenario.id}.outputs[${outputIndex}].identity_from.input`,
+            message: `Scenario '${scenario.id}' output '${outputName}' binds identity from undeclared input '${identityFrom.input}'`,
+          });
+        } else if (
+          input.cardinality !== "one" || output?.cardinality !== "one" ||
+          !outputTypes.some((type) => inputTypes.includes(type))
+        ) {
+          diagnostics.push({
+            code: "incompatible-output-identity-input",
+            path: `scenarios.${scenario.id}.outputs[${outputIndex}].identity_from`,
+            message: `Scenario '${scenario.id}' output '${outputName}' identity binding requires one exact input with a compatible lifecycle type`,
+          });
+        }
+      }
       const requiredLinks = Array.isArray(output?.required_links)
         ? output.required_links
         : [];
