@@ -113,20 +113,44 @@ async function transactionCount(repository: string): Promise<number> {
   }
 }
 
+function matchingString(schema: Record<string, any>, name: string): string {
+  const minimumLength = typeof schema.minLength === "number" ? schema.minLength : 0;
+  if (typeof schema.pattern !== "string") {
+    return `${name} value`.padEnd(minimumLength, "a");
+  }
+  const base = name.toLowerCase().replaceAll("_", "-").replace(/[^a-z0-9-]/g, "");
+  const candidates = [base, `${base}-value`, "value", "a", "A", "1"]
+    .map((candidate) => candidate.padEnd(minimumLength, "a"));
+  const pattern = new RegExp(schema.pattern);
+  const candidate = candidates.find((value) => pattern.test(value));
+  if (candidate === undefined) {
+    throw new Error(`Cannot derive a string matching schema pattern ${schema.pattern}`);
+  }
+  return candidate;
+}
+
+function schemaValue(schema: Record<string, any>, name: string, index = 0): unknown {
+  if (Object.hasOwn(schema, "const")) return structuredClone(schema.const);
+  if (Array.isArray(schema.enum)) return structuredClone(schema.enum[index] ?? schema.enum[0]);
+  if (schema.type === "array") {
+    const length = typeof schema.minItems === "number" ? schema.minItems : 0;
+    return Array.from(
+      { length },
+      (_, itemIndex) => schemaValue(schema.items ?? {}, `${name}-item`, itemIndex),
+    );
+  }
+  if (schema.type === "boolean") return true;
+  if (schema.type === "integer" || schema.type === "number") return 1;
+  if (schema.type === "object") return requiredPayload(schema);
+  return matchingString(schema, name);
+}
+
 function requiredPayload(schema: Record<string, any>): Record<string, unknown> {
   const properties = schema.properties ?? {};
-  return Object.fromEntries((schema.required ?? []).map((name: string) => {
-    const property = properties[name] ?? {};
-    if (Array.isArray(property.enum)) return [name, property.enum[0]];
-    if (property.type === "array") return [name, property.minItems ? ["evidence"] : []];
-    if (property.type === "boolean") return [name, true];
-    if (property.type === "integer" || property.type === "number") return [name, 1];
-    if (property.type === "object") return [name, requiredPayload(property)];
-    if (property.pattern === "^[a-z][a-z0-9-]{0,62}$") {
-      return [name, name.toLowerCase().replaceAll("_", "-")];
-    }
-    return [name, `${name} value`];
-  }));
+  return Object.fromEntries((schema.required ?? []).map((name: string) => [
+    name,
+    schemaValue(properties[name] ?? {}, name),
+  ]));
 }
 
 function inputData(packet: Record<string, any>, name: string): Record<string, any>[] {
@@ -449,6 +473,47 @@ describe("installed v2 cutover journey", () => {
     ]);
   });
 
+  it("derives required payloads from recursive schema constraints", () => {
+    expect(requiredPayload({
+      required: ["system_context"],
+      properties: {
+        system_context: { type: "string", pattern: "^[a-z][a-z0-9-]{0,62}$" },
+      },
+    })).toEqual({ system_context: "system-context" });
+    expect(requiredPayload({
+      required: ["permitted_methods", "independence", "environment_profile"],
+      properties: {
+        permitted_methods: {
+          type: "array",
+          minItems: 1,
+          items: { enum: ["inspection", "demonstration", "test", "analysis"] },
+        },
+        independence: {
+          type: "object",
+          required: ["prohibited_inputs"],
+          properties: {
+            prohibited_inputs: {
+              const: ["product source code", "product unit tests"],
+            },
+          },
+        },
+        environment_profile: {
+          type: "object",
+          required: ["id"],
+          properties: {
+            id: { type: "string", pattern: "^[a-z][a-z0-9-]*$" },
+          },
+        },
+      },
+    })).toEqual({
+      permitted_methods: ["inspection"],
+      independence: {
+        prohibited_inputs: ["product source code", "product unit tests"],
+      },
+      environment_profile: { id: "id" },
+    });
+  });
+
   it("runs fresh Phase 0 through corrected Review into the first Phase 1 run loop", async () => {
     expect(answeredQuestionPayload({ payload: { kind: "preferential", state: "open" } }))
       .toMatchObject({ kind: "preferential", state: "answered", attended_answer: expect.any(String) });
@@ -470,12 +535,6 @@ describe("installed v2 cutover journey", () => {
       resolverPacket,
       optionalDecision,
     )).toBe(false);
-    expect(requiredPayload({
-      required: ["system_context"],
-      properties: {
-        system_context: { type: "string", pattern: "^[a-z][a-z0-9-]{0,62}$" },
-      },
-    })).toEqual({ system_context: "system-context" });
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-installed-cutover-"));
     temporaryRoots.push(root);
     preservedRoots.add(root);
