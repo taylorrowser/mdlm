@@ -25,12 +25,13 @@ function fast() {
   run("./node_modules/.bin/vitest", [
     "run",
     "--config",
-    "vitest.fast.config.ts",
+    "vitest.cutover.config.ts",
     "test/cutover-corpus.test.ts",
     "test/operator-outcome.test.ts",
     "test/operator-contract-v2.test.ts",
+    "test/process-package-cutover.test.ts",
     "-t",
-    "bounded cutover evidence|package-neutral Operator Outcome classification|operator contract v2 fixtures",
+    "bounded cutover evidence|package-neutral Operator Outcome classification|operator contract v2 fixtures|simplified Process Package contract",
   ]);
 }
 
