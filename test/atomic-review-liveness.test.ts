@@ -135,6 +135,64 @@ describe("atomic Phase 0 Review liveness", () => {
     }
   });
 
+  it("discharges an atomic Phase 0 candidate Review", () => {
+    const candidate = record("BSL", "BSL-CANDIDATE1", {
+      title: "Exact intent candidate",
+      kind: "intent-level-candidate",
+      role: "candidate",
+      scope: "product",
+      group: "DEFAULT",
+      definition_members: [],
+      evidence: [],
+    }, "create-phase-0-intent-candidate@1");
+    const context = record("BSL", "BSL-CANDIDATECTX1", {
+      title: `Review context for ${candidate.datum.revision_id}`,
+      kind: "review-context",
+      role: "review-context",
+      scope: candidate.datum.revision_id,
+      group: "DEFAULT",
+      definition_members: [candidate.datum.revision_id],
+      evidence: [],
+    }, "review-phase-0-candidate@1");
+    const review = record("REV", "REV-CANDIDATE1", {
+      title: "Review exact intent candidate",
+      review_kind: "phase-0-candidate",
+      outcome: "pass",
+      reviewer: "independent-reviewer",
+      summary: "The candidate is exact and supported.",
+      findings: [],
+      rubric_ref: "policies/rubrics/bootstrap-review.md@3",
+      correction_authority: "author",
+    }, "review-phase-0-candidate@1", [
+      { type: "reviews", target: candidate.datum.revision_id },
+      { type: "contextualizes", target: context.datum.revision_id },
+    ]);
+    const records = [candidate, context, review];
+
+    expect(selected(records, "current-exact-review-contexts-cited-by@1", {
+      review: review.datum.revision_id,
+      subject: candidate.datum.revision_id,
+    })).toEqual([context.datum.revision_id]);
+    expect(selected(records, "passing-reviews-for@1", {
+      subject: candidate.datum.revision_id,
+    })).toEqual([review.datum.revision_id]);
+    const wrongScenario = structuredClone(review);
+    wrongScenario.datum.created_by.scenario = "review-phase-0-foundation@1";
+    expect(selected([candidate, context, wrongScenario], "passing-reviews-for@1", {
+      subject: candidate.datum.revision_id,
+    })).toEqual([]);
+    const wrongKind = structuredClone(review);
+    wrongKind.datum.payload.review_kind = "phase-0-foundation";
+    expect(selected([candidate, context, wrongKind], "passing-reviews-for@1", {
+      subject: candidate.datum.revision_id,
+    })).toEqual([]);
+    expect(work(records)).not.toContainEqual(expect.objectContaining({
+      scenario: "review-phase-0-candidate@1",
+      subject: candidate.datum.revision_id,
+      dispatchable: true,
+    }));
+  });
+
   it("recognizes the atomic context and routes the next consequential Decision", () => {
     const map = record("MAP", "MAP-ATOMIC1", {
       title: "Initial wayfinding map",
