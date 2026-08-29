@@ -64,7 +64,7 @@ describe("simplified Process Package contract", () => {
     if (!loaded.ok) return;
 
     const expected = {
-      "review-phase-0-foundation": ["MAP", "PSP", "STK"],
+      "review-phase-0-foundation": ["MAP", "PSP", "STK", "DEC"],
       "review-phase-0-candidate": ["BSL"],
       "review-phase-1-assurance": ["VSP", "ENV", "VER", "VAI"],
     };

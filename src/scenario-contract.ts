@@ -122,6 +122,30 @@ export function validateScenarioContracts(
       }),
     );
     const outputNames = new Set(outputsByName.keys());
+    const kernelMaterialization = record(scenario.kernel_materialization);
+    if (kernelMaterialization?.kind === "exact-baseline@1") {
+      const output = kernelMaterialization.output;
+      const matchingOutputs = outputs.filter((candidate) =>
+        record(candidate)?.name === output
+      );
+      if (typeof output !== "string" || matchingOutputs.length !== 1) {
+        diagnostics.push({
+          code: "kernel-materialization-output-invalid",
+          path: `scenarios.${scenario.id}.kernel_materialization.output`,
+          message: `Scenario '${scenario.id}' exact baseline marker must name exactly one declared output`,
+        });
+      }
+      for (const field of ["subject_input", "support_input"] as const) {
+        const input = kernelMaterialization[field];
+        if (typeof input !== "string" || !inputsByName.has(input)) {
+          diagnostics.push({
+            code: "kernel-materialization-input-invalid",
+            path: `scenarios.${scenario.id}.kernel_materialization.${field}`,
+            message: `Scenario '${scenario.id}' exact baseline marker references undeclared input '${String(input)}'`,
+          });
+        }
+      }
+    }
     const outputHandles = outputs.flatMap((outputValue) => {
       const handle = record(outputValue)?.handle;
       return typeof handle === "string" ? [handle] : [];

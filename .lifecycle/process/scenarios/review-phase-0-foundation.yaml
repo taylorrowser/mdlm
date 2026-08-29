@@ -1,7 +1,7 @@
 kind: scenario-definition
 id: review-phase-0-foundation
 version: 1
-description: Independently judge one exact Phase 0 foundation Revision and publish its Review Context with the REV.
+description: Independently judge one exact Phase 0 foundation or consequential Decision Revision and publish its Review Context with the REV.
 kernel_materialization:
   kind: exact-baseline@1
   output: review_context
@@ -16,7 +16,7 @@ kernel_materialization:
   evidence_types: []
 phases: [phase-0-wayfinding]
 inputs:
-  - {name: subject, types: [MAP, PSP, STK], cardinality: one, identity: revision}
+  - {name: subject, types: [MAP, PSP, STK, DEC], cardinality: one, identity: revision}
   - {name: review_context_members, types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS], cardinality: zero-or-more, identity: revision}
 outputs:
   - {name: review_context, handle: context, types: [BSL], cardinality: one, required_links: []}
@@ -33,7 +33,7 @@ skills:
   - reference: skills/contextual-artifact-review.md@2
     summary: Judge one exact foundation Revision against its parents, siblings, decisions, and scope evidence.
 input_summaries:
-  subject: The exact MAP, PSP, or STK Revision under judgment.
+  subject: The exact MAP, PSP, STK, or consequential DEC Revision under judgment.
   review_context_members: Exact parents, siblings, Questions, Decisions, and correction evidence required by package selectors.
 review_contract:
   required_evidence: [review_context_members]
@@ -53,6 +53,7 @@ completion: >-
   && review_context.payload.kind == "review-context"
   && review_context.payload.scope == subject.identity.revision_id
   && review_context.storage.frozen == true
+  && exists("valid-review-contexts-for@1", {subject: subject})
   && review.payload.review_kind == "phase-0-foundation"
   && review.payload.outcome in ["pass", "fail", "cancelled"]
 resolves: [phase-0-foundation-review-required]
