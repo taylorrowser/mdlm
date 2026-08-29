@@ -145,11 +145,14 @@ do not prove a public CLI or installed artifact. Keep intentionally failing
 historical red evidence outside default suite discovery while preserving its
 exact bytes and purpose.
 
-Before an installed or disposable journey starts, arm its failure capture. An
-unexpected outcome writes the exact terminal JSON, accepted transaction trace,
+Before an installed or disposable journey starts, arm symmetric outcome capture.
+An unexpected outcome writes the exact terminal JSON, accepted transaction trace,
 repository and package identities, and artifact digests, then preserves the
-repository. Cleanup removes successful roots only. Repair missing capture before
-starting another fresh journey.
+repository. Success writes the same identities, full accepted trace, and exact
+boundary Assignment to a deterministic path outside the disposable root, and
+preserves the repository until the evidence is audited. Cleanup happens only
+after the corresponding durable outcome record is verified. Repair missing
+capture before starting another fresh journey.
 
 The host operating policy alone owns lifecycle pauses and every reservation and restoration rule, including breach reporting. Follow its `RELEASE-QUALIFICATION.md` pointer for gate preparation, execution, one-shot treatment, outcome classification, and manifest requirements inside an active reservation.
 
