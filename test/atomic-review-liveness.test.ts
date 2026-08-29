@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import path from "node:path";
 import { deriveOperatorOutcome } from "../src/assignment.js";
 import { evaluateProcessDefinition } from "../src/evaluator.js";
+import { scenarioOutputContractDiagnostics } from "../src/scenario-execution.js";
 import type {
   LifecycleRecord,
   LifecycleSnapshot,
@@ -114,6 +115,23 @@ describe("atomic Phase 0 Review liveness", () => {
         intent_scope: "product",
         state: "open",
       });
+      expect(scenarioOutputContractDiagnostics(
+        processPackage.scenarios[scenarioId]!,
+        [{ inputs: [] }],
+        [{
+          name: "questions",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "QST",
+            payload: { intent_scope: "product", state: "answered" },
+            links: [],
+            body: "Answered without the required Decision.",
+          },
+        }],
+      )).toEqual(expect.arrayContaining([expect.objectContaining({
+        code: "scenario-output-required-payload-invalid",
+        path: "outputs.questions.payload.state",
+      })]));
     }
   });
 
