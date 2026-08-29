@@ -45,11 +45,11 @@ schemas, Policies, participation, authority requirements, outputs, completion
 conditions, response schema, and response scaffold. The included packet replaces
 the ordinary prepare step.
 
-Initialization installs `MDLM.md`, short `AGENTS.md` and `CLAUDE.md` discovery
-pointers, and equivalent local MDLM skills for Codex and Claude. `mdlm start` is
-a read-only session briefing. Every `mdlm next` result repeats the immediate safe
-action in `operatorInstructions` so an agent can keep operating without a
-resident controller.
+Initialization installs one package-neutral `MDLM.md` operator guide. `mdlm start`
+is a read-only session briefing. Every `mdlm next` result repeats the
+agent-owned next, work, submit, next loop and its immediate safe action in
+`operatorInstructions`. Attention Required names the authority the agent must
+ask before it continues.
 
 The harness, not MDLM, performs agent work. It returns either a complete Scenario
 Proposal or a typed inability. Proposal outputs use packet-local symbolic handles;
