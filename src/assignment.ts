@@ -2700,6 +2700,32 @@ function rejectedSubmission(
   };
 }
 
+function pendingSettlementSubmission(
+  pending: PendingSettlement,
+): AssignmentSubmissionResult {
+  const diagnostics = [{
+    code: "submission-settlement-required",
+    path: pending.execution,
+    message: "The prior submission has uncertain publication closure; inspect its stable settlement identity and do not replay it",
+  }];
+  return {
+    ok: false,
+    value: {
+      contract: "mdlm-submission-outcome@1",
+      outcome: "settlement-required",
+      assignment: { id: pending.assignment },
+      responseDigest: pending.responseDigest,
+      settlement: {
+        assignment: pending.assignment,
+        execution: pending.execution,
+      },
+      reason: "publication-closure-uncertain",
+      orchestration: { action: "inspect-settlement", replay: false },
+    },
+    diagnostics,
+  };
+}
+
 async function writeMalformedResponse(
   _repositoryRoot: string,
   lease: AssignmentLease,
@@ -2845,29 +2871,7 @@ export async function submitAssignmentResponse(
   authoritySupplies: string[] = [],
 ): Promise<AssignmentSubmissionResult> {
   const pendingSettlement = await readPendingSettlement(repositoryRoot);
-  if (pendingSettlement) {
-    const diagnostics = [{
-      code: "submission-settlement-required",
-      path: pendingSettlement.execution,
-      message: "The prior submission has uncertain publication closure; inspect its stable settlement identity and do not replay it",
-    }];
-    return {
-      ok: false,
-      value: {
-        contract: "mdlm-submission-outcome@1",
-        outcome: "settlement-required",
-        assignment: { id: pendingSettlement.assignment },
-        responseDigest: pendingSettlement.responseDigest,
-        settlement: {
-          assignment: pendingSettlement.assignment,
-          execution: pendingSettlement.execution,
-        },
-        reason: "publication-closure-uncertain",
-        orchestration: { action: "inspect-settlement", replay: false },
-      },
-      diagnostics,
-    };
-  }
+  if (pendingSettlement) return pendingSettlementSubmission(pendingSettlement);
   const persisted = await readLease(repositoryRoot);
   if (!persisted.ok) return persisted;
   const lease = persisted.value;
@@ -2944,6 +2948,10 @@ export async function submitAssignmentResponse(
     loadedSkillRefs: exact.value.dryRun.prompt.skills.map((skill) => skill.reference),
   };
   return withExactActiveLease(repositoryRoot, lease, async (lease, renew) => {
+    const lockedPendingSettlement = await readPendingSettlement(repositoryRoot);
+    if (lockedPendingSettlement) {
+      return pendingSettlementSubmission(lockedPendingSettlement);
+    }
     const verifyAssignment = async (): Promise<AssignmentResult<undefined>> => {
       await renew();
       const committedLease = await readLease(repositoryRoot);

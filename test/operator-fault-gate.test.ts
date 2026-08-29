@@ -10,7 +10,10 @@ import { initialPhaseId } from "../src/lifecycle-inspection.js";
 import { classifyOperatorOutcome, type OperatorWorkFacts } from "../src/operator-outcome.js";
 import { loadRepositoryInspection } from "../src/repository-inspection.js";
 import { validateScenarioContracts } from "../src/scenario-contract.js";
-import { scenarioOutputContractDiagnostics } from "../src/scenario-execution.js";
+import {
+  scenarioOutputContractDiagnostics,
+  scenarioOutputIdentityDiagnostics,
+} from "../src/scenario-execution.js";
 import { selectedRepositoryPackage } from "../src/selected-package.js";
 
 type JsonObject = Record<string, any>;
@@ -332,6 +335,44 @@ describe("focused v2 fault-injection gate", () => {
     expect(packageOwnedDiagnostics).toEqual(expect.arrayContaining([
       expect.objectContaining({ code: "scenario-review-correction-authority-invalid" }),
     ]));
+  });
+
+  it("rejects overriding a package-bound output with another existing lineage", () => {
+    const diagnostics = scenarioOutputIdentityDiagnostics(
+      {
+        kind: "scenario-definition",
+        id: "same-lineage",
+        version: 1,
+        outputs: [{
+          name: "updated_question",
+          types: ["QST"],
+          cardinality: "one",
+          identity_from: { input: "question" },
+        }],
+      },
+      [{
+        inputs: [{
+          name: "question",
+          values: [{ identity: { id: "QST-A", type: "QST", revision: 1 } }],
+        }],
+      }],
+      [{
+        name: "updated_question",
+        invocation: 0,
+        lifecycleDatum: {
+          id: "QST-B",
+          type: "QST",
+          payload: {},
+          links: [],
+          body: "",
+        },
+      }],
+      new Set(["QST-A", "QST-B"]),
+    );
+    expect(diagnostics).toEqual([expect.objectContaining({
+      code: "scenario-output-identity-binding-mismatch",
+      path: "proposal.outputs[0].lifecycleDatum.id",
+    })]);
   });
 
   it("repeats schema and identity rejection without transaction or correction consumption", async () => {
