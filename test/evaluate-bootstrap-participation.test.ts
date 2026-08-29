@@ -2337,6 +2337,10 @@ describe("bootstrap Scenario participation Policies", () => {
       links: [{ type: "indexes", target: openQuestion.datum.id }],
     });
     const reviewedMap = contextualPassingReview(map, "REV-7K3M9Q2D8J");
+    reviewedMap.context.datum.payload.definition_members = [
+      map.datum.revision_id,
+      openQuestion.datum.revision_id,
+    ].sort();
     const product = lifecycleDatum("PSP", "PSP-7K3M9Q2D8J", {
       title: "Bounded stakeholder product",
       rationale: "Preserve only the explicitly selected product intent.",
@@ -2470,6 +2474,14 @@ describe("bootstrap Scenario participation Policies", () => {
     answeredQuestion.datum.payload.state = "answered";
     answeredQuestion.datum.created_by.scenario = "resolve-question@2";
     answeredQuestion.storage = { editable: true, frozen: false };
+    const reviewedResolvedMap = contextualPassingReview(
+      map,
+      "REV-7K3M9Q2D8Q",
+    );
+    reviewedResolvedMap.context.datum.payload.definition_members = [
+      map.datum.revision_id,
+      answeredQuestion.datum.revision_id,
+    ].sort();
     const answer = lifecycleDatum("DEC", "DEC-7K3M9Q2D8J", {
       title: "Authorized stakeholder product boundary",
       rationale: "The stakeholder selected the exact product boundary.",
@@ -2536,6 +2548,8 @@ describe("bootstrap Scenario participation Policies", () => {
       unrelatedAnswer,
       reviewedUnrelatedAnswer.context,
       reviewedUnrelatedAnswer.review,
+      reviewedResolvedMap.context,
+      reviewedResolvedMap.review,
     );
 
     const candidateResolutionSupport = evaluateProcessDefinition(
@@ -2701,6 +2715,11 @@ describe("bootstrap Scenario participation Policies", () => {
     replacement.datum.links = [
       { type: "supersedes", target: fixture.candidate.datum.revision_id },
       { type: "corrects-review", target: fixture.candidateReview.datum.revision_id },
+    ];
+    replacement.datum.payload.evidence = [
+      reviewedResolvedMap.review.datum.revision_id,
+      reviewedProduct.review.datum.revision_id,
+      reviewedRequirement.review.datum.revision_id,
     ];
     replacement.datum.created_by.scenario =
       "revise-intent-candidate-after-review@3";
