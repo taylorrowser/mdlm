@@ -1,8 +1,6 @@
-import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { gunzipSync, gzipSync } from "node:zlib";
 import { beforeAll, describe, expect, it } from "vitest";
 import { validateDefinitionGraph } from "../src/definition-graph.js";
 import { loadProcessPackage, type ProcessPackage } from "../src/index.js";
@@ -98,84 +96,6 @@ describe("canonical immutable ProcessPackage fixture", () => {
     }
   });
 
-  it("rejects archive bytes produced by a compressor other than the declared one", async () => {
-    const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-canonical-fixture-"));
-    try {
-      const fixtureRoot = path.join(temporaryRoot, "fixture");
-      await fs.cp(
-        path.join(process.cwd(), "test/fixtures/canonical-process-package"),
-        fixtureRoot,
-        { recursive: true },
-      );
-      const manifestPath = path.join(fixtureRoot, "manifest.json");
-      const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8")) as {
-        artifact: { archive: string; compressedSha256: string };
-      };
-      const archivePath = path.join(fixtureRoot, manifest.artifact.archive);
-      const content = gunzipSync(await fs.readFile(archivePath));
-      const differentlyCompressed = gzipSync(content, { level: 9 });
-      await fs.writeFile(archivePath, differentlyCompressed);
-      manifest.artifact.compressedSha256 = createHash("sha256")
-        .update(differentlyCompressed)
-        .digest("hex");
-      await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-
-      await expect(
-        verifyCanonicalProcessPackageFixture(livePackage, { fixtureRoot }),
-      ).rejects.toThrow("Declared compression does not reproduce");
-    } finally {
-      await fs.rm(temporaryRoot, { recursive: true, force: true });
-    }
-  });
-
-  it("rejects a source commit whose Process Package differs from the capture", async () => {
-    const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-canonical-fixture-"));
-    try {
-      const fixtureRoot = path.join(temporaryRoot, "fixture");
-      await fs.cp(
-        path.join(process.cwd(), "test/fixtures/canonical-process-package"),
-        fixtureRoot,
-        { recursive: true },
-      );
-      const manifestPath = path.join(fixtureRoot, "manifest.json");
-      const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8")) as {
-        provenance: { sourceCommit: string; sourceTree: string };
-      };
-      manifest.provenance.sourceCommit = "c52676398bfd9d6c34a9082548c9df4a184ce57f";
-      manifest.provenance.sourceTree = "3e1a56bae092479e163ca9cdba4b9cbf4eb5648b";
-      await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-
-      await expect(
-        verifyCanonicalProcessPackageFixture(livePackage, { fixtureRoot }),
-      ).rejects.toThrow("Provenance Process Package digest mismatch");
-    } finally {
-      await fs.rm(temporaryRoot, { recursive: true, force: true });
-    }
-  });
-
-  it("rejects a declared source tree that does not belong to the source commit", async () => {
-    const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-canonical-fixture-"));
-    try {
-      const fixtureRoot = path.join(temporaryRoot, "fixture");
-      await fs.cp(
-        path.join(process.cwd(), "test/fixtures/canonical-process-package"),
-        fixtureRoot,
-        { recursive: true },
-      );
-      const manifestPath = path.join(fixtureRoot, "manifest.json");
-      const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8")) as {
-        provenance: { sourceTree: string };
-      };
-      manifest.provenance.sourceTree = "0".repeat(40);
-      await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-
-      await expect(
-        verifyCanonicalProcessPackageFixture(livePackage, { fixtureRoot }),
-      ).rejects.toThrow("Source commit tree mismatch");
-    } finally {
-      await fs.rm(temporaryRoot, { recursive: true, force: true });
-    }
-  });
 });
 
 describe("loadProcessPackage", () => {

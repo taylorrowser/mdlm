@@ -600,18 +600,23 @@ describe("public mdlm outcome and status seam", () => {
 
   it("resolves the package-declared default from multiple valid profiles", () => {
     const processPackage = structuredClone(bootstrapPackageFoundation);
+    const currentVersion = processPackage.profiles.bootstrap!.version;
+    const alternateReference = `alternate@${currentVersion}`;
     processPackage.profiles.alternate = {
       ...structuredClone(processPackage.profiles.bootstrap!),
       id: "alternate",
     };
     processPackage.manifest.profiles = {
-      default: "alternate@40",
-      available: ["profiles/bootstrap.yaml@40", "profiles/alternate.yaml@40"],
+      default: alternateReference,
+      available: [
+        `profiles/bootstrap.yaml@${currentVersion}`,
+        `profiles/alternate.yaml@${currentVersion}`,
+      ],
     };
 
     expect(selectedImplementationProfile(processPackage)).toEqual({
-      reference: "alternate@40",
-      definition: expect.objectContaining({ id: "alternate", version: 40 }),
+      reference: alternateReference,
+      definition: expect.objectContaining({ id: "alternate", version: currentVersion }),
     });
   });
 

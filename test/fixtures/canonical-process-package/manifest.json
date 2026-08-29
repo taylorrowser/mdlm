@@ -17,6 +17,6 @@
   "provenance": {
     "sourceCommit": "5d47e2b1867388522eda1fc9999b3b385026fbe6",
     "sourceTree": "cd8bea819c3bed94507b08aaf9aba34a568d098c",
-    "captureCommand": "set -o pipefail; test \"$(git rev-parse HEAD)\" = \"5d47e2b1867388522eda1fc9999b3b385026fbe6\" && npm run build && node --input-type=module --eval 'import { loadProcessPackage } from \"./dist/index.js\"; const result = await loadProcessPackage(\".lifecycle/process\"); if (!result.ok) throw new Error(result.diagnostics.map(({ message }) => message).join(\"\\n\")); process.stdout.write(JSON.stringify(result.package));' | gzip -n -9 > test/fixtures/canonical-process-package/process-package.json.gz"
+    "captureCommand": "npm run process-fixture:refresh"
   }
 }
