@@ -5,8 +5,8 @@ import path from "node:path";
 import { Writable } from "node:stream";
 import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
+import { runMdlmCli } from "../src/cli-main.js";
 import { executeCommandApplication } from "../src/command-application.js";
-import { runMdlmCli } from "../src/mdlm.js";
 
 const executable = path.join(process.cwd(), "dist/mdlm.js");
 
@@ -85,5 +85,19 @@ process.stdout.write = (_chunk, encoding, callback) => {
     expect(next.status).not.toBe(0);
     expect(next.stdout).toBe("");
     expect(next.stderr).toContain("injected stdout failure");
+  });
+
+  it("runs through an installed-style bin symlink", async () => {
+    parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-cli-symlink-"));
+    const launcher = path.join(parent, "mdlm");
+    await fs.symlink(executable, launcher);
+
+    const help = spawnSync(process.execPath, [launcher, "--help"], {
+      cwd: parent,
+      encoding: "utf8",
+    });
+
+    expect(help.status, help.stderr).toBe(0);
+    expect(help.stdout).toContain("Usage: mdlm");
   });
 });
