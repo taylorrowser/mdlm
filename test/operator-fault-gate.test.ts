@@ -4,10 +4,14 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { executeCommandApplication } from "../src/command-application.js";
+import { deriveOperatorOutcome } from "../src/assignment.js";
 import { loadProcessPackage } from "../src/index.js";
+import { initialPhaseId } from "../src/lifecycle-inspection.js";
 import { classifyOperatorOutcome, type OperatorWorkFacts } from "../src/operator-outcome.js";
+import { loadRepositoryInspection } from "../src/repository-inspection.js";
 import { validateScenarioContracts } from "../src/scenario-contract.js";
 import { scenarioOutputContractDiagnostics } from "../src/scenario-execution.js";
+import { selectedRepositoryPackage } from "../src/selected-package.js";
 
 type JsonObject = Record<string, any>;
 
@@ -191,6 +195,25 @@ describe("focused v2 fault-injection gate", () => {
     ]));
   });
 
+  it("derives byte-equivalent decisions from one authenticated snapshot and package", async () => {
+    const selected = await selectedRepositoryPackage(repository);
+    expect(selected.ok).toBe(true);
+    if (!selected.ok) return;
+    const phase = initialPhaseId(selected.processPackage);
+    expect(phase).toEqual(expect.any(String));
+    const inspection = await loadRepositoryInspection(
+      repository,
+      selected.processPackage,
+      `${selected.summary.reference}#${selected.summary.digest}`,
+    );
+    expect(inspection.ok).toBe(true);
+    if (!inspection.ok || !phase) return;
+    const snapshot = inspection.value.lifecycleSnapshot(phase);
+    const first = JSON.stringify(deriveOperatorOutcome(snapshot, selected.processPackage));
+    const second = JSON.stringify(deriveOperatorOutcome(snapshot, selected.processPackage));
+    expect(second).toBe(first);
+  });
+
   it("rejects missing and undeclared resolver inputs at the package boundary", async () => {
     const loaded = await loadProcessPackage(path.join(process.cwd(), ".lifecycle/process"));
     expect(loaded.ok).toBe(true);
@@ -367,7 +390,7 @@ describe("focused v2 fault-injection gate", () => {
     expect(suppliedOutOfBand.status, JSON.stringify(suppliedOutOfBand.value)).toBe(0);
     expect(suppliedOutOfBand.value).toMatchObject({
       outcome: "accepted",
-      assignment: { id: next.assignment.id },
+      assignment: { id: attended.value.assignment.id },
     });
   });
 
