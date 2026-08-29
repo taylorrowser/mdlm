@@ -229,6 +229,23 @@ export function scenarioOutputContractDiagnostics(
             });
           }
         }
+        const reviewContract = object(scenario.review_contract);
+        const allowedCorrectionAuthorities = array(
+          reviewContract?.correction_authorities,
+        );
+        const correctionAuthority = value.lifecycleDatum.payload.correction_authority;
+        if (
+          types.includes("REV") &&
+          typeof correctionAuthority === "string" &&
+          allowedCorrectionAuthorities.length > 0 &&
+          !allowedCorrectionAuthorities.includes(correctionAuthority)
+        ) {
+          diagnostics.push({
+            code: "scenario-review-correction-authority-invalid",
+            path: `outputs.${name}.payload.correction_authority`,
+            message: `Scenario output '${name}' cannot grant correction authority '${correctionAuthority}'; expected one of ${JSON.stringify(allowedCorrectionAuthorities)}`,
+          });
+        }
       }
     }
   }
