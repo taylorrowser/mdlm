@@ -2175,7 +2175,7 @@ describe("Phase 0 missing hardening routes", () => {
         "/unused",
         processPackage,
         {
-          reference: "mdlm-bootstrap@0.79.0",
+          reference: "mdlm-bootstrap@0.80.0",
           digest: "sha256:test",
           language: "mdlm-expression@1",
         },
