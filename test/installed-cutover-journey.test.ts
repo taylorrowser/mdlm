@@ -21,6 +21,21 @@ async function preserveFailureEvidence(
   return evidencePath;
 }
 
+async function preserveSuccessEvidence(
+  root: string,
+  evidence: Record<string, unknown>,
+  durablePath = process.env.MDLM_CUTOVER_SUCCESS_EVIDENCE
+    ?? path.join(os.tmpdir(), "mdlm-installed-cutover-success.json"),
+): Promise<{ evidencePath: string; durablePath: string }> {
+  const evidencePath = path.join(root, "installed-cutover-success.json");
+  const bytes = `${JSON.stringify(evidence, null, 2)}\n`;
+  await fs.writeFile(evidencePath, bytes);
+  await fs.writeFile(durablePath, bytes);
+  preservedRoots.add(root);
+  process.stderr.write(`INSTALLED_CUTOVER_SUCCESS path=${durablePath}\n`);
+  return { evidencePath, durablePath };
+}
+
 function errorEvidence(error: unknown): Record<string, unknown> {
   return error instanceof Error
     ? { name: error.name, message: error.message, stack: error.stack }
@@ -452,6 +467,41 @@ describe("installed v2 cutover journey", () => {
     expect(preservedRoots.has(root)).toBe(true);
     preservedRoots.delete(root);
     expect(preservedRoots.has(root)).toBe(false);
+  });
+
+  it("preserves exact success evidence outside the disposable root", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-installed-success-root-"));
+    const durableRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-installed-success-record-"));
+    temporaryRoots.push(root, durableRoot);
+    const durablePath = path.join(durableRoot, "success.json");
+    const evidence = {
+      status: "success",
+      preservedRoot: root,
+      source: { git: { head: "source-head", tree: "source-tree" } },
+      package: { reference: "package@1", digest: "sha256:package" },
+      artifact: { archiveSha256: "archive", executableSha256: "executable" },
+      repository: { git: { head: "repository-head", tree: "repository-tree" }, dataDigest: "data" },
+      trace: [{ scenario: "scenario@1", assignment: "assignment-1" }],
+      assignment: {
+        id: "assignment-run",
+        packet: {
+          exactInputs: [{ inputs: [{ name: "subject", values: [{ revisionId: "VER-r00001" }] }] }],
+          responseScaffold: { contract: "mdlm-assignment-response@2" },
+          outputs: [{ handle: "run", type: "RUN" }],
+        },
+      },
+    };
+    const paths = await preserveSuccessEvidence(root, evidence, durablePath);
+    expect(paths).toEqual({
+      evidencePath: path.join(root, "installed-cutover-success.json"),
+      durablePath,
+    });
+    expect(JSON.parse(await fs.readFile(paths.evidencePath, "utf8"))).toEqual(evidence);
+    expect(JSON.parse(await fs.readFile(paths.durablePath, "utf8"))).toEqual(evidence);
+    expect(JSON.parse(await fs.readFile(paths.durablePath, "utf8")))
+      .toHaveProperty("assignment.packet.exactInputs[0].inputs[0].values[0].revisionId", "VER-r00001");
+    expect(preservedRoots.has(root)).toBe(true);
+    preservedRoots.delete(root);
   });
 
   it("keeps unused optional gate outputs null", () => {
@@ -1102,22 +1152,28 @@ describe("installed v2 cutover journey", () => {
     expect(rejectedReview).toBe(true);
     expect(correctedReview, scenarios.join(" -> ")).toBe(true);
     expect(phase1RunOrResult, scenarios.join(" -> ")).toBe(true);
-    console.log(JSON.stringify({
-      archive: { name: path.basename(archive), sha256: archiveDigest },
-      executable: { relativePath: "node_modules/mdlm/dist/mdlm.js", sha256: executableDigest },
+    const successEvidence = {
+      status: "success",
+      preservedRoot: root,
+      source: failureState.source,
+      artifact: failureState.artifact,
       package: initialized.package,
-      repository: phase1Boundary?.repository,
-      phase: phase1Boundary?.phase,
-      assignment: {
-        id: phase1Boundary?.assignment.id,
-        scenario: phase1Boundary?.assignment.packet.scenario.reference,
-        outputs: phase1Boundary?.assignment.packet.outputs.map(
-          (output: Record<string, unknown>) => ({ handle: output.handle, type: output.type }),
-        ),
+      repository: {
+        path: repository,
+        git: optionalGitIdentity(repository),
+        dataDigest: await filesDigest(path.join(repository, ".lifecycle/data")),
+        authenticated: phase1Boundary?.repository,
       },
+      trace,
+      phase: phase1Boundary?.phase,
+      assignment: phase1Boundary?.assignment,
       scenarios,
-    }));
-    preservedRoots.delete(root);
+    };
+    const successPaths = await preserveSuccessEvidence(root, successEvidence);
+    expect(successPaths.durablePath).toBe(
+      process.env.MDLM_CUTOVER_SUCCESS_EVIDENCE
+        ?? path.join(os.tmpdir(), "mdlm-installed-cutover-success.json"),
+    );
     } catch (error) {
       failureState.repository = {
         path: repository,
