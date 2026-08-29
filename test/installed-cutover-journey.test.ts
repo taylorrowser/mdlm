@@ -245,6 +245,17 @@ function outputPayload(
       correction_authority: "author",
     };
   }
+  if (scenario === "write-verification-activity" && output.type === "VER") {
+    return {
+      ...generic(),
+      kind: "pilot",
+      claim: {
+        kind: "pilot",
+        scope: "verification-design",
+        formal_evidence_eligible: false,
+      },
+    };
+  }
   if (scenario === "resolve-question" && output.type === "DEC") {
     if (question.payload.kind === "empirical") {
       return {
@@ -548,6 +559,69 @@ describe("installed v2 cutover journey", () => {
 
     expect(completedResponse(packet).proposal.outputs[0].payload.rubric_ref)
       .toBe("policies/rubrics/bootstrap-review.md@3");
+  });
+
+  it("uses the declared pilot claim for a verification activity", () => {
+    const packet = {
+      scenario: { reference: "write-verification-activity@2" },
+      exactInputs: [],
+      outputs: [{ handle: "activity", type: "VER", cardinality: "one" }],
+      schemas: {
+        VER: {
+          payload: {
+            type: "object",
+            required: ["title", "kind", "claim", "acceptance_criteria"],
+            properties: {
+              title: { type: "string", minLength: 1 },
+              kind: { enum: ["qualification", "pilot", "formal"] },
+              claim: {
+                oneOf: [
+                  {
+                    type: "object",
+                    required: ["kind", "scope", "formal_evidence_eligible"],
+                    properties: {
+                      kind: { const: "qualification" },
+                      scope: { const: "environment-capability" },
+                      formal_evidence_eligible: { const: false },
+                    },
+                  },
+                  {
+                    type: "object",
+                    required: ["kind", "scope", "formal_evidence_eligible"],
+                    properties: {
+                      kind: { const: "pilot" },
+                      scope: { const: "verification-design" },
+                      formal_evidence_eligible: { const: false },
+                    },
+                  },
+                ],
+              },
+              acceptance_criteria: {
+                type: "array",
+                minItems: 1,
+                items: { type: "string", minLength: 1 },
+              },
+            },
+          },
+        },
+      },
+      responseScaffold: {
+        proposal: {
+          outputs: [{ handle: "activity", type: "VER", payload: null, body: null }],
+        },
+      },
+    };
+
+    expect(completedResponse(packet).proposal.outputs[0].payload).toMatchObject({
+      title: expect.any(String),
+      kind: "pilot",
+      claim: {
+        kind: "pilot",
+        scope: "verification-design",
+        formal_evidence_eligible: false,
+      },
+      acceptance_criteria: [expect.any(String)],
+    });
   });
 
   it("runs fresh Phase 0 through corrected Review into the first Phase 1 run loop", async () => {
