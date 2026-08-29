@@ -450,7 +450,7 @@ describe("focused v2 fault-injection gate", () => {
       retryable: true,
     });
     expect(first.value.diagnostics).toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: "assignment-response-invalid" }),
+      expect.objectContaining({ code: "assignment-response-output-omission-invalid" }),
     ]));
     expect(await filesDigest(path.join(repository, ".lifecycle/data"))).toBe(before.data);
     expect(await fs.readFile(leasePath, "utf8")).toBe(before.lease);
