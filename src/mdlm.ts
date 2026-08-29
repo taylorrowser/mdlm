@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-import { executeCommandApplication } from "./command-application.js";
-import { collectPerformanceDiagnostics } from "./performance-diagnostics.js";
+import { runMdlmCli } from "./cli-main.js";
 
 const arguments_ = process.argv.slice(2);
 const submitArguments = arguments_.filter((argument) => argument !== "--json");
@@ -13,15 +12,11 @@ if (readsAssignmentResponse) {
   standardInput = "";
   for await (const chunk of process.stdin) standardInput += chunk;
 }
-const measured = await collectPerformanceDiagnostics(() =>
-  executeCommandApplication(
-    arguments_,
-    process.cwd(),
-    standardInput,
-  )
-);
-process.stdout.write(measured.value.output);
-if (process.env.MDLM_PERFORMANCE === "json") {
-  process.stderr.write(`${JSON.stringify(measured.diagnostics)}\n`);
-}
-process.exitCode = measured.value.exitCode;
+process.exitCode = await runMdlmCli({
+  arguments_,
+  cwd: process.cwd(),
+  standardInput,
+  stdout: process.stdout,
+  stderr: process.stderr,
+  performanceDiagnostics: process.env.MDLM_PERFORMANCE === "json",
+});
