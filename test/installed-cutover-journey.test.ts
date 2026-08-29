@@ -65,6 +65,9 @@ function requiredPayload(schema: Record<string, any>): Record<string, unknown> {
     if (property.type === "boolean") return [name, true];
     if (property.type === "integer" || property.type === "number") return [name, 1];
     if (property.type === "object") return [name, requiredPayload(property)];
+    if (property.pattern === "^[a-z][a-z0-9-]{0,62}$") {
+      return [name, name.toLowerCase().replaceAll("_", "-")];
+    }
     return [name, `${name} value`];
   }));
 }
@@ -297,6 +300,12 @@ describe("installed v2 cutover journey", () => {
       optionalDecision,
       "empirical",
     )).toBe(false);
+    expect(requiredPayload({
+      required: ["system_context"],
+      properties: {
+        system_context: { type: "string", pattern: "^[a-z][a-z0-9-]{0,62}$" },
+      },
+    })).toEqual({ system_context: "system-context" });
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-installed-cutover-"));
     temporaryRoots.push(root);
     const packageRoot = path.join(root, "package");
