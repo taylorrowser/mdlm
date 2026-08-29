@@ -123,6 +123,57 @@ describe("bounded cutover evidence", () => {
     }
   });
 
+  it("retains the stopped Codex accepted-but-uncommitted no-replay boundary", async () => {
+    const { value } = await exactJson(
+      corpusRoot,
+      "retained-codex-046-accepted-uncommitted.json",
+    );
+    const archive = path.join(
+      corpusRoot,
+      String((value.transactionArchive as Record<string, unknown>).file),
+    );
+    const bytes = await fs.readFile(archive);
+    expect(createHash("sha256").update(bytes).digest("hex")).toBe(
+      (value.transactionArchive as Record<string, unknown>).sha256,
+    );
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-codex-046-corpus-"));
+    try {
+      await executeFile("tar", ["-xzf", archive, "-C", root]);
+      const transaction = path.join(
+        root,
+        ".lifecycle/data/.transactions",
+        String(value.execution),
+      );
+      const executionSource = await fs.readFile(path.join(transaction, "execution.json"));
+      const datumSource = await fs.readFile(
+        path.join(transaction, "BSL/BSL-XGVB13HF50/r00001.md"),
+      );
+      expect(createHash("sha256").update(executionSource).digest("hex")).toBe(
+        "523cc624ba813af0c1c0a4d4dbf4208472b5785e250a91bff061cfc55c1824fb",
+      );
+      expect(createHash("sha256").update(datumSource).digest("hex")).toBe(
+        "eb43ea87fd9d364b9de6f768de3b013a857c2b17beb7b20944ee79e30f7c0131",
+      );
+      const execution = JSON.parse(executionSource.toString()) as Record<string, any>;
+      expect(execution).toMatchObject({
+        id: value.execution,
+        status: "completed",
+        response: {
+          assignment: value.assignment,
+          digest: value.responseDigest,
+        },
+      });
+      expect(value).toMatchObject({
+        transport: "stopped",
+        writer: null,
+        acceptedTransactions: { acceptedUncommitted: 1 },
+        boundary: { closure: "accepted-publication-uncommitted", replay: false },
+      });
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("freezes exactly the six v2 OperatorOutcome families", async () => {
     const files = [
       "assignment.json",
