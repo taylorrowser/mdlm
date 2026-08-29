@@ -309,7 +309,7 @@ describe("focused v2 fault-injection gate", () => {
     ]));
 
     const packageOwnedReview = structuredClone(scenario);
-    packageOwnedReview.outputs[1].types = ["PKG"];
+    (packageOwnedReview.outputs as JsonObject[])[1]!.types = ["PKG"];
     packageOwnedReview.authority_evidence = { output: "review", type: "PKG" };
     const packageOwnedDiagnostics = scenarioOutputContractDiagnostics(
       packageOwnedReview,
@@ -353,7 +353,21 @@ describe("focused v2 fault-injection gate", () => {
       [{
         inputs: [{
           name: "question",
-          values: [{ identity: { id: "QST-A", type: "QST", revision: 1 } }],
+          contract: { types: ["QST"], cardinality: "one", identity: "revision" },
+          values: [{
+            identity: { id: "QST-A", type: "QST", revision: 1 },
+            data: {
+              id: "QST-A",
+              revision: 1,
+              revision_id: "QST-A-r00001",
+              type: "QST",
+              payload: {},
+              links: [],
+              created_by: { process_ref: "git:fixture" },
+              body: "",
+            },
+          }],
+          checks: [],
         }],
       }],
       [{
@@ -398,7 +412,7 @@ describe("focused v2 fault-injection gate", () => {
     for (const [field, identity] of [
       ["stableId", "MAP-agent-authored"],
       ["revisionId", "MAP-agent-authored-r00001"],
-    ]) {
+    ] as const) {
       const authoredIdentity = structuredClone(response);
       authoredIdentity.proposal.outputs[0][field] = identity;
       const identityRejected = await command(

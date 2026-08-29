@@ -284,7 +284,7 @@ describe("installed v2 cutover journey", () => {
       payload: { kind: "empirical", state: "open", attended_answer: "invalid carryover" },
     })).toEqual({ kind: "empirical", state: "answered", evidence_available: true });
     const optionalDecision = { handle: "decision", type: "DEC" };
-    const resolverPacket = {
+    const resolverPacket: Record<string, any> = {
       scenario: { reference: "resolve-question@2" },
       outputs: [{ handle: "decision", cardinality: "zero-or-one" }],
       authority: { evidence: null },
