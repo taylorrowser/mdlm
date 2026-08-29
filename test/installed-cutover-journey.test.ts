@@ -175,7 +175,20 @@ function answeredQuestionPayload(question: Record<string, any>): Record<string, 
         ...payload,
         state: "answered",
         evidence_available: true,
-      };
+    };
+}
+
+function reviewKindForScenario(scenario: string): string {
+  const reviewKinds: Record<string, string> = {
+    "review-phase-0-foundation": "phase-0-foundation",
+    "review-phase-0-candidate": "phase-0-candidate",
+    "review-phase-1-assurance": "phase-1-assurance",
+  };
+  const reviewKind = reviewKinds[scenario];
+  if (reviewKind === undefined) {
+    throw new Error(`No installed Review payload is declared for ${scenario}`);
+  }
+  return reviewKind;
 }
 
 function outputPayload(
@@ -234,9 +247,7 @@ function outputPayload(
   if (output.type === "REV") {
     return {
       title: `Installed review of ${subject?.revision_id ?? candidate?.revision_id}`,
-      review_kind: scenario === "review-phase-0-candidate"
-        ? "phase-0-candidate"
-        : "phase-0-foundation",
+      review_kind: reviewKindForScenario(scenario),
       outcome: "pass",
       reviewer: "independent-reviewer",
       summary: "The exact subject is necessary, observable, traceable, and consistent.",
@@ -557,8 +568,17 @@ describe("installed v2 cutover journey", () => {
       },
     };
 
-    expect(completedResponse(packet).proposal.outputs[0].payload.rubric_ref)
-      .toBe("policies/rubrics/bootstrap-review.md@3");
+    for (const [scenario, reviewKind] of [
+      ["review-phase-0-foundation@1", "phase-0-foundation"],
+      ["review-phase-0-candidate@1", "phase-0-candidate"],
+      ["review-phase-1-assurance@1", "phase-1-assurance"],
+    ] as const) {
+      const scenarioPacket = { ...packet, scenario: { reference: scenario } };
+      expect(completedResponse(scenarioPacket).proposal.outputs[0].payload).toMatchObject({
+        review_kind: reviewKind,
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
+      });
+    }
   });
 
   it("uses the declared pilot claim for a verification activity", () => {
