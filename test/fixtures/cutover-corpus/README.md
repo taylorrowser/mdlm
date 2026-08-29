@@ -19,3 +19,13 @@ The independently executable v2 outcome, packet, response, and submission
 bytes live in `../operator-contract-v2`. Representative package fixtures own
 terminal and invalid decisions. Do not grow this directory with route
 permutations.
+
+`bundles/package-0.79.0.tar.gz` contains the exact selected package bytes.
+The two lane snapshot bundles contain repository descriptors, Lifecycle Data,
+and active leases. `cutover-corpus.test.ts` extracts and authenticates them with
+the public repository loader. Active recovery must return Assignment
+`3848d89a-c926-408c-a802-113407e5de12`; the attended case must remain
+Attention Required for Assignment `ca96351a-38af-4086-a5cb-5af038ab74e0`.
+The old `publication-required` case changes intentionally: v2 owns that atomic
+materialization inside claim and then returns the active Assignment. It may not
+skip the materialized transaction or expose partial publication.

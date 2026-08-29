@@ -43,16 +43,12 @@ const CANONICAL_IN_PROCESS_KIND = ROOT_TEST_OBSERVATION_KINDS.CANONICAL_IN_PROCE
 // drift in either list.
 const classification = Object.freeze({
   "test/load-process-package.test.ts": [CANONICAL_IN_PROCESS_KIND, "temporary Process Package copies and in-process graph/schema compilation"],
-  "test/mdlm-baseline-inspection.test.ts": [PROCESS_REPOSITORY_KIND, "repository, Git, compiled child process, watcher, and publication lock"],
   "test/mdlm-assignment.test.ts": [PROCESS_REPOSITORY_KIND, "repository, compiled CLI, Git, lease lock, and publication lock"],
   "test/proportional-distinct-context-phase-2-public.test.ts": [PROCESS_REPOSITORY_KIND, "captured repository, Git, compiled CLI, and public assignment route"],
   "test/mdlm-lifecycle.test.ts": [PROCESS_REPOSITORY_KIND, "mixed in-process projections and repository/public command application"],
   "test/mdlm-process-migration.test.ts": [PROCESS_REPOSITORY_KIND, "compiled CLI, Git-backed repository, and Process Package migration"],
-  "test/mdlm-review-assignment.test.ts": [PROCESS_REPOSITORY_KIND, "repository fork, Git, compiled CLI, and public command application"],
   "test/evaluate-phase.test.ts": [CANONICAL_IN_PROCESS_KIND, "in-process evaluation and temporary Process Package loading"],
   "test/evaluate-scoped-obligation.test.ts": [CANONICAL_IN_PROCESS_KIND, "in-process evaluation and temporary Process Package loading"],
-  "test/initial-product-intent-resolution.test.ts": [PROCESS_REPOSITORY_KIND, "repository, Git, public command application, and assignment runner"],
-  "test/initial-product-intent-route.test.ts": [PROCESS_REPOSITORY_KIND, "repository, Git, and repeated public assignment submission"],
   "test/load-scenario-participation.test.ts": [CANONICAL_IN_PROCESS_KIND, "temporary Process Package rewrite and in-process compilation/evaluation"],
   "test/mdlm-assignment-state.test.ts": [PROCESS_REPOSITORY_KIND, "repository, Git, and public command application"],
   "test/mdlm-clean-onboarding-transaction.test.ts": [PROCESS_REPOSITORY_KIND, "compiled CLI, repository, and Git"],
@@ -63,8 +59,6 @@ const classification = Object.freeze({
   "test/mdlm-repository-inspection.test.ts": [PROCESS_REPOSITORY_KIND, "repository, Git, public readers, and lazy repository fixture"],
   "test/mdlm-schema.test.ts": [PROCESS_REPOSITORY_KIND, "selected-package repository and public command application"],
   "test/operator-outcome.test.ts": [PROCESS_REPOSITORY_KIND, "mixed in-process classification and repository/public/compiled submission"],
-  "test/phase-0-corrected-gate-route.test.ts": [PROCESS_REPOSITORY_KIND, "repository checkpoints and public assignment route"],
-  "test/phase-0-intent-candidate-currentness-route.test.ts": [PROCESS_REPOSITORY_KIND, "repository, Git, and public assignment submission"],
   "test/selected-package-cache.test.ts": [PROCESS_REPOSITORY_KIND, "initialized repositories and selected-package filesystem state"],
   "test/dependency-changes.test.ts": [CANONICAL_IN_PROCESS_KIND, "temporary Process Package copies and in-process dependency evaluation"],
   "test/proportional-phase-2-public.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process grouped-readiness evaluation"],
@@ -76,11 +70,9 @@ const classification = Object.freeze({
   "test/evaluate-system-decomposition.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process system-decomposition evaluation"],
   "test/initial-product-intent-selectors.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process selector evaluation"],
   "test/kernel-capability.test.ts": [CANONICAL_IN_PROCESS_KIND, "temporary Process Package loading and type resolution in process"],
-  "test/phase-1-route-contracts.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical package and static route-contract inspection"],
   "test/cutover-corpus.test.ts": [CANONICAL_IN_PROCESS_KIND, "exact cutover bytes and public contract fixtures"],
   "test/pi-operator-instructions.test.ts": [CANONICAL_IN_PROCESS_KIND, "static instruction text inspection"],
   "test/resolve-type.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical and temporary Process Package type resolution"],
-  "test/scenario-policy-assets.test.ts": [CANONICAL_IN_PROCESS_KIND, "temporary package and in-process dry-run evaluation"],
   "test/selector-memoization.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process selector memoization"],
   "test/textual-expression.test.ts": [CANONICAL_IN_PROCESS_KIND, "in-process expression compilation and evaluation"],
 });
@@ -271,13 +263,6 @@ const nonChildTimeoutDispositions = Object.freeze([
     kind: "synchronization-barrier-default",
     effectiveTimeout: "10,000 ms",
     disposition: "filesystem synchronization barrier; not a child-process option",
-  },
-  {
-    file: "test/initial-product-intent-resolution.test.ts",
-    search: "assignmentTimeoutMs: 1_000,",
-    kind: "assignment-runner-domain-timeout",
-    effectiveTimeout: "1,000 ms",
-    disposition: "assignment-runner contract input; not a child-process option",
   },
 ]);
 

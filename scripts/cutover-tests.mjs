@@ -28,10 +28,9 @@ function fast() {
     "vitest.fast.config.ts",
     "test/cutover-corpus.test.ts",
     "test/operator-outcome.test.ts",
-    "test/phase-1-route-contracts.test.ts",
     "test/mdlm-assignment.test.ts",
     "-t",
-    "bounded cutover evidence|package-neutral Operator Outcome classification|binds every Phase 1 route|leases one exact bundled-package Assignment and prepares its complete packet",
+    "bounded cutover evidence|package-neutral Operator Outcome classification|leases one exact bundled-package Assignment and prepares its complete packet",
   ]);
 }
 
