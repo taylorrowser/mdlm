@@ -106,7 +106,7 @@ export async function ensureFixtureProcessPackage(
         "mdlm-bootstrap@0.76.0",
         "mdlm-bootstrap@0.77.0",
         "mdlm-bootstrap@0.78.0",
-        "mdlm-bootstrap@0.79.0",
+        "mdlm-bootstrap@0.80.0",
       ].includes(selection.package?.reference ?? "") &&
         expected.reference === "mdlm-bootstrap@0.74.0")) &&
     (selection.package.reference !== expected.reference ||
