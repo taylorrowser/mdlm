@@ -1,12 +1,16 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
+import type { JsonObject } from "./mdlm-client.js";
 
 export type RunJournalRecord = {
   contract: "mdlm-pi-submission-journal@1";
   phase: "captured" | "submitting" | "settlement-required";
   assignmentId: string;
   responseDigest: `sha256:${string}`;
+  package: JsonObject;
+  repository: JsonObject;
+  transport: JsonObject;
   settlementIdentity?: string;
 };
 
@@ -33,6 +37,7 @@ export class RunJournal {
         !["captured", "submitting", "settlement-required"].includes(String(value.phase)) ||
         typeof value.assignmentId !== "string" || value.assignmentId.length === 0 ||
         typeof value.responseDigest !== "string" || !/^sha256:[0-9a-f]{64}$/.test(value.responseDigest) ||
+        !isRecord(value.package) || !isRecord(value.repository) || !isRecord(value.transport) ||
         (value.phase === "settlement-required" &&
           (typeof value.settlementIdentity !== "string" || value.settlementIdentity.length === 0))) {
       throw new Error(`Malformed submission journal: ${this.#file}`);
@@ -40,12 +45,17 @@ export class RunJournal {
     return value as RunJournalRecord;
   }
 
-  async capture(assignmentId: string, responseDigest: `sha256:${string}`): Promise<void> {
+  async capture(
+    assignmentId: string,
+    responseDigest: `sha256:${string}`,
+    boundary: { package: JsonObject; repository: JsonObject; transport: JsonObject },
+  ): Promise<void> {
     await this.#write({
       contract: "mdlm-pi-submission-journal@1",
       phase: "captured",
       assignmentId,
       responseDigest,
+      ...boundary,
     });
   }
 

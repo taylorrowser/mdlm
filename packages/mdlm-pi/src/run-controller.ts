@@ -7,13 +7,14 @@ import type {
   PreparedAssignmentSubmission,
 } from "./mdlm-client.js";
 import { MdlmClient } from "./mdlm-client.js";
+import { isDeepStrictEqual } from "node:util";
 import type { OperatorIO } from "./operator-io.js";
 import type { AssignmentCorrection, PiAssignmentRunOptions } from "./pi-assignment-runner.js";
 import { PiAssignmentRunner } from "./pi-assignment-runner.js";
-import { RunJournal } from "./run-journal.js";
+import { RunJournal, type RunJournalRecord } from "./run-journal.js";
 
 type MdlmPort = Pick<MdlmClient,
-  "next" | "prepareSubmission" | "submit" | "settlement"
+  "identity" | "next" | "prepareSubmission" | "submit" | "settlement"
 >;
 type AssignmentPort = Pick<PiAssignmentRunner, "run"> & {
   close?: (assignmentId: string) => Promise<void>;
@@ -59,8 +60,11 @@ export class RunController {
       // No publication process started. Reclaiming the same Assignment is safe.
       await this.#journal.clear();
     } else if (pending !== null) {
+      if (!isDeepStrictEqual(pending.transport, this.#mdlm.identity())) {
+        throw new Error("Pending submission transport identity changed");
+      }
       const identity = pending.settlementIdentity ?? pending.assignmentId;
-      return this.#report(await this.#settle(identity));
+      return this.#report(await this.#settle(identity, pending));
     }
 
     const outcome = await this.#mdlm.next();
@@ -96,7 +100,11 @@ export class RunController {
         throw error;
       }
       const prepared = this.#mdlm.prepareSubmission(response);
-      await this.#journal.capture(packet.assignment.id, prepared.digest);
+      await this.#journal.capture(packet.assignment.id, prepared.digest, {
+        package: packet.package,
+        repository: packet.repository,
+        transport: this.#mdlm.identity(),
+      });
       await this.#journal.beginSubmission();
       const submission = await this.#mdlm.submit(prepared, authority);
       assertSubmissionBinding(packet, prepared, submission);
@@ -128,8 +136,12 @@ export class RunController {
     }
   }
 
-  async #settle(identity: string): Promise<RunStop> {
+  async #settle(
+    identity: string,
+    pending: RunJournalRecord,
+  ): Promise<RunStop> {
     const submission = await this.#mdlm.settlement(identity);
+    assertSettledSubmissionBinding(pending, submission);
     if (submission.outcome === "settlement-required") {
       const current = await this.#journal.load();
       if (current?.phase === "submitting") {
@@ -154,6 +166,26 @@ export class RunController {
 
   #ensureRunning(): void {
     if (this.#signal?.aborted) throw new Error("MDLM Pi run was interrupted");
+  }
+}
+
+function assertSettledSubmissionBinding(
+  pending: RunJournalRecord,
+  submission: AssignmentSubmission,
+): void {
+  if (submission.assignment.id !== pending.assignmentId ||
+      submission.responseDigest !== pending.responseDigest) {
+    throw new Error("Settlement outcome differs from the pending Assignment response");
+  }
+  if (submission.outcome === "accepted" || submission.outcome === "settlement-required") {
+    const settlement = object(submission.settlement, "submission.settlement");
+    if (string(settlement.assignment, "submission.settlement.assignment") !== pending.assignmentId) {
+      throw new Error("Settlement outcome carries a different Assignment identity");
+    }
+    if (pending.settlementIdentity !== undefined &&
+        string(settlement.execution, "submission.settlement.execution") !== pending.settlementIdentity) {
+      throw new Error("Settlement outcome carries a different execution identity");
+    }
   }
 }
 

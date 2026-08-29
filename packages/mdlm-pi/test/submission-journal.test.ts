@@ -7,7 +7,12 @@ import { RunJournal } from "../src/run-journal.js";
 it("records only the pre-submit, submitting, and settlement-required states", async () => {
   const journal = new RunJournal(await mkdtemp(path.join(os.tmpdir(), "mdlm-pi-journal-")));
   const digest = `sha256:${"a".repeat(64)}` as const;
-  await journal.capture("assignment-a", digest);
+  const boundary = {
+    package: { reference: "package@1" },
+    repository: { head: "base" },
+    transport: { repository: "/repo", command: { program: "mdlm", arguments: [] } },
+  };
+  await journal.capture("assignment-a", digest, boundary);
   await expect(journal.load()).resolves.toMatchObject({ phase: "captured" });
   await journal.beginSubmission();
   await expect(journal.load()).resolves.toMatchObject({ phase: "submitting" });
@@ -17,6 +22,7 @@ it("records only the pre-submit, submitting, and settlement-required states", as
     phase: "settlement-required",
     assignmentId: "assignment-a",
     responseDigest: digest,
+    ...boundary,
     settlementIdentity: "execution-a",
   });
   await journal.clear();

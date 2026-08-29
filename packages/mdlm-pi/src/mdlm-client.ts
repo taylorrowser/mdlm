@@ -114,6 +114,16 @@ export class MdlmClient {
     for (const terminate of this.#activeTerminators) terminate();
   }
 
+  identity(): JsonObject {
+    return {
+      repository: this.#repository,
+      command: {
+        program: this.#command.program,
+        arguments: [...this.#command.arguments],
+      },
+    };
+  }
+
   async next(): Promise<MdlmOperatorOutcome> {
     const result = await this.#invoke(["next", "--json"]);
     return parseNext(result.output);

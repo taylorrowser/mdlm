@@ -6,35 +6,32 @@ Foreground, crash-resumable MDLM operator powered by the pi SDK.
 mdlm-pi run /path/to/repository
 ```
 
-The command continuously processes one exact MDLM Assignment at a time. It asks
-for terminal input only when MDLM returns `attention-required`; otherwise it
-continues until MDLM reports a terminal outcome or a typed stop.
+Each invocation calls `mdlm next --json` once. It branches on the six
+`mdlm-next@2` outcomes. Assignment and Attention Required include the complete
+`mdlm-assignment-packet@3`; the harness passes that packet to one worker without
+calling status, Assignment inspection, or `scenario prepare`. The other four
+outcomes stop immediately.
 
-The repository must start clean. Each successful Scenario transaction is checked
-with `mdlm doctor`, compared with the execution's exact declared output paths,
-staged only from those paths, checked again, and committed as:
+The worker returns one `mdlm-assignment-response@2` using the packet's symbolic
+output handles. MDLM allocates durable IDs and required links. On attended work,
+the harness reads the named authority's conclusion and passes the authority ID
+to `scenario submit` as transport metadata. It never adds authority fields to
+the response.
 
-```text
-mdlm: publish <scenario-reference> (<execution-id>)
-```
+Submission returns `accepted`, `rejected`, or `settlement-required`. A rejected
+proposal has no lifecycle side effect, so the same worker session may correct it
+without consuming a correction allowance. Before submission starts, the harness
+writes and syncs a journal beneath the worktree's private Git directory. The
+journal binds the Assignment, response digest, packet package and repository,
+and MDLM transport. If closure is uncertain, a later invocation calls
+`mdlm scenario settlement <assignment-or-execution> --json`; it never repeats
+submit. Accepted publication and repository mutation belong to MDLM's atomic
+submission transaction, not the harness.
 
-Run state is stored beneath the worktree's private Git directory, while ownership
-is locked at the common Git directory so linked worktrees cannot run concurrently.
-Restarting the same command recovers a captured response, journaled `mdlm next`
-kernel materialization, submission, publication, doctor result, or Git commit.
-Every deterministic execution reported by `mdlm-next@1.materializedExecutions` is
-doctor-checked and committed at its own transaction boundary. MDLM does not rebase
-an Assignment across that commit: `next` returns `publication-required` without
-leasing one. The controller finishes the journaled transactions, reevaluates the
-repository, and allocates fresh work against the new commit when needed. Recovery
-is limited to the same selected Process Package and repository state. A package
-or repository fingerprint mismatch stops the run; `mdlm-pi` does not migrate
-package versions or recover an Assignment across versions. Before worker
-execution, an attended Assignment's normalized conclusion, authority, package
-identity, and repository identity are durable. The final Assignment response
-bytes are also durable. For an active Consolidation Group, only the final
-normalized conclusions are retained and reused across serial reevaluation; raw
-attended conversation is not.
+Ownership remains locked at the common Git directory so linked worktrees cannot
+run concurrently. A changed transport or a settlement result with the wrong
+Assignment, response digest, or execution identity leaves the journal intact and
+stops recovery.
 
 ## Attended input
 
@@ -76,14 +73,9 @@ mdlm-pi run . --provider anthropic --model claude-sonnet-4-5 --thinking high
 
 The harness does not copy credentials into the target repository or run journal.
 It loads no ambient prompts, skills, extensions, AGENTS files, or coding tools;
-the worker sees only the prepared Assignment Packet, optional attended answer,
-and the packet-schema `complete_assignment` tool. For an attended Assignment,
-`mdlm-pi` carries the packet's exact attended authority into the proposal when the
-worker omits it, including after one malformed-response correction. A conflicting
-worker authority stops the run before submission. Autonomous proposal generation
-remains unchanged. During malformed-response correction for delegated participation
-with no attention, `mdlm-pi` restores the original proposal and supplies only the exact
-roles required by the Assignment.
+the worker sees only the included Assignment Packet, optional attended
+conclusion, and the packet-schema `complete_assignment` tool. The response stays
+free of authority transport metadata for attended and package-delegated work.
 
 For development or a nonstandard installation, select the public MDLM executable:
 
@@ -98,9 +90,9 @@ mdlm-pi run . --mdlm /path/to/mdlm
 - `MDLM_PI_PROVIDER_RETRIES` — provider retry count (default 2)
 
 `SIGHUP`, `SIGINT`, and `SIGTERM` abort the active MDLM process group and pi
-session before releasing ownership. Exit status is `0` for Lifecycle Complete or
-Profile Boundary Reached, `2` for a
-Process Dead End, `3` for Invalid, `4` for an Assignment disposition stop, `5` for
+session before releasing ownership. Exit status is `0` for an accepted response,
+Lifecycle Complete, or Profile Boundary Reached, `2` for a Process Dead End,
+`3` for Invalid, `4` for a rejected or settlement-required stop, `5` for
 a lock conflict, and `1` for operational failure. Signal exits use `129`, `130`,
 or `143` respectively.
 

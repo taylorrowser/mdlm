@@ -14,6 +14,8 @@ import { RunJournal } from "../src/run-journal.js";
 
 const fixtureRoot = path.resolve(import.meta.dirname, "../../../test/fixtures/operator-contract-v2");
 const digest = `sha256:${"e".repeat(64)}` as const;
+const transport = { repository: "/repo", command: { program: "mdlm", arguments: [] } };
+const boundary = { package: { reference: "package@1" }, repository: { head: "base" }, transport };
 
 describe("v2 operator loop", () => {
   it("claims once, performs the included packet, and submits one accepted response", async () => {
@@ -66,7 +68,7 @@ describe("v2 operator loop", () => {
   it("settles a started submission without calling next or replaying submit", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "mdlm-pi-settlement-"));
     const journal = new RunJournal(directory);
-    await journal.capture("11111111-1111-4111-8111-111111111111", digest);
+    await journal.capture("11111111-1111-4111-8111-111111111111", digest, boundary);
     await journal.beginSubmission();
     await journal.requireSettlement("33333333-3333-4333-8333-333333333333");
     const accepted = await fixture<AssignmentSubmission>("submission-accepted.json");
@@ -74,7 +76,7 @@ describe("v2 operator loop", () => {
     const submit = vi.fn(async (): Promise<AssignmentSubmission> => { throw new Error("submit replayed"); });
     const settlement = vi.fn(async () => accepted);
     const controller = new RunController({
-      mdlm: { next, submit, settlement, prepareSubmission },
+      mdlm: { identity: () => transport, next, submit, settlement, prepareSubmission },
       assignments: { run: vi.fn() },
       io: io(),
       journal,
@@ -84,6 +86,30 @@ describe("v2 operator loop", () => {
     expect(settlement).toHaveBeenCalledWith("33333333-3333-4333-8333-333333333333");
     expect(next).not.toHaveBeenCalled();
     expect(submit).not.toHaveBeenCalled();
+  });
+
+  it("keeps the journal when settlement names different response bytes", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "mdlm-pi-settlement-drift-"));
+    const journal = new RunJournal(directory);
+    await journal.capture("11111111-1111-4111-8111-111111111111", digest, boundary);
+    await journal.beginSubmission();
+    const accepted = await fixture<AssignmentSubmission>("submission-accepted.json");
+    const wrong = { ...accepted, responseDigest: `sha256:${"f".repeat(64)}` };
+    const controller = new RunController({
+      mdlm: {
+        identity: () => transport,
+        next: vi.fn(),
+        submit: vi.fn(),
+        settlement: vi.fn(async () => wrong),
+        prepareSubmission,
+      },
+      assignments: { run: vi.fn() },
+      io: io(),
+      journal,
+    });
+
+    await expect(controller.run()).rejects.toThrow("pending Assignment response");
+    await expect(journal.load()).resolves.toMatchObject({ phase: "submitting" });
   });
 
   it.each([
@@ -110,6 +136,7 @@ async function harness(
   const directory = await mkdtemp(path.join(os.tmpdir(), "mdlm-pi-loop-"));
   return {
     mdlm: {
+      identity: () => transport,
       next: vi.fn(async () => outcome),
       prepareSubmission,
       submit: vi.fn(async () => ({ ...submissions.shift()!, responseDigest: digest })),
