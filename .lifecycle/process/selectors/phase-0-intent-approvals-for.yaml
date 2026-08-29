@@ -22,8 +22,7 @@ query:
     && every("candidate-definition-members@1", {candidate: candidate}, member =>
       exists("candidate-members-matching@1",
         {candidate: accepted, required_member: member}))
-    && every("product-simplification-reviews-for@1",
-      {candidate: candidate, outcome: "pass"}, review =>
+    && every("passing-reviews-for@1", {subject: candidate}, review =>
         exists("baseline-contains-evidence@1",
           {baseline: accepted, subject: review}))
     && every("applicable-gate-signoffs-for@1", {candidate: candidate}, signoff =>

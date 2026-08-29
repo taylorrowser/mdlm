@@ -19,8 +19,7 @@ resolve_with:
     definition_members: >-
       select("candidate-definition-members@1", {candidate: candidate})
     candidate_reviews: >-
-      select("product-simplification-reviews-for@1",
-        {candidate: candidate, outcome: "pass"})
+      select("passing-reviews-for@1", {subject: candidate})
     gate_signoff: 'one("applicable-gate-signoffs-for@1", {candidate: candidate})'
     signoff_reviews: >-
       select("passing-reviews-for@1", {subject:

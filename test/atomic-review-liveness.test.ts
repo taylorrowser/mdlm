@@ -81,6 +81,12 @@ function work(records: LifecycleRecord[]) {
   return result.value.work;
 }
 
+function activePhase(records: LifecycleRecord[]): string | undefined {
+  const result = deriveOperatorOutcome(snapshot(records), processPackage);
+  expect(result.ok, result.ok ? "" : JSON.stringify(result.diagnostics)).toBe(true);
+  return result.ok ? result.value.evaluation.phase?.id : undefined;
+}
+
 function selected(
   records: LifecycleRecord[],
   selector: string,
@@ -136,14 +142,20 @@ describe("atomic Phase 0 Review liveness", () => {
   });
 
   it("discharges an atomic Phase 0 candidate Review", () => {
+    const member = record("MAP", "MAP-CANDIDATEMEMBER1", {
+      title: "Candidate definition member",
+      purpose: "Define one exact product boundary.",
+      frontier: ["product-intent"],
+    }, "establish-initial-wayfinding-map@2");
+    const memberReview = atomicReview(member, "CANDIDATEMEMBERCTX1");
     const candidate = record("BSL", "BSL-CANDIDATE1", {
       title: "Exact intent candidate",
       kind: "intent-level-candidate",
       role: "candidate",
       scope: "product",
       group: "DEFAULT",
-      definition_members: [],
-      evidence: [],
+      definition_members: [member.datum.revision_id],
+      evidence: [memberReview[1].datum.revision_id],
     }, "create-phase-0-intent-candidate@1");
     const context = record("BSL", "BSL-CANDIDATECTX1", {
       title: `Review context for ${candidate.datum.revision_id}`,
@@ -151,7 +163,10 @@ describe("atomic Phase 0 Review liveness", () => {
       role: "review-context",
       scope: candidate.datum.revision_id,
       group: "DEFAULT",
-      definition_members: [candidate.datum.revision_id],
+      definition_members: [
+        candidate.datum.revision_id,
+        member.datum.revision_id,
+      ],
       evidence: [],
     }, "review-phase-0-candidate@1");
     const review = record("REV", "REV-CANDIDATE1", {
@@ -167,7 +182,7 @@ describe("atomic Phase 0 Review liveness", () => {
       { type: "reviews", target: candidate.datum.revision_id },
       { type: "contextualizes", target: context.datum.revision_id },
     ]);
-    const records = [candidate, context, review];
+    const records = [member, ...memberReview, candidate, context, review];
 
     expect(selected(records, "current-exact-review-contexts-cited-by@1", {
       review: review.datum.revision_id,
@@ -203,6 +218,45 @@ describe("atomic Phase 0 Review liveness", () => {
         }),
       })],
     }));
+
+    const signoff = record("DEC", "DEC-CANDIDATEGATE1", {
+      title: "Approve the exact Phase 0 candidate",
+      kind: "gate-signoff",
+      decision: "Approve the exact candidate.",
+      rationale: "The candidate has a passing exact Review.",
+      gate_outcome: "approve",
+      effective_scope: candidate.datum.revision_id,
+    }, "record-gate-signoff@3", [
+      { type: "justifies", target: candidate.datum.revision_id },
+    ]);
+    const signoffReview = atomicReview(signoff, "CANDIDATEGATECTX1", [candidate]);
+    const signedOffRecords = [...records, signoff, ...signoffReview];
+
+    expect(work(signedOffRecords)).toContainEqual(expect.objectContaining({
+      definition: "intent-approval-required",
+      scenario: "accept-phase-0-intent@1",
+      subject: candidate.datum.revision_id,
+      dispatchable: true,
+      unresolvedBindings: [],
+    }));
+
+    const accepted = record("BSL", "BSL-ACCEPTEDINTENT1", {
+      title: "Accepted exact Phase 0 intent",
+      kind: "intent-approved",
+      role: "accepted",
+      scope: candidate.datum.payload.scope,
+      group: candidate.datum.payload.group,
+      definition_members: [member.datum.revision_id],
+      evidence: [
+        review.datum.revision_id,
+        signoff.datum.revision_id,
+        signoffReview[1].datum.revision_id,
+      ],
+    }, "accept-phase-0-intent@1", [
+      { type: "promotes", target: candidate.datum.revision_id },
+    ]);
+    expect(activePhase([...signedOffRecords, accepted]))
+      .toBe("phase-1-product-assurance");
   });
 
   it("recognizes the atomic context and routes the next consequential Decision", () => {
