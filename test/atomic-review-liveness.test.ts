@@ -191,6 +191,18 @@ describe("atomic Phase 0 Review liveness", () => {
       subject: candidate.datum.revision_id,
       dispatchable: true,
     }));
+    expect(work(records)).toContainEqual(expect.objectContaining({
+      scenario: "record-gate-signoff@3",
+      subject: candidate.datum.revision_id,
+      dispatchable: true,
+      authorityRequirements: [expect.objectContaining({
+        authorityRequirement: expect.objectContaining({
+          mode: "attended",
+          authority: "stakeholder",
+          delegationAllowed: false,
+        }),
+      })],
+    }));
   });
 
   it("recognizes the atomic context and routes the next consequential Decision", () => {

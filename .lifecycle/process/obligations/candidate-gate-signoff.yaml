@@ -42,15 +42,7 @@ status_rules:
     priority: 200
     when: >-
       exists("candidate-members-missing-review@1", {candidate: candidate})
-      || (
-        candidate.payload.kind == "intent-level-candidate"
-        && none("product-simplification-reviews-for@1",
-          {candidate: candidate, outcome: "pass"})
-      )
-      || (
-        candidate.payload.kind != "intent-level-candidate"
-        && none("passing-reviews-for@1", {subject: candidate})
-      )
+      || none("passing-reviews-for@1", {subject: candidate})
       || exists("failing-reviews-for@1", {subject: candidate})
       || exists("candidate-correction-authorities-requiring-review@1",
         {candidate: candidate})
@@ -75,13 +67,7 @@ status_rules:
     priority: 100
     when: >-
       none("candidate-members-missing-review@1", {candidate: candidate})
-      && (
-        (candidate.payload.kind == "intent-level-candidate"
-          && exists("product-simplification-reviews-for@1",
-            {candidate: candidate, outcome: "pass"}))
-        || (candidate.payload.kind != "intent-level-candidate"
-          && exists("passing-reviews-for@1", {subject: candidate}))
-      )
+      && exists("passing-reviews-for@1", {subject: candidate})
       && none("failing-reviews-for@1", {subject: candidate})
       && none("candidate-correction-authorities-requiring-review@1",
         {candidate: candidate})
