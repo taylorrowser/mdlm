@@ -104,6 +104,19 @@ describe("atomic Phase 0 Review liveness", () => {
     processPackage = loaded.package;
   });
 
+  it("requires newly authored Phase 0 questions to start open", () => {
+    for (const scenarioId of ["compile-psp", "draft-stakeholder-requirements"]) {
+      const questions = (processPackage.scenarios[scenarioId]!.outputs as Array<{
+        name: string;
+        required_payload?: Record<string, unknown>;
+      }>).find((output) => output.name === "questions");
+      expect(questions?.required_payload).toMatchObject({
+        intent_scope: "product",
+        state: "open",
+      });
+    }
+  });
+
   it("recognizes the atomic context and routes the next consequential Decision", () => {
     const map = record("MAP", "MAP-ATOMIC1", {
       title: "Initial wayfinding map",
