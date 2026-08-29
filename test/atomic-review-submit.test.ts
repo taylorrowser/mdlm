@@ -51,6 +51,21 @@ async function preferAtomicFoundationWork(
   await fs.writeFile(phasePath, stringify(phase));
 }
 
+async function addOptionalInitialOutput(packageRoot: string): Promise<void> {
+  const scenarioPath = path.join(
+    packageRoot,
+    "scenarios/establish-initial-wayfinding-map.yaml",
+  );
+  const scenario = parse(await fs.readFile(scenarioPath, "utf8"));
+  scenario.outputs.push({
+    name: "optional_question",
+    types: ["QST"],
+    cardinality: "zero-or-one",
+    required_links: [],
+  });
+  await fs.writeFile(scenarioPath, stringify(scenario));
+}
+
 async function lifecycleMarkdown(repository: string): Promise<string[]> {
   const root = path.join(repository, ".lifecycle/data");
   const entries = await fs.readdir(root, { recursive: true });
@@ -58,6 +73,85 @@ async function lifecycleMarkdown(repository: string): Promise<string[]> {
 }
 
 describe("atomic Review submission", () => {
+  it("keeps optional handles while omitting their publication", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-optional-output-"));
+    temporaryRoots.push(root);
+    const repository = path.join(root, "repository");
+    const packageRoot = path.join(root, "package");
+    await fs.cp(processRoot, packageRoot, { recursive: true });
+    await addOptionalInitialOutput(packageRoot);
+    const initialized = await initializeRepositoryFromProcessPackage(repository, packageRoot);
+    expect(initialized.ok, initialized.ok ? "" : JSON.stringify(initialized.diagnostics))
+      .toBe(true);
+    if (!initialized.ok) return;
+
+    const claimed = await claimNextWork(repository);
+    expect(claimed.ok).toBe(true);
+    if (!claimed.ok || claimed.value.outcome !== "assignment") return;
+    const packet = claimed.value.assignment.packet;
+    const proposal = JSON.parse(response(packet, {
+      map: {
+        title: "Initial map",
+        purpose: "Exercise optional symbolic output omission.",
+        frontier: ["product-intent"],
+      },
+      product_intent: {
+        title: "Intended product",
+        kind: "preferential",
+        intent_scope: "product",
+        question: "What product should this repository build?",
+        state: "open",
+        blocking_impact: "The product specification waits for an answer.",
+      },
+      questions: {
+        title: "Empirical boundary",
+        kind: "empirical",
+        question: "Which evidence bounds the product?",
+        state: "open",
+        blocking_impact: "No product claim is inferred from repository evidence.",
+      },
+    }));
+    const optional = proposal.proposal.outputs.find(
+      (output: Record<string, unknown>) => output.handle === "optional_question",
+    );
+    optional.payload = null;
+    optional.body = null;
+    expect(proposal.proposal.outputs.map(
+      (output: Record<string, unknown>) => output.handle,
+    )).toEqual(packet.responseScaffold.proposal.outputs.map((output) => output.handle));
+
+    const halfNull = structuredClone(proposal);
+    halfNull.proposal.outputs.find(
+      (output: Record<string, unknown>) => output.handle === "optional_question",
+    ).body = "# authored optional body\n";
+    const halfNullRejected = await submitAssignmentResponse(
+      repository,
+      JSON.stringify(halfNull),
+    );
+    expect(halfNullRejected.ok).toBe(false);
+    expect(halfNullRejected.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "assignment-response-output-omission-invalid" }),
+    ]));
+
+    const requiredNull = structuredClone(proposal);
+    const required = requiredNull.proposal.outputs.find(
+      (output: Record<string, unknown>) => output.handle === "product_intent",
+    );
+    required.payload = null;
+    required.body = null;
+    const rejected = await submitAssignmentResponse(repository, JSON.stringify(requiredNull));
+    expect(rejected.ok).toBe(false);
+    expect(rejected.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "assignment-response-output-omission-invalid" }),
+    ]));
+
+    const accepted = await submitAssignmentResponse(repository, JSON.stringify(proposal));
+    expect(accepted.ok, accepted.ok ? "" : JSON.stringify(accepted.diagnostics)).toBe(true);
+    if (!accepted.ok || accepted.value.outcome !== "accepted") return;
+    expect(accepted.value.receipt.publications.map((publication) => publication.handle))
+      .toEqual(["map", "product_intent", "questions"]);
+  });
+
   it("publishes the kernel-built exact context and REV together", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-atomic-submit-"));
     temporaryRoots.push(root);

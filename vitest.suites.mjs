@@ -33,6 +33,7 @@ export const rootTestQualificationManifest = Object.freeze([
   { file: "test/mdlm-repository-inspection.test.ts", qualificationGate: "release" },
   { file: "test/mdlm-schema.test.ts", qualificationGate: "release" },
   { file: "test/operator-outcome.test.ts", qualificationGate: "release" },
+  { file: "test/atomic-review-submit.test.ts", qualificationGate: "pr" },
   { file: "test/proportional-phase-2-public.test.ts", qualificationGate: "pr" },
   { file: "test/selected-package-cache.test.ts", qualificationGate: "release" },
   { file: "test/evaluate-bootstrap-participation.test.ts", qualificationGate: "pr" },
@@ -75,6 +76,7 @@ const rootTestRuntimeManifest = [
   { file: "test/mdlm-repository-inspection.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 25_853 },
   { file: "test/mdlm-schema.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 33_817 },
   { file: "test/operator-outcome.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 51_114 },
+  { file: "test/atomic-review-submit.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 15_190 },
   // 101,498 ms focused observation plus the explicit 3,600 ms cleanup-contract increase.
   { file: "test/proportional-phase-2-public.test.ts", runtimeClass: "canonical-fixture-filler", weight: 1, measuredDurationMs: 2_378 },
   { file: "test/selected-package-cache.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 22_915 },

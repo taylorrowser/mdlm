@@ -2018,9 +2018,9 @@ interface SymbolicProposalLink {
 interface SymbolicProposalOutput {
   handle: string;
   type: string;
-  payload: Record<string, unknown>;
+  payload: Record<string, unknown> | null;
   links: SymbolicProposalLink[];
-  body: string;
+  body: string | null;
 }
 
 interface ProposalAssignmentResponse {
@@ -2095,7 +2095,7 @@ export function assignmentResponseSchema(
                 properties: {
                   handle: { type: "string", pattern: "^[A-Za-z][A-Za-z0-9_-]*$" },
                   type: { type: "string", pattern: "^[A-Z]{3,8}$" },
-                  payload: { type: "object" },
+                  payload: { type: ["object", "null"] },
                   links: {
                     type: "array",
                     items: {
@@ -2105,7 +2105,7 @@ export function assignmentResponseSchema(
                       properties: { type: { type: "string" }, target },
                     },
                   },
-                  body: { type: "string" },
+                  body: { type: ["string", "null"] },
                 },
               },
             },
@@ -2443,6 +2443,7 @@ function scenarioProposalFromResponse(
   const outputs: ScenarioProposal["outputs"] = [];
   for (const [index, expectedOutput] of scaffold.proposal.outputs.entries()) {
     const output = supplied.get(expectedOutput.handle)!;
+    const outputContract = exact.dryRun.expectedOutputs[index]!;
     if (output.type !== expectedOutput.type) {
       return failure(
         "assignment-response-type-invalid",
@@ -2455,6 +2456,22 @@ function scenarioProposalFromResponse(
         "assignment-response-links-invalid",
         `Symbolic output '${output.handle}' must preserve the exact links in the Assignment packet`,
         `proposal.outputs.${output.handle}.links`,
+      );
+    }
+    const authoredPayload = output.payload;
+    const authoredBody = output.body;
+    const payloadOmitted = authoredPayload === null;
+    const bodyOmitted = authoredBody === null;
+    if (payloadOmitted || bodyOmitted) {
+      if (
+        payloadOmitted
+        && bodyOmitted
+        && outputContract.cardinality.startsWith("zero-")
+      ) continue;
+      return failure(
+        "assignment-response-output-omission-invalid",
+        `Symbolic output '${output.handle}' may use a null payload and body only for an optional output`,
+        `proposal.outputs.${output.handle}`,
       );
     }
     const links = expectedOutput.links.map((link) => ({
@@ -2483,13 +2500,13 @@ function scenarioProposalFromResponse(
       : undefined;
     outputs.push({
       localId: output.handle,
-      name: exact.dryRun.expectedOutputs[index]!.name,
+      name: outputContract.name,
       invocation: 0,
       lifecycleDatum: {
         type: output.type,
-        payload: kernelPayload ?? output.payload,
+        payload: kernelPayload ?? authoredPayload,
         links: links as { type: string; target: string }[],
-        body: output.body,
+        body: authoredBody,
       },
     });
   }

@@ -43,6 +43,10 @@ async function filesDigest(root: string): Promise<string> {
     .digest("hex");
 }
 
+async function fileDigest(file: string): Promise<string> {
+  return createHash("sha256").update(await fs.readFile(file)).digest("hex");
+}
+
 async function transactionCount(repository: string): Promise<number> {
   try {
     return (await fs.readdir(path.join(repository, ".lifecycle/data/.transactions"))).length;
@@ -75,6 +79,21 @@ function inputData(packet: Record<string, any>, name: string): Record<string, an
   );
 }
 
+function answeredQuestionPayload(question: Record<string, any>): Record<string, unknown> {
+  const { attended_answer: _attendedAnswer, ...payload } = question.payload;
+  return question.payload.kind === "preferential"
+    ? {
+        ...payload,
+        state: "answered",
+        attended_answer: "Build a CLI that counts ampersand bytes in UTF-8 input.",
+      }
+    : {
+        ...payload,
+        state: "answered",
+        evidence_available: true,
+      };
+}
+
 function outputPayload(
   packet: Record<string, any>,
   output: Record<string, any>,
@@ -91,17 +110,13 @@ function outputPayload(
   ];
   const generic = requiredPayload(packet.schemas[output.type].payload);
   if (scenario === "resolve-question" && output.type === "QST") {
-    return {
-      ...question.payload,
-      state: "answered",
-      attended_answer: "Build a CLI that counts ampersand bytes in UTF-8 input.",
-    };
+    return answeredQuestionPayload(question);
   }
   if (output.type === "QST") {
     return {
       ...generic,
       title: "Resolved supporting question",
-      kind: "empirical",
+      kind: "preferential",
       question: "What evidence bounds this product?",
       state: "answered",
       blocking_impact: "No open product work remains blocked.",
@@ -199,15 +214,26 @@ function outputPayload(
 
 function completedResponse(packet: Record<string, any>) {
   const scaffold = packet.responseScaffold;
+  const omitOptionalEmpiricalDecision =
+    packet.scenario.reference.split("@")[0] === "resolve-question"
+    && inputData(packet, "question")[0]?.payload.kind === "empirical";
   return {
     ...scaffold,
     proposal: {
       ...scaffold.proposal,
-      outputs: scaffold.proposal.outputs.map((output: Record<string, unknown>) => ({
-        ...output,
-        payload: outputPayload(packet, output),
-        body: `# ${String(output.handle)}\n`,
-      })),
+      outputs: scaffold.proposal.outputs.map((output: Record<string, unknown>) =>
+        omitOptionalEmpiricalDecision
+          && output.type === "DEC"
+          && packet.outputs.find(
+            (declared: Record<string, unknown>) => declared.handle === output.handle,
+          )?.cardinality === "zero-or-one"
+          ? output
+          : {
+              ...output,
+              payload: outputPayload(packet, output),
+              body: `# ${String(output.handle)}\n`,
+            }
+      ),
     },
   };
 }
@@ -219,7 +245,12 @@ afterEach(async () => {
 });
 
 describe("installed v2 cutover journey", () => {
-  it("runs fresh Phase 0 and a rejected-then-corrected atomic Review", async () => {
+  it("runs fresh Phase 0 through corrected Review into the first Phase 1 run loop", async () => {
+    expect(answeredQuestionPayload({ payload: { kind: "preferential", state: "open" } }))
+      .toMatchObject({ kind: "preferential", state: "answered", attended_answer: expect.any(String) });
+    expect(answeredQuestionPayload({
+      payload: { kind: "empirical", state: "open", attended_answer: "invalid carryover" },
+    })).toEqual({ kind: "empirical", state: "answered", evidence_available: true });
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-installed-cutover-"));
     temporaryRoots.push(root);
     const packageRoot = path.join(root, "package");
@@ -237,6 +268,8 @@ describe("installed v2 cutover journey", () => {
     );
     expect(installed.status, installed.stderr).toBe(0);
     const executable = path.join(installRoot, "node_modules/mdlm/dist/mdlm.js");
+    const archiveDigest = await fileDigest(archive);
+    const executableDigest = await fileDigest(executable);
 
     const initialized = successful(
       run(process.execPath, [executable, "init", repository, "--json"], root),
@@ -306,8 +339,10 @@ describe("installed v2 cutover journey", () => {
     expect(submitted.settlement.execution).toEqual(expect.any(String));
     let rejectedReview = false;
     let correctedReview = false;
+    let phase1RunOrResult = false;
+    let phase1Boundary: Record<string, any> | undefined;
     const scenarios: string[] = [];
-    for (let step = 0; step < 15 && !correctedReview; step += 1) {
+    for (let step = 0; step < 60 && !phase1RunOrResult; step += 1) {
       const outcome = successful(
         run(process.execPath, [executable, "next", "--json"], repository),
         `installed mdlm next step ${step}`,
@@ -315,7 +350,22 @@ describe("installed v2 cutover journey", () => {
       expect(["assignment", "attention-required"]).toContain(outcome.outcome);
       const packet = outcome.assignment.packet;
       scenarios.push(packet.scenario.reference);
+      const outputTypes = packet.outputs.map((output: Record<string, unknown>) => output.type);
+      if (
+        correctedReview
+        && outcome.phase.startsWith("phase-1-product-assurance@")
+        && outputTypes.some((type: string) => type === "RUN" || type === "RES")
+      ) {
+        phase1RunOrResult = true;
+        phase1Boundary = outcome;
+        break;
+      }
       const response = completedResponse(packet);
+      expect(response.proposal.outputs.map(
+        (output: Record<string, unknown>) => output.handle,
+      )).toEqual(packet.responseScaffold.proposal.outputs.map(
+        (output: Record<string, unknown>) => output.handle,
+      ));
       if (!rejectedReview && packet.scenario.reference.startsWith("review-phase-0-")) {
         const leasePath = path.join(repository, ".lifecycle/work/active-assignment.json");
         const before = {
@@ -387,7 +437,17 @@ describe("installed v2 cutover journey", () => {
       }
       const arguments_ = [executable, "scenario", "submit", "-", "--json"];
       if (outcome.outcome === "attention-required") {
-        arguments_.splice(-1, 0, "--authority", "stakeholder");
+        expect(packet.authority.requirements.map(
+          (requirement: Record<string, any>) =>
+            requirement.authorityRequirement.authority,
+        )).toContain(outcome.authorityRequirement.authority);
+        expect(response).not.toHaveProperty("authority");
+        arguments_.splice(
+          -1,
+          0,
+          "--authority",
+          outcome.authorityRequirement.authority,
+        );
       }
       const accepted = successful(
         run(process.execPath, arguments_, repository, `${JSON.stringify(response)}\n`),
@@ -422,5 +482,21 @@ describe("installed v2 cutover journey", () => {
     }
     expect(rejectedReview).toBe(true);
     expect(correctedReview, scenarios.join(" -> ")).toBe(true);
+    expect(phase1RunOrResult, scenarios.join(" -> ")).toBe(true);
+    console.log(JSON.stringify({
+      archive: { name: path.basename(archive), sha256: archiveDigest },
+      executable: { relativePath: "node_modules/mdlm/dist/mdlm.js", sha256: executableDigest },
+      package: initialized.package,
+      repository: phase1Boundary?.repository,
+      phase: phase1Boundary?.phase,
+      assignment: {
+        id: phase1Boundary?.assignment.id,
+        scenario: phase1Boundary?.assignment.packet.scenario.reference,
+        outputs: phase1Boundary?.assignment.packet.outputs.map(
+          (output: Record<string, unknown>) => ({ handle: output.handle, type: output.type }),
+        ),
+      },
+      scenarios,
+    }));
   }, 600_000);
 });
