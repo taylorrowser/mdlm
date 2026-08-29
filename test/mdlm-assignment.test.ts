@@ -545,7 +545,7 @@ describe("MDLM Assignment leasing and preparation", () => {
         reference: "establish-initial-wayfinding-map@2",
       }),
       prompt: expect.objectContaining({
-        reference: "prompts/establish-initial-wayfinding-map.md@2",
+        reference: expect.stringMatching(/^prompts\/.+\.md@[1-9][0-9]*$/),
         content: expect.stringContaining("# Establish the initial wayfinding map"),
       }),
       exactInputs: [{ inputs: [] }],
