@@ -217,23 +217,31 @@ function completedResponse(packet: Record<string, any>) {
   const omitOptionalEmpiricalDecision =
     packet.scenario.reference.split("@")[0] === "resolve-question"
     && inputData(packet, "question")[0]?.payload.kind === "empirical";
+  const scenario = packet.scenario.reference.split("@")[0];
   return {
     ...scaffold,
     proposal: {
       ...scaffold.proposal,
-      outputs: scaffold.proposal.outputs.map((output: Record<string, unknown>) =>
-        omitOptionalEmpiricalDecision
-          && output.type === "DEC"
-          && packet.outputs.find(
-            (declared: Record<string, unknown>) => declared.handle === output.handle,
-          )?.cardinality === "zero-or-one"
+      outputs: scaffold.proposal.outputs.map((output: Record<string, unknown>) => {
+        const cardinality = packet.outputs.find(
+          (declared: Record<string, unknown>) => declared.handle === output.handle,
+        )?.cardinality;
+        return (
+          omitOptionalEmpiricalDecision
+            && output.type === "DEC"
+            && cardinality === "zero-or-one"
+        ) || (
+          ["compile-psp", "draft-stakeholder-requirements"].includes(scenario)
+            && output.type === "QST"
+            && cardinality === "zero-or-more"
+        )
           ? output
           : {
               ...output,
               payload: outputPayload(packet, output),
               body: `# ${String(output.handle)}\n`,
-            }
-      ),
+            };
+      }),
     },
   };
 }

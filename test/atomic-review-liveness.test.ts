@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import path from "node:path";
 import { deriveOperatorOutcome } from "../src/assignment.js";
 import { evaluateProcessDefinition } from "../src/evaluator.js";
+import { scenarioOutputContractDiagnostics } from "../src/scenario-execution.js";
 import type {
   LifecycleRecord,
   LifecycleSnapshot,
@@ -102,6 +103,36 @@ describe("atomic Phase 0 Review liveness", () => {
     expect(loaded.ok, loaded.ok ? "" : JSON.stringify(loaded.diagnostics)).toBe(true);
     if (!loaded.ok) return;
     processPackage = loaded.package;
+  });
+
+  it("requires newly authored Phase 0 questions to start open", () => {
+    for (const scenarioId of ["compile-psp", "draft-stakeholder-requirements"]) {
+      const questions = (processPackage.scenarios[scenarioId]!.outputs as Array<{
+        name: string;
+        required_payload?: Record<string, unknown>;
+      }>).find((output) => output.name === "questions");
+      expect(questions?.required_payload).toMatchObject({
+        intent_scope: "product",
+        state: "open",
+      });
+      expect(scenarioOutputContractDiagnostics(
+        processPackage.scenarios[scenarioId]!,
+        [{ inputs: [] }],
+        [{
+          name: "questions",
+          invocation: 0,
+          lifecycleDatum: {
+            type: "QST",
+            payload: { intent_scope: "product", state: "answered" },
+            links: [],
+            body: "Answered without the required Decision.",
+          },
+        }],
+      )).toEqual(expect.arrayContaining([expect.objectContaining({
+        code: "scenario-output-required-payload-invalid",
+        path: "outputs.questions.payload.state",
+      })]));
+    }
   });
 
   it("recognizes the atomic context and routes the next consequential Decision", () => {

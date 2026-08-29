@@ -22,6 +22,7 @@ outputs:
       - {link: blocks, target: {output: product_specification}}
     required_payload:
       intent_scope: product
+      state: open
 prompt_ref: prompts/compile-psp.md@3
 review_policy_ref: review-applicability@1
 completion: 'execution.integrity.contract_valid == true'
