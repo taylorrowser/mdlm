@@ -23,7 +23,7 @@ outputs:
     types: [QST]
     cardinality: zero-or-more
     required_links: []
-prompt_ref: prompts/establish-initial-wayfinding-map.md@2
+prompt_ref: prompts/establish-initial-wayfinding-map.md@3
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true
