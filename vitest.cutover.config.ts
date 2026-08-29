@@ -8,6 +8,7 @@ export default defineConfig({
       "test/operator-contract-v2.test.ts",
       "test/operator-fault-gate.test.ts",
       "test/process-package-cutover.test.ts",
+      "test/atomic-review-submit.test.ts",
     ],
     maxWorkers: 4,
     testTimeout: 45_000,

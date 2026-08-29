@@ -32,8 +32,9 @@ function fast() {
     "test/operator-contract-v2.test.ts",
     "test/operator-fault-gate.test.ts",
     "test/process-package-cutover.test.ts",
+    "test/atomic-review-submit.test.ts",
     "-t",
-    "bounded cutover evidence|package-neutral Operator Outcome classification|operator contract v2 fixtures|focused v2 fault-injection gate|simplified Process Package contract",
+    "bounded cutover evidence|package-neutral Operator Outcome classification|operator contract v2 fixtures|focused v2 fault-injection gate|simplified Process Package contract|atomic Review submission",
   ]);
 }
 
