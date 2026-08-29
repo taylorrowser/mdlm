@@ -20,6 +20,7 @@ function run(command, args) {
 }
 
 function fast() {
+  run("npm", ["run", "process-fixture:check"]);
   run("npm", ["run", "typecheck"]);
   run("npm", ["run", "typecheck:mdlm-pi"]);
   run("./node_modules/.bin/vitest", [
