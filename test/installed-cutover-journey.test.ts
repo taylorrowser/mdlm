@@ -405,7 +405,17 @@ describe("installed v2 cutover journey", () => {
       }
       const arguments_ = [executable, "scenario", "submit", "-", "--json"];
       if (outcome.outcome === "attention-required") {
-        arguments_.splice(-1, 0, "--authority", "stakeholder");
+        expect(packet.authority.requirements.map(
+          (requirement: Record<string, any>) =>
+            requirement.authorityRequirement.authority,
+        )).toContain(outcome.authorityRequirement.authority);
+        expect(response).not.toHaveProperty("authority");
+        arguments_.splice(
+          -1,
+          0,
+          "--authority",
+          outcome.authorityRequirement.authority,
+        );
       }
       const accepted = successful(
         run(process.execPath, arguments_, repository, `${JSON.stringify(response)}\n`),
