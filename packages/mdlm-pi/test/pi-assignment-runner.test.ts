@@ -1,1177 +1,142 @@
 import { Check } from "typebox/value";
 import { describe, expect, it, vi } from "vitest";
 import type { AssignmentPacket, JsonObject } from "../src/mdlm-client.js";
-import { operationalFailureDocument } from "../src/operational-failure.js";
 import {
   assignmentCompletionParameters,
   assignmentRetryPolicy,
   PiAssignmentRunner,
-  PiAssignmentRunnerError,
   type PiAssignmentSession,
 } from "../src/pi-assignment-runner.js";
 
 const assignmentId = "3dae4ec3-2aae-444d-87a5-89c6dc4af3fc";
 
-function packet(
-  id = assignmentId,
-  scenario = "independent-judgment@1",
-): AssignmentPacket {
+function packet(id = assignmentId): AssignmentPacket {
   return {
     contract: "mdlm-assignment-packet@3",
-    ok: true,
-    command: "scenario.prepare",
     assignment: { id },
     package: { reference: "package@1" },
     repository: { head: "base" },
-    scenario: { reference: scenario },
+    scenario: { reference: "independent-judgment@1" },
+    responseScaffold: { contract: "mdlm-assignment-response@2", assignment: id },
     responseSchema: { type: "object" },
   };
 }
 
-interface AttemptScript {
-  response?: JsonObject;
-  stopReason?: string;
-  providerError?: string;
-  retriesConsumed?: number;
-  provider?: string;
-  model?: string;
-  hang?: boolean;
-}
-
-async function correctionFailure(
-  scripts: AttemptScript[],
-  assignmentTimeoutMs = 1_000,
-): Promise<PiAssignmentRunnerError> {
-  let listener: (event: unknown) => void = () => {};
-  let idle = true;
-  let captureResponse: (response: JsonObject) => void = () => {};
-  const session: PiAssignmentSession = {
-    get isIdle() { return idle; },
-    prompt: vi.fn(async () => {
-      const script = scripts.shift()!;
-      idle = !script.hang;
-      listener({ type: "agent_start" });
-      if (script.providerError !== undefined) {
-        listener({
-          type: "auto_retry_start",
-          attempt: script.retriesConsumed,
-          errorMessage: script.providerError,
-        });
-      }
-      if (script.stopReason !== undefined) {
-        listener({
-          type: "message_end",
-          message: {
-            role: "assistant",
-            stopReason: script.stopReason,
-            provider: script.provider,
-            model: script.model,
-          },
-        });
-      }
-      if (script.response !== undefined) captureResponse(script.response);
-      if (script.hang) await new Promise<void>(() => {});
-    }),
-    abort: vi.fn(async () => undefined),
-    dispose: vi.fn(),
-    subscribe: vi.fn((next) => {
-      listener = next;
-      return () => {};
-    }),
-  };
-  const runner = new PiAssignmentRunner({
-    repository: ".",
-    assignmentTimeoutMs,
-    sessionFactory: vi.fn(async (_packet, capture) => {
-      captureResponse = capture;
-      return session;
-    }),
-  });
-  const previousResponse = scripts[0]!.response!;
-
-  await runner.run(packet());
-  try {
-    await runner.run(packet(), {
-      correction: {
-        previousResponse,
-        diagnostics: [{ code: "FIX", message: "Correct it" }],
-      },
-    });
-  } catch (error) {
-    if (error instanceof PiAssignmentRunnerError) return error;
-    throw error;
-  }
-  throw new Error("Expected correction attempt to fail");
-}
-
 describe("PiAssignmentRunner", () => {
-  it("binds the terminating tool to the exact packet response schema", () => {
-    const exactPacket = packet();
-    exactPacket.responseSchema = {
+  it("binds complete_assignment to the packet response schema", () => {
+    const exact = packet();
+    exact.responseSchema = {
       type: "object",
-      required: ["assignment", "proposal"],
+      required: ["contract", "assignment", "proposal"],
       properties: {
+        contract: { const: "mdlm-assignment-response@2" },
         assignment: { const: assignmentId },
-        proposal: {
-          type: "object",
-          required: ["outputs"],
-          properties: { outputs: { type: "array" } },
-        },
+        proposal: { type: "object" },
       },
     };
-    const parameters = assignmentCompletionParameters(exactPacket);
-
+    const parameters = assignmentCompletionParameters(exact);
     expect(Check(parameters, { assignment: assignmentId })).toBe(false);
     expect(Check(parameters, {
+      contract: "mdlm-assignment-response@2",
       assignment: assignmentId,
-      proposal: { outputs: [] },
+      proposal: {},
     })).toBe(true);
   });
 
-  it("uses a finite two-retry provider policy bounded by the Assignment timeout", () => {
-    expect(assignmentRetryPolicy(15 * 60_000, 2)).toEqual({
-      enabled: true,
+  it("uses a finite provider retry policy bounded by the Assignment timeout", () => {
+    expect(assignmentRetryPolicy(15 * 60_000, 2).provider).toEqual({
       maxRetries: 2,
-      provider: {
-        maxRetries: 2,
-        timeoutMs: 120_000,
-        maxRetryDelayMs: 30_000,
-      },
+      timeoutMs: 120_000,
+      maxRetryDelayMs: 30_000,
     });
     expect(assignmentRetryPolicy(5_000, 2).provider.timeoutMs).toBe(5_000);
   });
 
-  it("uses one isolated session for the initial response and its sole correction", async () => {
-    const malformed: JsonObject = { assignment: assignmentId, malformed: true };
-    const corrected: JsonObject = { assignment: assignmentId, corrected: true };
+  it("uses one session for a rejected response and its correction", async () => {
+    const first: JsonObject = { contract: "mdlm-assignment-response@2", assignment: assignmentId, first: true };
+    const corrected: JsonObject = { contract: "mdlm-assignment-response@2", assignment: assignmentId, corrected: true };
+    const responses = [first, corrected];
     const prompts: string[] = [];
-    const dispose = vi.fn();
-    let captures = 0;
-    const session: PiAssignmentSession = {
-      get isIdle() { return true; },
-      prompt: vi.fn(async (prompt: string) => { prompts.push(prompt); }),
-      abort: vi.fn(async () => undefined),
-      dispose,
-      subscribe: vi.fn(() => () => {}),
-    };
-    const sessionFactory = vi.fn(async (_packet, capture) => {
+    const session = scriptedSession(prompts);
+    const factory = vi.fn(async (_packet: AssignmentPacket, capture: (value: JsonObject) => void) => {
       session.prompt = vi.fn(async (prompt: string) => {
         prompts.push(prompt);
-        capture(captures++ === 0 ? malformed : corrected);
+        capture(responses.shift()!);
       });
       return session;
     });
-    const runner = new PiAssignmentRunner({
-      repository: ".",
-      assignmentTimeoutMs: 1_000,
-      sessionFactory,
-    });
+    const runner = new PiAssignmentRunner({ repository: ".", sessionFactory: factory });
 
-    await expect(runner.run(packet())).resolves.toEqual(malformed);
+    await expect(runner.run(packet())).resolves.toEqual(first);
     await expect(runner.run(packet(), {
-      correction: {
-        previousResponse: malformed,
-        diagnostics: [{ code: "FIX", message: "Correct it" }],
-      },
+      correction: { previousResponse: first, diagnostics: [{ code: "invalid" }] },
     })).resolves.toEqual(corrected);
 
-    expect(sessionFactory).toHaveBeenCalledTimes(1);
-    expect(prompts[1]).toContain('"code":"FIX"');
-    expect(dispose).not.toHaveBeenCalled();
-    await runner.close(assignmentId);
-    expect(dispose).toHaveBeenCalledTimes(1);
+    expect(factory).toHaveBeenCalledOnce();
+    expect(prompts[1]).toContain('"code":"invalid"');
   });
 
-  it("corrects missing unattended authority from current participation without changing proposal content", async () => {
-    const initialResponse: JsonObject = {
-      contract: "mdlm-assignment-response@1",
-      assignment: assignmentId,
-      kind: "proposal",
-      proposal: {
-        outputs: [{
-          localId: "implementation",
-          name: "implementation",
-          invocation: 0,
-          lifecycleDatum: { type: "VAI", payload: { title: "Original VAI" }, links: [] },
-        }, {
-          localId: "authorization",
-          name: "authorization",
-          invocation: 0,
-          lifecycleDatum: {
-            type: "DEC",
-            payload: { kind: "decision", decision: "Original exact authorization." },
-            links: [{ type: "justifies", target: "$proposal.implementation.revision_id" }],
-          },
-        }],
-        completionEvidence: { summary: "Original VAI content." },
-        loadedSkillRefs: ["skills/verification-independence.md@1"],
-        authoritySupplies: [],
-        standingDelegations: [],
-      },
-    };
-    const workerCorrection: JsonObject = {
-      ...initialResponse,
-      proposal: {
-        ...(initialResponse.proposal as JsonObject),
-        outputs: [
-          ((initialResponse.proposal as JsonObject).outputs as JsonObject[])[0]!,
-          {
-            ...((initialResponse.proposal as JsonObject).outputs as JsonObject[])[1]!,
-            lifecycleDatum: {
-              type: "DEC",
-              payload: { kind: "decision", decision: "Invented replacement authorization." },
-              links: [{ type: "justifies", target: "$proposal.implementation.revision_id" }],
-            },
-          },
-        ],
-        authoritySupplies: [
-          "independent-verification-implementer",
-          "$proposal.authorization.revision_id",
-        ],
-      },
-    };
-    const responses = [initialResponse, workerCorrection];
-    const session: PiAssignmentSession = {
-      get isIdle() { return true; },
-      prompt: vi.fn(async () => undefined),
-      abort: vi.fn(async () => undefined),
-      dispose: vi.fn(),
-      subscribe: vi.fn(() => () => {}),
-    };
-    const runner = new PiAssignmentRunner({
-      repository: ".",
-      assignmentTimeoutMs: 1_000,
-      sessionFactory: vi.fn(async (_packet, capture) => {
-        session.prompt = vi.fn(async () => { capture(responses.shift()!); });
-        return session;
-      }),
-    });
-    const implementationPacket = packet(
-      assignmentId,
-      "implement-verification-activity@1",
-    );
-    implementationPacket.authority = {
-      evidence: { output: "authorization", type: "DEC" },
-      requirements: [{
-        invocation: 0,
-        policy: "verification-implementation-participation@1",
-        authorityRequirement: {
-          mode: "delegated",
-          authority: "independent-verification-implementer",
-          delegationAllowed: false,
-        },
-        attentionSchedule: { timing: "none" },
-      }],
-      standingDelegation: null,
-    };
-
-    await expect(runner.run(implementationPacket)).resolves.toEqual(initialResponse);
-    await expect(runner.run(implementationPacket, {
-      correction: {
-        previousResponse: initialResponse,
-        diagnostics: [{
-          code: "scenario-authority-required",
-          path: "implement-verification-activity@1#authority",
-          message: "Scenario requires independent-verification-implementer",
-        }],
-      },
-    })).resolves.toEqual({
-      ...initialResponse,
-      proposal: {
-        ...(initialResponse.proposal as JsonObject),
-        authoritySupplies: ["independent-verification-implementer"],
-      },
-    });
-
-    await runner.dispose();
-  });
-
-  it("preserves valid packet output routing when correcting unrelated authority", async () => {
-    const initialResponse: JsonObject = {
-      contract: "mdlm-assignment-response@1",
-      assignment: assignmentId,
-      kind: "proposal",
-      proposal: {
-        outputs: [{
-          localId: "productSpec",
-          name: "product_specification",
-          invocation: 0,
-          lifecycleDatum: { type: "PSP", payload: { title: "Initial PSP" }, links: [] },
-        }, {
-          localId: "behaviorQuestion",
-          name: "questions",
-          invocation: 0,
-          lifecycleDatum: { type: "QST", payload: { title: "Behavior" }, links: [] },
-        }, {
-          localId: "successQuestion",
-          name: "questions",
-          invocation: 0,
-          lifecycleDatum: { type: "QST", payload: { title: "Success" }, links: [] },
-        }],
-        authoritySupplies: ["unexpected-authority"],
-      },
-    };
-    const workerCorrection: JsonObject = {
-      ...initialResponse,
-      proposal: {
-        ...(initialResponse.proposal as JsonObject),
-        outputs: [
-          ...((initialResponse.proposal as JsonObject).outputs as JsonObject[]).slice(0, 2),
-          {
-            ...((initialResponse.proposal as JsonObject).outputs as JsonObject[])[2]!,
-            localId: "correctedSuccessQuestion",
-            invocation: 1,
-            lifecycleDatum: {
-              type: "QST",
-              payload: { title: "Corrected success content" },
-              links: [],
-            },
-          },
-        ],
-        authoritySupplies: [],
-      },
-    };
-    const responses = [initialResponse, workerCorrection];
-    const session: PiAssignmentSession = {
-      get isIdle() { return true; },
-      prompt: vi.fn(async () => undefined),
-      abort: vi.fn(async () => undefined),
-      dispose: vi.fn(),
-      subscribe: vi.fn(() => () => {}),
-    };
-    const runner = new PiAssignmentRunner({
-      repository: ".",
-      assignmentTimeoutMs: 1_000,
-      sessionFactory: vi.fn(async (_packet, capture) => {
-        session.prompt = vi.fn(async () => { capture(responses.shift()!); });
-        return session;
-      }),
-    });
-    const compilePacket = packet(assignmentId, "compile-product-specification@1");
-    compilePacket.exactInputs = [{ inputs: [] }];
-    compilePacket.outputs = [{
-      name: "product_specification",
-      types: ["PSP"],
-      cardinality: "one",
-    }, {
-      name: "questions",
-      types: ["QST"],
-      cardinality: "zero-or-more",
-    }];
-
-    await expect(runner.run(compilePacket)).resolves.toEqual(initialResponse);
-    await expect(runner.run(compilePacket, {
-      correction: {
-        previousResponse: initialResponse,
-        diagnostics: [{
-          code: "scenario-authority-unexpected",
-          path: "compile-product-specification@1#authority",
-          message: "Scenario received authority not required by its exact participation",
-        }],
-      },
-    })).resolves.toEqual({
-      ...workerCorrection,
-      proposal: {
-        ...(workerCorrection.proposal as JsonObject),
-        outputs: [
-          ...((workerCorrection.proposal as JsonObject).outputs as JsonObject[]).slice(0, 2),
-          {
-            ...((workerCorrection.proposal as JsonObject).outputs as JsonObject[])[2]!,
-            invocation: 0,
-          },
-        ],
-      },
-    });
-
-    await runner.dispose();
-  });
-
-  it("retains packet-valid repairs while restoring duplicate-local-id routing", async () => {
-    const initialResponse: JsonObject = {
-      contract: "mdlm-assignment-response@1",
-      assignment: assignmentId,
-      kind: "proposal",
-      proposal: {
-        outputs: [{
-          localId: "result",
-          name: "product_specification",
-          invocation: 0,
-          lifecycleDatum: { type: "QST", payload: { title: "Wrong type" }, links: [] },
-        }, {
-          localId: "question",
-          name: "questions",
-          invocation: 0,
-          lifecycleDatum: { type: "QST", payload: { title: "Initial question" }, links: [] },
-        }],
-        authoritySupplies: ["unexpected-authority"],
-      },
-    };
-    const workerCorrection: JsonObject = {
-      ...initialResponse,
-      proposal: {
-        ...(initialResponse.proposal as JsonObject),
-        outputs: [{
-          localId: "result",
-          name: "questions",
-          invocation: 0,
-          lifecycleDatum: { type: "QST", payload: { title: "Corrected routing" }, links: [] },
-        }, {
-          localId: "result",
-          name: "invented-output",
-          invocation: 1,
-          lifecycleDatum: { type: "QST", payload: { title: "Corrected question" }, links: [] },
-        }],
-        authoritySupplies: [],
-      },
-    };
-    const responses = [initialResponse, workerCorrection];
-    const session: PiAssignmentSession = {
-      get isIdle() { return true; },
-      prompt: vi.fn(async () => undefined),
-      abort: vi.fn(async () => undefined),
-      dispose: vi.fn(),
-      subscribe: vi.fn(() => () => {}),
-    };
-    const runner = new PiAssignmentRunner({
-      repository: ".",
-      assignmentTimeoutMs: 1_000,
-      sessionFactory: vi.fn(async (_packet, capture) => {
-        session.prompt = vi.fn(async () => { capture(responses.shift()!); });
-        return session;
-      }),
-    });
-    const compilePacket = packet(assignmentId, "compile-product-specification@1");
-    compilePacket.exactInputs = [{ inputs: [] }];
-    compilePacket.outputs = [{
-      name: "product_specification",
-      types: ["PSP"],
-      cardinality: "one",
-    }, {
-      name: "questions",
-      types: ["QST"],
-      cardinality: "zero-or-more",
-    }];
-
-    await expect(runner.run(compilePacket)).resolves.toEqual(initialResponse);
-    await expect(runner.run(compilePacket, {
-      correction: {
-        previousResponse: initialResponse,
-        diagnostics: [{
-          code: "scenario-authority-unexpected",
-          path: "compile-product-specification@1#authority",
-          message: "Scenario received authority not required by its exact participation",
-        }],
-      },
-    })).resolves.toEqual({
-      ...workerCorrection,
-      proposal: {
-        ...(workerCorrection.proposal as JsonObject),
-        outputs: [{
-          ...((workerCorrection.proposal as JsonObject).outputs as JsonObject[])[0]!,
-        }, {
-          ...((workerCorrection.proposal as JsonObject).outputs as JsonObject[])[1]!,
-          name: "questions",
-          invocation: 0,
-        }],
-      },
-    });
-
-    await runner.dispose();
-  });
-
-  it("uses positional routing when prior local ids were not unique and outputs were removed", async () => {
-    const initialResponse: JsonObject = {
-      contract: "mdlm-assignment-response@1",
-      assignment: assignmentId,
-      kind: "proposal",
-      proposal: {
-        outputs: [{
-          localId: "collision",
-          name: "product_specification",
-          invocation: 0,
-          lifecycleDatum: { type: "PSP", payload: { title: "Initial specification" }, links: [] },
-        }, {
-          localId: "collision",
-          name: "questions",
-          invocation: 0,
-          lifecycleDatum: { type: "QST", payload: { title: "Initial question" }, links: [] },
-        }, {
-          localId: "kept",
-          name: "questions",
-          invocation: 0,
-          lifecycleDatum: { type: "QST", payload: { title: "Retained question" }, links: [] },
-        }],
-        authoritySupplies: ["unexpected-authority"],
-      },
-    };
-    const workerCorrection: JsonObject = {
-      ...initialResponse,
-      proposal: {
-        ...(initialResponse.proposal as JsonObject),
-        outputs: [{
-          localId: "kept",
-          name: "invented-output",
-          invocation: 1,
-          lifecycleDatum: { type: "QST", payload: { title: "Corrected content" }, links: [] },
-        }],
-        authoritySupplies: [],
-      },
-    };
-    const responses = [initialResponse, workerCorrection];
-    const session: PiAssignmentSession = {
-      get isIdle() { return true; },
-      prompt: vi.fn(async () => undefined),
-      abort: vi.fn(async () => undefined),
-      dispose: vi.fn(),
-      subscribe: vi.fn(() => () => {}),
-    };
-    const runner = new PiAssignmentRunner({
-      repository: ".",
-      assignmentTimeoutMs: 1_000,
-      sessionFactory: vi.fn(async (_packet, capture) => {
-        session.prompt = vi.fn(async () => { capture(responses.shift()!); });
-        return session;
-      }),
-    });
-    const compilePacket = packet(assignmentId, "compile-product-specification@1");
-    compilePacket.exactInputs = [{ inputs: [] }];
-    compilePacket.outputs = [{
-      name: "product_specification",
-      types: ["PSP"],
-      cardinality: "one",
-    }, {
-      name: "questions",
-      types: ["QST"],
-      cardinality: "zero-or-more",
-    }];
-
-    await expect(runner.run(compilePacket)).resolves.toEqual(initialResponse);
-    await expect(runner.run(compilePacket, {
-      correction: {
-        previousResponse: initialResponse,
-        diagnostics: [{
-          code: "scenario-authority-unexpected",
-          path: "compile-product-specification@1#authority",
-          message: "Scenario received authority not required by its exact participation",
-        }],
-      },
-    })).resolves.toEqual({
-      ...workerCorrection,
-      proposal: {
-        ...(workerCorrection.proposal as JsonObject),
-        outputs: [{
-          ...((workerCorrection.proposal as JsonObject).outputs as JsonObject[])[0]!,
-          name: "product_specification",
-          invocation: 0,
-        }],
-      },
-    });
-
-    await runner.dispose();
-  });
-
-  it("normalizes equivalent worker and attended authority before capture", async () => {
+  it("does not copy attended authority metadata into the Assignment Response", async () => {
     const response: JsonObject = {
+      contract: "mdlm-assignment-response@2",
+      assignment: assignmentId,
       kind: "proposal",
-      proposal: { authoritySupplies: ["stakeholder:attended-authority-holder"] },
+      proposal: { outputs: [] },
     };
-    const session: PiAssignmentSession = {
-      get isIdle() { return true; },
-      prompt: vi.fn(async () => undefined),
-      abort: vi.fn(async () => undefined),
-      dispose: vi.fn(),
-      subscribe: vi.fn(() => () => {}),
-    };
+    const session = scriptedSession([]);
     const runner = new PiAssignmentRunner({
       repository: ".",
-      assignmentTimeoutMs: 1_000,
-      sessionFactory: vi.fn(async (_packet, capture) => {
-        session.prompt = vi.fn(async () => { capture(response); });
+      sessionFactory: async (_packet, capture) => {
+        session.prompt = vi.fn(async () => capture(response));
         return session;
-      }),
+      },
     });
 
     await expect(runner.run(packet(), {
-      attendedContext: {
-        authorityRequirement: {
-          mode: "attended",
-          authority: "stakeholder",
-        },
-        authoritySupply: {
-          authority: "stakeholder",
-          source: "attended-authority-holder",
-        },
-      },
-    })).resolves.toEqual({
-      ...response,
-      proposal: { authoritySupplies: ["stakeholder"] },
-    });
+      attendedContext: { conclusion: { statement: "approve" } },
+    })).resolves.toEqual(response);
+    expect(JSON.stringify(response)).not.toContain("authoritySupplies");
   });
 
-  it("does not let noisy worker authority block attended response capture", async () => {
-    const response: JsonObject = {
-      kind: "proposal",
-      proposal: {
-        authoritySupplies: ["stakeholder attended-authority-holder invocation 0"],
-      },
-    };
-    const session: PiAssignmentSession = {
-      get isIdle() { return true; },
-      prompt: vi.fn(async () => undefined),
-      abort: vi.fn(async () => undefined),
-      dispose: vi.fn(),
-      subscribe: vi.fn(() => () => {}),
-    };
+  it("rejects more than one completion call in the same response window", async () => {
+    const response: JsonObject = { assignment: assignmentId };
+    const session = scriptedSession([]);
     const runner = new PiAssignmentRunner({
       repository: ".",
-      assignmentTimeoutMs: 1_000,
-      sessionFactory: vi.fn(async (_packet, capture) => {
-        session.prompt = vi.fn(async () => { capture(response); });
-        return session;
-      }),
-    });
-
-    await expect(runner.run(packet(), {
-      attendedContext: {
-        authorityRequirement: {
-          mode: "attended",
-          authority: "stakeholder",
-        },
-        authoritySupply: {
-          authority: "stakeholder",
-          source: "attended-authority-holder",
-        },
-      },
-    })).resolves.toEqual({
-      ...response,
-      proposal: { authoritySupplies: ["stakeholder"] },
-    });
-  });
-
-  it("replaces arbitrary worker authority text with captured attended authority", async () => {
-    const response: JsonObject = {
-      assignment: assignmentId,
-      kind: "proposal",
-      proposal: {
-        authoritySupplies: [
-          "release-manager",
-          "stakeholder:other-authority-holder",
-        ],
-      },
-    };
-    const session: PiAssignmentSession = {
-      get isIdle() { return true; },
-      prompt: vi.fn(async () => undefined),
-      abort: vi.fn(async () => undefined),
-      dispose: vi.fn(),
-      subscribe: vi.fn(() => () => {}),
-    };
-    const runner = new PiAssignmentRunner({
-      repository: ".",
-      assignmentTimeoutMs: 1_000,
-      sessionFactory: vi.fn(async (_packet, capture) => {
-        session.prompt = vi.fn(async () => { capture(response); });
-        return session;
-      }),
-    });
-
-    await expect(runner.run(packet(), {
-      attendedContext: {
-        authorityRequirement: {
-          mode: "attended",
-          authority: "stakeholder",
-          delegationAllowed: false,
-        },
-        authoritySupply: {
-          authority: "stakeholder",
-          source: "attended-authority-holder",
-        },
-        conclusion: { statement: "Use the accepted scope." },
-      },
-    })).resolves.toEqual({
-      ...response,
-      proposal: { authoritySupplies: ["stakeholder"] },
-    });
-  });
-
-  it("rejects conflicting captured attended authority before worker execution", async () => {
-    const sessionFactory = vi.fn(async () => {
-      const session: PiAssignmentSession = {
-        get isIdle() { return true; },
-        prompt: vi.fn(async () => undefined),
-        abort: vi.fn(async () => undefined),
-        dispose: vi.fn(),
-        subscribe: vi.fn(() => () => {}),
-      };
-      return session;
-    });
-    const runner = new PiAssignmentRunner({
-      repository: ".",
-      assignmentTimeoutMs: 1_000,
-      sessionFactory,
-    });
-
-    await expect(runner.run(packet(), {
-      attendedContext: {
-        authorityRequirement: {
-          mode: "attended",
-          authority: "stakeholder",
-        },
-        authoritySupply: {
-          authority: "release-manager",
-          source: "attended-authority-holder",
-        },
-      },
-    })).rejects.toThrow(
-      "captured attended authority 'release-manager' conflicts with requirement 'stakeholder'",
-    );
-    expect(sessionFactory).not.toHaveBeenCalled();
-  });
-
-  it.each([
-    ["autonomous", []],
-    ["independent review", ["independent-reviewer"]],
-  ])("does not infer attended authority for %s work", async (_kind, authoritySupplies) => {
-    const response: JsonObject = {
-      assignment: assignmentId,
-      kind: "proposal",
-      proposal: { authoritySupplies },
-    };
-    const session: PiAssignmentSession = {
-      get isIdle() { return true; },
-      prompt: vi.fn(async () => undefined),
-      abort: vi.fn(async () => undefined),
-      dispose: vi.fn(),
-      subscribe: vi.fn(() => () => {}),
-    };
-    const runner = new PiAssignmentRunner({
-      repository: ".",
-      assignmentTimeoutMs: 1_000,
-      sessionFactory: vi.fn(async (_packet, capture) => {
-        session.prompt = vi.fn(async () => { capture(response); });
-        return session;
-      }),
-    });
-
-    await expect(runner.run(packet())).resolves.toEqual(response);
-    await runner.dispose();
-  });
-
-  it("does not reuse an author's session or attended context for a review Assignment", async () => {
-    const authorId = "9c1616d4-c016-4766-81e3-0ce2a6987518";
-    const prompts: string[] = [];
-    const sessions: PiAssignmentSession[] = [];
-    const sessionFactory = vi.fn(async (assignment: AssignmentPacket, capture: (value: JsonObject) => void) => {
-      const session: PiAssignmentSession = {
-        get isIdle() { return true; },
-        prompt: vi.fn(async (prompt: string) => {
-          prompts.push(prompt);
-          capture({ assignment: assignment.assignment.id, complete: true });
-        }),
-        abort: vi.fn(async () => undefined),
-        dispose: vi.fn(),
-        subscribe: vi.fn(() => () => {}),
-      };
-      sessions.push(session);
-      return session;
-    });
-    const runner = new PiAssignmentRunner({
-      repository: ".",
-      assignmentTimeoutMs: 1_000,
-      sessionFactory,
-    });
-
-    await runner.run(packet(authorId, "author-work@1"), {
-      attendedContext: {
-        authorityRequirement: {
-          mode: "attended",
-          authority: "stakeholder",
-        },
-        authoritySupply: {
-          authority: "stakeholder",
-          source: "attended-authority-holder",
-        },
-        conclusion: "private attended conclusion",
-      },
-    });
-    await runner.close(authorId);
-    await runner.run(packet());
-
-    expect(sessionFactory).toHaveBeenCalledTimes(2);
-    expect(sessions[0]).not.toBe(sessions[1]);
-    expect(prompts[0]).toContain("private attended conclusion");
-    expect(prompts[1]).not.toContain("private attended conclusion");
-    await runner.dispose();
-  });
-
-  it("rejects a session that tries to complete one Assignment more than once", async () => {
-    const dispose = vi.fn();
-    const response: JsonObject = { assignment: assignmentId, complete: true };
-    const session: PiAssignmentSession = {
-      get isIdle() { return true; },
-      prompt: vi.fn(async () => undefined),
-      abort: vi.fn(async () => undefined),
-      dispose,
-      subscribe: vi.fn(() => () => {}),
-    };
-    const runner = new PiAssignmentRunner({
-      repository: ".",
-      assignmentTimeoutMs: 1_000,
-      sessionFactory: vi.fn(async (_packet, capture) => {
+      sessionFactory: async (_packet, capture) => {
         session.prompt = vi.fn(async () => {
           capture(response);
           capture(response);
         });
         return session;
-      }),
-    });
-
-    await expect(runner.run(packet())).rejects.toThrow(
-      "complete_assignment more than once",
-    );
-    expect(dispose).toHaveBeenCalledTimes(1);
-  });
-
-  it("aborts and disposes a session when the finite Assignment timeout expires", async () => {
-    const abort = vi.fn(async () => undefined);
-    const dispose = vi.fn();
-    const session: PiAssignmentSession = {
-      get isIdle() { return false; },
-      prompt: vi.fn(async () => new Promise<void>(() => {})),
-      abort,
-      dispose,
-      subscribe: vi.fn(() => () => {}),
-    };
-    const runner = new PiAssignmentRunner({
-      repository: ".",
-      assignmentTimeoutMs: 20,
-      sessionFactory: vi.fn(async () => session),
-    });
-
-    await expect(runner.run(packet())).rejects.toThrow("exceeded 20ms");
-    expect(abort).toHaveBeenCalledTimes(1);
-    expect(dispose).toHaveBeenCalledTimes(1);
-  });
-
-  it("preserves observed terminal telemetry when the Assignment timeout expires", async () => {
-    let listener: (event: unknown) => void = () => {};
-    const secret = `sk-${"t".repeat(40)}`;
-    const session: PiAssignmentSession = {
-      get isIdle() { return false; },
-      prompt: vi.fn(async () => {
-        listener({ type: "agent_start" });
-        listener({
-          type: "auto_retry_start",
-          attempt: 1,
-          errorMessage: `authorization=Bearer ${secret}`,
-        });
-        listener({
-          type: "message_end",
-          message: {
-            role: "assistant",
-            stopReason: "error",
-            provider: "provider-id",
-            model: "model-id",
-          },
-        });
-        await new Promise<void>(() => {});
-      }),
-      abort: vi.fn(async () => undefined),
-      dispose: vi.fn(),
-      subscribe: vi.fn((next) => {
-        listener = next;
-        return () => {};
-      }),
-    };
-    const runner = new PiAssignmentRunner({
-      repository: ".",
-      assignmentTimeoutMs: 20,
-      sessionFactory: vi.fn(async () => session),
-    });
-
-    const error = await runner.run(packet()).catch((failure: unknown) => failure);
-
-    expect(error).toMatchObject({
-      message: "Pi Assignment exceeded 20ms",
-      telemetry: {
-        stopReason: "error",
-        retriesConsumed: 1,
-        provider: "provider-id",
-        model: "model-id",
-        completeAssignmentObserved: false,
-        providerError: { truncated: false },
       },
     });
-    expect((error as PiAssignmentRunnerError).telemetry?.providerError?.message)
-      .not.toContain(secret);
+    await expect(runner.run(packet())).rejects.toThrow("more than once");
   });
 
-  it("bounds session creation as part of the Assignment timeout", async () => {
+  it("does not reuse a session for a different Assignment", async () => {
+    const factories: string[] = [];
     const runner = new PiAssignmentRunner({
       repository: ".",
-      assignmentTimeoutMs: 20,
-      sessionFactory: vi.fn(async () => new Promise<PiAssignmentSession>(() => {})),
-    });
-
-    await expect(runner.run(packet())).rejects.toThrow("exceeded 20ms");
-  });
-
-  it("reports bounded redacted terminal evidence when Pi settles without a response", async () => {
-    const dispose = vi.fn();
-    let listener: (event: unknown) => void = () => {};
-    const secret = `sk-${"s".repeat(40)}`;
-    const session: PiAssignmentSession = {
-      get isIdle() { return true; },
-      prompt: vi.fn(async () => {
-        listener({ type: "agent_start" });
-        listener({
-          type: "auto_retry_start",
-          attempt: 1,
-          maxAttempts: 2,
-          delayMs: 1,
-          errorMessage: `provider token=${secret} ${"x".repeat(600)}`,
-        });
-        listener({ type: "agent_start" });
-        listener({
-          type: "agent_end",
-          messages: [{
-            role: "assistant",
-            stopReason: "error",
-            provider: "provider-id",
-            model: "model-id",
-          }],
-        });
-      }),
-      abort: vi.fn(async () => undefined),
-      dispose,
-      subscribe: vi.fn((next) => {
-        listener = next;
-        return () => {};
-      }),
-    };
-    const runner = new PiAssignmentRunner({
-      repository: ".",
-      assignmentTimeoutMs: 1_000,
-      sessionFactory: vi.fn(async () => session),
-    });
-
-    const error = await runner.run(packet()).catch((failure: unknown) => failure);
-    expect(error).toBeInstanceOf(PiAssignmentRunnerError);
-    expect(error).toMatchObject({
-      code: "PI_SETTLED_WITHOUT_COMPLETION",
-      message: "Pi settled without calling complete_assignment",
-      telemetry: {
-        stopReason: "error",
-        retriesConsumed: 1,
-        provider: "provider-id",
-        model: "model-id",
-        completeAssignmentObserved: false,
-        providerError: { truncated: true },
+      sessionFactory: async (current, capture) => {
+        factories.push(current.assignment.id);
+        const session = scriptedSession([]);
+        session.prompt = vi.fn(async () => capture({ assignment: current.assignment.id }));
+        return session;
       },
     });
-    expect((error as PiAssignmentRunnerError).telemetry?.providerError?.message)
-      .not.toContain(secret);
-    expect((error as PiAssignmentRunnerError).telemetry?.providerError?.message.length)
-      .toBeLessThanOrEqual(512);
-    expect(dispose).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not publish prior terminal evidence when a correction settles without it", async () => {
-    const error = await correctionFailure([{
-      response: { assignment: assignmentId, malformed: true },
-      stopReason: "error",
-      providerError: "prior provider failure",
-      retriesConsumed: 2,
-      provider: "prior-provider",
-      model: "prior-model",
-    }, {}]);
-
-    expect(operationalFailureDocument(error)).toMatchObject({
-      error: { code: "PI_SETTLED_WITHOUT_COMPLETION" },
-      telemetry: {
-        stopReason: null,
-        providerError: null,
-        retriesConsumed: 0,
-        provider: null,
-        model: null,
-        completeAssignmentObserved: false,
-      },
-    });
-  });
-
-  it("replaces prior terminal evidence with observed correction evidence", async () => {
-    const error = await correctionFailure([{
-      response: { assignment: assignmentId, malformed: true },
-      stopReason: "error",
-      providerError: "prior provider failure",
-      retriesConsumed: 2,
-      provider: "prior-provider",
-      model: "prior-model",
-    }, {
-      stopReason: "length",
-      providerError: "current provider failure",
-      retriesConsumed: 1,
-      provider: "current-provider",
-      model: "current-model",
-    }]);
-
-    expect(operationalFailureDocument(error).telemetry).toEqual({
-      stopReason: "length",
-      providerError: { message: "current provider failure", truncated: false },
-      retriesConsumed: 1,
-      provider: "current-provider",
-      model: "current-model",
-      completeAssignmentObserved: false,
-    });
-  });
-
-  it("preserves only current correction evidence when the correction times out", async () => {
-    const error = await correctionFailure([{
-      response: { assignment: assignmentId, malformed: true },
-      stopReason: "error",
-      providerError: "prior provider failure",
-      retriesConsumed: 2,
-      provider: "prior-provider",
-      model: "prior-model",
-    }, {
-      stopReason: "aborted",
-      providerError: "current timeout failure",
-      retriesConsumed: 1,
-      provider: "current-provider",
-      model: "current-model",
-      hang: true,
-    }], 30);
-
-    expect(error).toMatchObject({ message: "Pi Assignment exceeded 30ms" });
-    expect(operationalFailureDocument(error).telemetry).toEqual({
-      stopReason: "aborted",
-      providerError: { message: "current timeout failure", truncated: false },
-      retriesConsumed: 1,
-      provider: "current-provider",
-      model: "current-model",
-      completeAssignmentObserved: false,
-    });
-  });
-
-  it("does not report nonterminal stop reasons or unbounded provider identities", async () => {
-    let listener: (event: unknown) => void = () => {};
-    const session: PiAssignmentSession = {
-      get isIdle() { return true; },
-      prompt: vi.fn(async () => {
-        listener({ type: "agent_start" });
-        listener({
-          type: "agent_end",
-          messages: [{
-            role: "assistant",
-            stopReason: "pending",
-            provider: `provider-${"p".repeat(128)}`,
-            model: "model with spaces",
-          }],
-        });
-      }),
-      abort: vi.fn(async () => undefined),
-      dispose: vi.fn(),
-      subscribe: vi.fn((next) => {
-        listener = next;
-        return () => {};
-      }),
-    };
-    const runner = new PiAssignmentRunner({
-      repository: ".",
-      assignmentTimeoutMs: 1_000,
-      sessionFactory: vi.fn(async () => session),
-    });
-
-    const error = await runner.run(packet()).catch((failure: unknown) => failure);
-
-    expect(error).toMatchObject({
-      telemetry: {
-        stopReason: null,
-        retriesConsumed: 0,
-        provider: null,
-        model: null,
-      },
-    });
-  });
-
-  it("marks unavailable terminal fields explicitly when a test session emits no lifecycle events", async () => {
-    const session: PiAssignmentSession = {
-      get isIdle() { return true; },
-      prompt: vi.fn(async () => undefined),
-      abort: vi.fn(async () => undefined),
-      dispose: vi.fn(),
-      subscribe: vi.fn(() => () => {}),
-    };
-    const runner = new PiAssignmentRunner({
-      repository: ".",
-      assignmentTimeoutMs: 1_000,
-      provider: "configured-but-unobserved-provider",
-      model: "configured-but-unobserved-model",
-      sessionFactory: vi.fn(async () => session),
-    });
-
-    const error = await runner.run(packet()).catch((failure: unknown) => failure);
-    expect(error).toMatchObject({
-      telemetry: {
-        stopReason: null,
-        providerError: null,
-        retriesConsumed: null,
-        provider: null,
-        model: null,
-        completeAssignmentObserved: null,
-      },
-    });
-  });
-
-  it("does not treat complete_assignment lifecycle events as proof that the local tool executed", async () => {
-    for (const [startCallId, endCallId] of [
-      ["call-1", undefined],
-      ["call-1", "call-1"],
-      ["call-1", "unmatched-call"],
-      [undefined, "call-1"],
-    ] as const) {
-      let listener: (event: unknown) => void = () => {};
-      const session: PiAssignmentSession = {
-        get isIdle() { return true; },
-        prompt: vi.fn(async () => {
-          listener({ type: "agent_start" });
-          if (startCallId !== undefined) {
-            listener({
-              type: "tool_execution_start",
-              toolCallId: startCallId,
-              toolName: "complete_assignment",
-              args: { malformed: true },
-            });
-          }
-          if (endCallId !== undefined) {
-            listener({
-              type: "tool_execution_end",
-              toolCallId: endCallId,
-              toolName: "complete_assignment",
-              result: { content: [], details: {}, isError: true },
-            });
-          }
-          listener({ type: "agent_end", messages: [] });
-        }),
-        abort: vi.fn(async () => undefined),
-        dispose: vi.fn(),
-        subscribe: vi.fn((next) => {
-          listener = next;
-          return () => {};
-        }),
-      };
-      const runner = new PiAssignmentRunner({
-        repository: ".",
-        assignmentTimeoutMs: 1_000,
-        sessionFactory: vi.fn(async () => session),
-      });
-
-      const error = await runner.run(packet()).catch((failure: unknown) => failure);
-
-      expect(error).toMatchObject({
-        code: "PI_SETTLED_WITHOUT_COMPLETION",
-        telemetry: { completeAssignmentObserved: null },
-      });
-    }
+    await runner.run(packet("assignment-a"));
+    await runner.run(packet("assignment-b"));
+    expect(factories).toEqual(["assignment-a", "assignment-b"]);
   });
 });
+
+function scriptedSession(prompts: string[]): PiAssignmentSession {
+  return {
+    get isIdle() { return true; },
+    prompt: vi.fn(async (prompt: string) => { prompts.push(prompt); }),
+    abort: vi.fn(async () => undefined),
+    dispose: vi.fn(),
+    subscribe: vi.fn(() => () => {}),
+  };
+}

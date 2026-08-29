@@ -20,8 +20,9 @@ export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhi
 
 const systemPrompt = `You complete exactly one MDLM Assignment.
 Use only the supplied Assignment Packet and attended context; do not infer repository or Process Package facts outside them.
-Follow the packet prompt, assets, exact inputs, policies, participation, authority, prohibitions, output contracts, completion contract, and response schema.
-An attended conclusion supplies only the packet's exact named authority; normalize it into the required output and never treat chat prose itself as Lifecycle Data.
+Follow the packet prompt, exact inputs, policies, participation, authority, prohibitions, output contracts, completion contract, response scaffold, and response schema.
+Use symbolic output handles from the scaffold. Never predict generated identities, links, or authority metadata.
+An attended conclusion informs the proposal, but authority travels outside the response and is bound to the Assignment by MDLM.
 Call complete_assignment exactly once as your final action.
 Return typed inability instead of asking a user or fabricating missing facts.`;
 
@@ -134,13 +135,6 @@ export class PiAssignmentRunner {
 
   async run(packet: AssignmentPacket, options: PiAssignmentRunOptions = {}): Promise<JsonObject> {
     const assignmentId = packet.assignment.id;
-    let attendedAuthority: string | undefined;
-    try {
-      attendedAuthority = capturedAttendedAuthority(options.attendedContext, assignmentId);
-    } catch (error) {
-      await this.close(assignmentId);
-      throw error;
-    }
     let active = this.#sessions.get(assignmentId);
     if (active !== undefined && options.correction === undefined) {
       throw new PiAssignmentRunnerError(`Assignment '${assignmentId}' already owns a Pi session`);
@@ -187,13 +181,7 @@ export class PiAssignmentRunner {
           },
         );
       }
-      const response = correctMissingUnattendedAuthority(packet, options.correction) ??
-        active.response;
-      return carryAttendedAuthority(
-        restorePacketInvalidCorrectionRouting(packet, options.correction, response),
-        attendedAuthority,
-        assignmentId,
-      );
+      return active.response;
     } catch (error) {
       await this.close(assignmentId);
       throw error;
@@ -399,7 +387,10 @@ function buildPrompt(packet: AssignmentPacket, options: PiAssignmentRunOptions):
     JSON.stringify(packet),
   ];
   if (options.attendedContext !== undefined) {
-    sections.push("Attended authority supplied for this Assignment:", JSON.stringify(options.attendedContext));
+    sections.push(
+      "Attended conclusion for this Assignment. Use it only to author the declared output. Do not copy authority metadata into the response:",
+      JSON.stringify(options.attendedContext),
+    );
   }
   if (options.correction !== undefined) {
     sections.push(
@@ -416,191 +407,6 @@ async function boundedAbort(abort: Promise<void>): Promise<void> {
     abort.catch(() => {}),
     new Promise<void>((resolve) => setTimeout(resolve, 5_000)),
   ]);
-}
-
-function capturedAttendedAuthority(
-  attendedContext: JsonValue | undefined,
-  assignmentId: string,
-): string | undefined {
-  if (attendedContext === undefined) return undefined;
-  if (!isJsonObject(attendedContext)) {
-    throw new PiAssignmentRunnerError(
-      `Assignment '${assignmentId}' has malformed attended authority context`,
-    );
-  }
-  const requirement = attendedContext.authorityRequirement;
-  const supply = attendedContext.authoritySupply;
-  if (
-    !isJsonObject(requirement) || requirement.mode !== "attended" ||
-    typeof requirement.authority !== "string" || requirement.authority.length === 0 ||
-    !isJsonObject(supply) || typeof supply.authority !== "string" ||
-    supply.authority.length === 0 || supply.source !== "attended-authority-holder"
-  ) {
-    throw new PiAssignmentRunnerError(
-      `Assignment '${assignmentId}' has malformed attended authority context`,
-    );
-  }
-  if (supply.authority !== requirement.authority) {
-    throw new PiAssignmentRunnerError(
-      `Assignment '${assignmentId}' captured attended authority '${supply.authority}' conflicts with requirement '${requirement.authority}'`,
-    );
-  }
-  return requirement.authority;
-}
-
-function correctMissingUnattendedAuthority(
-  packet: AssignmentPacket,
-  correction: AssignmentCorrection | undefined,
-): JsonObject | undefined {
-  if (
-    correction === undefined || !Array.isArray(correction.diagnostics) ||
-    correction.diagnostics.length === 0 ||
-    !correction.diagnostics.every((diagnostic) =>
-      isJsonObject(diagnostic) && diagnostic.code === "scenario-authority-required"
-    ) || correction.previousResponse.kind !== "proposal"
-  ) return undefined;
-
-  const packetAuthority = packet.authority;
-  const previousProposal = correction.previousResponse.proposal;
-  if (
-    !isJsonObject(packetAuthority) || !Array.isArray(packetAuthority.requirements) ||
-    packetAuthority.requirements.length === 0 || !isJsonObject(previousProposal) ||
-    !Array.isArray(previousProposal.authoritySupplies)
-  ) return undefined;
-
-  const requiredAuthorities: string[] = [];
-  for (const requirement of packetAuthority.requirements) {
-    if (!isJsonObject(requirement)) return undefined;
-    const authorityRequirement = requirement.authorityRequirement;
-    const attentionSchedule = requirement.attentionSchedule;
-    if (
-      !isJsonObject(authorityRequirement) || authorityRequirement.mode !== "delegated" ||
-      typeof authorityRequirement.authority !== "string" ||
-      authorityRequirement.authority.length === 0 || !isJsonObject(attentionSchedule) ||
-      attentionSchedule.timing !== "none"
-    ) return undefined;
-    if (!requiredAuthorities.includes(authorityRequirement.authority)) {
-      requiredAuthorities.push(authorityRequirement.authority);
-    }
-  }
-
-  return {
-    ...correction.previousResponse,
-    proposal: {
-      ...previousProposal,
-      authoritySupplies: requiredAuthorities,
-    },
-  };
-}
-
-function restorePacketInvalidCorrectionRouting(
-  packet: AssignmentPacket,
-  correction: AssignmentCorrection | undefined,
-  response: JsonObject,
-): JsonObject {
-  if (
-    correction === undefined || correction.previousResponse.kind !== "proposal" ||
-    response.kind !== "proposal" || !Array.isArray(correction.diagnostics) ||
-    correction.diagnostics.length === 0 ||
-    !correction.diagnostics.every((diagnostic) =>
-      isJsonObject(diagnostic) && diagnostic.code === "scenario-authority-unexpected"
-    )
-  ) return response;
-
-  const previousProposal = correction.previousResponse.proposal;
-  const proposal = response.proposal;
-  const exactInputs = packet.exactInputs;
-  const outputContracts = packet.outputs;
-  if (
-    !isJsonObject(previousProposal) || !Array.isArray(previousProposal.outputs) ||
-    !isJsonObject(proposal) || !Array.isArray(proposal.outputs) ||
-    !Array.isArray(exactInputs) || !Array.isArray(outputContracts)
-  ) return response;
-
-  const declaredNames = new Set<string>();
-  for (const contract of outputContracts) {
-    if (isJsonObject(contract) && typeof contract.name === "string") {
-      declaredNames.add(contract.name);
-    }
-  }
-  type OutputRouting = { name: string; invocation: number };
-  const routingByLocalId = new Map<string, OutputRouting>();
-  const duplicateLocalIds = new Set<string>();
-  const routingByPosition: Array<OutputRouting | undefined> = [];
-  for (const output of previousProposal.outputs) {
-    const routing = isJsonObject(output) && typeof output.name === "string" &&
-        declaredNames.has(output.name) && Number.isInteger(output.invocation) &&
-        (output.invocation as number) >= 0 &&
-        (output.invocation as number) < exactInputs.length
-      ? { name: output.name, invocation: output.invocation as number }
-      : undefined;
-    routingByPosition.push(routing);
-    if (routing === undefined || !isJsonObject(output) || typeof output.localId !== "string") {
-      continue;
-    }
-    if (routingByLocalId.has(output.localId)) {
-      routingByLocalId.delete(output.localId);
-      duplicateLocalIds.add(output.localId);
-    } else if (!duplicateLocalIds.has(output.localId)) {
-      routingByLocalId.set(output.localId, routing);
-    }
-  }
-
-  const priorRoutingHasCompleteUniqueLocalIds =
-    routingByLocalId.size === previousProposal.outputs.length;
-  const correctedLocalIds = proposal.outputs.flatMap((output) =>
-    isJsonObject(output) && typeof output.localId === "string" ? [output.localId] : []
-  );
-  const correctionPreservesLocalIdSet =
-    priorRoutingHasCompleteUniqueLocalIds &&
-    correctedLocalIds.length === proposal.outputs.length &&
-    new Set(correctedLocalIds).size === correctedLocalIds.length &&
-    correctedLocalIds.length === routingByLocalId.size &&
-    correctedLocalIds.every((localId) => routingByLocalId.has(localId));
-
-  let changed = false;
-  const outputs = proposal.outputs.map((output, index) => {
-    if (!isJsonObject(output)) return output;
-    const priorRouting = correctionPreservesLocalIdSet && typeof output.localId === "string"
-      ? routingByLocalId.get(output.localId)
-      : routingByPosition[index];
-    if (priorRouting === undefined) return output;
-    const nameIsPacketInvalid =
-      typeof output.name !== "string" || !declaredNames.has(output.name);
-    const invocationIsPacketInvalid =
-      !Number.isInteger(output.invocation) || (output.invocation as number) < 0 ||
-      (output.invocation as number) >= exactInputs.length;
-    if (!nameIsPacketInvalid && !invocationIsPacketInvalid) return output;
-    changed = true;
-    return {
-      ...output,
-      ...(nameIsPacketInvalid ? { name: priorRouting.name } : {}),
-      ...(invocationIsPacketInvalid ? { invocation: priorRouting.invocation } : {}),
-    };
-  });
-  if (!changed) return response;
-  return { ...response, proposal: { ...proposal, outputs } };
-}
-
-function carryAttendedAuthority(
-  response: JsonObject,
-  attendedAuthority: string | undefined,
-  assignmentId: string,
-): JsonObject {
-  if (attendedAuthority === undefined || response.kind !== "proposal") return response;
-  const proposal = response.proposal;
-  if (!isJsonObject(proposal) || !Array.isArray(proposal.authoritySupplies)) {
-    throw new PiAssignmentRunnerError(
-      `Assignment '${assignmentId}' proposal cannot carry attended authority '${attendedAuthority}'`,
-    );
-  }
-  return {
-    ...response,
-    proposal: {
-      ...proposal,
-      authoritySupplies: [attendedAuthority],
-    },
-  };
 }
 
 function isJsonObject(value: unknown): value is JsonObject {

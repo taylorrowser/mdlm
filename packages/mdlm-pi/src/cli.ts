@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import path from "node:path";
-import { GitPublisher } from "./git-publisher.js";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { MdlmClient, MdlmClientError } from "./mdlm-client.js";
 import {
   TerminalOperatorIO,
@@ -33,9 +34,9 @@ async function main(arguments_: string[]): Promise<number> {
   }
 
   const repository = path.resolve(parsed.repository);
-  const git = new GitPublisher({ repository });
-  const stateDirectory = path.join(await git.gitDirectory(), "mdlm-pi");
-  const ownerDirectory = path.join(await git.commonGitDirectory(), "mdlm-pi-owner");
+  const { gitDirectory, commonGitDirectory } = await gitDirectories(repository);
+  const stateDirectory = path.join(gitDirectory, "mdlm-pi");
+  const ownerDirectory = path.join(commonGitDirectory, "mdlm-pi-owner");
   const lock = await RunLock.acquire(ownerDirectory);
   try {
     const interruption = new AbortController();
@@ -79,7 +80,6 @@ async function main(arguments_: string[]): Promise<number> {
         mdlm,
         assignments,
         io,
-        git,
         journal: new RunJournal(stateDirectory),
         signal: interruption.signal,
       });
@@ -102,6 +102,22 @@ async function main(arguments_: string[]): Promise<number> {
   } finally {
     await lock.release();
   }
+}
+
+async function gitDirectories(repository: string): Promise<{
+  gitDirectory: string;
+  commonGitDirectory: string;
+}> {
+  const run = promisify(execFile);
+  const options = { cwd: repository, encoding: "utf8" as const };
+  const [git, common] = await Promise.all([
+    run("git", ["rev-parse", "--path-format=absolute", "--git-dir"], options),
+    run("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], options),
+  ]);
+  return {
+    gitDirectory: git.stdout.trim(),
+    commonGitDirectory: common.stdout.trim(),
+  };
 }
 
 function parseArguments(arguments_: string[]): {
