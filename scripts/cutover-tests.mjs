@@ -56,8 +56,8 @@ if (args[0] === "cutover") {
     "vitest",
     "run",
     "--testTimeout=180000",
-    "test/mdlm-client.test.ts",
-    "test/run-controller.test.ts",
+    "test/mdlm-client-v2.test.ts",
+    "test/operator-loop.test.ts",
   ]);
   run("./node_modules/.bin/vitest", [
     "run",
