@@ -2,9 +2,11 @@ import { spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { Writable } from "node:stream";
 import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { executeCommandApplication } from "../src/command-application.js";
+import { runMdlmCli } from "../src/mdlm.js";
 
 const executable = path.join(process.cwd(), "dist/mdlm.js");
 
@@ -28,54 +30,55 @@ describe("MDLM CLI output", () => {
     return repository;
   }
 
-  async function stdoutProbe(mode: "delay" | "fail"): Promise<string> {
-    const probe = path.join(parent!, `stdout-${mode}.mjs`);
-    await fs.writeFile(probe, `
-const originalWrite = process.stdout.write.bind(process.stdout);
-process.stdout.write = (chunk, encoding, callback) => {
-  const completed = typeof encoding === "function" ? encoding : callback;
-  if (typeof completed !== "function") return true;
-  if (${JSON.stringify(mode)} === "fail") {
-    completed(new Error("injected stdout failure"));
-    return false;
-  }
-  setTimeout(() => {
-    if (typeof encoding === "string") originalWrite(chunk, encoding, completed);
-    else originalWrite(chunk, completed);
-  }, 25);
-  return false;
-};
-`);
-    return pathToFileURL(probe).href;
-  }
-
-  it("keeps a side-effecting next process open until piped stdout accepts every byte", async () => {
+  it("keeps side-effecting next pending until piped stdout accepts every byte", async () => {
     const repository = await startedRepository();
-    const probe = await stdoutProbe("delay");
+    let releaseWrite: (() => void) | undefined;
+    const chunks: Buffer[] = [];
+    const stdout = new Writable({
+      write(chunk, _encoding, callback) {
+        chunks.push(Buffer.from(chunk));
+        releaseWrite = callback;
+      },
+    });
+    let completed = false;
+    const invocation = runMdlmCli({
+      arguments_: ["next", "--json"],
+      cwd: repository,
+      stdout,
+      stderr: new Writable({ write(_chunk, _encoding, callback) { callback(); } }),
+      performanceDiagnostics: false,
+    }).then((exitCode) => {
+      completed = true;
+      return exitCode;
+    });
 
-    const next = spawnSync(
-      process.execPath,
-      ["--import", probe, executable, "next", "--json"],
-      { cwd: repository, encoding: "utf8", maxBuffer: 10 * 1024 * 1024 },
-    );
-
-    expect(next.status, next.stderr).toBe(0);
-    expect(next.stderr).toBe("");
-    expect(next.stdout.length).toBeGreaterThan(40_000);
-    expect(JSON.parse(next.stdout)).toMatchObject({
+    while (!releaseWrite) await new Promise((resolve) => setImmediate(resolve));
+    expect(completed).toBe(false);
+    releaseWrite();
+    expect(await invocation).toBe(0);
+    const output = Buffer.concat(chunks).toString("utf8");
+    expect(output.length).toBeGreaterThan(40_000);
+    expect(JSON.parse(output)).toMatchObject({
       contract: "mdlm-next@2",
       outcome: "assignment",
       assignment: { id: expect.any(String) },
     });
   });
 
-  it("fails the CLI invocation when piped stdout rejects the result", async () => {
+  it("fails the built CLI when piped stdout rejects the result", async () => {
     const repository = await startedRepository();
-    const probe = await stdoutProbe("fail");
+    const probe = path.join(parent!, "stdout-failure.mjs");
+    await fs.writeFile(probe, `
+process.stdout.write = (_chunk, encoding, callback) => {
+  const completed = typeof encoding === "function" ? encoding : callback;
+  if (typeof completed === "function") completed(new Error("injected stdout failure"));
+  return false;
+};
+`);
 
     const next = spawnSync(
       process.execPath,
-      ["--import", probe, executable, "next", "--json"],
+      ["--import", pathToFileURL(probe).href, executable, "next", "--json"],
       { cwd: repository, encoding: "utf8", maxBuffer: 10 * 1024 * 1024 },
     );
 

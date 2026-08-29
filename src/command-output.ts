@@ -1,4 +1,4 @@
-interface CommandOutputStream {
+export interface CommandOutputStream {
   write(
     chunk: string,
     callback: (error?: Error | null) => void,
