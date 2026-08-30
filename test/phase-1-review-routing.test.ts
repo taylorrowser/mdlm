@@ -143,11 +143,93 @@ describe("Phase 1 review routing", () => {
     expect(prepared.value.expectedOutputs).toEqual([
       expect.objectContaining({
         requiredLinks: [
-          { type: "governs", target: { input: "stable_requirements" } },
-          { type: "governs-revision", target: { input: "requirements" } },
+          { link: "governs", target: { input: "stable_requirements" } },
+          { link: "governs-revision", target: { input: "requirements" } },
         ],
       }),
     ]);
+
+    const submitted = await submitPreparedResolverScenario(
+      "/tmp/mdlm-issue-428-stable-revision-bindings",
+      loaded.package,
+      {
+        reference: "mdlm-bootstrap@0.92.0",
+        digest: processDigest,
+        language: "mdlm-expression@1",
+      },
+      {
+        scenarioReference: "define-verification-strategy@1",
+        obligationInstance: obligation.id,
+        proposal: {
+          outputs: [{
+            localId: "strategy",
+            name: "strategy",
+            invocation: 0,
+            lifecycleDatum: {
+              type: "VSP",
+              payload: {
+                title: "Stakeholder verification strategy",
+                rationale: "Verify the exact accepted stakeholder commitment.",
+                level: "stakeholder",
+                permitted_methods: ["test"],
+                independence: {
+                  boundary: "black-box",
+                  prohibited_inputs: [
+                    "product source code",
+                    "product unit tests",
+                    "private implementation details",
+                    "uncontrolled implementation shortcuts",
+                  ],
+                },
+                evidence_policy: "Retain the exact black-box observations.",
+                assessment_policy: "Assess every bound requirement.",
+                environment_profile: {
+                  id: "bounded-cli",
+                  purpose: "Run one bounded command-line verification.",
+                  capabilities: {
+                    controllability: ["stdin"],
+                    observability: ["stdout"],
+                    external_services: [],
+                    timing: "bounded",
+                  },
+                },
+              },
+              links: [
+                { type: "governs", target: requirement.datum.id },
+                { type: "governs-revision", target: requirement.datum.revision_id },
+              ],
+              body: "The strategy covers the stable commitment and its exact Revision.",
+            },
+          }],
+          completionEvidence: { summary: "Both requirement identities are covered." },
+        },
+        assignment: "issue-428-stable-revision-bindings",
+        responseDigest: `sha256:${"b".repeat(64)}`,
+        suppliedAuthorities: [],
+        suppliedDelegations: [],
+        loadedSkillRefs: prepared.value.prompt.skills.map((skill) => skill.reference),
+      },
+      {
+        dryRun: prepared.value,
+        evaluation,
+        scenario: loaded.package.scenarios["define-verification-strategy"]!,
+        snapshot,
+        publishMutation: async (_root, _package, _expected, data, executionId) => ({
+          ok: true,
+          value: {
+            created: data.map((datum) => ({
+              id: datum.id,
+              revisionId: datum.revision_id,
+              type: datum.type,
+              path: `.lifecycle/data/.transactions/${executionId}/${datum.type}.md`,
+            })),
+            executionPath: `.lifecycle/data/.transactions/${executionId}/execution.json`,
+          },
+          diagnostics: [],
+        }),
+      },
+    );
+    expect(submitted.ok, JSON.stringify(submitted.diagnostics)).toBe(true);
   });
 
   it("routes a new VSP to Review before pilot activity authoring", async () => {
