@@ -13,6 +13,13 @@ Issues and PRDs for this repo live as GitHub issues. Use the `gh` CLI for all op
 
 Infer the repository from `git remote -v`; `gh` does this automatically inside the clone.
 
+## Deduplicate operational defects
+
+Before creating an operational-defect issue, search open issues for the lane,
+Assignment, Scenario, and diagnostic from the evidence. When one issue already
+owns that failure seam, add the new evidence to that canonical issue and keep
+its owner. Create a separate issue only when the acceptance criteria differ.
+
 ## Open with the problem
 
 After optional `## Parent` metadata, open every issue with a short `## Plain-language problem` section. In two to four sentences, say what someone observed, what should happen instead, and why the difference matters. A reader should understand the problem without knowing MDLM's internal types or source layout.
