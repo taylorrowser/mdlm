@@ -61,6 +61,7 @@ const classification = Object.freeze({
   "test/mdlm-schema.test.ts": [PROCESS_REPOSITORY_KIND, "selected-package repository and public command application"],
   "test/operator-outcome.test.ts": [PROCESS_REPOSITORY_KIND, "mixed in-process classification and repository/public/compiled submission"],
   "test/atomic-review-submit.test.ts": [PROCESS_REPOSITORY_KIND, "temporary Process Package, repository, lease, and atomic public submission"],
+  "test/same-response-payload-reference.test.ts": [PROCESS_REPOSITORY_KIND, "temporary Process Package, repository, Git, and public command submission"],
   "test/selected-package-cache.test.ts": [PROCESS_REPOSITORY_KIND, "initialized repositories and selected-package filesystem state"],
   "test/dependency-changes.test.ts": [CANONICAL_IN_PROCESS_KIND, "temporary Process Package copies and in-process dependency evaluation"],
   "test/proportional-phase-2-public.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process grouped-readiness evaluation"],
