@@ -4,6 +4,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { currentProcessPackageIdentity } from "./helpers/current-process-package-identity.js";
 
 const temporaryRoots: string[] = [];
 const preservedRoots = new Set<string>();
@@ -847,6 +848,9 @@ describe("installed v2 cutover journey", () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-installed-cutover-"));
     temporaryRoots.push(root);
     preservedRoots.add(root);
+    const expectedPackage = await currentProcessPackageIdentity(
+      path.join(process.cwd(), ".lifecycle/process"),
+    );
     const packageRoot = path.join(root, "package");
     const installRoot = path.join(root, "install");
     const repository = path.join(root, "product");
@@ -893,7 +897,10 @@ describe("installed v2 cutover journey", () => {
       ),
       "installed mdlm init",
     );
-    expect(initialized.package.reference).toBe("mdlm-bootstrap@0.81.0");
+    expect(initialized.package).toMatchObject({
+      reference: expectedPackage.reference,
+      digest: expectedPackage.digest,
+    });
     failureState.package = initialized.package;
 
     const next = successful(
