@@ -3,7 +3,10 @@ import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { validateDefinitionGraph } from "../src/definition-graph.js";
 import { loadProcessPackage } from "../src/index.js";
-import type { ProcessPackage, VersionedDefinition } from "../src/index.js";
+import type {
+  ProcessPackage,
+  VersionedDefinition,
+} from "../src/index.js";
 import {
   participationResult,
   validateParticipationPolicy,
@@ -26,7 +29,9 @@ function clonedPolicy(id: string): VersionedDefinition {
   return structuredClone(policy);
 }
 
-function graphDiagnostics(mutate: (definitions: ProcessPackage) => void) {
+function graphDiagnostics(
+  mutate: (definitions: ProcessPackage) => void,
+) {
   const definitions = structuredClone(validPackage);
   mutate(definitions);
   return validateDefinitionGraph(definitions.manifest, definitions);
@@ -38,9 +43,7 @@ beforeAll(async () => {
   const loaded = await loadProcessPackage(processRoot);
   expect(
     loaded.ok,
-    loaded.diagnostics
-      .map((item) => `${item.code}: ${item.message}`)
-      .join("\n"),
+    loaded.diagnostics.map((item) => `${item.code}: ${item.message}`).join("\n"),
   ).toBe(true);
   if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
   validPackage = loaded.package;
@@ -48,19 +51,17 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await Promise.all(
-    temporaryRoots
-      .splice(0)
-      .map((root) => fs.rm(root, { recursive: true, force: true })),
+    temporaryRoots.splice(0).map((root) =>
+      fs.rm(root, { recursive: true, force: true })
+    ),
   );
 });
 
 describe("Scenario participation Policy validation", () => {
   it("declares the blocking links required by question resolution and gate rejection", async () => {
     const loaded = await loadProcessPackage(".lifecycle/process");
-    expect(
-      loaded.ok,
-      loaded.diagnostics.map((item) => item.message).join("\n"),
-    ).toBe(true);
+    expect(loaded.ok, loaded.diagnostics.map((item) => item.message).join("\n"))
+      .toBe(true);
     if (!loaded.ok) return;
 
     expect(loaded.package.scenarios["resolve-question"]?.inputs).toEqual(
@@ -77,16 +78,15 @@ describe("Scenario participation Policy validation", () => {
         source: "args.blocked_targets",
       }),
     });
-    expect(
-      loaded.package.obligations["open-question-resolution"]?.resolve_with,
-    ).toMatchObject({
-      inputs: {
-        blocked_targets: expect.objectContaining({
-          source:
-            'select("blocked-targets-for-question@1", {question: question})',
-        }),
-      },
-    });
+    expect(loaded.package.obligations["open-question-resolution"]?.resolve_with)
+      .toMatchObject({
+        inputs: {
+          blocked_targets: expect.objectContaining({
+            source:
+              'select("blocked-targets-for-question@1", {question: question})',
+          }),
+        },
+      });
     expect(loaded.package.scenarios["resolve-question"]?.outputs).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -127,27 +127,46 @@ describe("Scenario participation Policy validation", () => {
       expect.arrayContaining([
         expect.objectContaining({
           name: "questions",
-          required_links: [{ link: "blocks", target: { input: "candidate" } }],
+          required_links: [
+            { link: "blocks", target: { input: "candidate" } },
+          ],
         }),
       ]),
     );
   });
 
+  it("binds Phase 2 simplification Reviews through their exact Review Context", async () => {
+    const loaded = await loadProcessPackage(".lifecycle/process");
+    expect(loaded.ok, loaded.diagnostics.map((item) => item.message).join("\n"))
+      .toBe(true);
+    if (!loaded.ok) return;
+
+    for (const selector of [
+      "valid-phase-2-simplification-review",
+      "failed-phase-2-simplification-reviews-by-scope",
+      "phase-2-system-requirements-for-review",
+    ]) {
+      const where = object(loaded.package.selectors[selector]?.query).where;
+      expect(object(where).source).not.toContain("decomposition_plan_revision");
+    }
+    expect(object(object(
+      loaded.package.selectors["valid-phase-2-simplification-review"]?.query,
+    ).where).source).toContain("phase-2-review-context-matches-plan@1");
+  });
+
   it("accepts a versioned Policy with exact Scenario input arguments and the standard result", () => {
-    expect(validPackage.scenarios["resolve-question"]?.participation).toEqual(
-      expect.objectContaining({
+    expect(validPackage.scenarios["resolve-question"]?.participation)
+      .toEqual(expect.objectContaining({
         policy_ref: "question-participation@1",
         arguments: expect.objectContaining({
           question: expect.any(Object),
           selected_phase: expect.any(Object),
         }),
-      }),
-    );
+      }));
 
     const policy = clonedPolicy("question-participation");
-    expect(
-      validateParticipationPolicy(policy, "policies.question-participation"),
-    ).toEqual([]);
+    expect(validateParticipationPolicy(policy, "policies.question-participation"))
+      .toEqual([]);
     expect(participationResult(policy.default)).toEqual({
       authorityRequirement: {
         mode: "attended",
@@ -166,9 +185,8 @@ describe("Scenario participation Policy validation", () => {
     const policy = clonedPolicy("process-participation");
     object(policy.default).delegation_allowed = true;
 
-    expect(
-      validateParticipationPolicy(policy, "policies.process-participation"),
-    ).toEqual([]);
+    expect(validateParticipationPolicy(policy, "policies.process-participation"))
+      .toEqual([]);
   });
 
   it.each([
@@ -180,8 +198,7 @@ describe("Scenario participation Policy validation", () => {
       diagnostic: {
         code: "scenario-authority-evidence-required",
         path: "scenarios.resolve-question.authority_evidence",
-        message:
-          "Scenario 'resolve-question@2' must name the Lifecycle Data output that records non-autonomous authority",
+        message: "Scenario 'resolve-question@2' must name the Lifecycle Data output that records non-autonomous authority",
       },
     },
     {
@@ -195,22 +212,19 @@ describe("Scenario participation Policy validation", () => {
       diagnostic: {
         code: "scenario-authority-evidence-output",
         path: "scenarios.resolve-question.authority_evidence",
-        message:
-          "Scenario 'resolve-question@2' authority evidence must name a declared output and one of its Lifecycle Data types",
+        message: "Scenario 'resolve-question@2' authority evidence must name a declared output and one of its Lifecycle Data types",
       },
     },
     {
       name: "an unknown Policy reference",
       mutate: (definitions: ProcessPackage) => {
-        object(
-          definitions.scenarios["resolve-question"]!.participation,
-        ).policy_ref = "missing-participation@1";
+        object(definitions.scenarios["resolve-question"]!.participation)
+          .policy_ref = "missing-participation@1";
       },
       diagnostic: {
         code: "unknown-reference",
         path: "scenarios.resolve-question.participation.policy_ref",
-        message:
-          "Unknown Participation Policy reference 'missing-participation@1'",
+        message: "Unknown Participation Policy reference 'missing-participation@1'",
       },
     },
     {
@@ -226,8 +240,7 @@ describe("Scenario participation Policy validation", () => {
       diagnostic: {
         code: "participation-policy-arguments",
         path: "scenarios.resolve-question.participation.arguments",
-        message:
-          "Scenario 'resolve-question' participation arguments must exactly match Policy 'question-participation@1'; missing: question; unknown: unexpected",
+        message: "Scenario 'resolve-question' participation arguments must exactly match Policy 'question-participation@1'; missing: question; unknown: unexpected",
       },
     },
   ])("rejects $name", ({ mutate, diagnostic }) => {
@@ -277,9 +290,9 @@ describe("Scenario participation Policy validation", () => {
     const loaded = await loadProcessPackage(processRoot);
 
     expect(loaded.ok).toBe(false);
-    expect(loaded.diagnostics).toEqual(
-      expect.arrayContaining([expect.objectContaining({ code })]),
-    );
+    expect(loaded.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code }),
+    ]));
   });
 
   it("rejects an unknown payload path used as an exact required-link target", async () => {
@@ -300,11 +313,9 @@ describe("Scenario participation Policy validation", () => {
     const loaded = await loadProcessPackage(processRoot);
 
     expect(loaded.ok).toBe(false);
-    expect(loaded.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ code: "unknown-required-link-payload-path" }),
-      ]),
-    );
+    expect(loaded.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "unknown-required-link-payload-path" }),
+    ]));
   });
 
   it("rejects a payload-supplied required link outside source cardinality", async () => {
@@ -313,36 +324,27 @@ describe("Scenario participation Policy validation", () => {
     const typePath = path.join(processRoot, "types/DEC.yaml");
     await fs.writeFile(
       typePath,
-      (await fs.readFile(typePath, "utf8"))
-        .replace(
-          "  - id: waives\n    description: Exact computed obligation instance suppressed by this structured waiver.",
-          "  - id: waives\n    description: Exact computed obligation instance suppressed by this structured waiver.\n    cardinality: {minimum: 2, maximum: many}",
-        )
-        .replace(
-          "    cardinality: {minimum: 0, maximum: many}\n    freeze_resolution: not-applicable",
-          "    freeze_resolution: not-applicable",
-        ),
+      (await fs.readFile(typePath, "utf8")).replace(
+        "  - id: waives\n    description: Exact computed obligation instance suppressed by this structured waiver.",
+        "  - id: waives\n    description: Exact computed obligation instance suppressed by this structured waiver.\n    cardinality: {minimum: 2, maximum: many}",
+      ).replace(
+        "    cardinality: {minimum: 0, maximum: many}\n    freeze_resolution: not-applicable",
+        "    freeze_resolution: not-applicable",
+      ),
     );
 
     const loaded = await loadProcessPackage(processRoot);
 
     expect(loaded.ok).toBe(false);
-    expect(loaded.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: "impossible-required-link-cardinality",
-        }),
-      ]),
-    );
+    expect(loaded.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "impossible-required-link-cardinality" }),
+    ]));
   });
 
   it("rejects participation that depends on execution context", async () => {
     const processRoot = await participationProcessPackage();
     temporaryRoots.push(path.dirname(processRoot));
-    const policyPath = path.join(
-      processRoot,
-      "policies/process-participation.yaml",
-    );
+    const policyPath = path.join(processRoot, "policies/process-participation.yaml");
     await fs.writeFile(
       policyPath,
       (await fs.readFile(policyPath, "utf8")).replace(
@@ -365,13 +367,11 @@ describe("Scenario participation Policy validation", () => {
     const loaded = await loadProcessPackage(processRoot);
 
     expect(loaded.ok).toBe(false);
-    expect(loaded.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: "participation-execution-binding-forbidden",
-        }),
-      ]),
-    );
+    expect(loaded.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "participation-execution-binding-forbidden",
+      }),
+    ]));
   });
 
   it("rejects undeclared lifecycle types in participation parameters", () => {
@@ -381,16 +381,11 @@ describe("Scenario participation Policy validation", () => {
       parameters[0]!.types = ["ZZZ"];
     });
 
-    expect(diagnostics).toEqual(
-      expect.arrayContaining([
-        {
-          code: "unknown-participation-policy-type",
-          path: "policies.question-participation.parameters[0].types[0]",
-          message:
-            "Participation Policy 'question-participation@1' references undeclared lifecycle type 'ZZZ'",
-        },
-      ]),
-    );
+    expect(diagnostics).toEqual(expect.arrayContaining([{
+      code: "unknown-participation-policy-type",
+      path: "policies.question-participation.parameters[0].types[0]",
+      message: "Participation Policy 'question-participation@1' references undeclared lifecycle type 'ZZZ'",
+    }]));
   });
 
   it("rejects duplicate participation Policy parameter names", () => {
@@ -404,16 +399,11 @@ describe("Scenario participation Policy validation", () => {
       });
     });
 
-    expect(diagnostics).toEqual(
-      expect.arrayContaining([
-        {
-          code: "participation-policy-parameters",
-          path: "policies.question-participation.parameters",
-          message:
-            "Participation Policy 'question-participation@1' has duplicate parameter names",
-        },
-      ]),
-    );
+    expect(diagnostics).toEqual(expect.arrayContaining([{
+      code: "participation-policy-parameters",
+      path: "policies.question-participation.parameters",
+      message: "Participation Policy 'question-participation@1' has duplicate parameter names",
+    }]));
   });
 
   it("rejects an unknown payload path on a typed Policy parameter", async () => {
@@ -434,20 +424,15 @@ describe("Scenario participation Policy validation", () => {
     const loaded = await loadProcessPackage(processRoot);
 
     expect(loaded.ok).toBe(false);
-    expect(loaded.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ code: "expression-unknown-path" }),
-      ]),
-    );
+    expect(loaded.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "expression-unknown-path" }),
+    ]));
   });
 
   it("rejects lifecycle types on a contextual Policy parameter", async () => {
     const processRoot = await participationProcessPackage();
     temporaryRoots.push(path.dirname(processRoot));
-    const policyPath = path.join(
-      processRoot,
-      "policies/process-participation.yaml",
-    );
+    const policyPath = path.join(processRoot, "policies/process-participation.yaml");
     await fs.writeFile(
       policyPath,
       (await fs.readFile(policyPath, "utf8")).replace(
@@ -459,20 +444,15 @@ describe("Scenario participation Policy validation", () => {
     const loaded = await loadProcessPackage(processRoot);
 
     expect(loaded.ok).toBe(false);
-    expect(loaded.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ code: "meta-schema" }),
-      ]),
-    );
+    expect(loaded.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "meta-schema" }),
+    ]));
   });
 
   it("rejects lifecycle types on a scalar Policy parameter", async () => {
     const processRoot = await participationProcessPackage();
     temporaryRoots.push(path.dirname(processRoot));
-    const policyPath = path.join(
-      processRoot,
-      "policies/process-participation.yaml",
-    );
+    const policyPath = path.join(processRoot, "policies/process-participation.yaml");
     await fs.writeFile(
       policyPath,
       (await fs.readFile(policyPath, "utf8")).replace(
@@ -484,20 +464,15 @@ describe("Scenario participation Policy validation", () => {
     const loaded = await loadProcessPackage(processRoot);
 
     expect(loaded.ok).toBe(false);
-    expect(loaded.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ code: "meta-schema" }),
-      ]),
-    );
+    expect(loaded.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "meta-schema" }),
+    ]));
   });
 
   it("rejects a non-integer expression for an integer Policy parameter", async () => {
     const processRoot = await participationProcessPackage();
     temporaryRoots.push(path.dirname(processRoot));
-    const policyPath = path.join(
-      processRoot,
-      "policies/process-participation.yaml",
-    );
+    const policyPath = path.join(processRoot, "policies/process-participation.yaml");
     await fs.writeFile(
       policyPath,
       (await fs.readFile(policyPath, "utf8"))
@@ -525,11 +500,9 @@ describe("Scenario participation Policy validation", () => {
     const loaded = await loadProcessPackage(processRoot);
 
     expect(loaded.ok).toBe(false);
-    expect(loaded.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ code: "expression-result-type" }),
-      ]),
-    );
+    expect(loaded.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "expression-result-type" }),
+    ]));
   });
 
   it("rejects a participation argument with an indirect execution dependency", async () => {
@@ -565,10 +538,7 @@ rules:
     result: {allowed: true}
 `,
     );
-    const policyPath = path.join(
-      processRoot,
-      "policies/process-participation.yaml",
-    );
+    const policyPath = path.join(processRoot, "policies/process-participation.yaml");
     await fs.writeFile(
       policyPath,
       (await fs.readFile(policyPath, "utf8"))
@@ -596,22 +566,17 @@ rules:
     const loaded = await loadProcessPackage(processRoot);
 
     expect(loaded.ok).toBe(false);
-    expect(loaded.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: "participation-execution-binding-forbidden",
-        }),
-      ]),
-    );
+    expect(loaded.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "participation-execution-binding-forbidden",
+      }),
+    ]));
   });
 
   it("rejects a participation Policy that transitively depends on execution", async () => {
     const processRoot = await participationProcessPackage();
     temporaryRoots.push(path.dirname(processRoot));
-    const policyPath = path.join(
-      processRoot,
-      "policies/process-participation.yaml",
-    );
+    const policyPath = path.join(processRoot, "policies/process-participation.yaml");
     await fs.writeFile(
       policyPath,
       (await fs.readFile(policyPath, "utf8")).replace(
@@ -623,13 +588,11 @@ rules:
     const loaded = await loadProcessPackage(processRoot);
 
     expect(loaded.ok).toBe(false);
-    expect(loaded.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: "participation-execution-binding-forbidden",
-        }),
-      ]),
-    );
+    expect(loaded.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "participation-execution-binding-forbidden",
+      }),
+    ]));
   });
 
   it("rejects a Revision argument for a baseline-only Policy parameter", async () => {
@@ -651,29 +614,23 @@ rules:
     const loaded = await loadProcessPackage(processRoot);
 
     expect(loaded.ok).toBe(false);
-    expect(loaded.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: "participation-policy-argument-type",
-        }),
-      ]),
-    );
+    expect(loaded.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "participation-policy-argument-type",
+      }),
+    ]));
   });
 
   it("rejects an invalid Authority Requirement or Attention Schedule result", () => {
     const policy = clonedPolicy("question-participation");
     object(policy.default).attention_checkpoint = null;
 
-    expect(
-      validateParticipationPolicy(policy, "policies.question-participation"),
-    ).toEqual([
-      {
+    expect(validateParticipationPolicy(policy, "policies.question-participation"))
+      .toEqual([{
         code: "participation-policy-result",
         path: "policies.question-participation.default",
-        message:
-          "Participation Policy 'question-participation@1' has an invalid Authority Requirement or Attention Schedule result",
-      },
-    ]);
+        message: "Participation Policy 'question-participation@1' has an invalid Authority Requirement or Attention Schedule result",
+      }]);
   });
 
   it("rejects results that violate additional declared Policy constraints", () => {
@@ -682,22 +639,19 @@ rules:
     const properties = object(schema.properties);
     object(properties.authority).enum = ["stakeholder"];
 
-    expect(
-      validateParticipationPolicy(policy, "policies.question-participation"),
-    ).toEqual([
-      {
-        code: "participation-policy-result",
-        path: "policies.question-participation.rules[0].result",
-        message:
-          "Participation Policy 'question-participation@1' has an invalid Authority Requirement or Attention Schedule result",
-      },
-      {
-        code: "participation-policy-result",
-        path: "policies.question-participation.rules[1].result",
-        message:
-          "Participation Policy 'question-participation@1' has an invalid Authority Requirement or Attention Schedule result",
-      },
-    ]);
+    expect(validateParticipationPolicy(policy, "policies.question-participation"))
+      .toEqual([
+        {
+          code: "participation-policy-result",
+          path: "policies.question-participation.rules[0].result",
+          message: "Participation Policy 'question-participation@1' has an invalid Authority Requirement or Attention Schedule result",
+        },
+        {
+          code: "participation-policy-result",
+          path: "policies.question-participation.rules[1].result",
+          message: "Participation Policy 'question-participation@1' has an invalid Authority Requirement or Attention Schedule result",
+        },
+      ]);
   });
 
   it("rejects a Policy without the standardized participation result", async () => {
@@ -719,10 +673,8 @@ rules:
     const loaded = await loadProcessPackage(processRoot);
 
     expect(loaded.ok).toBe(false);
-    expect(loaded.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ code: "participation-policy-result-schema" }),
-      ]),
-    );
+    expect(loaded.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "participation-policy-result-schema" }),
+    ]));
   });
 });
