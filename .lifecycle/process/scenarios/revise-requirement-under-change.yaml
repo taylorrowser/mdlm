@@ -11,6 +11,7 @@ outputs:
   - name: revised_requirement
     types: [STK, SYS]
     cardinality: one
+    identity_from: {input: requirement}
     required_links:
       - {link: changed-under, target: {input: change}}
 prompt_ref: prompts/revise-requirement-under-change.md@3
