@@ -30,6 +30,7 @@ outputs:
   - name: replacement
     types: [ENV]
     cardinality: one
+    identity_from: {input: environment}
     required_links:
       - {link: realizes, target: {input: strategy}}
       - {link: corrects-review, target: {input: failed_reviews}}
