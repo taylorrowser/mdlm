@@ -416,7 +416,7 @@ export interface AssignmentResponseSkeleton {
       output?: string;
       invocation?: number;
       type: string;
-      payload: null;
+      payload: Record<string, unknown> | null;
       links: SymbolicProposalLink[];
       body: null;
     }[];
@@ -2224,9 +2224,21 @@ export function assignmentResponseSchema(
                 additionalProperties: false,
                 required: ["handle", "type", "payload", "links", "body"],
                 properties: {
-                  handle: { type: "string", pattern: "^[A-Za-z][A-Za-z0-9_-]*$" },
-                  output: { type: "string", pattern: "^[A-Za-z][A-Za-z0-9_-]*$" },
-                  invocation: { type: "integer", minimum: 0 },
+                  handle: {
+                    type: "string",
+                    pattern: "^[A-Za-z][A-Za-z0-9_-]*$",
+                    description: "Unique response-local item handle. Repeated values need different handles.",
+                  },
+                  output: {
+                    type: "string",
+                    pattern: "^[A-Za-z][A-Za-z0-9_-]*$",
+                    description: "Declared Scenario output name. Keep it unchanged across repeated values.",
+                  },
+                  invocation: {
+                    type: "integer",
+                    minimum: 0,
+                    description: "Zero-based Scenario invocation index, not a repeated-output occurrence. Omit for one invocation.",
+                  },
                   type: { type: "string", pattern: "^[A-Z]{3,8}$" },
                   payload: {
                     type: ["object", "null"],
@@ -2394,6 +2406,7 @@ function assignmentResponseSkeleton(
   lease: AssignmentLease,
 ): AssignmentResponseSkeleton | undefined {
   const { dryRun, processPackage, scenario } = exact;
+  const materialization = exactBaselineMaterializationContract(scenario);
   if (dryRun.invocations.length === 0) return undefined;
   const compiled = compileAssignmentProjection({
     scenario,
@@ -2502,12 +2515,25 @@ function assignmentResponseSkeleton(
         });
       }
       const repeated = ["one-or-more", "zero-or-more"].includes(expected.cardinality);
+      const resolved = resolveType(processPackage, sourceType);
+      if (!resolved.ok) return undefined;
+      const kernelManaged = materialization?.output === route.output
+        ? new Set(Object.values(materialization.payloadFields))
+        : new Set<string>();
+      const requiredPayload = Array.isArray(resolved.type.payloadSchema.required)
+        ? resolved.type.payloadSchema.required
+          .filter((field): field is string =>
+            typeof field === "string" && !kernelManaged.has(field)
+          )
+        : [];
       outputs.push({
         handle: responseHandle(invocationIndex, route.handle),
         ...(repeated || batched ? { output: route.handle } : {}),
         ...(batched ? { invocation: invocationIndex } : {}),
         type: sourceType,
-        payload: null,
+        payload: expected.cardinality.startsWith("zero-")
+          ? null
+          : Object.fromEntries(requiredPayload.map((field) => [field, null])),
         links,
         body: null,
       });

@@ -491,6 +491,24 @@ describe("focused v2 fault-injection gate", () => {
 
   it("rejects proposal-authored authority while accepting the exact out-of-band channel", async () => {
     const next = (await command(repository, ["next", "--json"])).value;
+    const map = next.assignment.packet.responseScaffold.proposal.outputs.find(
+      (output: JsonObject) => output.handle === "map",
+    );
+    expect(Object.keys(map.payload).sort()).toEqual([
+      "frontier",
+      "purpose",
+      "title",
+    ]);
+    expect(next.assignment.packet.responseScaffold.proposal.outputs.find(
+      (output: JsonObject) => output.handle === "questions",
+    ).payload).toBeNull();
+    const responseItem = next.assignment.packet.responseSchema.oneOf[0]
+      .properties.proposal.properties.outputs.items.properties;
+    expect(responseItem.handle.description).toContain("Repeated values");
+    expect(responseItem.output.description).toContain("Scenario output name");
+    expect(responseItem.invocation.description).toContain(
+      "not a repeated-output occurrence",
+    );
     const response = responseFrom(next);
     response.proposal.authoritySupplies = ["stakeholder"];
     const suppliedInProse = await command(
@@ -522,6 +540,9 @@ describe("focused v2 fault-injection gate", () => {
       attended = await command(repository, ["next", "--json"]);
     }
     expect(attended.value.outcome).toBe("attention-required");
+    expect(attended.value.operatorInstructions.commands[0]).toBe(
+      "mdlm scenario submit <response-file> --authority stakeholder --json",
+    );
     const attendedResponse = filledResponse(attended.value);
     const suppliedOutOfBand = await command(
       repository,
