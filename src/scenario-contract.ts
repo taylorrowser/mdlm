@@ -172,7 +172,8 @@ export function validateScenarioContracts(
             message: `Scenario '${scenario.id}' output '${outputName}' binds identity from undeclared input '${identityFrom.input}'`,
           });
         } else if (
-          input.cardinality !== "one" || output?.cardinality !== "one" ||
+          input.cardinality !== "one" ||
+          !["one", "zero-or-one"].includes(String(output?.cardinality)) ||
           !outputTypes.some((type) => inputTypes.includes(type))
         ) {
           diagnostics.push({

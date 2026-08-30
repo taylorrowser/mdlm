@@ -25,6 +25,12 @@ function input(packet: AssignmentPacket, name: string) {
   return packet.exactInputs[0]!.inputs.find((candidate) => candidate.name === name)!;
 }
 
+async function lifecycleMarkdown(repository: string): Promise<string[]> {
+  const root = path.join(repository, ".lifecycle/data");
+  const entries = await fs.readdir(root, { recursive: true });
+  return entries.filter((entry) => entry.endsWith(".md")).sort();
+}
+
 async function preferReviewWork(packageRoot: string): Promise<void> {
   const phasePath = path.join(packageRoot, "phases/phase-0-wayfinding.yaml");
   const phase = parse(await fs.readFile(phasePath, "utf8"));
@@ -36,6 +42,16 @@ async function preferReviewWork(packageRoot: string): Promise<void> {
     "blocked",
   ];
   await fs.writeFile(phasePath, stringify(phase));
+
+  const scenarioPath = path.join(
+    packageRoot,
+    "scenarios/revise-wayfinding-map-after-review.yaml",
+  );
+  const scenario = parse(await fs.readFile(scenarioPath, "utf8"));
+  scenario.outputs[0].cardinality = "zero-or-one";
+  scenario.completion =
+    "execution.integrity.contract_valid == true && (replacement == null || present(replacement))";
+  await fs.writeFile(scenarioPath, stringify(scenario));
 }
 
 function response(packet: AssignmentPacket, failMapReview = false): string {
@@ -145,7 +161,7 @@ function response(packet: AssignmentPacket, failMapReview = false): string {
   return JSON.stringify(source);
 }
 
-it("claims a MAP correction packet that retains its answered product Question", async () => {
+it("omits or publishes an optional MAP correction in the bound input lineage", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-map-correction-"));
   temporaryRoots.push(root);
   const repository = path.join(root, "repository");
@@ -178,6 +194,8 @@ it("claims a MAP correction packet that retains its answered product Question", 
       expect(packet.outputs).toEqual([
         expect.objectContaining({
           handle: "replacement",
+          cardinality: "zero-or-one",
+          identity: { input: "subject" },
           requiredLinks: expect.arrayContaining([
             { link: "indexes", target: { input: "indexed_product_questions" } },
             { link: "corrects-review", target: { input: "failed_reviews" } },
@@ -194,6 +212,50 @@ it("claims a MAP correction packet that retains its answered product Question", 
             },
             { type: "corrects-review", target: { input: "failed_reviews" } },
           ]),
+        }),
+      ]);
+
+      const presentRepository = `${repository}-present`;
+      await fs.cp(repository, presentRepository, { recursive: true });
+
+      const omittedResponse: JsonObject = structuredClone(packet.responseScaffold);
+      omittedResponse.proposal.completionEvidence = {
+        summary: "The optional correction is not needed.",
+      };
+      const beforeOmission = await lifecycleMarkdown(repository);
+      const omitted = await submitAssignmentResponse(
+        repository,
+        JSON.stringify(omittedResponse),
+      );
+      expect(omitted.ok, omitted.ok ? "" : JSON.stringify(omitted.diagnostics))
+        .toBe(true);
+      if (!omitted.ok || omitted.value.outcome !== "accepted") return;
+      expect(omitted.value.receipt.publications).toEqual([]);
+      expect(await lifecycleMarkdown(repository)).toEqual(beforeOmission);
+
+      const presentResponse: JsonObject = structuredClone(packet.responseScaffold);
+      const map = input(packet, "subject").values[0]!;
+      const replacement = presentResponse.proposal.outputs[0]!;
+      replacement.payload = {
+        ...map.data.payload,
+        frontier: ["Corrected product intent"],
+      };
+      replacement.body = "The MAP correction removes the stale frontier.\n";
+      presentResponse.proposal.completionEvidence = {
+        summary: "The optional correction is published.",
+      };
+      const present = await submitAssignmentResponse(
+        presentRepository,
+        JSON.stringify(presentResponse),
+      );
+      expect(present.ok, present.ok ? "" : JSON.stringify(present.diagnostics))
+        .toBe(true);
+      if (!present.ok || present.value.outcome !== "accepted") return;
+      expect(present.value.receipt.publications).toEqual([
+        expect.objectContaining({
+          handle: "replacement",
+          stableId: map.identity.id,
+          revisionId: `${map.identity.id}-r00002`,
         }),
       ]);
       return;
