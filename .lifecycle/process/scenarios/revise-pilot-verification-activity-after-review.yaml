@@ -39,9 +39,6 @@ inputs:
     types: [PSP]
     cardinality: zero-or-one
     identity: revision
-    conditions: >-
-      intent_support == one("pilot-intent-support-for-activity@1",
-        {activity: activity})
 outputs:
   - name: replacement
     types: [VER]
