@@ -4,19 +4,19 @@
   "artifact": {
     "archive": "process-package.json.gz",
     "compression": "gzip -n -9",
-    "compressedSha256": "fec960664e662eb59f4e273b0f8477d2fc94de50133bfecdb89f2cd7e97dc988",
-    "contentSha256": "4e59099d76037dfa6106c0610aae2784ee322cce0b80541debc11232f2c33be7",
+    "compressedSha256": "3797305f2744b859a05337c5765f80bf9610284aae755eabe2ee07d7f01233b6",
+    "contentSha256": "021c1403ec579bd40fdd1ad6dfb7c1d89a571b095cd1bf1fb58033592d525ddd",
     "gzipHeaderMtime": 0
   },
   "processPackage": {
     "root": ".lifecycle/process",
     "reference": "mdlm-bootstrap@0.104.0",
-    "digest": "sha256:ae423113bdd30ef5e7a45a219e161b5800a717d94b9687a9df0bb76e336a7087",
+    "digest": "sha256:4a576ee075a9fc587f37217ebd73a6f43dade8bf25e652ea47302db91aded689",
     "definitionCount": 634
   },
   "provenance": {
-    "sourceCommit": "5d9dd372978a11933b43e632f6d1ec3eb0c390b5",
-    "sourceTree": "fd0820257b2becad6d4b8e928bb4e79f9d96580d",
+    "sourceCommit": "67015c0b258110445cc627007383146e18e1940d",
+    "sourceTree": "550b0508f687755d6df1b3bcda20131c882743c7",
     "captureCommand": "npm run process-fixture:refresh"
   }
 }

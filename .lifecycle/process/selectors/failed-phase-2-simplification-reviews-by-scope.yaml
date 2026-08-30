@@ -11,7 +11,6 @@ query:
   as: review
   where: >-
     review.payload.review_kind == "simplification-architecture-interfaces"
-    && review.payload.decomposition_plan_revision == plan.identity.revision_id
     && review.payload.outcome == "fail"
     && review.payload.definition_simplification.correction_set == correction_set
     && exists("valid-phase-2-simplification-review@1", {review: review, plan: plan})
