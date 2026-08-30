@@ -36,6 +36,7 @@ outputs:
   - name: replacement
     types: [MAP, PSP, STK]
     cardinality: one
+    identity_from: {input: subject}
     required_links:
       - {link: corrects-review, target: {input: prior_failed_reviews}}
       - {link: corrects-review, target: {input: failed_reviews}}
