@@ -79,11 +79,12 @@
 const PhaseModel = (() => {
   const initial = () => ({
     phase: "Phase 2 accepted",
-    mode: "full",
+    mode: "baseline",
     status: "ready",
     evidence: {
       phase2Accepted: true, cmpDefined: false, cmpReviewed: false,
-      componentPilot: "absent", componentPilotReviewed: false, cmpFormalVer: 0, cmpCandidate: false,
+      componentPilot: "absent", componentPilotVerReviewed: false,
+      componentPilotReviewed: false, cmpFormalVer: 0, cmpCandidate: false,
       cmpGateDecision: false, cmpGateReviewed: false, desDefined: false,
       desReviewed: false, designPilot: "absent", desFormalVer: 0,
       desCandidate: false, desGateDecision: false, desGateReviewed: false,
@@ -104,9 +105,11 @@ const PhaseModel = (() => {
   const addLog = (s, text, status = s.status) => ({...s, status, last:text, log:[...s.log,text]});
   const reject = (s, text) => addLog(s, `Rejected without publication: ${text}`, "blocked");
   const setCount = (s, key, stable, revisions) => ({...s, counts:{...s.counts,[key]:[stable,revisions]}});
+  const addCount = (s, key, stable, revisions) => setCount(s,key,s.counts[key][0]+stable,s.counts[key][1]+revisions);
 
   function reduce(state, action) {
     if (action.type === "RESET_FULL") return initial();
+    if (action.type === "RESET_LEAN") return {...initial(), mode:"lean", last:"Reset in lean full-profile mode.", log:["Lean path starts from the same exact accepted Phase 2 SYS."]};
     if (action.type === "RESET_TRACER") return {...initial(), mode:"tracer", last:"Reset in narrow tracer mode.", log:["Narrow tracer starts from exact accepted Phase 2 SYS."]};
     let s = {...state, evidence:{...state.evidence}, counts:{...state.counts}, ancestry:[...state.ancestry], log:[...state.log]};
     switch (action.type) {
@@ -120,17 +123,29 @@ const PhaseModel = (() => {
       case "REVIEW_CMP":
         if (!s.evidence.cmpDefined) return reject(s,"CMP definitions do not exist.");
         if (s.evidence.cmpReviewed) return reject(s,"current CMP definition set is already reviewed.");
-        s.evidence.cmpReviewed = true; s.reviewBatches += 2; s = setCount(s,"REV",12,12);
-        return addLog(s,"Independent Review passed for CMP, component ASP, ICSP, VSP, DWP completion, and simplification.","active");
+        s.evidence.cmpReviewed = true; s.reviewBatches += s.mode === "lean" ? 1 : 2;
+        s = addCount(s,"REV",s.mode === "lean" ? 1 : 7,s.mode === "lean" ? 1 : 7);
+        return addLog(s,s.mode === "lean"
+          ? "One independent coherent-set Review passed definition correctness and simplification against exact CMP, ASP, ICSP, VSP, and DWP context. Findings still target exact members."
+          : "Independent per-subject Reviews and simplification passed for CMP, component ASP, ICSP, VSP, and DWP completion.","active");
       case "BUILD_COMPONENT_PILOT":
         if (!s.evidence.cmpReviewed) return reject(s,"component definitions need passing Reviews first.");
         if (s.evidence.componentPilot !== "absent") return reject(s,"one representative component pilot already owns this compatible boundary.");
-        s.evidence.componentPilot = "ready"; s = setCount(s,"ART",1,1); s = setCount(s,"VER",1,1); s = setCount(s,"VAI",1,1);
-        return addLog(s,"Bound one prototype ART with known-good and known-bad cases to one representative component pilot.","active");
+        s.evidence.componentPilot = "specified"; s = setCount(s,"ART",1,1); s = setCount(s,"VER",1,1);
+        return addLog(s,"Bound one prototype ART with known-good and known-bad cases to one representative pilot VER.","active");
+      case "REVIEW_COMPONENT_PILOT_VER":
+        if (s.evidence.componentPilot !== "specified") return reject(s,"no component pilot VER is ready for Review.");
+        if (s.evidence.componentPilotVerReviewed) return reject(s,"component pilot VER is already reviewed.");
+        s.evidence.componentPilotVerReviewed = true; s.reviewBatches += 1; s = addCount(s,"REV",1,1);
+        return addLog(s,"Independent Review passed for the exact pilot VER before source-blind VAI authoring.","active");
+      case "IMPLEMENT_COMPONENT_PILOT":
+        if (s.evidence.componentPilot !== "specified" || !s.evidence.componentPilotVerReviewed) return reject(s,"the pilot VER needs passing independent Review before VAI authoring.");
+        s.evidence.componentPilot = "ready"; s = setCount(s,"VAI",1,1);
+        return addLog(s,"Published one source-blind VAI from the reviewed VER, ENV, and public prototype boundary.","active");
       case "REVIEW_COMPONENT_PILOT":
         if (s.evidence.componentPilot !== "ready") return reject(s,"no unexecuted component pilot implementation is ready for Review.");
         if (s.evidence.componentPilotReviewed) return reject(s,"component pilot implementation is already reviewed.");
-        s.evidence.componentPilotReviewed = true; s.reviewBatches += 1; s = setCount(s,"REV",13,13);
+        s.evidence.componentPilotReviewed = true; s.reviewBatches += 1; s = addCount(s,"REV",1,1);
         return addLog(s,"Independent Review passed for the source-blind component pilot VAI.","active");
       case "PASS_COMPONENT_PILOT":
         if (s.evidence.componentPilot !== "ready" || !s.evidence.componentPilotReviewed) return reject(s,"no reviewed unexecuted component pilot is ready.");
@@ -142,19 +157,24 @@ const PhaseModel = (() => {
         return addLog(s,"Component pilot failed. RUN/RES stays immutable; gate remains blocked and Correction must create fresh evidence.","failed");
       case "CORRECT_COMPONENT_PILOT":
         if (s.evidence.componentPilot !== "fail") return reject(s,"there is no failed component pilot to correct.");
-        s.evidence.componentPilot = "pass"; s.reviewBatches += 1; s = setCount(s,"VAI",1,2); s = setCount(s,"RUN_RES",2,2); s = setCount(s,"REV",14,14);
+        s.evidence.componentPilot = "pass"; s.reviewBatches += 1; s = setCount(s,"VAI",1,2); s = setCount(s,"RUN_RES",2,2); s = addCount(s,"REV",1,1);
         return addLog(s,"Corrected the same VAI lineage, reviewed it, and published a fresh passing RUN/RES without replaying the failed run.","active");
       case "WRITE_CMP_FORMAL_VER":
         if (s.evidence.componentPilot !== "pass") return reject(s,"a suitable representative pilot is required first.");
         if (s.evidence.cmpFormalVer === 2) return reject(s,"formal CMP VER already covers both independently assessable claims.");
-        s.evidence.cmpFormalVer = 2; s.reviewBatches += 1; s = setCount(s,"VER",3,3); s = setCount(s,"REV",16,16);
-        return addLog(s,"Published and reviewed two formal CMP VERs, one per independently assessable claim.","active");
+        s.evidence.cmpFormalVer = 2; s = setCount(s,"VER",3,3);
+        if (s.mode !== "lean") { s.reviewBatches += 1; s = addCount(s,"REV",2,2); }
+        return addLog(s,s.mode === "lean"
+          ? "Published two formal CMP VERs. Their exact judgment is deferred to the isolated CMP candidate Review."
+          : "Published and independently reviewed two formal CMP VERs, one per independently assessable claim.","active");
       case "CREATE_CMP_CANDIDATE":
         if (!s.evidence.cmpReviewed) return reject(s,"CMP definition Reviews are incomplete.");
-        if (s.mode === "full" && (s.evidence.componentPilot !== "pass" || s.evidence.cmpFormalVer !== 2)) return reject(s,"full Phase 3 needs suitable pilot evidence and complete reviewed formal CMP VER coverage.");
+        if (s.mode !== "tracer" && (s.evidence.componentPilot !== "pass" || s.evidence.cmpFormalVer !== 2)) return reject(s,"full Phase 3 needs suitable pilot evidence and complete formal CMP VER coverage.");
         if (s.evidence.cmpCandidate) return reject(s,"the direct CMP level candidate already exists.");
-        s.evidence.cmpCandidate = true; s.reviewBatches += 1; s = setCount(s,"CANDIDATE",1,1); s = setCount(s,"REV",17,17);
-        return addLog(s,"Frozen and independently reviewed one direct CMP level candidate.","attended");
+        s.evidence.cmpCandidate = true; s.reviewBatches += 1; s = setCount(s,"CANDIDATE",1,1); s = addCount(s,"REV",1,1);
+        return addLog(s,s.mode === "lean"
+          ? "Frozen one direct CMP candidate and independently reviewed its exact definitions, formal VER evidence, isolation, and internal consistency in one candidate Review."
+          : "Frozen and independently reviewed one direct CMP level candidate.","attended");
       case "GATE_CMP":
         if (!s.evidence.cmpCandidate) return reject(s,"no reviewed CMP candidate is ready.");
         if (s.evidence.cmpGateDecision) return reject(s,"the exact CMP candidate already has a gate Decision.");
@@ -163,11 +183,11 @@ const PhaseModel = (() => {
       case "REVIEW_CMP_GATE":
         if (!s.evidence.cmpGateDecision) return reject(s,"no CMP gate Decision exists.");
         if (s.evidence.cmpGateReviewed) return reject(s,"CMP gate Decision is already reviewed.");
-        s.evidence.cmpGateReviewed = true; s.reviewBatches += 1; s = setCount(s,"REV",18,18);
+        s.evidence.cmpGateReviewed = true; s.reviewBatches += 1; s = addCount(s,"REV",1,1);
         if (s.mode === "tracer") { s.phase = "Profile Boundary Reached"; return addLog(s,"Reviewed CMP gate applies. Narrow tracer stops successfully before omitted component verification breadth.","profile-boundary"); }
         s.phase = "Phase 4 design definition"; return addLog(s,"Reviewed CMP gate applies. Phase 4 is dispatchable.","ready");
       case "DEFINE_DES":
-        if (!s.evidence.cmpGateReviewed || s.mode !== "full") return reject(s,"Phase 4 requires an applicable reviewed CMP gate in the full profile.");
+        if (!s.evidence.cmpGateReviewed || s.mode === "tracer") return reject(s,"Phase 4 requires an applicable reviewed CMP gate in a full profile.");
         if (s.evidence.desDefined) return reject(s,"DES definition already exists.");
         s.evidence.desDefined = true; s.ancestry.push("DES-A-r00001", "DES-B-r00001");
         s = setCount(s,"DES",2,2); s = setCount(s,"ICSP",1,3); s = setCount(s,"DWP",3,6); s = setCount(s,"VSP",3,3); s = setCount(s,"REVIEW_CONTEXT",3,3);
@@ -175,8 +195,11 @@ const PhaseModel = (() => {
       case "REVIEW_DES":
         if (!s.evidence.desDefined) return reject(s,"DES definitions do not exist.");
         if (s.evidence.desReviewed) return reject(s,"DES definition set is already reviewed.");
-        s.evidence.desReviewed = true; s.reviewBatches += 2; s = setCount(s,"REV",24,24);
-        return addLog(s,"Independent Review and simplification passed for DES, refined ICSP, design VSP, and DWP completion.","active");
+        s.evidence.desReviewed = true; s.reviewBatches += s.mode === "lean" ? 1 : 2;
+        s = addCount(s,"REV",s.mode === "lean" ? 1 : 6,s.mode === "lean" ? 1 : 6);
+        return addLog(s,s.mode === "lean"
+          ? "One independent coherent-set Review passed definition correctness and simplification for exact DES, ICSP, VSP, and DWP context."
+          : "Independent per-subject Reviews and simplification passed for DES, refined ICSP, design VSP, and DWP completion.","active");
       case "REUSE_DESIGN_PILOT":
         if (!s.evidence.desReviewed || s.evidence.componentPilot !== "pass") return reject(s,"compatible passing component pilot evidence is unavailable.");
         s.evidence.designPilot = "reused-pass";
@@ -184,13 +207,18 @@ const PhaseModel = (() => {
       case "WRITE_DES_FORMAL_VER":
         if (s.evidence.designPilot !== "reused-pass") return reject(s,"suitable design-boundary pilot evidence is required first.");
         if (s.evidence.desFormalVer === 2) return reject(s,"formal DES VER already covers both claims.");
-        s.evidence.desFormalVer = 2; s.reviewBatches += 1; s = setCount(s,"VER",5,5); s = setCount(s,"REV",26,26);
-        return addLog(s,"Published and reviewed two formal DES VERs, one per independently assessable claim.","active");
+        s.evidence.desFormalVer = 2; s = setCount(s,"VER",5,5);
+        if (s.mode !== "lean") { s.reviewBatches += 1; s = addCount(s,"REV",2,2); }
+        return addLog(s,s.mode === "lean"
+          ? "Published two formal DES VERs. Their exact judgment is deferred to the isolated DES candidate Review."
+          : "Published and independently reviewed two formal DES VERs, one per independently assessable claim.","active");
       case "CREATE_DES_CANDIDATE":
         if (!s.evidence.desReviewed || s.evidence.designPilot !== "reused-pass" || s.evidence.desFormalVer !== 2) return reject(s,"DES Reviews, suitable pilot, or formal VER coverage are incomplete.");
         if (s.evidence.desCandidate) return reject(s,"the direct DES level candidate already exists.");
-        s.evidence.desCandidate = true; s.reviewBatches += 1; s = setCount(s,"CANDIDATE",2,2); s = setCount(s,"REV",27,27);
-        return addLog(s,"Frozen and independently reviewed one direct DES level candidate.","attended");
+        s.evidence.desCandidate = true; s.reviewBatches += 1; s = setCount(s,"CANDIDATE",2,2); s = addCount(s,"REV",1,1);
+        return addLog(s,s.mode === "lean"
+          ? "Frozen one direct DES candidate and independently reviewed its exact definitions, formal VER evidence, isolation, and internal consistency in one candidate Review."
+          : "Frozen and independently reviewed one direct DES level candidate.","attended");
       case "GATE_DES":
         if (!s.evidence.desCandidate) return reject(s,"no reviewed DES candidate is ready.");
         if (s.evidence.desGateDecision) return reject(s,"the exact DES candidate already has a gate Decision.");
@@ -198,7 +226,7 @@ const PhaseModel = (() => {
         return addLog(s,"Stakeholder approved the exact DES candidate. Independent Review still controls applicability.","awaiting-review");
       case "REVIEW_DES_GATE":
         if (!s.evidence.desGateDecision) return reject(s,"no DES gate Decision exists.");
-        s.evidence.desGateReviewed = true; s.evidence.cmpAccepted = true; s.reviewBatches += 1; s = setCount(s,"REV",28,28);
+        s.evidence.desGateReviewed = true; s.evidence.cmpAccepted = true; s.reviewBatches += 1; s = addCount(s,"REV",1,1);
         s.phase = "Phase 5 ready";
         return addLog(s,"Reviewed DES gate applies and mechanically accepts the supported CMP candidate. Phase 5 is ready.","ready");
       default: return reject(s,`unknown action ${action.type}.`);
@@ -209,9 +237,10 @@ const PhaseModel = (() => {
 })();
 
 const actions = [
-  ["RESET_FULL","Reset full path"],["RESET_TRACER","Reset narrow tracer"],
+  ["RESET_FULL","Reset baseline path"],["RESET_LEAN","Reset lean path"],["RESET_TRACER","Reset narrow tracer"],
   ["DEFINE_CMP","Define component slice"],["REVIEW_CMP","Review component definitions"],
-  ["BUILD_COMPONENT_PILOT","Build one good/bad pilot"],["REVIEW_COMPONENT_PILOT","Review source-blind pilot"],["PASS_COMPONENT_PILOT","Pass component pilot"],
+  ["BUILD_COMPONENT_PILOT","Specify one good/bad pilot"],["REVIEW_COMPONENT_PILOT_VER","Review pilot VER"],
+  ["IMPLEMENT_COMPONENT_PILOT","Implement source-blind pilot"],["REVIEW_COMPONENT_PILOT","Review source-blind VAI"],["PASS_COMPONENT_PILOT","Pass component pilot"],
   ["FAIL_COMPONENT_PILOT","Fail component pilot"],["CORRECT_COMPONENT_PILOT","Correct without replay"],
   ["WRITE_CMP_FORMAL_VER","Write formal CMP VERs"],["CREATE_CMP_CANDIDATE","Create direct CMP candidate"],
   ["GATE_CMP","Approve CMP gate"],["REVIEW_CMP_GATE","Review CMP gate"],
@@ -222,11 +251,12 @@ const actions = [
 ];
 
 const scenarios = {
-  happy: { title:"Full happy path", copy:"Watch one coherent slice reach Phase 5 without group candidates, a design ASP, a second compatible prototype, or duplicate gate Decisions.", reset:"RESET_FULL", steps:["DEFINE_CMP","REVIEW_CMP","BUILD_COMPONENT_PILOT","REVIEW_COMPONENT_PILOT","PASS_COMPONENT_PILOT","WRITE_CMP_FORMAL_VER","CREATE_CMP_CANDIDATE","GATE_CMP","REVIEW_CMP_GATE","DEFINE_DES","REVIEW_DES","REUSE_DESIGN_PILOT","WRITE_DES_FORMAL_VER","CREATE_DES_CANDIDATE","GATE_DES","REVIEW_DES_GATE"] },
+  happy: { title:"Baseline full path", copy:"The accepted plan's per-subject Reviews. Source-blind ordering is explicit, so the corrected baseline is 23 new REV records in 12 Review batches.", reset:"RESET_FULL", steps:["DEFINE_CMP","REVIEW_CMP","BUILD_COMPONENT_PILOT","REVIEW_COMPONENT_PILOT_VER","IMPLEMENT_COMPONENT_PILOT","REVIEW_COMPONENT_PILOT","PASS_COMPONENT_PILOT","WRITE_CMP_FORMAL_VER","CREATE_CMP_CANDIDATE","GATE_CMP","REVIEW_CMP_GATE","DEFINE_DES","REVIEW_DES","REUSE_DESIGN_PILOT","WRITE_DES_FORMAL_VER","CREATE_DES_CANDIDATE","GATE_DES","REVIEW_DES_GATE"] },
+  lean: { title:"Lean coherent-set path", copy:"Independent judgment moves to one pre-candidate coherent-set Review and one isolated candidate Review per level. Findings still target exact members; pilot VER, VAI, candidate, and gate boundaries remain separate.", reset:"RESET_LEAN", steps:["DEFINE_CMP","REVIEW_CMP","BUILD_COMPONENT_PILOT","REVIEW_COMPONENT_PILOT_VER","IMPLEMENT_COMPONENT_PILOT","REVIEW_COMPONENT_PILOT","PASS_COMPONENT_PILOT","WRITE_CMP_FORMAL_VER","CREATE_CMP_CANDIDATE","GATE_CMP","REVIEW_CMP_GATE","DEFINE_DES","REVIEW_DES","REUSE_DESIGN_PILOT","WRITE_DES_FORMAL_VER","CREATE_DES_CANDIDATE","GATE_DES","REVIEW_DES_GATE"] },
   tracer: { title:"Narrow tracer boundary", copy:"The tracer proves definition, Review, candidate, and gate behavior, then stops honestly before omitted verification breadth.", reset:"RESET_TRACER", steps:["DEFINE_CMP","REVIEW_CMP","CREATE_CMP_CANDIDATE","GATE_CMP","REVIEW_CMP_GATE"] },
   earlyGate: { title:"Gate too early", copy:"Trying to create or approve a full CMP candidate before pilot and formal VER evidence must publish nothing.", reset:"RESET_FULL", steps:["DEFINE_CMP","REVIEW_CMP","CREATE_CMP_CANDIDATE","GATE_CMP"] },
-  failedPilot: { title:"Failed pilot correction", copy:"A failed RUN/RES remains immutable. Correction creates a new VAI revision and fresh RUN/RES rather than replaying accepted work.", reset:"RESET_FULL", steps:["DEFINE_CMP","REVIEW_CMP","BUILD_COMPONENT_PILOT","REVIEW_COMPONENT_PILOT","FAIL_COMPONENT_PILOT","GATE_CMP","CORRECT_COMPONENT_PILOT","WRITE_CMP_FORMAL_VER"] },
-  duplicate: { title:"Duplicate fanout rejected", copy:"Repeated definitions, pilots, candidates, and gates are refused without changing the ledger.", reset:"RESET_FULL", steps:["DEFINE_CMP","DEFINE_CMP","REVIEW_CMP","BUILD_COMPONENT_PILOT","BUILD_COMPONENT_PILOT","REVIEW_COMPONENT_PILOT","PASS_COMPONENT_PILOT","WRITE_CMP_FORMAL_VER","CREATE_CMP_CANDIDATE","CREATE_CMP_CANDIDATE"] }
+  failedPilot: { title:"Failed pilot correction", copy:"A failed RUN/RES remains immutable. Correction creates a new VAI revision and fresh RUN/RES rather than replaying accepted work.", reset:"RESET_LEAN", steps:["DEFINE_CMP","REVIEW_CMP","BUILD_COMPONENT_PILOT","REVIEW_COMPONENT_PILOT_VER","IMPLEMENT_COMPONENT_PILOT","REVIEW_COMPONENT_PILOT","FAIL_COMPONENT_PILOT","GATE_CMP","CORRECT_COMPONENT_PILOT","WRITE_CMP_FORMAL_VER"] },
+  duplicate: { title:"Duplicate fanout rejected", copy:"Repeated definitions, pilots, candidates, and gates are refused without changing the ledger.", reset:"RESET_LEAN", steps:["DEFINE_CMP","DEFINE_CMP","REVIEW_CMP","BUILD_COMPONENT_PILOT","BUILD_COMPONENT_PILOT","REVIEW_COMPONENT_PILOT_VER","IMPLEMENT_COMPONENT_PILOT","REVIEW_COMPONENT_PILOT","PASS_COMPONENT_PILOT","WRITE_CMP_FORMAL_VER","CREATE_CMP_CANDIDATE","CREATE_CMP_CANDIDATE"] }
 };
 
 let state = PhaseModel.initial();
