@@ -37,6 +37,7 @@ outputs:
   - name: replacement
     types: [VAI]
     cardinality: one
+    identity_from: {input: implementation}
     required_links:
       - {link: realizes, target: {input: activity}}
       - {link: corrects-pilot-result, target: {input: failed_results}}
