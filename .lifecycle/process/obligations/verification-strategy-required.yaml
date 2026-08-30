@@ -26,4 +26,5 @@ resolve_with:
   scenario: define-verification-strategy@1
   inputs:
     requirements: 'select("current-phase-1-stakeholder-requirements@1", {})'
+    stable_requirements: 'select("current-phase-1-stakeholder-requirement-identities@1", {})'
 waiver_policy_ref: waiver-applicability@1

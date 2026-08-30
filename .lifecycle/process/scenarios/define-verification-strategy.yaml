@@ -5,12 +5,13 @@ description: Define a level strategy and named environment-capability profile fo
 phases: [phase-1-product-assurance]
 inputs:
   - {name: requirements, types: [STK], cardinality: one-or-more, identity: revision}
+  - {name: stable_requirements, types: [STK], cardinality: one-or-more, identity: stable}
 outputs:
   - name: strategy
     types: [VSP]
     cardinality: one
     required_links:
-      - {link: governs, target: {input: requirements}}
+      - {link: governs, target: {input: stable_requirements}}
       - {link: governs-revision, target: {input: requirements}}
 prompt_ref: prompts/define-verification-strategy.md@1
 review_policy_ref: review-applicability@1

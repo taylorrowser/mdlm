@@ -94,6 +94,62 @@ describe("Phase 1 review routing", () => {
     processPackage = await canonicalProcessPackage();
   });
 
+  it("binds verification strategy coverage to stable and revision requirement identities", async () => {
+    const loaded = await loadProcessPackage(".lifecycle/process");
+    expect(loaded.ok, JSON.stringify(loaded.diagnostics)).toBe(true);
+    if (!loaded.ok) return;
+    const fixture = phase1Records();
+    const requirement = fixture.records.find((item) => item.datum.type === "STK")!;
+    const snapshot = {
+      processRef,
+      phaseId: "phase-1-product-assurance",
+      records: fixture.records.filter((item) =>
+        item !== fixture.strategy && item !== fixture.activity
+      ),
+      dependencyComparisons: [],
+    };
+    const evaluation = evaluateLifecycle(loaded.package, snapshot);
+    const obligation = evaluation.looseEnds.find((item) =>
+      item.obligation === "verification-strategy-required"
+    )!;
+
+    const prepared = await dryRunResolverScenario(
+      loaded.package,
+      snapshot,
+      "define-verification-strategy@1",
+      obligation.id,
+      [],
+      evaluation,
+    );
+
+    expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
+    if (!prepared.ok) return;
+    expect(prepared.value.invocations[0]?.inputs).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        name: "stable_requirements",
+        contract: expect.objectContaining({ identity: "stable" }),
+        values: [expect.objectContaining({ identity: expect.objectContaining({
+          id: requirement.datum.id,
+        }) })],
+      }),
+      expect.objectContaining({
+        name: "requirements",
+        contract: expect.objectContaining({ identity: "revision" }),
+        values: [expect.objectContaining({ identity: expect.objectContaining({
+          revision_id: requirement.datum.revision_id,
+        }) })],
+      }),
+    ]));
+    expect(prepared.value.expectedOutputs).toEqual([
+      expect.objectContaining({
+        requiredLinks: [
+          { type: "governs", target: { input: "stable_requirements" } },
+          { type: "governs-revision", target: { input: "requirements" } },
+        ],
+      }),
+    ]);
+  });
+
   it("routes a new VSP to Review before pilot activity authoring", async () => {
     const fixture = phase1Records();
     const snapshot = {
