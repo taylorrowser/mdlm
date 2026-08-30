@@ -1,8 +1,8 @@
 kind: scenario-definition
 id: revise-pilot-verification-activity-after-review
 version: 3
-description: Correct one failed Phase 1 pilot verification activity through bounded autonomous cycles and the same exact attended escalation interface.
-phases: [phase-1-product-assurance]
+description: Correct one failed assurance pilot verification activity through bounded autonomous cycles and the same exact attended escalation interface.
+phases: [phase-1-product-assurance, phase-2-system-definition]
 inputs:
   - name: activity
     types: [VER]
@@ -20,7 +20,7 @@ inputs:
       exists("matching-failing-review-for@1",
         {subject: activity, review: failed_reviews})
   - name: requirement
-    types: [STK]
+    types: [STK, SYS]
     cardinality: one
     identity: revision
     conditions: >-
@@ -35,7 +35,13 @@ inputs:
       count("strategies-for-verification-activity@1", {activity: activity}) == 1
       && strategy == one("strategies-for-verification-activity@1",
         {activity: activity})
-  - {name: intent_support, types: [PSP], cardinality: one, identity: revision}
+  - name: intent_support
+    types: [PSP]
+    cardinality: zero-or-one
+    identity: revision
+    conditions: >-
+      intent_support == one("pilot-intent-support-for-activity@1",
+        {activity: activity})
 outputs:
   - name: replacement
     types: [VER]
@@ -52,7 +58,7 @@ outputs:
     cardinality: zero-or-one
     required_links:
       - {link: justifies, target: {output: replacement}}
-prompt_ref: prompts/revise-pilot-verification-activity-after-review.md@2
+prompt_ref: prompts/revise-pilot-verification-activity-after-review.md@3
 review_policy_ref: review-applicability@1
 participation:
   policy_ref: phase-1-assurance-correction-participation@1
@@ -65,8 +71,12 @@ completion: >-
   && replacement.payload.kind == "pilot"
   && replacement.payload.claim.scope == "verification-design"
   && replacement.payload.claim.formal_evidence_eligible == false
-  && intent_support == one("pilot-intent-support-for-requirement@1",
-    {requirement: requirement})
+  && (
+    (requirement.identity.type == "STK"
+      && intent_support == one("pilot-intent-support-for-requirement@1",
+        {requirement: requirement}))
+    || (requirement.identity.type == "SYS" && intent_support == null)
+  )
   && exists("corrected-pilot-verification-activity-revisions-for@1", {activity: activity})
   && (
     (policy("phase-1-assurance-correction-participation@1",
