@@ -98,10 +98,10 @@ it only after the downstream evidence named here exists.
 
 | Increment | Exact entry | Work and judgment | Exact exit |
 | --- | --- | --- | --- |
-| Phase 3 definition tracer | Accepted Phase 2 SYS baseline, its exact SYS/ASP/ICSP/DWP/VSP members, and current Reviews | Produce CMP, component ASP, ICSP, component VSP, complete DWP lineage, exact Review Contexts, independent Reviews, simplification evidence, and one direct CMP level candidate. The candidate gate is nondelegable attended stakeholder work. Its DEC needs an independent passing Review before it applies. | Gate-approved CMP candidate and exact ancestry, then `Profile Boundary Reached` because component pilot and formal VER coverage are deliberately absent. |
-| Complete Phase 3 | A fresh repository on the next qualified package reaches exact accepted Phase 2 SYS; the tracer's operational evidence has validated the decomposition, Review, and gate contracts | Add one representative good/bad component pilot per distinct strategy and public boundary, plus one reviewed formal VER per independently assessable CMP claim. Reuse compatible VSP and ENV evidence. Pilot RES proves verification-design suitability only. Create and gate the CMP candidate only after that evidence is complete. | Gate-approved CMP candidate with suitable representative pilot evidence and complete reviewed formal CMP VER coverage. Phase 4 becomes dispatchable. |
-| Phase 4 | Exact gate-approved CMP candidate, member and candidate Reviews, applicable reviewed gate DEC, and Phase 3 verification-design evidence | Produce DES from exact CMP parents, refine ICSP where needed, preserve `STK -> SYS -> CMP -> DES` ancestry, run independent Reviews and simplification, produce one representative design-boundary pilot and reviewed formal DES VER coverage, then gate one direct DES level candidate. Reuse the component ASP. Do not create a design ASP unless public operation proves it is needed. | Gate-approved DES candidate, suitable design pilot, complete reviewed formal DES VER coverage, and mechanically accepted CMP baseline. Phase 5 becomes dispatchable. |
-| Phase 5 | Exact gate-approved DES candidate, member and candidate Reviews, applicable reviewed gate DEC | Dispatch product implementation and source-blind formal VAI authoring independently. Publish one controlled-build ART per coherent DES candidate and exact commit with bounded DES Revision-to-path mappings. The VAI consumes exact DES/ASP/ICSP/VSP/VER/ENV and the public executable boundary while excluding product source, unit tests, and private details. Review ART traceability and VAI independently. | Mechanically accepted DES baseline, reviewed formal VAI, and controlled ART. No second attended gate. |
+| Phase 3 definition tracer | Accepted Phase 2 SYS baseline, its exact SYS/ASP/ICSP/DWP/VSP members, and current Reviews | Produce CMP, component ASP, ICSP, component VSP, and complete DWP lineage. For each coherent DWP slice, one exact Review Context and one independent REV judge definition correctness and simplification together; Findings still target exact members. One later candidate REV judges isolation and cross-slice consistency. The candidate gate is nondelegable attended stakeholder work, and its DEC needs an independent passing Review before it applies. | Gate-approved CMP candidate and exact ancestry, then `Profile Boundary Reached` because component pilot and formal VER coverage are deliberately absent. |
+| Complete Phase 3 | A fresh repository on the next qualified package reaches exact accepted Phase 2 SYS; the tracer's operational evidence has validated the decomposition, Review, and gate contracts | Add one representative good/bad component pilot per distinct strategy and public boundary, with separately ordered independent Reviews of pilot VER and source-blind VAI. Add one formal VER per independently assessable CMP claim and freeze them into the direct candidate. One candidate REV judges every exact definition and formal VER plus isolation, completeness, and consistency. Reuse compatible VSP and ENV evidence. Pilot RES proves verification-design suitability only. | Gate-approved CMP candidate with suitable representative pilot evidence and complete reviewed formal CMP VER coverage. Phase 4 becomes dispatchable. |
+| Phase 4 | Exact gate-approved CMP candidate, coherent-set and candidate Reviews, applicable reviewed gate DEC, and Phase 3 verification-design evidence | Produce DES from exact CMP parents, refine ICSP where needed, preserve `STK -> SYS -> CMP -> DES` ancestry, use one independent coherent-set definition and simplification Review per DWP slice, reuse or produce suitable design-boundary pilot evidence, freeze formal DES VER coverage into one direct candidate, and independently review that candidate. Reuse the component ASP. Do not create a design ASP unless public operation proves it is needed. | Gate-approved DES candidate, suitable design pilot, complete reviewed formal DES VER coverage, and mechanically accepted CMP baseline. Phase 5 becomes dispatchable. |
+| Phase 5 | Exact gate-approved DES candidate, coherent-set and candidate Reviews, applicable reviewed gate DEC | Dispatch product implementation and source-blind formal VAI authoring independently. Publish one controlled-build ART per coherent DES candidate and exact commit with bounded DES Revision-to-path mappings. The VAI consumes exact DES/ASP/ICSP/VSP/VER/ENV and the public executable boundary while excluding product source, unit tests, and private details. Review ART traceability and VAI independently. | Mechanically accepted DES baseline, reviewed formal VAI, and controlled ART. No second attended gate. |
 | Phase 6 | Exact accepted DES baseline, reviewed formal VAI, controlled ART, accepted CMP/SYS/STK ancestry, VER, and qualified ENV | Publish one immutable RUN/RES per formal VAI, bottom-up. Automatic test passes need no Review. Analysis, inspection, and demonstration use the package-declared REV or DEC. A failure opens the existing PRB/CHG route and invalidates only impacted evidence. | Complete current passing formal evidence, required assessments, no unresolved applicable failures, and one final nondelegable attended product-acceptance DEC produce `Lifecycle Complete`. |
 
 ## Public CLI and identity rules
@@ -123,6 +123,12 @@ The current type contracts show the minimum Phase 3 and 4 widening:
   gain exact CMP and DES targets only where the matrix uses them.
 - Candidate selectors bind exact phase, definition level, and Scenario
   provenance. They must not let an older SYS candidate satisfy CMP or DES work.
+- Review coverage selectors accept one passing coherent-set REV only when its
+  frozen context contains every exact member of one DWP slice and every Finding
+  target resolves inside that context. Candidate coverage accepts one passing
+  candidate REV only when the frozen candidate contains every required exact
+  definition and formal VER. A changed member stales the set and candidate
+  Reviews; unaffected DWP slices remain reusable.
 - Same-lineage Correction preserves the failed Revision, exact Review and
   Finding causes, unaffected evidence, and stable subject identity. Two
   package-evidence cycles may remain autonomous. The existing attended
@@ -173,7 +179,8 @@ is satisfied or the tracker records an explicit replacement decision:
   narrow Phase 7 definitions loadable but disabled. No component pilot, formal
   CMP VER, Phase 4, kernel change, runner change, or repository migration.
 - Acceptance: one fresh public demo advances from exact accepted SYS evidence
-  through reviewed CMP/ASP/ICSP/VSP and complete DWP lineage to a reviewed gate
+  through one independently reviewed coherent CMP/ASP/ICSP/VSP/DWP set, one
+  independently reviewed direct candidate, and one independently reviewed gate
   DEC, then returns `Profile Boundary Reached`. Package compilation and one
   focused public CLI regression pass.
 
@@ -185,6 +192,13 @@ SYS output to CMP output, `ASP.level` to component, `ICSP` governance to CMP,
 and `VSP.level` and coverage to component. Reuse interface authoring, DWP
 planning and completion, Review Context, independent Review, simplification,
 same-lineage Correction, direct level candidate, and gate DEC behavior.
+
+Do not widen the current per-member Review selector family into Phase 3. Add
+one coherent-set coverage rule per exact DWP slice. Its one REV reviews the DWP
+completion as primary subject against an exact context containing every CMP,
+ASP, ICSP, VSP, and DWP Revision in that slice. Use one combined definition and
+simplification rubric, and keep Findings bound to exact members. The direct
+candidate still receives its own independent REV before attended gate work.
 
 Generalize only Phase 2 or SYS-named definitions that gain this second real
 consumer. Known examples are `system-output-parents-for` and
@@ -284,6 +298,16 @@ this Phase 3 through 6 goal.
 
 These are package acceptance rules:
 
+The throwaway
+[`phase3-bounded-fanout` prototype](https://github.com/taylorrowser/mdlm/blob/9b6ce1712ea72d43c498f05a537c496d79eaa7cb/src/phase3-bounded-fanout.prototype.html)
+compared the original per-subject Review plan with the coherent-set rule below.
+For the same two-CMP, two-DES slice, the baseline needed 23 new REV records and
+12 Review batches. The coherent-set route needed eight REV records and eight
+batches while retaining two direct candidates, two attended gates, ordered
+pilot VER and source-blind VAI Reviews, exact ancestry, and immutable RUN/RES.
+The earlier 11-batch baseline was wrong because it failed to count the pilot VER
+Review before VAI authoring.
+
 - one direct level candidate for one coherent definition set;
 - one VSP and ENV per compatible level and profile;
 - one representative pilot per distinct strategy and public boundary;
@@ -291,8 +315,10 @@ These are package acceptance rules:
 - one product-build ART per coherent gate-approved DES candidate set and exact
   build commit;
 - one RUN/RES per formal VAI because execution evidence is immutable;
-- one REV per independently judged subject, with compatible subjects sharing
-  one exact Review Context and Assignment when the package permits; and
+- one REV per independently judged coherent set, with exact member-targeted
+  Findings. Keep pilot VER, source-blind VAI, direct candidate, gate DEC, ART
+  traceability, and formal VAI judgments separate because each controls a
+  different trust or execution boundary; and
 - exact dependency links invalidate only materially affected evidence.
 
 Refuse data whose only purpose is progress or aggregation. That includes phase
