@@ -9,7 +9,10 @@ import { runPhaseTwoAssuranceReviewRoute } from
   "./helpers/proportional-phase-2-routes.js";
 import { runPhaseTwoSimplificationReviewBinding } from
   "./helpers/phase-2-simplification-review-binding.js";
-import { runPhaseTwoReviewCorrectionRendering } from
+import {
+  runPhaseTwoDefinitionConsistencySerialCorrection,
+  runPhaseTwoReviewCorrectionRendering,
+} from
   "./phase-2-review-correction-rendering.test.js";
 import { runPhaseTwoGateReviewCorrection } from
   "./phase-2-gate-review-correction.js";
@@ -176,6 +179,12 @@ it(
   "prepares four exact Phase 2 correction scaffolds and submits ASP",
   runPhaseTwoReviewCorrectionRendering,
   30_000,
+);
+
+it(
+  "corrects a definition-consistency set through five serial public Assignments",
+  runPhaseTwoDefinitionConsistencySerialCorrection,
+  90_000,
 );
 
 it(

@@ -2017,8 +2017,8 @@ rows:
           context and both simplification judgments."
       - route: exact consistency set
         executable:
-          file: test/load-process-package.test.ts
-          test: routes definition-consistency corrections through serial public Assignments
+          file: test/proportional-phase-2-public.test.ts
+          test: corrects a definition-consistency set through five serial public Assignments
         evidence:
           facts: "exact consistency set: Failed simplification REV declares one exact subject or complete consistency set and all
             current Findings."
@@ -2053,8 +2053,8 @@ rows:
           both simplification judgments."
       - route: scope reduction
         executable:
-          file: test/load-process-package.test.ts
-          test: routes definition-consistency corrections through serial public Assignments
+          file: test/proportional-phase-2-public.test.ts
+          test: corrects a definition-consistency set through five serial public Assignments
         evidence:
           facts: "scope reduction: Failed simplification REV declares one exact subject or complete consistency set and all
             current Findings."
