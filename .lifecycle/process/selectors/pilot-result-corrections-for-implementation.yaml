@@ -1,0 +1,30 @@
+kind: selector-definition
+id: pilot-result-corrections-for-implementation
+version: 1
+description: Current valid same-lineage pilot VAI corrections citing every and only unfavorable result from the prior Revision.
+parameters:
+  - {name: implementation, kind: revision, types: [VAI]}
+result_kind: revision
+query:
+  from: {relation: revisions, of: implementation, emit: entity, types: [VAI]}
+  as: replacement
+  where: >-
+    replacement.identity.revision > implementation.identity.revision
+    && state(replacement, "validity") == "valid"
+    && replacement.payload.kind == implementation.payload.kind
+    && replacement.payload.independence_mode == implementation.payload.independence_mode
+    && replacement.payload.target_behavior == implementation.payload.target_behavior
+    && count("pilot-results-cited-by-correction@1", {replacement: replacement})
+      == count("unfavorable-pilot-results-for-implementation@1",
+        {implementation: implementation})
+    && every("pilot-results-cited-by-correction@1", {replacement: replacement}, result =>
+      !every("unfavorable-pilot-results-for-implementation@1",
+        {implementation: implementation}, cause => cause != result))
+    && one("verification-activities-for-implementation@1",
+      {implementation: replacement})
+      == one("verification-activities-for-implementation@1",
+        {implementation: implementation})
+    && exists("pilot-implementation-authorizations-for@1",
+      {implementation: replacement})
+  distinct: true
+  order_by: [identity.revision]

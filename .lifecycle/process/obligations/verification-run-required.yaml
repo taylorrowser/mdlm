@@ -12,6 +12,18 @@ satisfied_when: >-
     && exists("exercised-pilot-runs-for-implementation@2", {implementation: implementation}))
 status_rules:
   - status: blocked
+    priority: 500
+    when: >-
+      implementation.payload.kind == "pilot"
+      && exists("unfavorable-pilot-results-for-implementation@1",
+        {implementation: implementation})
+      && none("pilot-result-corrections-for-implementation@1",
+        {implementation: implementation})
+    reason: Accepted unfavorable pilot evidence requires bounded causal correction before this exact implementation can execute again.
+    blocked_by:
+      - obligation: pilot-vai-result-correction-required@1
+        subjects: '[implementation]'
+  - status: blocked
     priority: 400
     when: >-
       implementation.payload.kind == "pilot"
@@ -49,7 +61,7 @@ status_rules:
   - status: ready
     priority: 100
     when: 'implementation.payload.kind in ["qualification", "pilot"]'
-    reason: Exact activity, environment, target, and independence provenance permit a bounded execution; completed inconclusive pilot attempts remain durable evidence but do not prevent a fresh attempt.
+    reason: Exact activity, environment, target, and independence provenance permit a bounded execution when no accepted unfavorable result requires correction.
 default_status: blocked
 resolve_with:
   scenario: execute-verification-run@2

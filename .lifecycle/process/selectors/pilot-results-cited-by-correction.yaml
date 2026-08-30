@@ -1,0 +1,13 @@
+kind: selector-definition
+id: pilot-results-cited-by-correction
+version: 1
+description: Exact unfavorable pilot results cited by one VAI, ENV, or ART correction Revision.
+parameters:
+  - {name: replacement, kind: revision, types: [VAI, ENV, ART]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: replacement, link: corrects-pilot-result, emit: target, types: [RES]}
+  as: result
+  where: 'state(result, "validity") == "valid"'
+  distinct: true
+  order_by: [identity.revision_id]

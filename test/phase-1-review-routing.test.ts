@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { dryRunResolverScenario } from "../src/scenario-dry-run.js";
+import { operatorWorkProjection } from "../src/assignment.js";
 import {
   evaluateLifecycle,
   type LifecycleRecord,
@@ -185,5 +186,131 @@ describe("Phase 1 review routing", () => {
       expect(declaration).toContain("phase-1-assurance-review-required@1");
       expect(declaration).not.toContain("passing-review-required@2");
     }
+  });
+
+  it("routes an inconclusive pilot result to correction before another run", () => {
+    const strategy = record("VSP", "VSP-RESULT402", {
+      title: "Pilot strategy",
+      environment_profile: {
+        id: "local-cli",
+        capabilities: {
+          controllability: ["process"],
+          observability: ["stdio", "exit-status"],
+          external_services: [],
+          timing: "bounded",
+        },
+      },
+    }, "define-verification-strategy@1");
+    const requirement = record("STK", "STK-RESULT402", {
+      title: "Portable command",
+    }, "draft-stakeholder-requirements@2");
+    const activity = record("VER", "VER-RESULT402", {
+      title: "Pilot activity",
+      kind: "pilot",
+      claim: {
+        kind: "pilot",
+        scope: "verification-design",
+        formal_evidence_eligible: false,
+      },
+    }, "write-verification-activity@2", [
+      { type: "verifies-revision", target: requirement.datum.revision_id },
+      { type: "governed-by", target: strategy.datum.revision_id },
+    ]);
+    const environment = record("ENV", "ENV-RESULT402", {
+      title: "Local command environment",
+    }, "realize-verification-environment@1", [
+      { type: "realizes", target: strategy.datum.revision_id },
+    ]);
+    const target = record("ART", "ART-RESULT402", {
+      title: "Disposable controls",
+      kind: "prototype",
+      supported_behavior: ["portable command starts"],
+      unsupported_behavior: ["invalid input is rejected"],
+    }, "build-pilot-control-prototype@1", [
+      { type: "derived-from", target: requirement.datum.revision_id },
+    ]);
+    const implementation = record("VAI", "VAI-RESULT402", {
+      title: "Source-blind pilot procedure",
+      kind: "pilot",
+      independence_mode: "source-blind",
+      target_behavior: {
+        supported: ["portable command starts"],
+        intentionally_unsupported: ["invalid input is rejected"],
+      },
+    }, "implement-verification-activity@1", [
+      { type: "realizes", target: activity.datum.revision_id },
+      { type: "uses", target: environment.datum.revision_id },
+      { type: "targets", target: target.datum.revision_id },
+    ]);
+    const authorization = record("DEC", "DEC-RESULT402", {
+      title: "Pilot implementation authorization",
+      kind: "decision",
+      decision: "Authorize the bounded pilot procedure.",
+      alternatives: ["do not execute"],
+      effective_scope: implementation.datum.revision_id,
+    }, "implement-verification-activity@1", [
+      { type: "justifies", target: implementation.datum.revision_id },
+    ]);
+    const result = record("RES", "RES-RESULT402", {
+      title: "Inconclusive pilot result",
+      claim: {
+        kind: "pilot",
+        scope: "verification-design",
+        outcome: "inconclusive",
+        formal_evidence_eligible: false,
+      },
+      assessment_state: "inconclusive",
+      observations: {
+        expected_success_observed: false,
+        expected_discrimination_observed: false,
+        details: "The declared command was unavailable before product launch.",
+      },
+    }, "execute-verification-run@2", [
+      { type: "assessed-in", target: environment.datum.revision_id },
+    ]);
+    const run = record("RUN", "RUN-RESULT402", {
+      title: "Completed setup-failure run",
+      kind: "pilot",
+      execution_state: "completed",
+    }, "execute-verification-run@2", [
+      { type: "executes", target: implementation.datum.revision_id },
+      { type: "uses", target: environment.datum.revision_id },
+      { type: "targets", target: target.datum.revision_id },
+      { type: "produces", target: result.datum.revision_id },
+    ]);
+    const records = [
+      strategy,
+      requirement,
+      activity,
+      environment,
+      target,
+      implementation,
+      authorization,
+      run,
+      result,
+    ];
+    const evaluation = evaluateLifecycle(processPackage, {
+      processRef,
+      phaseId: "phase-1-product-assurance",
+      records,
+      dependencyComparisons: [],
+    });
+    const work = operatorWorkProjection(evaluation, records).filter((item) =>
+      item.subject === implementation.datum.revision_id
+    );
+
+    expect(work).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        definition: "pilot-vai-result-correction-required",
+        scenario: "revise-pilot-vai-after-result@1",
+        dispatchable: true,
+      }),
+      expect.objectContaining({
+        definition: "verification-run-required",
+        scenario: "execute-verification-run@2",
+        dispatchable: false,
+        blockedBy: [expect.stringContaining("pilot-vai-result-correction-required@1")],
+      }),
+    ]));
   });
 });
