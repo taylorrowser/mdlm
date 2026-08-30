@@ -2017,8 +2017,8 @@ rows:
           context and both simplification judgments."
       - route: exact consistency set
         executable:
-          file: test/phase-2-hardening-routes.test.ts
-          test: derives one atomic correction for the exact Phase 2 definition-consistency set
+          file: test/load-process-package.test.ts
+          test: routes definition-consistency corrections through serial public Assignments
         evidence:
           facts: "exact consistency set: Failed simplification REV declares one exact subject or complete consistency set and all
             current Findings."
@@ -2029,26 +2029,32 @@ rows:
           - phase-2-simplification-blockers-for-review@1
           - phase-2-removed-outputs-for-review@1
         obligations:
-          - phase-2-definition-consistency-correction-required@1
+          - phase-2-review-correction-required@1
+          - phase-2-interface-review-correction-required@1
+          - phase-2-decomposition-review-correction-required@1
+          - phase-2-system-review-correction-required@1
         participation:
           mode: autonomous
           policies:
             - phase-2-correction-participation@1
           authority: package-evidence
         resolvers:
-          - revise-phase-2-definition-set-after-simplification@1
+          - revise-phase-2-subject-after-review@1
+          - revise-phase-2-interface-after-review@1
+          - revise-phase-2-decomposition-after-review@1
+          - revise-phase-2-system-requirement-after-review@1
         next:
           - assignment
         budget: "exact consistency set: This bounded simplification route is evidence-scoped; ordinary Review correction budget
           is not consumed."
-        disposition: exact consistency set yields assignment. Cross-subject, incomplete, or total-removal proposals reject
-          atomically or return typed inability.
+        disposition: exact consistency set yields one same-lineage Assignment per retained definition subject. Removed SYS
+          subjects yield no replacement.
         reuse: "exact consistency set: Unchanged definition members remain reusable; corrected set receives fresh context and
           both simplification judgments."
       - route: scope reduction
         executable:
-          file: test/phase-2-hardening-routes.test.ts
-          test: derives exact definition-consistency correction when scope reduction removes a proper SYS subset
+          file: test/load-process-package.test.ts
+          test: routes definition-consistency corrections through serial public Assignments
         evidence:
           facts: "scope reduction: Failed simplification REV declares one exact subject or complete consistency set and all
             current Findings."
@@ -2059,20 +2065,26 @@ rows:
           - phase-2-simplification-blockers-for-review@1
           - phase-2-removed-outputs-for-review@1
         obligations:
-          - phase-2-definition-consistency-correction-required@1
+          - phase-2-review-correction-required@1
+          - phase-2-interface-review-correction-required@1
+          - phase-2-decomposition-review-correction-required@1
+          - phase-2-system-review-correction-required@1
         participation:
           mode: autonomous
           policies:
             - phase-2-correction-participation@1
           authority: package-evidence
         resolvers:
-          - revise-phase-2-definition-set-after-simplification@1
+          - revise-phase-2-subject-after-review@1
+          - revise-phase-2-interface-after-review@1
+          - revise-phase-2-decomposition-after-review@1
+          - revise-phase-2-system-requirement-after-review@1
         next:
           - assignment
         budget: "scope reduction: This bounded simplification route is evidence-scoped; ordinary Review correction budget is not
           consumed."
-        disposition: scope reduction yields assignment. Cross-subject, incomplete, or total-removal proposals reject atomically
-          or return typed inability.
+        disposition: scope reduction yields one same-lineage Assignment per retained definition subject and no replacement for
+          an explicitly removed SYS subject.
         reuse: "scope reduction: Unchanged definition members remain reusable; the corrected set receives a fresh context and
           one late semantic simplification judgment."
   - id: phase-2-review-correction-and-ambiguity

@@ -232,7 +232,11 @@ describe("bootstrap Scenario participation Policies", () => {
         output: "decision",
         type: "DEC",
       },
-      "revise-phase-2-definition-set-after-simplification": {
+      "revise-phase-2-decomposition-after-review": {
+        output: "decision",
+        type: "DEC",
+      },
+      "revise-phase-2-interface-after-review": {
         output: "decision",
         type: "DEC",
       },
@@ -241,6 +245,10 @@ describe("bootstrap Scenario participation Policies", () => {
         type: "DEC",
       },
       "revise-phase-2-subject-after-simplification": {
+        output: "decision",
+        type: "DEC",
+      },
+      "revise-phase-2-system-requirement-after-review": {
         output: "decision",
         type: "DEC",
       },

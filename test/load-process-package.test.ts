@@ -232,6 +232,101 @@ describe("loadProcessPackage", () => {
     );
   });
 
+  it("routes definition-consistency corrections through serial public Assignments", () => {
+    expect(
+      validPackage.obligations["phase-2-definition-consistency-correction-required"],
+    ).toBeUndefined();
+    expect(
+      validPackage.scenarios["revise-phase-2-definition-set-after-simplification"],
+    ).toBeUndefined();
+
+    const routes = [
+      [
+        "phase-2-review-correction-required",
+        "phase-2-correctable-subjects@1",
+        "revise-phase-2-subject-after-review",
+        "ASP",
+      ],
+      [
+        "phase-2-interface-review-correction-required",
+        "phase-2-correctable-interfaces@1",
+        "revise-phase-2-interface-after-review",
+        "ICSP",
+      ],
+      [
+        "phase-2-decomposition-review-correction-required",
+        "phase-2-correctable-decompositions@1",
+        "revise-phase-2-decomposition-after-review",
+        "DWP",
+      ],
+      [
+        "phase-2-system-review-correction-required",
+        "phase-2-correctable-system-requirements@1",
+        "revise-phase-2-system-requirement-after-review",
+        "SYS",
+      ],
+    ] as const;
+
+    for (const [obligationId, selectorId, scenarioId, type] of routes) {
+      const obligation = validPackage.obligations[obligationId]!;
+      expect(record(obligation.for_each).source).toBe(
+        `select("${selectorId}", {})`,
+      );
+      expect(record(obligation.resolve_with).scenario).toBe(`${scenarioId}@1`);
+
+      const scenario = validPackage.scenarios[scenarioId]!;
+      const replacement = records(scenario.outputs).find((output) =>
+        output.name === "replacement"
+      );
+      expect(replacement).toEqual(expect.objectContaining({
+        types: [type],
+        cardinality: "one",
+        identity_from: { input: "subject" },
+      }));
+      const compiled = compileAssignmentProjection({
+        scenario,
+        renderer: publicAssignmentRenderer,
+        source: `.lifecycle/process/scenarios/${scenarioId}.yaml`,
+      });
+      expect(compiled.ok, scenarioId).toBe(true);
+      if (!compiled.ok) continue;
+      expect(compiled.plan.witnessInvocations).toBe(1);
+      expect(compiled.plan.outputs).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          output: "replacement",
+          type: { kind: "declared", type },
+        }),
+      ]));
+    }
+
+    const reviewSelector = validPackage.selectors[
+      "phase-2-correction-reviews-for-subject"
+    ]!;
+    const reviewWhere = record(record(reviewSelector.query).where).source;
+    expect(reviewWhere).toContain('view == "local"');
+    expect(reviewWhere).toContain(
+      'review.payload.definition_simplification.correction_set == "definition-consistency"',
+    );
+    expect(reviewWhere).toContain(
+      'none("phase-2-review-removes-output@1",',
+    );
+
+    const simplification = validPackage.obligations[
+      "architecture-interface-simplification-required"
+    ]!;
+    const failedRule = records(simplification.status_rules).find((rule) =>
+      rule.status === "failed"
+    )!;
+    expect(records(failedRule.blocked_by).map((blocker) => blocker.obligation))
+      .toEqual([
+        "phase-2-simplification-correction-required@1",
+        "phase-2-review-correction-required@1",
+        "phase-2-interface-review-correction-required@1",
+        "phase-2-decomposition-review-correction-required@1",
+        "phase-2-system-review-correction-required@1",
+      ]);
+  });
+
   it("rejects an unrenderable Assignment route at the package-loader seam", async () => {
     const processRoot = await copiedProcessPackage();
     try {
