@@ -35,6 +35,7 @@ export const rootTestQualificationManifest = Object.freeze([
   { file: "test/mdlm-schema.test.ts", qualificationGate: "release" },
   { file: "test/operator-outcome.test.ts", qualificationGate: "release" },
   { file: "test/atomic-review-submit.test.ts", qualificationGate: "pr" },
+  { file: "test/atomic-review-liveness.test.ts", qualificationGate: "pr" },
   { file: "test/same-response-payload-reference.test.ts", qualificationGate: "pr" },
   { file: "test/proportional-phase-2-public.test.ts", qualificationGate: "pr" },
   { file: "test/selected-package-cache.test.ts", qualificationGate: "release" },
@@ -82,6 +83,7 @@ const rootTestRuntimeManifest = [
   { file: "test/mdlm-schema.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 33_817 },
   { file: "test/operator-outcome.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 51_114 },
   { file: "test/atomic-review-submit.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 15_190 },
+  { file: "test/atomic-review-liveness.test.ts", runtimeClass: "cheap-in-process", weight: 1, measuredDurationMs: 1_970 },
   { file: "test/same-response-payload-reference.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 4_400 },
   // 101,498 ms focused observation plus the explicit 3,600 ms cleanup-contract increase.
   { file: "test/proportional-phase-2-public.test.ts", runtimeClass: "canonical-fixture-filler", weight: 1, measuredDurationMs: 2_378 },

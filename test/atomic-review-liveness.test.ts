@@ -259,6 +259,71 @@ describe("atomic Phase 0 Review liveness", () => {
       .toBe("phase-1-product-assurance");
   });
 
+  it("routes a failed atomic Phase 0 candidate Review to correction", () => {
+    const member = record("MAP", "MAP-FAILEDCANDIDATE1", {
+      title: "Candidate definition member",
+      purpose: "Retain one exact product boundary.",
+      frontier: ["product-intent"],
+    }, "establish-initial-wayfinding-map@2");
+    const memberReview = atomicReview(member, "FAILEDCANDIDATEMEMBERCTX1");
+    const candidate = record("BSL", "BSL-FAILEDCANDIDATE1", {
+      title: "Stale intent candidate",
+      kind: "intent-level-candidate",
+      role: "candidate",
+      scope: "product",
+      group: "DEFAULT",
+      definition_members: [member.datum.revision_id],
+      evidence: [memberReview[1].datum.revision_id],
+    }, "create-phase-0-intent-candidate@1");
+    const context = record("BSL", "BSL-FAILEDCANDIDATECTX1", {
+      title: `Review context for ${candidate.datum.revision_id}`,
+      kind: "review-context",
+      role: "review-context",
+      scope: candidate.datum.revision_id,
+      group: "DEFAULT",
+      definition_members: [candidate.datum.revision_id, member.datum.revision_id],
+      evidence: [],
+    }, "review-phase-0-candidate@1");
+    const review = record("REV", "REV-FAILEDCANDIDATE1", {
+      title: "Review stale intent candidate",
+      review_kind: "phase-0-candidate",
+      outcome: "fail",
+      reviewer: "independent-reviewer",
+      summary: "The candidate freezes a definition that predates its product answer.",
+      findings: [{
+        id: "F-001",
+        target: candidate.datum.revision_id,
+        relationship: "primary",
+        severity: "blocking",
+        summary: "Rebuild the candidate from current definitions.",
+        criterion: "The candidate must freeze current product intent.",
+        evidence: "The frozen member predates the accepted product answer.",
+        material_consequence: "Downstream work could implement stale intent.",
+      }],
+      rubric_ref: "policies/rubrics/bootstrap-review.md@3",
+      correction_authority: "package-evidence",
+    }, "review-phase-0-candidate@1", [
+      { type: "reviews", target: candidate.datum.revision_id },
+      { type: "contextualizes", target: context.datum.revision_id },
+    ]);
+    const records = [member, ...memberReview, candidate, context, review];
+
+    expect(selected(records, "failing-reviews-for@1", {
+      subject: candidate.datum.revision_id,
+    })).toEqual([review.datum.revision_id]);
+    expect(work(records)).not.toContainEqual(expect.objectContaining({
+      scenario: "review-phase-0-candidate@1",
+      subject: candidate.datum.revision_id,
+      dispatchable: true,
+    }));
+    expect(work(records)).toContainEqual(expect.objectContaining({
+      definition: "intent-candidate-review-correction-required",
+      scenario: "revise-intent-candidate-after-review@3",
+      subject: candidate.datum.revision_id,
+      dispatchable: true,
+    }));
+  });
+
   it("recognizes the atomic context and routes the next consequential Decision", () => {
     const map = record("MAP", "MAP-ATOMIC1", {
       title: "Initial wayfinding map",
