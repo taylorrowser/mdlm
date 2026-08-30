@@ -355,16 +355,27 @@ export type AssignmentDisposition =
     };
 
 export interface AssignmentPayloadConditionalRule {
+  path: string;
+  context?: {
+    if: Record<string, unknown>;
+    branch: "then" | "else";
+  }[];
   if: Record<string, unknown>;
   then?: Record<string, unknown>;
   else?: Record<string, unknown>;
+}
+
+export interface AssignmentPayloadDependentRule {
+  path: string;
+  context?: AssignmentPayloadConditionalRule["context"];
+  required: Record<string, string[]>;
 }
 
 export interface AssignmentPayloadSummary {
   required: string[];
   kernelManaged: string[];
   conditional?: AssignmentPayloadConditionalRule[];
-  dependentRequired?: Record<string, string[]>;
+  dependentRequired?: AssignmentPayloadDependentRule[];
 }
 
 /** Surface authored payload obligations without choosing a conditional schema branch. */
@@ -380,11 +391,16 @@ export function assignmentPayloadSummary(
     : [];
   const conditional: AssignmentPayloadConditionalRule[] = [];
   const conditionalKeys = new Set<string>();
-  const dependentRequired = new Map<string, Set<string>>();
+  const dependentRequired: AssignmentPayloadDependentRule[] = [];
+  const pointerToken = (value: string) => value.replaceAll("~", "~0").replaceAll("/", "~1");
 
-  const visit = (value: unknown): void => {
+  const visit = (
+    value: unknown,
+    path = "",
+    context: NonNullable<AssignmentPayloadConditionalRule["context"]> = [],
+  ): void => {
     if (Array.isArray(value)) {
-      value.forEach(visit);
+      value.forEach((item, index) => visit(item, `${path}/${index}`, context));
       return;
     }
     const schema = object(value);
@@ -395,6 +411,8 @@ export function assignmentPayloadSummary(
     const alternative = object(schema.else);
     if (condition && (consequent || alternative)) {
       const rule = {
+        path,
+        ...(context.length > 0 ? { context } : {}),
         if: condition,
         ...(consequent ? { then: consequent } : {}),
         ...(alternative ? { else: alternative } : {}),
@@ -408,19 +426,33 @@ export function assignmentPayloadSummary(
 
     const dependencies = object(schema.dependentRequired);
     if (dependencies) {
+      const required: Record<string, string[]> = {};
       for (const [field, dependenciesForField] of Object.entries(dependencies)) {
         if (!Array.isArray(dependenciesForField)) continue;
-        const fields = dependentRequired.get(field) ?? new Set<string>();
-        dependenciesForField.forEach((dependency) => {
-          if (typeof dependency === "string" && !kernelManaged.has(dependency)) {
-            fields.add(dependency);
-          }
+        const fields = dependenciesForField.filter((dependency): dependency is string =>
+          typeof dependency === "string" && !kernelManaged.has(dependency)
+        );
+        if (fields.length > 0) required[field] = [...new Set(fields)].sort();
+      }
+      if (Object.keys(required).length > 0) {
+        dependentRequired.push({
+          path,
+          ...(context.length > 0 ? { context } : {}),
+          required,
         });
-        if (fields.size > 0) dependentRequired.set(field, fields);
       }
     }
 
-    Object.values(schema).forEach(visit);
+    for (const [key, child] of Object.entries(schema)) {
+      const childPath = `${path}/${pointerToken(key)}`;
+      if (condition && key === "then") {
+        visit(child, childPath, [...context, { if: condition, branch: "then" }]);
+      } else if (condition && key === "else") {
+        visit(child, childPath, [...context, { if: condition, branch: "else" }]);
+      } else {
+        visit(child, childPath, context);
+      }
+    }
   };
   visit(payloadSchema);
 
@@ -428,15 +460,7 @@ export function assignmentPayloadSummary(
     required,
     kernelManaged: kernelManagedPayloadPaths,
     ...(conditional.length > 0 ? { conditional } : {}),
-    ...(dependentRequired.size > 0
-      ? {
-          dependentRequired: Object.fromEntries(
-            [...dependentRequired.entries()]
-              .sort(([left], [right]) => left.localeCompare(right))
-              .map(([field, dependencies]) => [field, [...dependencies].sort()]),
-          ),
-        }
-      : {}),
+    ...(dependentRequired.length > 0 ? { dependentRequired } : {}),
   };
 }
 

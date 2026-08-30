@@ -546,6 +546,51 @@ describe("focused v2 fault-injection gate", () => {
     conditionalRequired("DEC", { field: "kind", value: "gate-signoff" }, [
       "gate_outcome",
     ]);
+    const artifact = resolveType(processPackage.package, "ART");
+    expect(artifact.ok).toBe(true);
+    if (artifact.ok) {
+      const argumentCase = assignmentPayloadSummary(
+        artifact.type.payloadSchema,
+        [],
+      ).conditional?.find((rule) =>
+        rule.path === "/properties/public_interface/properties/argument_cases/items/allOf/0"
+      );
+      expect(argumentCase).toEqual(
+        expect.objectContaining({
+          if: expect.objectContaining({
+            properties: expect.objectContaining({
+              kind: expect.objectContaining({ const: "normal" }),
+            }),
+          }),
+        }),
+      );
+      expect(argumentCase).not.toHaveProperty("context");
+    }
+    const review = resolveType(processPackage.package, "REV");
+    expect(review.ok).toBe(true);
+    if (review.ok) {
+      expect(assignmentPayloadSummary(review.type.payloadSchema, []).conditional).toEqual(
+        expect.arrayContaining([expect.objectContaining({
+          path: "/allOf/0/allOf/3/then/allOf/0",
+          context: [expect.objectContaining({
+            branch: "then",
+            if: expect.objectContaining({
+              properties: expect.objectContaining({
+                review_kind: expect.objectContaining({
+                  const: "simplification-product-definition",
+                }),
+              }),
+            }),
+          })],
+          if: expect.objectContaining({
+            properties: expect.objectContaining({
+              outcome: expect.objectContaining({ const: "fail" }),
+            }),
+          }),
+          then: expect.objectContaining({ required: ["simplification"] }),
+        })]),
+      );
+    }
     const responseItem = next.assignment.packet.responseSchema.oneOf[0]
       .properties.proposal.properties.outputs.items.properties;
     expect(responseItem.handle.description).toContain("Repeated values");
