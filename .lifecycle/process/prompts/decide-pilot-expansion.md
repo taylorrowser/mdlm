@@ -12,10 +12,10 @@ Read the exact PAS and its passing contextual Review. Record one DEC whose
 or `stop`. Cite the PAS through `justifies` and the exact passing REV through
 `relies-on-review`.
 
-Stop until the stakeholder explicitly authorizes the exact recommendation. Include
-`stakeholder` in the Assignment Response `authoritySupplies`, then submit the
-response through `mdlm scenario submit [response-file|-] --json`. The DEC, not
-the conversation or completion summary, is the durable authorization.
+Stop until the stakeholder explicitly authorizes the exact recommendation. Keep
+that authority outside the Assignment Response, then submit through
+`mdlm scenario submit [response-file|-] --authority stakeholder --json`. The
+DEC, not the conversation or completion summary, is the durable authorization.
 
 The effective scope is Example Process Package work in Phases 3–6. Do not begin,
 imply, or publish that work in this Scenario. State the evidence-based conditions

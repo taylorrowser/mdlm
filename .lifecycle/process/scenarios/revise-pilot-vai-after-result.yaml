@@ -15,6 +15,7 @@ outputs:
   - name: replacement_environment
     types: [ENV]
     cardinality: zero-or-one
+    identity_from: {input: environment}
     required_links:
       - {link: realizes, target: {input: strategy}}
       - {link: corrects-pilot-result, target: {input: failed_results}}
