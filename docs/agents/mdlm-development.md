@@ -96,7 +96,7 @@ Rank fixes by operational effect:
 3. defects blocking one demo;
 4. findings with no current operational effect.
 
-Reproduce the observed failure once, add the smallest regression that fails for that reason, make the narrow fix, run focused tests and checks to green outside an active exact quiet-window reservation, and obtain one fresh-context review PASS. Return to a demo after review. Broader hardening belongs in a separate nonblocking issue.
+Reproduce the observed failure once, add the smallest regression that fails for that reason, make the narrow fix, run focused tests and checks to green outside an active exact quiet-window reservation, and obtain one fresh-context review PASS. The one fresh reviewer performs the whole review directly and returns the sole verdict, without spawning standards or ticket subreviewers. Return to a demo after review. Broader hardening belongs in a separate nonblocking issue.
 
 ### Integration qualification
 
