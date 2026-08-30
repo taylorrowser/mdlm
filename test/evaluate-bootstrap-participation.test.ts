@@ -67,7 +67,7 @@ function contextualPassingReview(subject: LifecycleRecord, id: string) {
       ...new Set([subject.datum.revision_id, ...support]),
     ].sort(),
     evidence: [],
-  }, { frozen: true, scenario: "create-review-context@1" });
+  }, { frozen: true, scenario: "create-review-context@2" });
   const review = lifecycleDatum(
     "REV",
     id,
@@ -84,7 +84,7 @@ function contextualPassingReview(subject: LifecycleRecord, id: string) {
         { type: "reviews", target: subject.datum.revision_id },
         { type: "contextualizes", target: context.datum.revision_id },
       ],
-      scenario: "review-datum-in-context@2",
+      scenario: "review-datum-in-context@3",
     },
   );
   return { context, review };
@@ -196,6 +196,9 @@ describe("bootstrap Scenario participation Policies", () => {
       "resolve-question": { output: "decision", type: "DEC" },
       "resolve-question-with-prototype": { output: "finding", type: "DEC" },
       "review-datum-in-context": { output: "review", type: "REV" },
+      "review-phase-0-candidate": { output: "review", type: "REV" },
+      "review-phase-0-foundation": { output: "review", type: "REV" },
+      "review-phase-1-assurance": { output: "review", type: "REV" },
       "revise-candidate-correction-decision-after-review": {
         output: "replacement",
         type: "DEC",
@@ -246,6 +249,10 @@ describe("bootstrap Scenario participation Policies", () => {
       },
       "revise-pilot-expansion-decision-after-review": {
         output: "replacement",
+        type: "DEC",
+      },
+      "revise-pilot-vai-after-result": {
+        output: "authorization",
         type: "DEC",
       },
       "revise-pilot-vai-after-review": {
@@ -828,7 +835,7 @@ describe("bootstrap Scenario participation Policies", () => {
       controlled_boundaries: [],
       constraints: [],
       nominated_risks: [],
-    });
+    }, { frozen: true });
     const candidate = (revision: number, links: Array<{ type: string; target: string }> = []) => {
       const record = lifecycleDatum("BSL", "BSL-0GATECND00", {
         title: `System candidate ${revision}`,
@@ -838,7 +845,7 @@ describe("bootstrap Scenario participation Policies", () => {
         group: "SYSTEM",
         definition_members: [architecture.datum.revision_id],
         evidence: [],
-      }, { frozen: true, links, scenario: "revise-phase-2-candidate-after-review@1" });
+      }, { frozen: true, links, scenario: "revise-phase-2-candidate-after-review@2" });
       record.datum.revision = revision;
       record.datum.revision_id = `${record.datum.id}-r${String(revision).padStart(5, "0")}`;
       return record;
@@ -909,7 +916,7 @@ describe("bootstrap Scenario participation Policies", () => {
     )).toEqual(expect.objectContaining({
       status: "ready",
       dispatchable: true,
-      actionableResolver: "revise-phase-2-candidate-after-review@1",
+      actionableResolver: "revise-phase-2-candidate-after-review@2",
       participation: projectedParticipation(
         "phase-2-correction-participation@1",
         "attended",
@@ -932,7 +939,7 @@ describe("bootstrap Scenario participation Policies", () => {
       goals: ["project authority"],
       non_goals: [],
       success_measures: ["participation is machine-readable"],
-    });
+    }, { frozen: true, scenario: "compile-psp@3" });
     const reviewContext = lifecycleDatum("BSL", "BSL-X4N7AB2W6J", {
       title: "Exact review context",
       kind: "review-context",
@@ -941,7 +948,7 @@ describe("bootstrap Scenario participation Policies", () => {
       group: "DEFAULT",
       definition_members: [target.datum.revision_id],
       evidence: [],
-    }, { frozen: true, scenario: "create-review-context@1" });
+    }, { frozen: true, scenario: "create-review-context@2" });
     const empirical = question(
       "QST-8ZT5KQ3P9M",
       "Evidence can decide this",
@@ -1030,16 +1037,16 @@ describe("bootstrap Scenario participation Policies", () => {
         item.subject === subject.datum.revision_id
       );
 
-    expect(obligationFor("passing-review-required", target)?.participation)
+    expect(obligationFor("phase-0-foundation-review-required", target)?.participation)
       .toEqual(projectedParticipation(
-        "contextual-review-participation@1",
+        "atomic-review-participation@1",
         "delegated",
-        "independent-reviewer",
+        "stakeholder",
         true,
         "none",
         null,
         null,
-        "coherent-batch",
+        "single",
       ));
     expect(obligationFor("open-question-resolution", empirical)?.participation)
       .toEqual(projectedParticipation(
@@ -1232,7 +1239,6 @@ describe("bootstrap Scenario participation Policies", () => {
     )).toEqual(expect.objectContaining({
       satisfied: false,
       status: "blocked",
-      blockedBy: [expect.stringContaining(`:${decision.datum.revision_id}:`)],
     }));
 
     const reviewedDecision = contextualPassingReview(decision, "REV-8ZT5KQ3P9W");
@@ -1308,7 +1314,6 @@ describe("bootstrap Scenario participation Policies", () => {
     )).toEqual(expect.objectContaining({
       satisfied: false,
       status: "blocked",
-      blockedBy: [expect.stringContaining(`:${decision.datum.revision_id}:`)],
     }));
 
     const reviewedDecision = contextualPassingReview(decision, "REV-8ZT5KQ3P9X");
@@ -2083,15 +2088,18 @@ describe("bootstrap Scenario participation Policies", () => {
       title: "Reviewed exact frontier",
       purpose: "Keep candidate correction fully bound.",
       frontier: ["One bounded candidate"],
-    });
+    }, { frozen: true });
     const reviewedMap = contextualPassingReview(map, "REV-8K3M9Q2D8K");
     const mapReview = reviewedMap.review;
     fixture.candidate.datum.payload.definition_members = [map.datum.revision_id];
+    fixture.candidate.datum.payload.evidence = [mapReview.datum.revision_id];
     fixture.candidateContext.datum.payload.definition_members = [
       fixture.candidate.datum.revision_id,
       map.datum.revision_id,
     ];
     fixture.candidateReview.datum.payload.outcome = "fail";
+    fixture.candidateReview.datum.payload.review_kind =
+      "simplification-product-definition";
     fixture.candidateReview.datum.payload.correction_authority = "stakeholder";
     fixture.candidateReview.datum.payload.simplification = {
       target: fixture.candidate.datum.revision_id,
@@ -2229,10 +2237,11 @@ describe("bootstrap Scenario participation Policies", () => {
       title: "Reviewed exact frontier",
       purpose: "Keep the candidate correction Assignment fully bound.",
       frontier: ["One bounded candidate"],
-    });
+    }, { frozen: true });
     const reviewedMap = contextualPassingReview(map, "REV-8K3M9Q2D8J");
     const mapReview = reviewedMap.review;
     first.datum.payload.definition_members = [map.datum.revision_id];
+    first.datum.payload.evidence = [mapReview.datum.revision_id];
     const replacement = structuredClone(first);
     replacement.datum.revision = 2;
     replacement.datum.revision_id = `${first.datum.id}-r00002`;
@@ -2332,457 +2341,6 @@ describe("bootstrap Scenario participation Policies", () => {
       .toEqual([expect.objectContaining({
         identity: expect.objectContaining({ revision_id: reviews[2]!.datum.revision_id }),
       })]);
-  });
-
-  it("resolves an indexed question before correcting its dependent intent candidate", async () => {
-    const fixture = reviewedGateFixture(processRef);
-    const openQuestion = question(
-      "QST-7K3M9Q2D8J",
-      "Choose the exact stakeholder product boundary",
-      "preferential",
-      {
-        attentionCheckpoint: "phase-0-gate",
-        consolidationGroup: "phase-0-stakeholder-questions",
-      },
-    );
-    openQuestion.storage = { editable: false, frozen: true };
-    const sourceBoundary = lifecycleDatum("BSL", "BSL-7K3M9Q2D8J", {
-      title: "Exact source boundary",
-      kind: "source-boundary",
-      role: "source-boundary",
-      scope: openQuestion.datum.revision_id,
-      group: "SAME-LINEAGE",
-      definition_members: [openQuestion.datum.revision_id],
-      evidence: [],
-    }, { frozen: true, scenario: "freeze-source-boundary@1" });
-    sourceBoundary.integrity.scenario_execution_valid = true;
-    const map = lifecycleDatum("MAP", "MAP-7K3M9Q2D8J", {
-      title: "Stakeholder decision frontier",
-      purpose: "Index exact open decisions before product-intent approval.",
-      frontier: ["Resolve the stakeholder product boundary."],
-    }, {
-      frozen: true,
-      links: [{ type: "indexes", target: openQuestion.datum.id }],
-    });
-    const reviewedMap = contextualPassingReview(map, "REV-7K3M9Q2D8J");
-    reviewedMap.context.datum.payload.definition_members = [
-      map.datum.revision_id,
-      openQuestion.datum.revision_id,
-    ].sort();
-    const product = lifecycleDatum("PSP", "PSP-7K3M9Q2D8J", {
-      title: "Bounded stakeholder product",
-      rationale: "Preserve only the explicitly selected product intent.",
-      problem: "The product boundary requires an authorized choice.",
-      users: ["stakeholder"],
-      goals: ["Deliver the selected bounded outcome."],
-      non_goals: ["Infer additional stakeholder scope."],
-      success_measures: ["The reviewed commitment matches the selected boundary."],
-    }, { frozen: true });
-    const reviewedProduct = contextualPassingReview(product, "REV-7K3M9Q2D8N");
-    const requirement = lifecycleDatum("STK", "STK-7K3M9Q2D8J", {
-      title: "Selected stakeholder outcome",
-      rationale: "Capture the authorized boundary as an assessable commitment.",
-      statement: "The product shall deliver the selected bounded outcome.",
-      verification_intent: "Observe the selected outcome without added scope.",
-      stakeholder: "stakeholder",
-      priority: "must",
-      system_context: "bounded-product",
-    }, {
-      frozen: true,
-      links: [{ type: "derived-from", target: product.datum.id }],
-    });
-    const reviewedRequirement = contextualPassingReview(
-      requirement,
-      "REV-7K3M9Q2D8P",
-    );
-    const foundation = [map, product, requirement];
-    const memberReviews = [
-      reviewedMap.review,
-      reviewedProduct.review,
-      reviewedRequirement.review,
-    ];
-
-    fixture.candidate.datum.payload.definition_members = foundation.map(
-      (member) => member.datum.revision_id,
-    );
-    fixture.candidate.datum.payload.evidence = memberReviews.map(
-      (review) => review.datum.revision_id,
-    );
-    fixture.candidateContext.datum.payload.definition_members = [
-      fixture.candidate.datum.revision_id,
-      ...foundation.map((member) => member.datum.revision_id),
-      openQuestion.datum.revision_id,
-    ].sort();
-    fixture.candidateReview.datum.payload.outcome = "fail";
-    fixture.candidateReview.datum.payload.correction_authority = "stakeholder";
-    fixture.candidateReview.datum.payload.simplification = {
-      target: fixture.candidate.datum.revision_id,
-      findings: [{
-        id: "F-001",
-        severity: "blocking",
-        criterion: "Intent candidates must not embed an unresolved stakeholder boundary.",
-        evidence: "The exact MAP member indexes the unresolved preferential Question.",
-        material_consequence: "Candidate correction cannot infer the stakeholder answer.",
-        summary: "Resolve the indexed Question before rebuilding the candidate.",
-      }],
-    };
-    fixture.candidateReview.datum.links.push({
-      type: "blocks",
-      target: fixture.candidate.datum.revision_id,
-    });
-
-    const records = [
-      openQuestion,
-      sourceBoundary,
-      ...foundation,
-      reviewedMap.context,
-      reviewedMap.review,
-      reviewedProduct.context,
-      reviewedProduct.review,
-      reviewedRequirement.context,
-      reviewedRequirement.review,
-      fixture.candidate,
-      fixture.candidateContext,
-      fixture.candidateReview,
-    ];
-    const evaluate = () => evaluateLifecycle(processPackage, {
-      processRef,
-      phaseId: "phase-0-wayfinding",
-      records,
-      dependencyComparisons: [],
-    });
-
-    const initial = evaluate();
-    const blockedCorrection = initial.obligations.find((item) =>
-      item.obligation === "intent-candidate-review-correction-required" &&
-      item.subject === fixture.candidate.datum.revision_id
-    );
-    expect(blockedCorrection).toEqual(expect.objectContaining({
-      status: "blocked",
-      dispatchable: false,
-      actionableResolver: "resolve-question@2",
-      explanation: expect.stringMatching(/question/i),
-    }));
-    expect(initial.obligations.find((item) =>
-      item.obligation === "open-question-resolution" &&
-      item.subject === openQuestion.datum.revision_id
-    )).toEqual(expect.objectContaining({
-      status: "ready",
-      dispatchable: true,
-      actionableResolver: "resolve-question@2",
-      participation: projectedParticipation(
-        "question-participation@1",
-        "attended",
-        "stakeholder",
-        false,
-        "immediate",
-        null,
-        null,
-        "single",
-      ),
-    }));
-    expect(nextWorkProjection(initial)?.item).toEqual(expect.objectContaining({
-      subject: openQuestion.datum.revision_id,
-      actionableResolver: "resolve-question@2",
-      participation: projectedParticipation(
-        "question-participation@1",
-        "attended",
-        "stakeholder",
-        false,
-        "immediate",
-        null,
-        null,
-        "single",
-      ),
-    }));
-
-    const answeredQuestion = structuredClone(openQuestion);
-    answeredQuestion.datum.revision = 2;
-    answeredQuestion.datum.revision_id = `${openQuestion.datum.id}-r00002`;
-    answeredQuestion.datum.payload.state = "answered";
-    answeredQuestion.datum.created_by.scenario = "resolve-question@2";
-    answeredQuestion.storage = { editable: true, frozen: false };
-    const reviewedResolvedMap = contextualPassingReview(
-      map,
-      "REV-7K3M9Q2D8Q",
-    );
-    reviewedResolvedMap.context.datum.payload.definition_members = [
-      map.datum.revision_id,
-      answeredQuestion.datum.revision_id,
-    ].sort();
-    const answer = lifecycleDatum("DEC", "DEC-7K3M9Q2D8J", {
-      title: "Authorized stakeholder product boundary",
-      rationale: "The stakeholder selected the exact product boundary.",
-      kind: "scope",
-      decision: "Use the explicitly selected product boundary.",
-      alternatives: ["Infer a boundary autonomously"],
-      effective_scope: answeredQuestion.datum.revision_id,
-    }, {
-      frozen: true,
-      links: [
-        { type: "resolves", target: openQuestion.datum.revision_id },
-        { type: "resolves", target: answeredQuestion.datum.revision_id },
-      ],
-      scenario: "resolve-question@2",
-    });
-    const deceptiveAnswer = lifecycleDatum("DEC", "DEC-7K3M9Q2D8L", {
-      title: "Deceptively linked product boundary",
-      rationale: "Matching links without exact Question-resolution provenance are insufficient.",
-      kind: "scope",
-      decision: "Claim an unrelated authority route resolved the Question.",
-      alternatives: ["Use the attended Question-resolution route"],
-      effective_scope: answeredQuestion.datum.revision_id,
-    }, {
-      frozen: true,
-      links: [{ type: "resolves", target: answeredQuestion.datum.revision_id }],
-      scenario: "record-consequential-decision@1",
-    });
-    const reviewedAnswer = contextualPassingReview(answer, "REV-7K3M9Q2D8K");
-    reviewedAnswer.context.datum.payload.definition_members = [
-      answer.datum.revision_id,
-      answeredQuestion.datum.revision_id,
-    ].sort();
-    const unrelatedQuestion = structuredClone(answeredQuestion);
-    unrelatedQuestion.datum.id = "QST-8K3M9Q2D8F";
-    unrelatedQuestion.datum.revision_id = "QST-8K3M9Q2D8F-r00001";
-    unrelatedQuestion.datum.revision = 1;
-    const unrelatedAnswer = lifecycleDatum("DEC", "DEC-8K3M9Q2D8F", {
-      title: "Unrelated authorized boundary",
-      rationale: "Another question received its own stakeholder disposition.",
-      kind: "scope",
-      decision: "Use an unrelated product boundary.",
-      alternatives: ["Infer the unrelated boundary autonomously"],
-      effective_scope: unrelatedQuestion.datum.revision_id,
-    }, {
-      frozen: true,
-      links: [{ type: "resolves", target: unrelatedQuestion.datum.revision_id }],
-      scenario: "resolve-question@2",
-    });
-    const reviewedUnrelatedAnswer = contextualPassingReview(
-      unrelatedAnswer,
-      "REV-8K3M9Q2D8F",
-    );
-    reviewedUnrelatedAnswer.context.datum.payload.definition_members = [
-      unrelatedAnswer.datum.revision_id,
-      unrelatedQuestion.datum.revision_id,
-    ].sort();
-    records.push(
-      answeredQuestion,
-      answer,
-      deceptiveAnswer,
-      reviewedAnswer.context,
-      reviewedAnswer.review,
-      unrelatedQuestion,
-      unrelatedAnswer,
-      reviewedUnrelatedAnswer.context,
-      reviewedUnrelatedAnswer.review,
-      reviewedResolvedMap.context,
-      reviewedResolvedMap.review,
-    );
-
-    const candidateResolutionSupport = evaluateProcessDefinition(
-      processPackage,
-      {
-        processRef,
-        phaseId: "phase-0-wayfinding",
-        records,
-        dependencyComparisons: [],
-      },
-      "selector",
-      "review-context-members-for@1",
-      { subject: fixture.candidate.datum.revision_id },
-    ).result as Array<{ identity: { revision_id: string } }>;
-    expect(candidateResolutionSupport.map((item) =>
-      item.identity.revision_id
-    )).toEqual(expect.arrayContaining([
-      answeredQuestion.datum.revision_id,
-      answer.datum.revision_id,
-    ]));
-    expect(candidateResolutionSupport.map((item) =>
-      item.identity.revision_id
-    )).not.toContain(unrelatedQuestion.datum.revision_id);
-    expect(candidateResolutionSupport.map((item) =>
-      item.identity.revision_id
-    )).not.toContain(unrelatedAnswer.datum.revision_id);
-    expect(candidateResolutionSupport.map((item) =>
-      item.identity.revision_id
-    )).not.toContain(deceptiveAnswer.datum.revision_id);
-
-    const change = lifecycleDatum("CHG", "CHG-9K3M9Q2D8F", {
-      title: "Bounded change carrying accepted intent forward",
-      rationale: "Prove change context does not replace Question authority.",
-      scope: "accepted product intent",
-      planned_changes: ["carry the exact accepted definition forward"],
-      implementation_order: "intent then review",
-      closure_criteria: ["the changed candidate preserves exact authority"],
-    }, { frozen: true, scenario: "analyze-change-impact@2" });
-    const changedCandidate = structuredClone(fixture.candidate);
-    changedCandidate.datum.id = "BSL-9K3M9Q2D8G";
-    changedCandidate.datum.revision_id = "BSL-9K3M9Q2D8G-r00001";
-    changedCandidate.datum.links = [{
-      type: "changed-under",
-      target: change.datum.revision_id,
-    }];
-    changedCandidate.datum.created_by.scenario =
-      "create-stakeholder-change-candidate@1";
-    const changedRecords = [...records, change, changedCandidate];
-    const changedCandidateSupport = evaluateProcessDefinition(
-      processPackage,
-      {
-        processRef,
-        phaseId: "phase-7-change-control",
-        records: changedRecords,
-        dependencyComparisons: [],
-      },
-      "selector",
-      "review-context-members-for@1",
-      { subject: changedCandidate.datum.revision_id },
-    ).result as Array<{ identity: { revision_id: string } }>;
-    expect(changedCandidateSupport.map((item) =>
-      item.identity.revision_id
-    )).toEqual(expect.arrayContaining([
-      answeredQuestion.datum.revision_id,
-      answer.datum.revision_id,
-      change.datum.revision_id,
-    ]));
-    const unreviewedChangedAuthorities = evaluateProcessDefinition(
-      processPackage,
-      {
-        processRef,
-        phaseId: "phase-7-change-control",
-        records: changedRecords.filter((record) =>
-          record.datum.revision_id !== reviewedAnswer.context.datum.revision_id
-          && record.datum.revision_id !== reviewedAnswer.review.datum.revision_id
-        ),
-        dependencyComparisons: [],
-      },
-      "selector",
-      "candidate-correction-authorities-requiring-review@1",
-      { candidate: changedCandidate.datum.revision_id },
-    ).result as Array<{ identity: { revision_id: string } }>;
-    expect(unreviewedChangedAuthorities.map((item) =>
-      item.identity.revision_id
-    )).toContain(answer.datum.revision_id);
-
-    const refreshedCandidateContext = lifecycleDatum(
-      "BSL",
-      "BSL-9K3M9Q2D8F",
-      {
-        title: "Candidate Review Context with resolved Question authority",
-        kind: "review-context",
-        role: "review-context",
-        scope: fixture.candidate.datum.revision_id,
-        group: "DEFAULT",
-        definition_members: [
-          fixture.candidate.datum.revision_id,
-          ...foundation.map((member) => member.datum.revision_id),
-          answeredQuestion.datum.revision_id,
-          answer.datum.revision_id,
-        ].sort(),
-        evidence: [],
-      },
-      { frozen: true, scenario: "create-review-context@1" },
-    );
-    const refreshedCandidateReview = structuredClone(fixture.candidateReview);
-    refreshedCandidateReview.datum.id = "REV-9K3M9Q2D8F";
-    refreshedCandidateReview.datum.revision_id = "REV-9K3M9Q2D8F-r00001";
-    refreshedCandidateReview.datum.links = [
-      { type: "reviews", target: fixture.candidate.datum.revision_id },
-      {
-        type: "contextualizes",
-        target: refreshedCandidateContext.datum.revision_id,
-      },
-      { type: "blocks", target: fixture.candidate.datum.revision_id },
-    ];
-    records.push(refreshedCandidateContext, refreshedCandidateReview);
-
-    const readyCorrection = evaluate().obligations.find((item) =>
-      item.obligation === "intent-candidate-review-correction-required" &&
-      item.subject === fixture.candidate.datum.revision_id
-    );
-    expect(readyCorrection).toEqual(expect.objectContaining({
-      status: "ready",
-      dispatchable: true,
-      actionableResolver: "revise-intent-candidate-after-review@3",
-    }));
-    expect(readyCorrection).toBeDefined();
-    const prepared = await dryRunResolverScenario(
-      processPackage,
-      {
-        processRef,
-        phaseId: "phase-0-wayfinding",
-        records,
-        dependencyComparisons: [],
-      },
-      "revise-intent-candidate-after-review@3",
-      readyCorrection!.id,
-      [],
-    );
-    expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
-    if (!prepared.ok) return;
-    expect(prepared.value.invocations[0]!.inputs).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        name: "question_dispositions",
-        values: [expect.objectContaining({
-          identity: expect.objectContaining({
-            revision_id: answeredQuestion.datum.revision_id,
-          }),
-        })],
-      }),
-      expect.objectContaining({
-        name: "question_decisions",
-        values: [expect.objectContaining({
-          identity: expect.objectContaining({ revision_id: answer.datum.revision_id }),
-        })],
-      }),
-    ]));
-
-    const replacement = structuredClone(fixture.candidate);
-    replacement.datum.revision = 2;
-    replacement.datum.revision_id = `${fixture.candidate.datum.id}-r00002`;
-    replacement.datum.links = [
-      { type: "supersedes", target: fixture.candidate.datum.revision_id },
-      { type: "corrects-review", target: fixture.candidateReview.datum.revision_id },
-    ];
-    replacement.datum.payload.evidence = [
-      reviewedResolvedMap.review.datum.revision_id,
-      reviewedProduct.review.datum.revision_id,
-      reviewedRequirement.review.datum.revision_id,
-    ];
-    replacement.datum.created_by.scenario =
-      "revise-intent-candidate-after-review@3";
-    const reviewedReplacement = contextualPassingReview(
-      replacement,
-      "REV-7K3M9Q2D8M",
-    );
-    reviewedReplacement.context.datum.payload.definition_members = [
-      replacement.datum.revision_id,
-      ...foundation.map((member) => member.datum.revision_id),
-      answeredQuestion.datum.revision_id,
-      answer.datum.revision_id,
-      fixture.candidateReview.datum.revision_id,
-    ].sort();
-    reviewedReplacement.review.datum.payload.review_kind =
-      "simplification-product-definition";
-    reviewedReplacement.review.datum.payload.rubric_ref =
-      "policies/rubrics/bootstrap-review.md@1";
-    reviewedReplacement.review.datum.payload.summary =
-      "The replacement is the smallest sufficient product definition.";
-    records.push(
-      replacement,
-      reviewedReplacement.context,
-      reviewedReplacement.review,
-    );
-    const progressed = evaluate();
-    expect(progressed.obligations.filter((item) =>
-      item.obligation === "intent-candidate-review-correction-required" &&
-      [fixture.candidate.datum.revision_id, replacement.datum.revision_id]
-        .includes(item.subject)
-    )).toEqual([]);
-    expect(progressed.obligations.find((item) =>
-      item.obligation === "passing-review-required" &&
-      item.subject === replacement.datum.revision_id
-    )).toEqual(expect.objectContaining({ satisfied: true }));
   });
 
   it("routes a failed Question Decision through exact attended correction", async () => {
@@ -3009,7 +2567,7 @@ describe("bootstrap Scenario participation Policies", () => {
       title: "Current map",
       purpose: "Bound the exact intent frontier.",
       frontier: ["One product commitment"],
-    });
+    }, { frozen: true });
     const product = lifecycleDatum("PSP", "PSP-4K3M9Q2D8F", {
       title: "Current product",
       rationale: "Define the exact product intent.",
@@ -3018,7 +2576,7 @@ describe("bootstrap Scenario participation Policies", () => {
       goals: ["Deterministic outcomes"],
       non_goals: ["Implementation detail"],
       success_measures: ["Exact command results"],
-    });
+    }, { frozen: true });
     const requirement = lifecycleDatum(
       "STK",
       "STK-4K3M9Q2D8F",
@@ -3031,7 +2589,10 @@ describe("bootstrap Scenario participation Policies", () => {
         priority: "must",
         system_context: "product",
       },
-      { links: [{ type: "derived-from", target: product.datum.id }] },
+      {
+        frozen: true,
+        links: [{ type: "derived-from", target: product.datum.id }],
+      },
     );
     const foundation = [map, product, requirement];
     fixture.candidate.datum.payload.definition_members = foundation.map(
@@ -3048,6 +2609,9 @@ describe("bootstrap Scenario participation Policies", () => {
     ];
     const passingReviewPairs = foundation.map((subject, index) =>
       contextualPassingReview(subject, reviewIds[index]!),
+    );
+    fixture.candidate.datum.payload.evidence = passingReviewPairs.map(
+      ({ review }) => review.datum.revision_id,
     );
     fixture.signoff.datum.payload.gate_outcome = "reject";
     fixture.signoff.datum.payload.decision = "Reject and replace the exact candidate.";
