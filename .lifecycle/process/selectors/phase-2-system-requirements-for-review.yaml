@@ -10,8 +10,7 @@ query:
   from: {collection: revisions, types: [SYS]}
   as: requirement
   where: >-
-    review.payload.decomposition_plan_revision == plan.identity.revision_id
-    && count("phase-2-contexts-for-review@1", {review: review}) == 1
+    count("phase-2-contexts-for-review@1", {review: review}) == 1
     && exists("review-context-contains-member@1",
       {context: one("phase-2-contexts-for-review@1", {review: review}), required_member: requirement})
   distinct: true
