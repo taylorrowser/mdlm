@@ -22,9 +22,6 @@ inputs:
     types: [QST]
     cardinality: zero-or-more
     identity: revision
-    conditions: >-
-      !every("phase-0-foundation-stable-link-targets@1", {}, target =>
-        target != stable_link_targets)
 outputs:
   - {name: candidate, types: [BSL], cardinality: one, required_links: []}
 prompt_ref: prompts/create-phase-0-intent-candidate.md@1
