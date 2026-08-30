@@ -1,7 +1,7 @@
 kind: selector-definition
 id: structural-passing-candidate-reviews-for-review
 version: 1
-description: Current structurally passing product-simplification Reviews for Review Context assembly without operational disposition recursion.
+description: Current structurally passing candidate Reviews for Review Context assembly without operational disposition recursion.
 parameters:
   - {name: candidate, kind: baseline, types: [BSL]}
 result_kind: revision
@@ -10,10 +10,24 @@ query:
   as: review
   where: >-
     review.provenance.scenario == "review-datum-in-context@3"
-    && review.payload.review_kind == "simplification-product-definition"
     && review.payload.outcome == "pass"
-    && !present(review.payload.simplification)
-    && none("product-simplification-blockers-for-review@1", {review: review})
+    && (
+      (
+        candidate.payload.kind == "intent-level-candidate"
+        && review.payload.review_kind == "simplification-product-definition"
+        && !present(review.payload.simplification)
+        && none("product-simplification-blockers-for-review@1", {review: review})
+      )
+      || (
+        candidate.payload.kind == "level-candidate"
+        && review.payload.review_kind != "simplification-product-definition"
+        && count("structural-review-contexts-cited-by@1", {review: review}) == 1
+        && every("structural-review-contexts-cited-by@1", {review: review}, context =>
+          context.payload.scope == candidate.identity.revision_id
+          && context.provenance.process_ref == process.current_ref
+          && context.provenance.scenario == "create-review-context@2")
+      )
+    )
     && none("newer-revisions-for@1", {subject: review})
   distinct: true
   order_by: [identity.revision_id]
