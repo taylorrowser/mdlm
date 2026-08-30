@@ -409,6 +409,7 @@ export interface AssignmentResponseSkeleton {
     outputs: {
       handle: string;
       output?: string;
+      invocation?: number;
       type: string;
       payload: null;
       links: SymbolicProposalLink[];
@@ -2122,6 +2123,7 @@ interface SymbolicProposalLink {
 interface SymbolicProposalOutput {
   handle: string;
   output?: string;
+  invocation?: number;
   type: string;
   payload: Record<string, unknown> | null;
   links: SymbolicProposalLink[];
@@ -2200,6 +2202,7 @@ export function assignmentResponseSchema(
                 properties: {
                   handle: { type: "string", pattern: "^[A-Za-z][A-Za-z0-9_-]*$" },
                   output: { type: "string", pattern: "^[A-Za-z][A-Za-z0-9_-]*$" },
+                  invocation: { type: "integer", minimum: 0 },
                   type: { type: "string", pattern: "^[A-Z]{3,8}$" },
                   payload: { type: ["object", "null"] },
                   links: {
@@ -2364,9 +2367,7 @@ function assignmentResponseSkeleton(
   lease: AssignmentLease,
 ): AssignmentResponseSkeleton | undefined {
   const { dryRun, processPackage, scenario } = exact;
-  if (dryRun.invocations.length !== 1) return undefined;
-
-  const invocation = dryRun.invocations[0]!;
+  if (dryRun.invocations.length === 0) return undefined;
   const outputByName = new Map(dryRun.expectedOutputs.map((output) => [
     output.name,
     output,
@@ -2388,89 +2389,100 @@ function assignmentResponseSkeleton(
   ]));
 
   const outputs: AssignmentResponseSkeleton["proposal"]["outputs"] = [];
-  for (const expected of dryRun.expectedOutputs) {
-    const definition = outputDefinitions.find((output) =>
-      output?.name === expected.name
-    );
-    const identityInputName = typeof object(definition?.identity_from)?.input === "string"
-      ? String(object(definition?.identity_from)!.input)
-      : undefined;
-    const identityInput = identityInputName
-      ? invocation.inputs.find((input) => input.name === identityInputName)
-      : undefined;
-    const boundType = identityInput?.values.length === 1
-      ? identityInput.values[0]!.identity.type
-      : undefined;
-    const sourceType = expected.types.length === 1
-      ? expected.types[0]
-      : boundType && expected.types.includes(boundType)
-      ? boundType
-      : undefined;
-    const requiredLinks = Array.isArray(definition?.required_links)
-      ? definition.required_links.map(object)
-      : [];
-    if (
-      !definition ||
-      !sourceType ||
-      requiredLinks.some((link) => !link) ||
-      requiredLinks.length !== expected.requiredLinks.length
-    ) return undefined;
+  const batched = dryRun.invocations.length > 1;
+  const responseHandle = (invocation: number, output: string) =>
+    batched ? `invocation-${invocation + 1}-${output}` : output;
+  for (const [invocationIndex, invocation] of dryRun.invocations.entries()) {
+    for (const expected of dryRun.expectedOutputs) {
+      const definition = outputDefinitions.find((output) =>
+        output?.name === expected.name
+      );
+      const identityInputName = typeof object(definition?.identity_from)?.input === "string"
+        ? String(object(definition?.identity_from)!.input)
+        : undefined;
+      const identityInput = identityInputName
+        ? invocation.inputs.find((input) => input.name === identityInputName)
+        : undefined;
+      const boundType = identityInput?.values.length === 1
+        ? identityInput.values[0]!.identity.type
+        : undefined;
+      const sourceType = expected.types.length === 1
+        ? expected.types[0]
+        : boundType && expected.types.includes(boundType)
+        ? boundType
+        : undefined;
+      const requiredLinks = Array.isArray(definition?.required_links)
+        ? definition.required_links.map(object)
+        : [];
+      if (
+        !definition ||
+        !sourceType ||
+        requiredLinks.some((link) => !link) ||
+        requiredLinks.length !== expected.requiredLinks.length
+      ) return undefined;
 
-    const links: SymbolicProposalLink[] = [];
-    for (const required of requiredLinks) {
-      const linkId = typeof required?.link === "string" ? required.link : undefined;
-      const target = object(required?.target);
-      if (!linkId) return undefined;
-      if (typeof target?.input === "string") {
-        const input = invocation.inputs.find((candidate) =>
-          candidate.name === target.input
-        );
-        if (!input) return undefined;
-        for (const value of input.values) {
-          if (!requiredLinkIdentity(
+      const links: SymbolicProposalLink[] = [];
+      for (const required of requiredLinks) {
+        const linkId = typeof required?.link === "string" ? required.link : undefined;
+        const target = object(required?.target);
+        if (!linkId) return undefined;
+        if (typeof target?.input === "string") {
+          const input = invocation.inputs.find((candidate) =>
+            candidate.name === target.input
+          );
+          if (!input) return undefined;
+          for (const value of input.values) {
+            if (!requiredLinkIdentity(
+              processPackage,
+              sourceType,
+              linkId,
+              value.identity.type,
+            )) return undefined;
+            links.push({
+              type: linkId,
+              target: input.values.length === 1
+                ? { input: target.input }
+                : { datum: exactEntityId(value) },
+            });
+          }
+          continue;
+        }
+        if (typeof target?.output === "string") {
+          const targetOutput = outputByName.get(target.output);
+          const targetType = targetOutput?.types[0];
+          if (!targetOutput || !targetType) return undefined;
+          const identity = requiredLinkIdentity(
             processPackage,
             sourceType,
             linkId,
-            value.identity.type,
-          )) return undefined;
+            targetType,
+          );
+          if (!identity) return undefined;
           links.push({
             type: linkId,
-            target: input.values.length === 1
-              ? { input: target.input }
-              : { datum: exactEntityId(value) },
+            target: {
+              output: responseHandle(
+                invocationIndex,
+                handleByName.get(targetOutput.name) ?? targetOutput.name,
+              ),
+            },
           });
+          continue;
         }
-        continue;
+        return undefined;
       }
-      if (typeof target?.output === "string") {
-        const targetOutput = outputByName.get(target.output);
-        const targetType = targetOutput?.types[0];
-        if (!targetOutput || !targetType) return undefined;
-        const identity = requiredLinkIdentity(
-          processPackage,
-          sourceType,
-          linkId,
-          targetType,
-        );
-        if (!identity) return undefined;
-        links.push({
-          type: linkId,
-          target: { output: handleByName.get(targetOutput.name) ?? targetOutput.name },
-        });
-        continue;
-      }
-      return undefined;
+      const outputHandle = handleByName.get(expected.name) ?? expected.name;
+      const repeated = ["one-or-more", "zero-or-more"].includes(expected.cardinality);
+      outputs.push({
+        handle: responseHandle(invocationIndex, outputHandle),
+        ...(repeated || batched ? { output: outputHandle } : {}),
+        ...(batched ? { invocation: invocationIndex } : {}),
+        type: sourceType,
+        payload: null,
+        links,
+        body: null,
+      });
     }
-    const outputHandle = handleByName.get(expected.name) ?? expected.name;
-    const repeated = ["one-or-more", "zero-or-more"].includes(expected.cardinality);
-    outputs.push({
-      handle: outputHandle,
-      ...(repeated ? { output: outputHandle } : {}),
-      type: sourceType,
-      payload: null,
-      links,
-      body: null,
-    });
   }
 
   return {
@@ -2489,15 +2501,12 @@ function internalLinkTarget(
   sourceType: string,
   link: SymbolicProposalLink,
   outputTypes: Map<string, string>,
+  invocation: number,
 ): string | undefined {
   if ("datum" in link.target) return link.target.datum;
   if ("input" in link.target) {
     const inputName = link.target.input;
-    const values = exact.dryRun.invocations.flatMap((invocation) =>
-      invocation.inputs
-        .filter((input) => input.name === inputName)
-        .flatMap((input) => input.values)
-    );
+    const values = inputEntities(exact, inputName, invocation);
     if (values.length !== 1) return undefined;
     const value = values[0]!;
     const identity = requiredLinkIdentity(
@@ -2548,6 +2557,13 @@ function scenarioProposalFromResponse(
         : definition.name] as const]
       : []
   ));
+  const batched = exact.dryRun.invocations.length > 1;
+  const responseInvocation = (output: SymbolicProposalOutput): number =>
+    output.invocation ?? 0;
+  const responseOutput = (output: SymbolicProposalOutput): string =>
+    output.output ?? output.handle;
+  const responseKey = (output: SymbolicProposalOutput): string =>
+    `${responseInvocation(output)}:${responseOutput(output)}`;
   const supplied = new Map<string, SymbolicProposalOutput>();
   for (const output of response.proposal.outputs) {
     if (supplied.has(output.handle)) {
@@ -2560,21 +2576,23 @@ function scenarioProposalFromResponse(
     supplied.set(output.handle, output);
   }
   const expected = new Map(scaffold.proposal.outputs.map((output) => [
-    output.output ?? output.handle,
+    responseKey(output),
     output,
   ]));
-  const suppliedOutput = (output: SymbolicProposalOutput): string =>
-    output.output ?? output.handle;
   const unexpected = [...supplied.values()]
-    .filter((output) => !expected.has(suppliedOutput(output)))
-    .map((output) => suppliedOutput(output));
-  const missing = [...expected.entries()]
-    .filter(([handle, output]) =>
-      !output.output && ![...supplied.values()].some((value) =>
-        suppliedOutput(value) === handle
-      )
+    .filter((output) =>
+      (batched && output.invocation === undefined) || !expected.has(responseKey(output))
     )
-    .map(([handle]) => handle);
+    .map((output) => responseKey(output));
+  const missing = [...expected.entries()]
+    .filter(([key, output]) =>
+      exact.dryRun.expectedOutputs.find((candidate) =>
+        (handleByName.get(candidate.name) ?? candidate.name) ===
+          responseOutput(output)
+      )?.cardinality === "one" &&
+      ![...supplied.values()].some((value) => responseKey(value) === key)
+    )
+    .map(([key]) => key);
   if (unexpected.length > 0 || missing.length > 0) {
     return failure(
       "assignment-response-handles-invalid",
@@ -2586,14 +2604,17 @@ function scenarioProposalFromResponse(
     output.handle,
     output.type,
   ]));
-  const omittedOutputs = new Set(exact.dryRun.expectedOutputs.flatMap((contract) => {
-    if (!contract.cardinality.startsWith("zero-")) return [];
-    const handle = handleByName.get(contract.name) ?? contract.name;
+  const omittedOutputs = new Set(scaffold.proposal.outputs.flatMap((expectedOutput) => {
+    const contract = exact.dryRun.expectedOutputs.find((candidate) =>
+      (handleByName.get(candidate.name) ?? candidate.name) ===
+        responseOutput(expectedOutput)
+    );
+    if (!contract?.cardinality.startsWith("zero-")) return [];
     const values = response.proposal.outputs.filter((output) =>
-      suppliedOutput(output) === handle
+      responseKey(output) === responseKey(expectedOutput)
     );
     return values.every((output) => output.payload === null && output.body === null)
-      ? [handle]
+      ? [expectedOutput.handle]
       : [];
   }));
   const activeLinks = (links: SymbolicProposalLink[]) => links.filter((link) =>
@@ -2602,9 +2623,10 @@ function scenarioProposalFromResponse(
   const materialization = exactBaselineMaterializationContract(exact.scenario);
   const outputs: ScenarioProposal["outputs"] = [];
   for (const output of response.proposal.outputs) {
-    const expectedOutput = expected.get(suppliedOutput(output))!;
+    const invocation = responseInvocation(output);
+    const expectedOutput = expected.get(responseKey(output))!;
     const outputContract = exact.dryRun.expectedOutputs.find((candidate) =>
-      (handleByName.get(candidate.name) ?? candidate.name) === suppliedOutput(output)
+      (handleByName.get(candidate.name) ?? candidate.name) === responseOutput(output)
     )!;
     if (output.type !== expectedOutput.type) {
       return failure(
@@ -2657,7 +2679,13 @@ function scenarioProposalFromResponse(
     }
     const links = activeLinks(output.links).map((link) => ({
       type: link.type,
-      target: internalLinkTarget(exact, output.type, link, outputTypes),
+      target: internalLinkTarget(
+        exact,
+        output.type,
+        link,
+        outputTypes,
+        invocation,
+      ),
     }));
     if (links.some((link) => link.target === undefined)) {
       return failure(
@@ -2668,21 +2696,21 @@ function scenarioProposalFromResponse(
     }
     const subject = materialization &&
         outputContract.name === materialization.output
-      ? inputEntities(exact, materialization.subjectInput)[0]
+      ? inputEntities(exact, materialization.subjectInput, invocation)[0]
       : undefined;
     const kernelPayload = materialization && subject?.identity.revision_id
       ? exactBaselineProposal(
           output.type,
           subject,
-          inputEntities(exact, materialization.supportInput),
+          inputEntities(exact, materialization.supportInput, invocation),
           materialization,
-          0,
+          invocation,
         ).outputs[0]?.lifecycleDatum.payload
       : undefined;
     outputs.push({
       localId: output.handle,
       name: outputContract.name,
-      invocation: 0,
+      invocation,
       lifecycleDatum: {
         type: output.type,
         payload: kernelPayload ?? authoredPayload,

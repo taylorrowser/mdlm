@@ -38,7 +38,7 @@ function commit(repository: string, message: string) {
   }
 }
 
-it("renders and validates repeated symbolic outputs with a partitioned link", async () => {
+it("renders and validates repeated and batched symbolic outputs", async () => {
   const parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-repeated-output-"));
   try {
     const processRoot = await terminalProcessPackage(parent);
@@ -171,6 +171,71 @@ it("renders and validates repeated symbolic outputs with a partitioned link", as
       },
       waiver_policy_ref: "no-waiver@1",
     });
+    const itemType = parse(await fs.readFile(itemTypePath, "utf8"));
+    itemType.outgoing_links = [{
+        id: "reviews",
+        description: "Exact fixture group reviewed by this audit.",
+        targets: [{ kind: "datum", types: ["GRP"], identity: "revision" }],
+        cardinality: { minimum: 0, maximum: 1 },
+        freeze_resolution: "already-exact",
+        inverse_label: "reviewed-by",
+      }];
+    await writeYaml(processRoot, "types/ITM.yaml", itemType);
+    await writeYaml(processRoot, "scenarios/audit-groups.yaml", {
+      kind: "scenario-definition",
+      id: "audit-groups",
+      version: 1,
+      description: "Audit each exact fixture group in one coherent transaction.",
+      phases: ["phase-0-terminal"],
+      inputs: [{
+        name: "group",
+        types: ["GRP"],
+        cardinality: "one",
+        identity: "revision",
+      }],
+      outputs: [{
+        name: "audit",
+        types: ["ITM"],
+        cardinality: "one",
+        required_links: [{ link: "reviews", target: { input: "group" } }],
+      }],
+      prompt_ref: "prompts/audit-groups.md@1",
+      review_policy_ref: "no-waiver@1",
+      completion: "execution.integrity.contract_valid == true",
+      resolves: ["group-audits-required"],
+      prohibited_inputs: [],
+      batching: "coherent-batch",
+    });
+    await fs.writeFile(
+      path.join(processRoot, "prompts/audit-groups.md"),
+      "---\nid: audit-groups\nversion: 1\nscenario: audit-groups\n---\n\n# Audit groups\n",
+    );
+    await writeYaml(processRoot, "obligations/group-audits-required.yaml", {
+      kind: "obligation-definition",
+      id: "group-audits-required",
+      version: 1,
+      description: "Require one audit per exact fixture group.",
+      phases: ["phase-0-terminal"],
+      for_each: "[phase]",
+      subject_as: "terminal_scope",
+      satisfied_when: "false",
+      status_rules: [{
+        status: "ready",
+        priority: 1,
+        when: 'exists("partitioned-groups@1", {})',
+        reason: "Audit every exact fixture group.",
+      }],
+      default_status: "blocked",
+      resolve_with: {
+        scenario: "audit-groups@1",
+        dispatch: {
+          for_each: 'select("partitioned-groups@1", {})',
+          as: "group",
+        },
+        inputs: { group: "group" },
+      },
+      waiver_policy_ref: "no-waiver@1",
+    });
 
     const phasePath = path.join(processRoot, "phases/phase-0-terminal.yaml");
     const phase = parse(await fs.readFile(phasePath, "utf8"));
@@ -233,7 +298,6 @@ it("renders and validates repeated symbolic outputs with a partitioned link", as
 
     const response = structuredClone(packet.responseScaffold);
     const groupTemplate = response.proposal.outputs[0];
-    const questionTemplate = response.proposal.outputs[1];
     response.proposal.outputs = targets.map((target: string, index: number) => ({
       ...structuredClone(groupTemplate),
       handle: `group-${index + 1}`,
@@ -243,7 +307,7 @@ it("renders and validates repeated symbolic outputs with a partitioned link", as
         ...groupTemplate.links.filter((link: Json) => link.type === "asks"),
       ],
       body: `Group ${index + 1}.\n`,
-    })).concat(questionTemplate);
+    }));
     response.proposal.completionEvidence = {
       summary: "Every exact item belongs to one group.",
     };
@@ -278,6 +342,50 @@ it("renders and validates repeated symbolic outputs with a partitioned link", as
     expect(accepted.value.receipt.publications).toEqual([
       expect.objectContaining({ handle: "group-1" }),
       expect.objectContaining({ handle: "group-2" }),
+    ]);
+    commit(repository, "Publish two fixture groups");
+
+    const batched = await command(repository, ["next", "--json"]);
+    expect(batched.status, JSON.stringify(batched.value)).toBe(0);
+    const batchedPacket = batched.value.assignment.packet;
+    expect(batchedPacket.scenario.reference).toBe("audit-groups@1");
+    expect(batchedPacket.exactInputs).toHaveLength(2);
+    expect(batchedPacket.responseScaffold.proposal.outputs).toEqual([
+      expect.objectContaining({
+        handle: "invocation-1-audit",
+        output: "audit",
+        invocation: 0,
+        links: [{ type: "reviews", target: { input: "group" } }],
+      }),
+      expect.objectContaining({
+        handle: "invocation-2-audit",
+        output: "audit",
+        invocation: 1,
+        links: [{ type: "reviews", target: { input: "group" } }],
+      }),
+    ]);
+    const auditResponse = structuredClone(
+      batchedPacket.responseScaffold,
+    );
+    auditResponse.proposal.outputs = auditResponse.proposal.outputs.map(
+      (output: Json) => ({
+        ...output,
+        payload: {},
+        body: `Audit invocation ${output.invocation}.\n`,
+      }),
+    );
+    auditResponse.proposal.completionEvidence = {
+      summary: "Audited every exact group in its bound invocation.",
+    };
+    const audited = await command(
+      repository,
+      ["scenario", "submit", "-", "--json"],
+      `${JSON.stringify(auditResponse)}\n`,
+    );
+    expect(audited.status, JSON.stringify(audited.value)).toBe(0);
+    expect(audited.value.receipt.publications).toEqual([
+      expect.objectContaining({ handle: "invocation-1-audit" }),
+      expect.objectContaining({ handle: "invocation-2-audit" }),
     ]);
   } finally {
     await fs.rm(parent, { recursive: true, force: true });
