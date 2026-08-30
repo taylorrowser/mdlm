@@ -408,6 +408,7 @@ export interface AssignmentResponseSkeleton {
   proposal: {
     outputs: {
       handle: string;
+      output?: string;
       type: string;
       payload: null;
       links: SymbolicProposalLink[];
@@ -2120,6 +2121,7 @@ interface SymbolicProposalLink {
 
 interface SymbolicProposalOutput {
   handle: string;
+  output?: string;
   type: string;
   payload: Record<string, unknown> | null;
   links: SymbolicProposalLink[];
@@ -2197,6 +2199,7 @@ export function assignmentResponseSchema(
                 required: ["handle", "type", "payload", "links", "body"],
                 properties: {
                   handle: { type: "string", pattern: "^[A-Za-z][A-Za-z0-9_-]*$" },
+                  output: { type: "string", pattern: "^[A-Za-z][A-Za-z0-9_-]*$" },
                   type: { type: "string", pattern: "^[A-Z]{3,8}$" },
                   payload: { type: ["object", "null"] },
                   links: {
@@ -2417,9 +2420,7 @@ function assignmentResponseSkeleton(
     for (const required of requiredLinks) {
       const linkId = typeof required?.link === "string" ? required.link : undefined;
       const target = object(required?.target);
-      if (!linkId || ["partition", "cover"].includes(String(required?.distribution))) {
-        return undefined;
-      }
+      if (!linkId) return undefined;
       if (typeof target?.input === "string") {
         const input = invocation.inputs.find((candidate) =>
           candidate.name === target.input
@@ -2460,8 +2461,11 @@ function assignmentResponseSkeleton(
       }
       return undefined;
     }
+    const outputHandle = handleByName.get(expected.name) ?? expected.name;
+    const repeated = ["one-or-more", "zero-or-more"].includes(expected.cardinality);
     outputs.push({
-      handle: handleByName.get(expected.name) ?? expected.name,
+      handle: outputHandle,
+      ...(repeated ? { output: outputHandle } : {}),
       type: sourceType,
       payload: null,
       links,
@@ -2534,6 +2538,16 @@ function scenarioProposalFromResponse(
       exact.lease.scenario,
     );
   }
+  const outputDefinitions = Array.isArray(exact.scenario.outputs)
+    ? exact.scenario.outputs.map(object)
+    : [];
+  const handleByName = new Map(outputDefinitions.flatMap((definition) =>
+    typeof definition?.name === "string"
+      ? [[definition.name, typeof definition.handle === "string"
+        ? definition.handle
+        : definition.name] as const]
+      : []
+  ));
   const supplied = new Map<string, SymbolicProposalOutput>();
   for (const output of response.proposal.outputs) {
     if (supplied.has(output.handle)) {
@@ -2545,9 +2559,22 @@ function scenarioProposalFromResponse(
     }
     supplied.set(output.handle, output);
   }
-  const expected = new Set(scaffold.proposal.outputs.map((output) => output.handle));
-  const unexpected = [...supplied.keys()].filter((handle) => !expected.has(handle));
-  const missing = [...expected].filter((handle) => !supplied.has(handle));
+  const expected = new Map(scaffold.proposal.outputs.map((output) => [
+    output.output ?? output.handle,
+    output,
+  ]));
+  const suppliedOutput = (output: SymbolicProposalOutput): string =>
+    output.output ?? output.handle;
+  const unexpected = [...supplied.values()]
+    .filter((output) => !expected.has(suppliedOutput(output)))
+    .map((output) => suppliedOutput(output));
+  const missing = [...expected.entries()]
+    .filter(([handle, output]) =>
+      !output.output && ![...supplied.values()].some((value) =>
+        suppliedOutput(value) === handle
+      )
+    )
+    .map(([handle]) => handle);
   if (unexpected.length > 0 || missing.length > 0) {
     return failure(
       "assignment-response-handles-invalid",
@@ -2555,15 +2582,30 @@ function scenarioProposalFromResponse(
       "proposal.outputs",
     );
   }
-  const outputTypes = new Map(scaffold.proposal.outputs.map((output) => [
+  const outputTypes = new Map(response.proposal.outputs.map((output) => [
     output.handle,
     output.type,
   ]));
+  const omittedOutputs = new Set(exact.dryRun.expectedOutputs.flatMap((contract) => {
+    if (!contract.cardinality.startsWith("zero-")) return [];
+    const handle = handleByName.get(contract.name) ?? contract.name;
+    const values = response.proposal.outputs.filter((output) =>
+      suppliedOutput(output) === handle
+    );
+    return values.every((output) => output.payload === null && output.body === null)
+      ? [handle]
+      : [];
+  }));
+  const activeLinks = (links: SymbolicProposalLink[]) => links.filter((link) =>
+    !("output" in link.target && omittedOutputs.has(link.target.output))
+  );
   const materialization = exactBaselineMaterializationContract(exact.scenario);
   const outputs: ScenarioProposal["outputs"] = [];
-  for (const [index, expectedOutput] of scaffold.proposal.outputs.entries()) {
-    const output = supplied.get(expectedOutput.handle)!;
-    const outputContract = exact.dryRun.expectedOutputs[index]!;
+  for (const output of response.proposal.outputs) {
+    const expectedOutput = expected.get(suppliedOutput(output))!;
+    const outputContract = exact.dryRun.expectedOutputs.find((candidate) =>
+      (handleByName.get(candidate.name) ?? candidate.name) === suppliedOutput(output)
+    )!;
     if (output.type !== expectedOutput.type) {
       return failure(
         "assignment-response-type-invalid",
@@ -2571,7 +2613,26 @@ function scenarioProposalFromResponse(
         `proposal.outputs.${output.handle}.type`,
       );
     }
-    if (JSON.stringify(output.links) !== JSON.stringify(expectedOutput.links)) {
+    const definition = outputDefinitions.find((candidate) =>
+      candidate?.name === outputContract.name
+    );
+    const distributedLinkTypes = new Set(
+      (Array.isArray(definition?.required_links) ? definition.required_links : [])
+        .map(object)
+        .filter((required) =>
+          ["partition", "cover"].includes(String(required?.distribution))
+        )
+        .map((required) => String(required!.link)),
+    );
+    const fixedLinks = (links: SymbolicProposalLink[]) => links.filter((link) =>
+      !distributedLinkTypes.has(link.type)
+    );
+    const declaredLinkTypes = new Set(expectedOutput.links.map((link) => link.type));
+    if (
+      output.links.some((link) => !declaredLinkTypes.has(link.type)) ||
+      JSON.stringify(fixedLinks(activeLinks(output.links))) !==
+        JSON.stringify(fixedLinks(activeLinks(expectedOutput.links)))
+    ) {
       return failure(
         "assignment-response-links-invalid",
         `Symbolic output '${output.handle}' must preserve the exact links in the Assignment packet`,
@@ -2594,7 +2655,7 @@ function scenarioProposalFromResponse(
         `proposal.outputs.${output.handle}`,
       );
     }
-    const links = expectedOutput.links.map((link) => ({
+    const links = activeLinks(output.links).map((link) => ({
       type: link.type,
       target: internalLinkTarget(exact, output.type, link, outputTypes),
     }));
@@ -2606,7 +2667,7 @@ function scenarioProposalFromResponse(
       );
     }
     const subject = materialization &&
-        exact.dryRun.expectedOutputs[index]!.name === materialization.output
+        outputContract.name === materialization.output
       ? inputEntities(exact, materialization.subjectInput)[0]
       : undefined;
     const kernelPayload = materialization && subject?.identity.revision_id
@@ -2655,7 +2716,10 @@ function packet(
       ]),
   );
   const scaffoldTypes = new Map(
-    responseSkeleton?.proposal.outputs.map((output) => [output.handle, output.type]),
+    responseSkeleton?.proposal.outputs.map((output) => [
+      output.output ?? output.handle,
+      output.type,
+    ]),
   );
   if (!responseSkeleton) {
     throw new Error(`Scenario '${exact.lease.scenario}' cannot render one symbolic Assignment response`);
