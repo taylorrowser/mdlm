@@ -62,6 +62,13 @@ it("renders and validates repeated and batched symbolic outputs", async () => {
         freeze_resolution: "already-exact",
         inverse_label: "covered-by",
       }, {
+        id: "governs",
+        description: "Stable fixture items governed by this group.",
+        targets: [{ kind: "datum", types: ["ITM"], identity: "stable" }],
+        cardinality: { minimum: 1, maximum: "many" },
+        freeze_resolution: "exact-revision",
+        inverse_label: "governed-by",
+      }, {
         id: "asks",
         description: "Optional questions raised by this group.",
         targets: [{ kind: "datum", types: ["ITM"], identity: "revision" }],
@@ -128,6 +135,9 @@ it("renders and validates repeated and batched symbolic outputs", async () => {
           link: "covers",
           target: { input: "items" },
           distribution: "partition",
+        }, {
+          link: "governs",
+          target: { input: "items" },
         }, {
           link: "asks",
           target: { output: "questions" },
@@ -290,9 +300,25 @@ it("renders and validates repeated and batched symbolic outputs", async () => {
     const targets = packet.exactInputs[0].inputs[0].values.map(
       (value: Json) => value.identity.revision_id,
     );
+    const stableTargets = packet.exactInputs[0].inputs[0].values.map(
+      (value: Json) => value.identity.id,
+    );
     expect(targets).toHaveLength(2);
     expect(packet.responseScaffold.proposal.outputs).toEqual([
-      expect.objectContaining({ handle: "group", output: "group" }),
+      expect.objectContaining({
+        handle: "group",
+        output: "group",
+        links: expect.arrayContaining([
+          ...targets.map((target: string) => ({
+            type: "covers",
+            target: { datum: target },
+          })),
+          ...stableTargets.map((target: string) => ({
+            type: "governs",
+            target: { datum: target },
+          })),
+        ]),
+      }),
       expect.objectContaining({ handle: "questions", output: "questions" }),
     ]);
 
@@ -304,7 +330,7 @@ it("renders and validates repeated and batched symbolic outputs", async () => {
       payload: {},
       links: [
         { type: "covers", target: { datum: target } },
-        ...groupTemplate.links.filter((link: Json) => link.type === "asks"),
+        ...groupTemplate.links.filter((link: Json) => link.type !== "covers"),
       ],
       body: `Group ${index + 1}.\n`,
     }));
