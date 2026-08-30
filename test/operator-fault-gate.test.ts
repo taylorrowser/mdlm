@@ -9,6 +9,7 @@ import { loadProcessPackage } from "../src/index.js";
 import { initialPhaseId } from "../src/lifecycle-inspection.js";
 import { classifyOperatorOutcome, type OperatorWorkFacts } from "../src/operator-outcome.js";
 import { loadRepositoryInspection } from "../src/repository-inspection.js";
+import { processPackageDigest } from "../src/process-package-digest.js";
 import { validateScenarioContracts } from "../src/scenario-contract.js";
 import {
   scenarioOutputContractDiagnostics,
@@ -535,6 +536,40 @@ describe("focused v2 fault-injection gate", () => {
   });
 
   it("renders a same-lineage correction with exact causal links", async () => {
+    const selectionPath = path.join(repository, ".lifecycle/process-selection.json");
+    const repositoryContractPath = path.join(repository, ".lifecycle/repository.json");
+    const selection = JSON.parse(await fs.readFile(selectionPath, "utf8"));
+    const packageRoot = path.join(repository, selection.package.path);
+    const scenarioPath = path.join(
+      packageRoot,
+      "scenarios/revise-question-decision-after-review.yaml",
+    );
+    const decisionType = await fs.readFile(
+      path.join(packageRoot, "types/DEC.yaml"),
+      "utf8",
+    );
+    await fs.writeFile(
+      path.join(packageRoot, "types/ALT.yaml"),
+      decisionType.replace("id: DEC", "id: ALT"),
+    );
+    const scenario = await fs.readFile(scenarioPath, "utf8");
+    expect(scenario).toContain("    types: [DEC]");
+    await fs.writeFile(
+      scenarioPath,
+      scenario.replace("    types: [DEC]", "    types: [ALT, DEC]"),
+    );
+    const digest = await processPackageDigest(packageRoot);
+    selection.package.digest = digest;
+    await fs.writeFile(selectionPath, `${JSON.stringify(selection, null, 2)}\n`);
+    const repositoryContract = JSON.parse(
+      await fs.readFile(repositoryContractPath, "utf8"),
+    );
+    repositoryContract.package.digest = digest;
+    await fs.writeFile(
+      repositoryContractPath,
+      `${JSON.stringify(repositoryContract, null, 2)}\n`,
+    );
+
     let next = await command(repository, ["next", "--json"]);
     while (next.value.outcome === "assignment") {
       const submitted = await command(
@@ -545,7 +580,7 @@ describe("focused v2 fault-injection gate", () => {
       expect(submitted.status, JSON.stringify(submitted.value)).toBe(0);
       next = await command(repository, ["next", "--json"]);
     }
-    expect(next.value).toMatchObject({
+    expect(next.value, JSON.stringify(next.value)).toMatchObject({
       outcome: "attention-required",
       assignment: { packet: { scenario: { reference: "resolve-question@2" } } },
     });

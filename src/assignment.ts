@@ -2654,6 +2654,9 @@ function packet(
           : String(output!.name),
       ]),
   );
+  const scaffoldTypes = new Map(
+    responseSkeleton?.proposal.outputs.map((output) => [output.handle, output.type]),
+  );
   if (!responseSkeleton) {
     throw new Error(`Scenario '${exact.lease.scenario}' cannot render one symbolic Assignment response`);
   }
@@ -2708,16 +2711,18 @@ function packet(
         ? exact.scenario.outputs.map(object)
         : []).find((candidate) => candidate?.name === output.name);
       const identityFrom = object(definition?.identity_from);
+      const handle = outputHandles.get(output.name) ?? output.name;
+      const type = scaffoldTypes.get(handle)!;
       return {
         ...output,
-        handle: outputHandles.get(output.name) ?? output.name,
-        type: types[0]!,
+        handle,
+        type,
         ...(typeof identityFrom?.input === "string"
           ? { identity: { input: identityFrom.input } }
           : {}),
         payloadSummary: {
-          required: Array.isArray(schemas[types[0]!]?.payload.required)
-            ? schemas[types[0]!]!.payload.required as string[]
+          required: Array.isArray(schemas[type]?.payload.required)
+            ? schemas[type]!.payload.required as string[]
             : [],
           kernelManaged: materialization?.output === output.name
             ? Object.values(materialization.payloadFields)
