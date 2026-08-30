@@ -42,14 +42,23 @@ describe("generic pi lifecycle operator instructions", () => {
 
     expect(prompts.join("\n")).not.toContain("--authorize");
     for (const prompt of [
-      "approve-change-request.md",
       "decide-pilot-expansion.md",
       "record-consequential-decision.md",
     ]) {
       const source = await fs.readFile(path.join(processRoot, prompt), "utf8");
-      expect(source).toContain("`authoritySupplies`");
-      expect(source).toContain("`mdlm scenario submit [response-file|-] --json`");
+      expect(source).not.toContain("`authoritySupplies`");
+      expect(source).toContain(
+        "`mdlm scenario submit [response-file|-] --authority stakeholder --json`",
+      );
     }
+    const changeApproval = await fs.readFile(
+      path.join(processRoot, "approve-change-request.md"),
+      "utf8",
+    );
+    expect(changeApproval).toContain("`authoritySupplies`");
+    expect(changeApproval).toContain(
+      "`mdlm scenario submit [response-file|-] --json`",
+    );
     const gate = await fs.readFile(
       path.join(processRoot, "record-gate-signoff.md"),
       "utf8",
