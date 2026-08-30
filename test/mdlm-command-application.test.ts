@@ -202,7 +202,13 @@ describe("clean mdlm command application", () => {
     );
     expect(malformed.status, `${malformed.stderr}${malformed.stdout}`).toBe(1);
     expect(JSON.parse(malformed.stdout)).toMatchObject({
-      disposition: "correction-required",
+      contract: "mdlm-submission-outcome@1",
+      outcome: "rejected",
+      assignment: { id: assignment },
+      responseDigest: `sha256:${createHash("sha256")
+        .update(malformedSource).digest("hex")}`,
+      retryable: true,
+      correctionConsumed: false,
     });
 
     const correction = await executeMdlm(
@@ -216,10 +222,8 @@ describe("clean mdlm command application", () => {
     expect(JSON.parse(correction.stdout)).toMatchObject({
       selected: true,
       disposition: "active",
-      retryAvailability: { malformedResponseCorrection: 0 },
-      malformedResponses: [{
-        digest: `sha256:${createHash("sha256").update(malformedSource).digest("hex")}`,
-      }],
+      retryAvailability: { malformedResponseCorrection: 1 },
+      malformedResponses: [],
     });
 
     const absent = await executeMdlm(
@@ -311,39 +315,29 @@ describe("clean mdlm command application", () => {
       const next = mdlm(repository, "next");
       expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
       const assignment = JSON.parse(next.stdout).assignment.id as string;
-      const prepared = mdlm(repository, "scenario", "prepare", assignment);
-      expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
-      const packet = JSON.parse(prepared.stdout);
       const before = await directoryBytes(path.join(repository, ".lifecycle/data"));
       const submitted = mdlmWithInput(
-      repository,
-      `${JSON.stringify({
-        contract: "mdlm-assignment-response@1",
-        assignment,
-        kind: "proposal",
-        proposal: {
-          outputs: [{
-            localId: "map",
-            name: "map",
-            invocation: 0,
-            lifecycleDatum: {
+        repository,
+        `${JSON.stringify({
+          contract: "mdlm-assignment-response@2",
+          assignment,
+          kind: "proposal",
+          proposal: {
+            outputs: [{
+              handle: "map",
               type: "MAP",
               payload: {
                 title: "Clean interface inspection tracer",
                 purpose: "Publish one normal datum only through scenario submit.",
-                frontier: ["$proposal.product-intent.revision_id"],
+                frontier: [{ output: "product_intent" }],
               },
               links: [{
                 type: "indexes",
-                target: "$proposal.product-intent.id",
+                target: { output: "product_intent" },
               }],
               body: "One canonical publication.\n",
-            },
-          }, {
-            localId: "product-intent",
-            name: "product_intent",
-            invocation: 0,
-            lifecycleDatum: {
+            }, {
+              handle: "product_intent",
               type: "QST",
               payload: {
                 title: "Exact inspection product intent",
@@ -355,28 +349,22 @@ describe("clean mdlm command application", () => {
               },
               links: [],
               body: "The initial frontier carries one exact product-intent Question.\n",
-            },
-          }],
-          completionEvidence: { summary: "Published the inspection tracer." },
-          loadedSkillRefs: packet.prompt.skills.map(
-            (skill: { reference: string }) => skill.reference,
-          ),
-          authoritySupplies: [],
-          standingDelegations: [],
-        },
-      })}\n`,
-      "scenario",
-      "submit",
-    );
+            }],
+            completionEvidence: { summary: "Published the inspection tracer." },
+          },
+        })}\n`,
+        "scenario",
+        "submit",
+      );
       expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
       expect(await directoryBytes(path.join(repository, ".lifecycle/data"))).not.toBe(before);
-      const execution = JSON.parse(submitted.stdout).execution;
-      const storedExecution = await readScenarioExecution(repository, execution.id);
+      const execution = JSON.parse(submitted.stdout).settlement.execution as string;
+      const storedExecution = await readScenarioExecution(repository, execution);
       expect(storedExecution.ok).toBe(true);
       if (!storedExecution.ok) {
         throw new Error(JSON.stringify(storedExecution.diagnostics));
       }
-      expect(storedExecution.value.id).toBe(execution.id);
+      expect(storedExecution.value.id).toBe(execution);
 
       const commandReaders = Promise.all([
         executeMdlm(repository, "process", "capabilities", "--json"),
