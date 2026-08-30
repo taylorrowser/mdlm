@@ -2432,17 +2432,22 @@ function assignmentResponseSkeleton(
           );
           if (!input) return undefined;
           for (const value of input.values) {
-            if (!requiredLinkIdentity(
+            const identity = requiredLinkIdentity(
               processPackage,
               sourceType,
               linkId,
               value.identity.type,
-            )) return undefined;
+            );
+            if (!identity) return undefined;
+            const datum = identity === "id"
+              ? value.identity.id
+              : value.identity.revision_id;
+            if (!datum) return undefined;
             links.push({
               type: linkId,
               target: input.values.length === 1
                 ? { input: target.input }
-                : { datum: exactEntityId(value) },
+                : { datum },
             });
           }
           continue;
