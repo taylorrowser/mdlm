@@ -61,6 +61,7 @@ const classification = Object.freeze({
   "test/mdlm-schema.test.ts": [PROCESS_REPOSITORY_KIND, "selected-package repository and public command application"],
   "test/operator-outcome.test.ts": [PROCESS_REPOSITORY_KIND, "mixed in-process classification and repository/public/compiled submission"],
   "test/atomic-review-submit.test.ts": [PROCESS_REPOSITORY_KIND, "temporary Process Package, repository, lease, and atomic public submission"],
+  "test/atomic-review-liveness.test.ts": [CANONICAL_IN_PROCESS_KIND, "source Process Package loading and in-process atomic Review routing"],
   "test/same-response-payload-reference.test.ts": [PROCESS_REPOSITORY_KIND, "temporary Process Package, repository, Git, and public command submission"],
   "test/selected-package-cache.test.ts": [PROCESS_REPOSITORY_KIND, "initialized repositories and selected-package filesystem state"],
   "test/dependency-changes.test.ts": [CANONICAL_IN_PROCESS_KIND, "temporary Process Package copies and in-process dependency evaluation"],
@@ -164,8 +165,8 @@ function boundaryTitle(call, name) {
 export function verifyRootTestObservationPolicy(root = process.cwd()) {
   const manifestFiles = rootTestManifest.map((entry) => entry.file).sort();
   const policyFiles = rootTestObservationPolicy.map((entry) => entry.file).sort();
-  if (new Set(policyFiles).size !== 46
-    || policyFiles.length !== 46
+  if (new Set(policyFiles).size !== 39
+    || policyFiles.length !== 39
     || JSON.stringify(policyFiles) !== JSON.stringify(manifestFiles)) {
     throw new Error("Root observation policy must classify every manifest file exactly once");
   }
