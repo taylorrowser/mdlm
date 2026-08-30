@@ -18,9 +18,9 @@ questions, and known omissions to the user. Confirm hashes and review evidence
 before asking for a decision. Do not infer approval from prior conversation,
 a completion summary, or the absence of objections. Stop until the stakeholder
 explicitly authorizes the exact candidate. Include `stakeholder` in the
-Assignment Response `authoritySupplies`, then submit the response through
-`mdlm scenario submit [response-file|-] --json`; do not ask the stakeholder to
-run a command.
+public CLI authority option by submitting through
+`mdlm scenario submit [response-file|-] --authority stakeholder --json`; do not
+put authority in the Assignment Response or ask the stakeholder to run a command.
 
 Create one `gate-signoff` DEC recording approval or rejection, rationale, and
 scope, with a `justifies` link to the exact frozen candidate BSL revision. For a
