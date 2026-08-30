@@ -777,13 +777,90 @@ async function definitionConsistencyPackage(parent: string): Promise<string> {
   return packageRoot;
 }
 
+const publishedMaterializations = new Map<string, Set<string>>();
+
+function commitMaterialized(repository: string, outcome: JsonObject): void {
+  expect(outcome.assignment).toBeUndefined();
+  const executions = outcome.materializedExecutions as JsonObject[];
+  expect(executions.length).toBeGreaterThan(0);
+  const seen = publishedMaterializations.get(repository) ?? new Set<string>();
+  const roots = executions.map((execution) => {
+    expect(execution.status).toBe("completed");
+    expect(seen.has(execution.id), `replayed materialization ${execution.id}`)
+      .toBe(false);
+    return `.lifecycle/data/.transactions/${execution.id}`;
+  });
+
+  const status = spawnSync(
+    "git",
+    ["-C", repository, "status", "--porcelain=v1", "--untracked-files=all", "--", ".lifecycle/data"],
+    { encoding: "utf8" },
+  );
+  expect(status.status, status.stderr).toBe(0);
+  const changed = status.stdout.trim().split("\n").filter(Boolean)
+    .map((line) => line.slice(3));
+  expect(changed.length).toBeGreaterThan(0);
+  expect(changed.every((file) =>
+    roots.some((root) => file === root || file.startsWith(`${root}/`))
+  ), status.stdout).toBe(true);
+  for (const root of roots) {
+    expect(changed.some((file) => file.startsWith(`${root}/`)), root).toBe(true);
+  }
+
+  const doctor = mdlm(repository, "doctor", "--json");
+  expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
+  const staged = spawnSync("git", ["-C", repository, "add", "--", ...roots], {
+    encoding: "utf8",
+  });
+  expect(staged.status, staged.stderr).toBe(0);
+  const stagedPaths = spawnSync(
+    "git",
+    ["-C", repository, "diff", "--cached", "--name-only"],
+    { encoding: "utf8" },
+  );
+  expect(stagedPaths.status, stagedPaths.stderr).toBe(0);
+  expect(stagedPaths.stdout.trim().split("\n").filter(Boolean).every((file) =>
+    roots.some((root) => file === root || file.startsWith(`${root}/`))
+  ), stagedPaths.stdout).toBe(true);
+  const committed = spawnSync("git", [
+    "-C",
+    repository,
+    "-c",
+    "user.name=MDLM Test",
+    "-c",
+    "user.email=mdlm-test@localhost",
+    "-c",
+    "commit.gpgSign=false",
+    "commit",
+    "--quiet",
+    "--no-verify",
+    "-m",
+    "Publish exact materialized Lifecycle Data",
+  ], { encoding: "utf8" });
+  expect(committed.status, `${committed.stderr}${committed.stdout}`).toBe(0);
+  executions.forEach((execution) => seen.add(execution.id));
+  publishedMaterializations.set(repository, seen);
+}
+
+function nextAssignment(repository: string): JsonObject {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const next = mdlm(repository, "next", "--json");
+    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+    const outcome = JSON.parse(next.stdout);
+    if (outcome.outcome === "publication-required") {
+      commitMaterialized(repository, outcome);
+      continue;
+    }
+    expect(outcome.assignment, next.stdout).toBeDefined();
+    return outcome.assignment.packet;
+  }
+  throw new Error("Public route did not reach an Assignment");
+}
+
 function prepare(repository: string, scenario: string): JsonObject {
-  const next = mdlm(repository, "next", "--json");
-  expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
-  const outcome = JSON.parse(next.stdout);
-  expect(outcome.assignment, next.stdout).toBeDefined();
-  expect(outcome.assignment.packet.scenario.reference).toBe(scenario);
-  return outcome.assignment.packet;
+  const packet = nextAssignment(repository);
+  expect(packet.scenario.reference).toBe(scenario);
+  return packet;
 }
 
 function submit(
@@ -1292,9 +1369,7 @@ export async function runPhaseTwoDefinitionConsistencySerialCorrection(): Promis
     const scenarios: string[] = [];
     const correctedSubjects: string[] = [];
     for (let index = 0; index < 5; index += 1) {
-      const next = mdlm(repository, "next", "--json");
-      expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
-      const correction = JSON.parse(next.stdout).assignment.packet;
+      const correction = nextAssignment(repository);
       const scenario = correction.scenario.reference as string;
       expect(expected.has(scenario), scenario).toBe(true);
       scenarios.push(scenario);
@@ -1333,9 +1408,16 @@ export async function runPhaseTwoDefinitionConsistencySerialCorrection(): Promis
     const fresh = mdlm(repository, "next", "--json");
     expect(fresh.status, `${fresh.stderr}${fresh.stdout}`).toBe(0);
     const freshOutcome = JSON.parse(fresh.stdout);
-    expect(freshOutcome.assignment.packet.scenario.reference).toMatch(
-      /review|context/,
-    );
+    if (freshOutcome.outcome === "publication-required") {
+      expect(freshOutcome.assignment).toBeUndefined();
+      expect(freshOutcome.materializedExecutions.map(
+        (execution: JsonObject) => execution.scenario,
+      )).toEqual(expect.arrayContaining([expect.stringMatching(/review|context/)]));
+    } else {
+      expect(freshOutcome.assignment.packet.scenario.reference).toMatch(
+        /review|context/,
+      );
+    }
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }
