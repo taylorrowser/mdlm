@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { parse, stringify } from "yaml";
 import {
   claimNextWork,
+  inspectSubmissionSettlement,
   submitAssignmentResponse,
   type AssignmentPacket,
 } from "../src/assignment.js";
@@ -220,16 +221,36 @@ describe("atomic Review submission", () => {
     const beforeInvalid = await lifecycleMarkdown(repository);
     const rejected = await submitAssignmentResponse(repository, response(packet, {
       context: { caller_authored_context: "must be replaced" },
-      review: {},
+      review: {
+        title: "Incomplete review",
+        review_kind: "phase-0-foundation",
+        outcome: "pass",
+        rubric_ref: "skills/contextual-artifact-review.md@2",
+      },
     }));
     expect(rejected.ok).toBe(false);
     expect(await lifecycleMarkdown(repository)).toEqual(beforeInvalid);
+    await expect(fs.stat(path.join(
+      repository,
+      ".lifecycle/work/submission-settlement.json",
+    ))).rejects.toMatchObject({ code: "ENOENT" });
+    const rejectedSettlement = await inspectSubmissionSettlement(
+      repository,
+      packet.assignment.id,
+    );
+    expect(rejectedSettlement.ok).toBe(true);
+    if (!rejectedSettlement.ok) return;
+    expect(rejectedSettlement.value).toMatchObject({
+      outcome: "rejected",
+      assignment: { id: packet.assignment.id },
+      retryable: true,
+    });
 
     const recovered = await claimNextWork(repository);
     expect(recovered.ok).toBe(true);
     if (!recovered.ok || recovered.value.outcome !== "assignment") return;
     expect(recovered.value.assignment.id).toBe(reviewOutcome.value.assignment.id);
-    const accepted = await submitAssignmentResponse(repository, response(
+    const acceptedSource = response(
       recovered.value.assignment.packet,
       {
         context: { caller_authored_context: "must be replaced" },
@@ -244,11 +265,34 @@ describe("atomic Review submission", () => {
           correction_authority: "author",
         },
       },
-    ));
+    );
+    const accepted = await submitAssignmentResponse(repository, acceptedSource);
     expect(accepted.ok, accepted.ok ? "" : JSON.stringify(accepted.diagnostics)).toBe(true);
     if (!accepted.ok || accepted.value.outcome !== "accepted") return;
     expect(accepted.value.receipt.publications.map((item) => item.handle))
       .toEqual(["context", "review"]);
+    const reconciled = await inspectSubmissionSettlement(
+      repository,
+      accepted.value.assignment.id,
+    );
+    expect(reconciled.ok).toBe(true);
+    if (!reconciled.ok) return;
+    expect(reconciled.value).toMatchObject({
+      outcome: "accepted",
+      settlement: accepted.value.settlement,
+      responseDigest: accepted.value.responseDigest,
+    });
+    const alteredReplay = await submitAssignmentResponse(
+      repository,
+      `${acceptedSource}\n`,
+    );
+    expect(alteredReplay.ok).toBe(false);
+    expect(alteredReplay.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "submission-settlement-response-mismatch",
+        path: accepted.value.settlement.execution,
+      }),
+    ]));
 
     const execution = JSON.parse(await fs.readFile(path.join(
       repository,

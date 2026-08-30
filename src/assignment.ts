@@ -57,6 +57,7 @@ import { withRepositoryLock } from "./repository-lock.js";
 const executeFile = promisify(execFile);
 const leaseRelativePath = ".lifecycle/work/active-assignment.json";
 const settlementRelativePath = ".lifecycle/work/submission-settlement.json";
+const durableSettlementRefPrefix = "refs/mdlm/submission-settlements";
 // Every lease writer takes this lock. The first response to acquire it owns the
 // Assignment outcome; a valid proposal retains ownership through publication
 // and lease retirement. Waiters reread the exact lease and return unavailable.
@@ -569,34 +570,121 @@ function settlementPath(repositoryRoot: string): string {
   return path.join(repositoryRoot, settlementRelativePath);
 }
 
-async function writePendingSettlement(
-  repositoryRoot: string,
-  settlement: PendingSettlement,
-): Promise<void> {
-  const target = settlementPath(repositoryRoot);
-  const temporary = `${target}.${randomUUID()}.tmp`;
-  await fs.mkdir(path.dirname(target), { recursive: true });
-  await fs.writeFile(temporary, `${JSON.stringify(settlement, null, 2)}\n`);
-  await fs.rename(temporary, target);
+function pendingSettlement(value: unknown): PendingSettlement | undefined {
+  const candidate = object(value);
+  return candidate?.contract === "mdlm-pending-settlement@1" &&
+      typeof candidate.assignment === "string" &&
+      typeof candidate.execution === "string" &&
+      typeof candidate.responseDigest === "string"
+    ? candidate as unknown as PendingSettlement
+    : undefined;
 }
 
-async function readPendingSettlement(
-  repositoryRoot: string,
-): Promise<PendingSettlement | undefined> {
+async function readSettlementFile(target: string): Promise<PendingSettlement | undefined> {
   try {
-    const value = JSON.parse(
-      await fs.readFile(settlementPath(repositoryRoot), "utf8"),
-    ) as Partial<PendingSettlement>;
-    return value.contract === "mdlm-pending-settlement@1" &&
-        typeof value.assignment === "string" &&
-        typeof value.execution === "string" &&
-        typeof value.responseDigest === "string"
-      ? value as PendingSettlement
-      : undefined;
+    return pendingSettlement(JSON.parse(await fs.readFile(target, "utf8")));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
     throw error;
   }
+}
+
+function durableSettlementRef(assignment: string): string {
+  return `${durableSettlementRefPrefix}/${assignment}`;
+}
+
+async function readSettlementRef(
+  repositoryRoot: string,
+  reference: string,
+): Promise<PendingSettlement | undefined> {
+  let objectId: string;
+  try {
+    objectId = (await git(repositoryRoot, ["rev-parse", "--verify", reference])).trim();
+  } catch (error) {
+    if ((error as { code?: number }).code === 128) return undefined;
+    throw error;
+  }
+  const settlement = pendingSettlement(JSON.parse(await git(repositoryRoot, [
+    "cat-file",
+    "-p",
+    objectId,
+  ])));
+  if (!settlement) {
+    throw new Error(`Durable settlement ref '${reference}' is invalid`);
+  }
+  return settlement;
+}
+
+async function readDurableSettlements(
+  repositoryRoot: string,
+): Promise<PendingSettlement[]> {
+  const references = (await git(repositoryRoot, [
+    "for-each-ref",
+    "--format=%(refname)",
+    durableSettlementRefPrefix,
+  ])).trim().split("\n").filter(Boolean);
+  const settlements: PendingSettlement[] = [];
+  for (const reference of references) {
+    const settlement = await readSettlementRef(repositoryRoot, reference);
+    if (settlement) settlements.push(settlement);
+  }
+  return settlements;
+}
+
+async function writePendingSettlement(
+  repositoryRoot: string,
+  settlement: PendingSettlement,
+): Promise<void> {
+  const source = `${JSON.stringify(settlement, null, 2)}\n`;
+  const reference = durableSettlementRef(settlement.assignment);
+  const existing = await readSettlementRef(repositoryRoot, reference);
+  if (existing && JSON.stringify(existing) !== JSON.stringify(settlement)) {
+    throw new Error(
+      `Assignment '${settlement.assignment}' already has a different durable settlement`,
+    );
+  }
+  const target = settlementPath(repositoryRoot);
+  const temporary = `${target}.${randomUUID()}.tmp`;
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  try {
+    await fs.writeFile(temporary, source, { flag: "wx" });
+    if (!existing) {
+      const objectId = (await git(repositoryRoot, [
+        "hash-object",
+        "-w",
+        temporary,
+      ])).trim();
+      await git(repositoryRoot, [
+        "update-ref",
+        reference,
+        objectId,
+        "0".repeat(objectId.length),
+      ]);
+    }
+    await fs.rename(temporary, target);
+  } finally {
+    await fs.rm(temporary, { force: true });
+  }
+}
+
+async function readPendingSettlement(
+  repositoryRoot: string,
+  identity?: string,
+): Promise<PendingSettlement | undefined> {
+  const legacy = await readSettlementFile(settlementPath(repositoryRoot));
+  if (
+    legacy &&
+    (identity === undefined || legacy.assignment === identity || legacy.execution === identity)
+  ) return legacy;
+  if (identity === undefined) return undefined;
+  const direct = await readSettlementRef(repositoryRoot, durableSettlementRef(identity));
+  if (direct) return direct;
+  for (const candidate of await readDurableSettlements(repositoryRoot)) {
+    if (candidate?.assignment === identity || candidate?.execution === identity) {
+      return candidate;
+    }
+  }
+  return undefined;
 }
 
 function object(value: unknown): Record<string, unknown> | undefined {
@@ -1473,6 +1561,7 @@ function preparedScenarioSubmission(
       executionId,
       executionRecord,
       kernelFinalizedOutputs,
+      beforeCommit,
     ) =>
       exact.transaction.publishScenarioMutation(
         expectedData,
@@ -1485,7 +1574,10 @@ function preparedScenarioSubmission(
             repositoryRoot,
             exact.lease.repository,
           );
-          return fingerprint.ok ? verifyAssignment() : fingerprint;
+          if (!fingerprint.ok) return fingerprint;
+          const verified = await verifyAssignment();
+          if (!verified.ok || !beforeCommit) return verified;
+          return beforeCommit();
         },
       ),
   };
@@ -1626,6 +1718,17 @@ async function claimNextWorkLocked(
   repositoryRoot: string,
   renewLeaseLock: () => Promise<void>,
 ): Promise<AssignmentResult<AssignmentOutcome>> {
+  for (const settlement of await readDurableSettlements(repositoryRoot)) {
+    const reconciled = await reconcilePendingSettlement(repositoryRoot, settlement);
+    if (!reconciled.ok) return reconciled;
+    if (reconciled.value.outcome === "settlement-required") {
+      return failure(
+        "submission-settlement-required",
+        "A prior submission has uncertain publication closure; inspect its stable settlement identity and do not continue or replay it",
+        settlement.execution,
+      );
+    }
+  }
   const persisted = await readLease(repositoryRoot);
   if (!persisted.ok) return persisted;
   let activeLease = persisted.value;
@@ -2743,6 +2846,53 @@ function pendingSettlementSubmission(
   };
 }
 
+async function reconcilePendingSettlement(
+  repositoryRoot: string,
+  pending: PendingSettlement,
+): Promise<AssignmentResult<SubmissionOutcome>> {
+  const executionPath = path.join(
+    repositoryRoot,
+    ".lifecycle/data/.transactions",
+    pending.execution,
+    "execution.json",
+  );
+  try {
+    await fs.access(executionPath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return {
+        ok: true,
+        value: pendingSettlementSubmission(pending).value!,
+        diagnostics: [],
+      };
+    }
+    throw error;
+  }
+  const execution = await readScenarioExecution(repositoryRoot, pending.execution);
+  if (!execution.ok) {
+    return failure(
+      "submission-settlement-integrity-invalid",
+      "The durable settlement names a transaction that cannot be authenticated",
+      pending.execution,
+    );
+  }
+  if (
+    execution.value.response.assignment !== pending.assignment ||
+    execution.value.response.digest !== pending.responseDigest
+  ) {
+    return failure(
+      "submission-settlement-integrity-invalid",
+      "The durable settlement does not match its published transaction identity",
+      pending.execution,
+    );
+  }
+  return {
+    ok: true,
+    value: acceptedSettlement(execution.value),
+    diagnostics: [],
+  };
+}
+
 async function writeMalformedResponse(
   _repositoryRoot: string,
   lease: AssignmentLease,
@@ -2887,12 +3037,27 @@ export async function submitAssignmentResponse(
   responseSource: string,
   authoritySupplies: string[] = [],
 ): Promise<AssignmentSubmissionResult> {
-  const pendingSettlement = await readPendingSettlement(repositoryRoot);
-  if (pendingSettlement) return pendingSettlementSubmission(pendingSettlement);
+  const parsed = parseAssignmentResponse(responseSource);
+  if (parsed.ok) {
+    const pending = await readPendingSettlement(repositoryRoot, parsed.value.assignment);
+    if (pending) {
+      const reconciled = await reconcilePendingSettlement(repositoryRoot, pending);
+      if (!reconciled.ok) return reconciled;
+      if (reconciled.value.outcome === "accepted") {
+        return sha256(responseSource) === pending.responseDigest
+          ? reconciled
+          : failure(
+            "submission-settlement-response-mismatch",
+            "The submitted response bytes do not match the accepted settlement",
+            pending.execution,
+          );
+      }
+      return pendingSettlementSubmission(pending);
+    }
+  }
   const persisted = await readLease(repositoryRoot);
   if (!persisted.ok) return persisted;
   const lease = persisted.value;
-  const parsed = parseAssignmentResponse(responseSource);
   if (!parsed.ok) {
     if (lease?.disposition !== "active") return parsed;
     const exact = await exactAssignment(repositoryRoot);
@@ -2915,6 +3080,11 @@ export async function submitAssignmentResponse(
       parsed.value.assignment,
     );
   }
+  const pendingSettlement = await readPendingSettlement(
+    repositoryRoot,
+    parsed.value.assignment,
+  );
+  if (pendingSettlement) return pendingSettlementSubmission(pendingSettlement);
   const exact = await exactAssignment(repositoryRoot);
   if (!exact.ok || !sameAssignment(lease, exact.value)) {
     return recordStaleDisposition(repositoryRoot, lease);
@@ -2965,8 +3135,22 @@ export async function submitAssignmentResponse(
     loadedSkillRefs: exact.value.dryRun.prompt.skills.map((skill) => skill.reference),
   };
   return withExactActiveLease(repositoryRoot, lease, async (lease, renew) => {
-    const lockedPendingSettlement = await readPendingSettlement(repositoryRoot);
+    const lockedPendingSettlement = await readPendingSettlement(repositoryRoot, lease.id);
     if (lockedPendingSettlement) {
+      const reconciled = await reconcilePendingSettlement(
+        repositoryRoot,
+        lockedPendingSettlement,
+      );
+      if (!reconciled.ok) return reconciled;
+      if (reconciled.value.outcome === "accepted") {
+        return responseDigest === lockedPendingSettlement.responseDigest
+          ? reconciled
+          : failure(
+            "submission-settlement-response-mismatch",
+            "The submitted response bytes do not match the accepted settlement",
+            lockedPendingSettlement.execution,
+          );
+      }
       return pendingSettlementSubmission(lockedPendingSettlement);
     }
     const verifyAssignment = async (): Promise<AssignmentResult<undefined>> => {
@@ -3114,24 +3298,9 @@ export async function inspectSubmissionSettlement(
   if (direct.ok) {
     return { ok: true, value: acceptedSettlement(direct.value), diagnostics: [] };
   }
-  const pending = await readPendingSettlement(repositoryRoot);
+  const pending = await readPendingSettlement(repositoryRoot, identity);
   if (pending && (pending.assignment === identity || pending.execution === identity)) {
-    return {
-      ok: true,
-      value: {
-        contract: "mdlm-submission-outcome@1",
-        outcome: "settlement-required",
-        assignment: { id: pending.assignment },
-        responseDigest: pending.responseDigest,
-        settlement: {
-          assignment: pending.assignment,
-          execution: pending.execution,
-        },
-        reason: "publication-closure-uncertain",
-        orchestration: { action: "inspect-settlement", replay: false },
-      },
-      diagnostics: [],
-    };
+    return reconcilePendingSettlement(repositoryRoot, pending);
   }
   const transactionsRoot = path.join(
     repositoryRoot,

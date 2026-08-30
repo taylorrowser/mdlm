@@ -1113,7 +1113,6 @@ async function submitScenario(
     data: datum,
   }));
   const execution: ScenarioExecution = { ...executionBase, outputs: provisionalOutputs };
-  await prepared?.beginPublication?.(executionId, submittedResponse.digest);
   const published = await (prepared?.publishMutation ?? publishScenarioMutation)(
     repositoryRoot,
     processPackage,
@@ -1122,6 +1121,12 @@ async function submitScenario(
     executionId,
     execution,
     kernelFinalizedOutputs,
+    prepared?.beginPublication
+      ? async () => {
+        await prepared.beginPublication!(executionId, submittedResponse.digest);
+        return { ok: true, value: undefined, diagnostics: [] };
+      }
+      : undefined,
   );
   if (!published.ok) {
     return {
