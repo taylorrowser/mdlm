@@ -14,12 +14,18 @@ status_rules:
         {plan: plan, correction_set: "subject"})
       || exists("failed-phase-2-simplification-reviews-by-scope@1",
         {plan: plan, correction_set: "definition-consistency"})
-    reason: Exact blocking findings require bounded subject correction or one declared atomic consistency-set correction.
+    reason: Exact blocking findings require bounded same-lineage correction of each retained definition subject.
     blocked_by:
       - obligation: phase-2-simplification-correction-required@1
         subjects: '[plan]'
-      - obligation: phase-2-definition-consistency-correction-required@1
-        subjects: '[plan]'
+      - obligation: phase-2-review-correction-required@1
+        subjects: 'select("phase-2-correctable-subjects@1", {})'
+      - obligation: phase-2-interface-review-correction-required@1
+        subjects: 'select("phase-2-correctable-interfaces@1", {})'
+      - obligation: phase-2-decomposition-review-correction-required@1
+        subjects: 'select("phase-2-correctable-decompositions@1", {})'
+      - obligation: phase-2-system-review-correction-required@1
+        subjects: 'select("phase-2-correctable-system-requirements@1", {})'
   - status: blocked
     priority: 200
     when: >-
