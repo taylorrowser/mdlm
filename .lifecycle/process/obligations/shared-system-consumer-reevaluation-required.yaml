@@ -33,5 +33,14 @@ resolve_with:
   scenario: reevaluate-shared-system-consumer@1
   inputs:
     consumer: consumer
-    replacement_requirements: 'select("replacement-system-requirements-for-consumer@2", {consumer: consumer})'
+    replacement_requirements: 'select("system-requirements-after-consumer-reevaluation@1", {consumer: consumer})'
+    parents: 'select("decomposition-parents-for@1", {plan: consumer})'
+    architecture: 'one("architectures-for-decomposition@1", {plan: consumer})'
+    interfaces: 'select("interfaces-for-decomposition@1", {plan: consumer})'
+    verification_strategy: 'one("strategies-for-decomposition@1", {plan: consumer})'
+    planning_source: 'first("planning-revisions-for-completion@1", {completion: consumer})'
+    outputs: 'select("completion-outputs-for@1", {completion: consumer})'
+    simplification_reviews: 'select("completion-simplification-evidence-for@1", {completion: consumer})'
+    review_causes: 'select("review-causes-for-consumer-replacements@1", {consumer: consumer})'
+    change_causes: 'select("change-causes-for-consumer-replacements@1", {consumer: consumer})'
 waiver_policy_ref: waiver-applicability@1
