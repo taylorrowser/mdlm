@@ -44,4 +44,5 @@ resolve_with:
   scenario: resolve-question-with-prototype@2
   inputs:
     question: question
+    blocked_targets: 'select("blocked-targets-for-question@1", {question: question})'
 waiver_policy_ref: waiver-applicability@1

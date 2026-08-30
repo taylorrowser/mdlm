@@ -12,7 +12,6 @@ query:
   where: >-
     candidate == review
     && candidate.payload.review_kind == "simplification-architecture-interfaces"
-    && candidate.payload.decomposition_plan_revision == plan.identity.revision_id
     && candidate.payload.outcome in ["pass", "fail", "cancelled"]
     && state(candidate, "validity") == "valid"
     && exists("phase-2-review-context-matches-plan@1", {review: candidate, plan: plan})

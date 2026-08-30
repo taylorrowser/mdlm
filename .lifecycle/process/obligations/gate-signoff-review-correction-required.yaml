@@ -2,7 +2,7 @@ kind: obligation-definition
 id: gate-signoff-review-correction-required
 version: 2
 description: A current gate sign-off Decision with a failed Review requires a stakeholder-authorized replacement in the same lineage and exact candidate scope.
-phases: [phase-0-wayfinding]
+phases: [phase-0-wayfinding, phase-2-system-definition]
 for_each: 'select("failed-gate-signoff-decisions@1", {})'
 subject_as: decision
 satisfied_when: 'exists("valid-gate-signoff-replacements-for@1", {decision: decision})'
