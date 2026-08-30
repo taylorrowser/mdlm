@@ -11,6 +11,7 @@ outputs:
   - name: replacement
     types: [CHG, STK, SYS, DWP, BSL]
     cardinality: one
+    identity_from: {input: subject}
     required_links:
       - {link: corrects-review, target: {input: reviews}}
   - name: authority

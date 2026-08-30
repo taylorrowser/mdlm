@@ -4,6 +4,11 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual, promisify } from "node:util";
 import { Ajv2020, type ErrorObject } from "ajv/dist/2020.js";
+import {
+  compileAssignmentProjection,
+  publicAssignmentRenderer,
+  type AssignmentOutputRoute,
+} from "./assignment-projection-compiler.js";
 import { repositoryGitEnvironment } from "./git-environment.js";
 import type {
   LifecycleEvaluation,
@@ -2117,6 +2122,7 @@ interface SymbolicProposalLink {
   target:
     | { input: string }
     | { output: string }
+    | { payload: { output: string; path: string } }
     | { datum: string };
 }
 
@@ -2166,12 +2172,30 @@ export function assignmentResponseSchema(
     },
   };
   const target = {
-    oneOf: ["input", "output", "datum"].map((name) => ({
-      type: "object",
-      additionalProperties: false,
-      required: [name],
-      properties: { [name]: { type: "string", minLength: 1 } },
-    })),
+    oneOf: [
+      ...["input", "output", "datum"].map((name) => ({
+        type: "object",
+        additionalProperties: false,
+        required: [name],
+        properties: { [name]: { type: "string", minLength: 1 } },
+      })),
+      {
+        type: "object",
+        additionalProperties: false,
+        required: ["payload"],
+        properties: {
+          payload: {
+            type: "object",
+            additionalProperties: false,
+            required: ["output", "path"],
+            properties: {
+              output: { type: "string", minLength: 1 },
+              path: { type: "string", minLength: 1 },
+            },
+          },
+        },
+      },
+    ],
   };
   const common = {
     contract: { const: "mdlm-assignment-response@2" },
@@ -2371,74 +2395,63 @@ function assignmentResponseSkeleton(
 ): AssignmentResponseSkeleton | undefined {
   const { dryRun, processPackage, scenario } = exact;
   if (dryRun.invocations.length === 0) return undefined;
+  const compiled = compileAssignmentProjection({
+    scenario,
+    renderer: publicAssignmentRenderer,
+    source: `scenarios.${scenario.id}`,
+  });
+  if (!compiled.ok) return undefined;
   const outputByName = new Map(dryRun.expectedOutputs.map((output) => [
     output.name,
     output,
   ]));
-  if (outputByName.size !== dryRun.expectedOutputs.length) return undefined;
-
-  const outputDefinitions = Array.isArray(scenario.outputs)
-    ? scenario.outputs.map(object)
-    : [];
   if (
-    outputDefinitions.some((output) => !output) ||
-    outputDefinitions.length !== dryRun.expectedOutputs.length
+    outputByName.size !== dryRun.expectedOutputs.length ||
+    compiled.plan.outputs.length !== dryRun.expectedOutputs.length ||
+    compiled.plan.outputs.some((route) => !outputByName.has(route.output))
   ) return undefined;
-  const handleByName = new Map(outputDefinitions.map((definition) => [
-    String(definition!.name),
-    typeof definition!.handle === "string"
-      ? definition!.handle
-      : String(definition!.name),
+  const routesByName = new Map(compiled.plan.outputs.map((route) => [
+    route.output,
+    route,
   ]));
 
   const outputs: AssignmentResponseSkeleton["proposal"]["outputs"] = [];
   const batched = dryRun.invocations.length > 1;
   const responseHandle = (invocation: number, output: string) =>
     batched ? `invocation-${invocation + 1}-${output}` : output;
+  const routeType = (
+    route: AssignmentOutputRoute,
+    invocation: ScenarioDryRunInvocation,
+  ): string | undefined => {
+    const typeRoute = route.type;
+    if (typeRoute.kind === "declared") return typeRoute.type;
+    const input = invocation.inputs.find((candidate) =>
+      candidate.name === typeRoute.input
+    );
+    const bound = input?.values.length === 1
+      ? input.values[0]!.identity.type
+      : undefined;
+    return bound && typeRoute.types.includes(bound) ? bound : undefined;
+  };
   for (const [invocationIndex, invocation] of dryRun.invocations.entries()) {
-    for (const expected of dryRun.expectedOutputs) {
-      const definition = outputDefinitions.find((output) =>
-        output?.name === expected.name
-      );
-      const identityInputName = typeof object(definition?.identity_from)?.input === "string"
-        ? String(object(definition?.identity_from)!.input)
-        : undefined;
-      const identityInput = identityInputName
-        ? invocation.inputs.find((input) => input.name === identityInputName)
-        : undefined;
-      const boundType = identityInput?.values.length === 1
-        ? identityInput.values[0]!.identity.type
-        : undefined;
-      const sourceType = expected.types.length === 1
-        ? expected.types[0]
-        : boundType && expected.types.includes(boundType)
-        ? boundType
-        : undefined;
-      const requiredLinks = Array.isArray(definition?.required_links)
-        ? definition.required_links.map(object)
-        : [];
-      if (
-        !definition ||
-        !sourceType ||
-        requiredLinks.some((link) => !link) ||
-        requiredLinks.length !== expected.requiredLinks.length
-      ) return undefined;
+    for (const route of compiled.plan.outputs) {
+      const expected = outputByName.get(route.output)!;
+      const sourceType = routeType(route, invocation);
+      if (!sourceType) return undefined;
 
       const links: SymbolicProposalLink[] = [];
-      for (const required of requiredLinks) {
-        const linkId = typeof required?.link === "string" ? required.link : undefined;
-        const target = object(required?.target);
-        if (!linkId) return undefined;
-        if (typeof target?.input === "string") {
+      for (const required of route.links) {
+        if (required.target.kind === "input") {
+          const inputName = required.target.input;
           const input = invocation.inputs.find((candidate) =>
-            candidate.name === target.input
+            candidate.name === inputName
           );
           if (!input) return undefined;
           for (const value of input.values) {
             const identity = requiredLinkIdentity(
               processPackage,
               sourceType,
-              linkId,
+              required.link,
               value.identity.type,
             );
             if (!identity) return undefined;
@@ -2447,43 +2460,51 @@ function assignmentResponseSkeleton(
               : value.identity.revision_id;
             if (!datum) return undefined;
             links.push({
-              type: linkId,
+              type: required.link,
               target: input.values.length === 1
-                ? { input: target.input }
+                ? { input: inputName }
                 : { datum },
             });
           }
           continue;
         }
-        if (typeof target?.output === "string") {
-          const targetOutput = outputByName.get(target.output);
-          const targetType = targetOutput?.types[0];
-          if (!targetOutput || !targetType) return undefined;
+        const targetRoute = routesByName.get(required.target.output);
+        if (!targetRoute) return undefined;
+        if (required.target.kind === "output") {
+          const targetType = routeType(targetRoute, invocation);
+          if (!targetType) return undefined;
           const identity = requiredLinkIdentity(
             processPackage,
             sourceType,
-            linkId,
+            required.link,
             targetType,
           );
           if (!identity) return undefined;
           links.push({
-            type: linkId,
+            type: required.link,
             target: {
               output: responseHandle(
                 invocationIndex,
-                handleByName.get(targetOutput.name) ?? targetOutput.name,
+                targetRoute.handle,
               ),
             },
           });
           continue;
         }
-        return undefined;
+        links.push({
+          type: required.link,
+          target: {
+            payload: {
+              output: responseHandle(invocationIndex, targetRoute.handle),
+              path: required.target.path,
+            },
+          },
+        });
       }
-      const outputHandle = handleByName.get(expected.name) ?? expected.name;
       const repeated = ["one-or-more", "zero-or-more"].includes(expected.cardinality);
       outputs.push({
-        handle: responseHandle(invocationIndex, outputHandle),
-        ...(repeated || batched ? { output: outputHandle } : {}),
+        handle: responseHandle(invocationIndex, route.handle),
+        ...(repeated || batched ? { output: route.handle } : {}),
         ...(batched ? { invocation: invocationIndex } : {}),
         type: sourceType,
         payload: null,
@@ -2509,6 +2530,7 @@ function internalLinkTarget(
   sourceType: string,
   link: SymbolicProposalLink,
   outputTypes: Map<string, string>,
+  responseOutputs: SymbolicProposalOutput[],
   invocation: number,
 ): string | undefined {
   if ("datum" in link.target) return link.target.datum;
@@ -2528,6 +2550,17 @@ function internalLinkTarget(
       : identity === "revision_id"
       ? value.identity.revision_id
       : undefined;
+  }
+  if ("payload" in link.target) {
+    const payloadTarget = link.target.payload;
+    const output = responseOutputs.find((candidate) =>
+      candidate.handle === payloadTarget.output
+    );
+    let value: unknown = output?.payload;
+    for (const segment of payloadTarget.path.split(".")) {
+      value = object(value)?.[segment];
+    }
+    return typeof value === "string" ? value : undefined;
   }
   const targetType = outputTypes.get(link.target.output);
   if (!targetType) return undefined;
@@ -2647,7 +2680,9 @@ function scenarioProposalFromResponse(
       : [];
   }));
   const activeLinks = (links: SymbolicProposalLink[]) => links.filter((link) =>
-    !("output" in link.target && omittedOutputs.has(link.target.output))
+    !("output" in link.target && omittedOutputs.has(link.target.output)) &&
+    !("payload" in link.target &&
+      omittedOutputs.has(link.target.payload.output))
   );
   const materialization = exactBaselineMaterializationContract(exact.scenario);
   const outputs: ScenarioProposal["outputs"] = [];
@@ -2678,7 +2713,9 @@ function scenarioProposalFromResponse(
     const fixedLinks = (links: SymbolicProposalLink[]) => links.filter((link) =>
       !distributedLinkTypes.has(link.type)
     );
-    const declaredLinkTypes = new Set(expectedOutput.links.map((link) => link.type));
+    const declaredLinkTypes = new Set(
+      expected.get(responseKey(output))!.links.map((link) => link.type),
+    );
     if (
       output.links.some((link) => !declaredLinkTypes.has(link.type)) ||
       JSON.stringify(fixedLinks(activeLinks(output.links))) !==
@@ -2713,6 +2750,7 @@ function scenarioProposalFromResponse(
         output.type,
         link,
         outputTypes,
+        response.proposal.outputs,
         invocation,
       ),
     }));

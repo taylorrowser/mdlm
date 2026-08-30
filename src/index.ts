@@ -7,6 +7,10 @@ import {
 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
 import { parse } from "yaml";
+import {
+  compileAssignmentProjection,
+  publicAssignmentRenderer,
+} from "./assignment-projection-compiler.js";
 import { validateDefinitionGraph } from "./definition-graph.js";
 import { compileDefinitionExpressions } from "./expression.js";
 import {
@@ -41,6 +45,16 @@ export {
   type OperatorOutcomeClassification,
   type OperatorWorkFacts,
 } from "./operator-outcome.js";
+export {
+  compileAssignmentProjection,
+  publicAssignmentRenderer,
+  type AssignmentLinkRoute,
+  type AssignmentOutputRoute,
+  type AssignmentOutputTypeRoute,
+  type AssignmentProjectionPlan,
+  type AssignmentRendererContract,
+  type CompileAssignmentProjectionResult,
+} from "./assignment-projection-compiler.js";
 export type {
   BaselineCompositionDependencyChange,
   BaselineMembershipDependencyChange,
@@ -622,6 +636,10 @@ export async function loadProcessPackage(
       DefinitionGroup,
       Record<string, VersionedDefinition>
     >;
+    const definitionSources = {} as Record<
+      DefinitionGroup,
+      Record<string, string>
+    >;
     const expressionDefinitions: {
       definition: VersionedDefinition;
       filePath: string;
@@ -633,6 +651,7 @@ export async function loadProcessPackage(
     ][]) {
       const validator = validators.get(schemaName);
       const byId: Record<string, VersionedDefinition> = {};
+      const sourcesById: Record<string, string> = {};
       for (const filePath of await yamlFiles(path.join(root, group))) {
         const definition = await readYaml(filePath);
         diagnostics.push(
@@ -680,8 +699,10 @@ export async function loadProcessPackage(
           expressionDefinitions.push({ definition, filePath });
         }
         byId[definition.id] = definition;
+        sourcesById[definition.id] = filePath;
       }
       definitions[group] = byId;
+      definitionSources[group] = sourcesById;
     }
 
     if (diagnostics.length > 0) return { ok: false, diagnostics };
@@ -735,6 +756,15 @@ export async function loadProcessPackage(
     diagnostics.push(...validatePayloadInheritance(definitions));
     diagnostics.push(...validateScenarioContracts(definitions));
     if (options.compatibility !== "historical-authoring") {
+      for (const scenario of Object.values(definitions.scenarios)) {
+        const compiled = compileAssignmentProjection({
+          scenario,
+          renderer: publicAssignmentRenderer,
+          source: definitionSources.scenarios[scenario.id] ??
+            `scenarios.${scenario.id}`,
+        });
+        if (!compiled.ok) diagnostics.push(...compiled.diagnostics);
+      }
       diagnostics.push(...await validateScenarioAssets(
         root,
         definitions.scenarios,

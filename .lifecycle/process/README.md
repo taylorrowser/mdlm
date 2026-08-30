@@ -34,9 +34,11 @@ Package loading:
 3. resolves each lifecycle type through its single Payload Template chain;
 4. validates outgoing-link ownership and exact cross-definition references;
 5. rejects cyclic or ill-typed Selector, Policy, State, and Template dependencies;
-6. verifies Scenario inputs, prohibited inputs, output cardinalities, required
+6. compiles every Scenario's public Assignment type and link routes, using two
+   symbolic invocations for batchable Scenarios;
+7. verifies Scenario inputs, prohibited inputs, output cardinalities, required
    links, participation, Authority Evidence, and completion contracts; and
-7. validates the `exact-baseline@1` binding without teaching the kernel the `BSL`
+8. validates the `exact-baseline@1` binding without teaching the kernel the `BSL`
    identifier.
 
 Obligations distinguish eventual Resolver availability from Dispatchability.
