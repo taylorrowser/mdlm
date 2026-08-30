@@ -1,9 +1,15 @@
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { parse, stringify } from "yaml";
 import { beforeAll, describe, expect, it } from "vitest";
 import { validateDefinitionGraph } from "../src/definition-graph.js";
-import { loadProcessPackage, type ProcessPackage } from "../src/index.js";
+import {
+  compileAssignmentProjection,
+  loadProcessPackage,
+  publicAssignmentRenderer,
+  type ProcessPackage,
+} from "../src/index.js";
 import { processPackageDigest } from "../src/process-package-digest.js";
 import { validateScenarioContracts } from "../src/scenario-contract.js";
 import {
@@ -141,6 +147,66 @@ describe("loadProcessPackage", () => {
     }
     return value.map(record);
   }
+
+  it("compiles public Assignment routes at the package-loader seam", async () => {
+    const review = validPackage.scenarios["review-datum-in-context"]!;
+    expect(compileAssignmentProjection({
+      scenario: review,
+      renderer: publicAssignmentRenderer,
+      source: "scenarios/review-datum-in-context.yaml",
+    })).toMatchObject({ ok: true, plan: { witnessInvocations: 2 } });
+
+    expect(compileAssignmentProjection({
+      scenario: validPackage.scenarios["record-consequential-decision"]!,
+      renderer: publicAssignmentRenderer,
+      source: "scenarios/record-consequential-decision.yaml",
+    })).toMatchObject({
+      ok: true,
+      plan: {
+        outputs: [expect.objectContaining({
+          links: expect.arrayContaining([expect.objectContaining({
+            target: { kind: "payload", output: "decision", path: "waiver.instance" },
+          })]),
+        })],
+      },
+    });
+
+    expect(compileAssignmentProjection({
+      scenario: review,
+      renderer: { linkInputScope: "first-invocation-only" },
+      source: "scenarios/review-datum-in-context.yaml",
+    })).toMatchObject({
+      ok: false,
+      diagnostics: expect.arrayContaining([expect.objectContaining({
+        code: "missing-link-input",
+        path: expect.stringContaining("required_links[0].target.input"),
+        message: expect.stringContaining("symbolic invocation 2"),
+      })]),
+    });
+
+    const processRoot = await copiedProcessPackage();
+    try {
+      const scenarioPath = path.join(
+        processRoot,
+        "scenarios/revise-requirement-under-change.yaml",
+      );
+      const scenario = parse(await fs.readFile(scenarioPath, "utf8"));
+      delete scenario.outputs[0].identity_from;
+      await fs.writeFile(scenarioPath, stringify(scenario));
+
+      expect(await loadProcessPackage(processRoot)).toMatchObject({
+        ok: false,
+        diagnostics: expect.arrayContaining([expect.objectContaining({
+          code: "missing-type-route",
+          path: expect.stringMatching(
+            /revise-requirement-under-change\.yaml#outputs\[0\]\.types$/,
+          ),
+        })]),
+      });
+    } finally {
+      await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
+    }
+  });
 
   it("binds a corrected verification strategy to its source VSP lineage", () => {
     expect(records(
