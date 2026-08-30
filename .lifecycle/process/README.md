@@ -90,7 +90,8 @@ reaches the declared Profile Boundary rather than arbitrary selection.
 
 The package derives ASP, ICSP, planning and completion DWP Revisions, allocated
 SYS outputs, exact-set simplification, independent Review, evidence-preserving
-candidates, attended gate judgment, and flattened acceptance. Canonical links
+level candidates without an intermediate singleton group, attended gate
+judgment, and flattened acceptance. Canonical links
 carry architecture, interface, decomposition, allocation, strategy, and coverage
 truth. Scope reduction must remove a proper subset while retaining coherent
 replacement coverage; complete removal is not fabricated as success.

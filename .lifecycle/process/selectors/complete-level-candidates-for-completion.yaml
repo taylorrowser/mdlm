@@ -1,24 +1,25 @@
 kind: selector-definition
-id: complete-group-candidates-for-completion
+id: complete-level-candidates-for-completion
 version: 1
-description: Frozen group candidates containing the exact completion, outputs, architecture, interfaces, and simplification evidence for one DWP lineage.
+description: Frozen level candidates containing the exact completion, outputs, architecture, interfaces, strategy, and simplification evidence for one DWP lineage.
 parameters:
   - {name: completion, kind: revision, types: [DWP]}
 result_kind: baseline
 query:
   from:
     selector: candidate-baselines-of-kind@1
-    arguments: {baseline_kind: '"group-candidate"'}
+    arguments: {baseline_kind: '"level-candidate"'}
   as: candidate
   where: >-
     count("planning-revisions-for-completion@1", {completion: completion}) == 1
+    && count("architectures-for-decomposition@1",
+      {plan: one("planning-revisions-for-completion@1", {completion: completion})}) == 1
+    && count("strategies-for-decomposition@1",
+      {plan: one("planning-revisions-for-completion@1", {completion: completion})}) == 1
     && candidate.payload.scope == completion.identity.revision_id
+    && candidate.payload.group == "DEFAULT"
     && exists("baseline-contains-definition@1",
       {baseline: candidate, subject: completion})
-    && none("unexpected-group-candidate-members@1",
-      {candidate: candidate, completion: completion})
-    && none("unexpected-group-candidate-evidence@1",
-      {candidate: candidate, completion: completion})
     && every("decomposition-outputs-for@1",
       {plan: one("planning-revisions-for-completion@1", {completion: completion})},
       output => exists("baseline-contains-definition@1",
@@ -31,11 +32,19 @@ query:
       {plan: one("planning-revisions-for-completion@1", {completion: completion})},
       interface => exists("baseline-contains-definition@1",
         {baseline: candidate, subject: interface}))
+    && every("strategies-for-decomposition@1",
+      {plan: one("planning-revisions-for-completion@1", {completion: completion})},
+      strategy => exists("baseline-contains-definition@1",
+        {baseline: candidate, subject: strategy}))
     && exists("architecture-simplification-reviews-for@1",
       {plan: one("planning-revisions-for-completion@1", {completion: completion})})
     && every("architecture-simplification-reviews-for@1",
       {plan: one("planning-revisions-for-completion@1", {completion: completion})},
       review => exists("baseline-contains-evidence@1",
         {baseline: candidate, subject: review}))
+    && none("unexpected-level-candidate-members@2",
+      {candidate: candidate, completion: completion})
+    && none("unexpected-level-candidate-evidence@1",
+      {candidate: candidate, completion: completion})
   distinct: true
   order_by: [identity.revision_id]

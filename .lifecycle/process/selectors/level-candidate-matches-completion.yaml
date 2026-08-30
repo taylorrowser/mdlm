@@ -1,0 +1,16 @@
+kind: selector-definition
+id: level-candidate-matches-completion
+version: 1
+description: The supplied level candidate only when it semantically contains one complete DWP definition and evidence set.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+  - {name: completion, kind: revision, types: [DWP]}
+result_kind: baseline
+query:
+  from:
+    selector: complete-level-candidates-for-completion@1
+    arguments: {completion: completion}
+  as: level
+  where: 'level == candidate'
+  distinct: true
+  order_by: [identity.revision_id]

@@ -16,15 +16,14 @@ status_rules:
   - status: ready
     priority: 100
     when: 'true'
-    reason: Preserve the exact candidate membership, evidence, and composition while recording its process-significant predecessor and every correction cause.
+    reason: Preserve the exact candidate membership and evidence while recording its process-significant predecessor and every correction cause.
 default_status: ready
 resolve_with:
-  scenario: revise-phase-2-candidate-after-review@1
+  scenario: revise-phase-2-candidate-after-review@2
   inputs:
     candidate: candidate
     definition_members: 'select("candidate-definition-members@1", {candidate: candidate})'
     evidence: 'select("baseline-evidence@1", {baseline: candidate})'
-    composed_groups: 'select("composed-groups-for-level-candidate@1", {candidate: candidate})'
     failed_reviews: 'select("failing-reviews-for@1", {subject: candidate})'
     gate_rejections: 'select("reviewed-gate-rejections-for-candidate@1", {candidate: candidate})'
 waiver_policy_ref: waiver-applicability@1

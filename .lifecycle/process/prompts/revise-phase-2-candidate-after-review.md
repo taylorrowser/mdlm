@@ -1,6 +1,6 @@
 ---
 id: revise-phase-2-candidate-after-review
-version: 1
+version: 2
 scenario: revise-phase-2-candidate-after-review
 ---
 
@@ -10,8 +10,8 @@ Read `skills/lifecycle-data.md@1`, `skills/baseline-model.md@1`,
 `skills/contextual-artifact-review.md@2`, `skills/traceability.md@1`, and
 `skills/gate-protocol.md@1`.
 
-Publish one frozen same-lineage replacement group or level candidate. Preserve
-exactly every supplied definition member, evidence Revision, and composed group.
+Publish one frozen same-lineage replacement level candidate. Preserve exactly
+every supplied definition member and evidence Revision.
 Record the process-significant predecessor through `supersedes`, every failed
 Review through `corrects-review`, and every reviewed rejection through
 `corrects-gate-rejection`. Rejection is not stop, defer, or cancel. The

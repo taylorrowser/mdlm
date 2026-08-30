@@ -1,7 +1,7 @@
 kind: selector-definition
 id: complete-phase-2-requirements
 version: 1
-description: Accepted Phase 2 requirements with one exact completed DWP, group candidate, and composed level candidate chain.
+description: Accepted Phase 2 requirements with one exact completed DWP and direct level candidate chain.
 parameters: []
 result_kind: revision
 query:
@@ -14,9 +14,7 @@ query:
     && every("current-decomposition-plans-for-requirement@1", {requirement: requirement}, plan =>
       count("decomposition-completions-for@1", {plan: plan}) == 1
       && every("decomposition-completions-for@1", {plan: plan}, completion =>
-        count("complete-group-candidates-for-completion@1", {completion: completion}) == 1
-        && every("complete-group-candidates-for-completion@1", {completion: completion}, group =>
-          exists("complete-level-candidates-for-group@1",
-            {group: group, completion: completion}))))
+        count("complete-level-candidates-for-completion@1",
+          {completion: completion}) == 1))
   distinct: true
   order_by: [identity.revision_id]

@@ -1,7 +1,7 @@
 kind: selector-definition
 id: complete-superseding-phase-2-candidates-for
 version: 1
-description: Same-lineage superseding Phase 2 candidates preserving every unaffected exact member, evidence item, and composed group.
+description: Same-lineage superseding Phase 2 level candidates preserving every unaffected exact member and evidence item.
 parameters:
   - {name: candidate, kind: baseline, types: [BSL]}
 result_kind: baseline
@@ -29,12 +29,6 @@ query:
     && every("baseline-evidence@1", {baseline: replacement}, evidence =>
       exists("baseline-contains-evidence@1",
         {baseline: candidate, subject: evidence}))
-    && every("composed-groups-for-level-candidate@1", {candidate: candidate}, group =>
-      exists("level-candidate-composes-group@1",
-        {candidate: replacement, group: group}))
-    && every("composed-groups-for-level-candidate@1", {candidate: replacement}, group =>
-      exists("level-candidate-composes-group@1",
-        {candidate: candidate, group: group}))
     && count("cited-failing-reviews-by-correction@1",
       {replacement: replacement})
       == count("failing-reviews-for@1", {subject: candidate})

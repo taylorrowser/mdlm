@@ -1,14 +1,14 @@
 kind: selector-definition
 id: failed-phase-2-candidates
 version: 1
-description: Exact group or level candidates with current failed Review or reviewed rejection and no causal successor.
+description: Exact level candidates with current failed Review or reviewed rejection and no causal successor.
 parameters: []
 result_kind: baseline
 query:
   from: {collection: baselines, types: [BSL]}
   as: candidate
   where: >-
-    candidate.payload.kind in ["group-candidate", "level-candidate"]
+    candidate.payload.kind == "level-candidate"
     && candidate.payload.role == "candidate"
     && candidate.storage.frozen == true
     && (

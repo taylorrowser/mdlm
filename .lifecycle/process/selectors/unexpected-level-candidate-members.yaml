@@ -1,7 +1,7 @@
 kind: selector-definition
 id: unexpected-level-candidate-members
-version: 1
-description: Definition members outside the exact shared architecture, interface, and strategy context of one level candidate.
+version: 2
+description: Definition members outside the exact DWP completion, output, architecture, interface, and strategy set of one level candidate.
 parameters:
   - {name: candidate, kind: baseline, types: [BSL]}
   - {name: completion, kind: revision, types: [DWP]}
@@ -11,7 +11,11 @@ query:
   as: member
   where: >-
     count("planning-revisions-for-completion@1", {completion: completion}) == 1
-    && ((member.identity.type == "ASP"
+    && ((member.identity.type == "DWP" && member != completion)
+      || (member.identity.type == "SYS"
+        && none("matching-decomposition-output@1",
+          {plan: one("planning-revisions-for-completion@1", {completion: completion}), output: member}))
+      || (member.identity.type == "ASP"
         && member != one("architectures-for-decomposition@1",
           {plan: one("planning-revisions-for-completion@1", {completion: completion})}))
       || (member.identity.type == "ICSP"
@@ -20,6 +24,6 @@ query:
       || (member.identity.type == "VSP"
         && member != one("strategies-for-decomposition@1",
           {plan: one("planning-revisions-for-completion@1", {completion: completion})}))
-      || !(member.identity.type in ["ASP", "ICSP", "VSP"]))
+      || !(member.identity.type in ["DWP", "SYS", "ASP", "ICSP", "VSP"]))
   distinct: true
   order_by: [identity.revision_id]

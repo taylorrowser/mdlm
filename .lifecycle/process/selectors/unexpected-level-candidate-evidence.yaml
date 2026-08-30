@@ -1,7 +1,7 @@
 kind: selector-definition
-id: unexpected-group-candidate-evidence
+id: unexpected-level-candidate-evidence
 version: 1
-description: Evidence outside the exact passing simplification Reviews for one group candidate.
+description: Evidence outside the exact passing simplification Reviews for one level candidate.
 parameters:
   - {name: candidate, kind: baseline, types: [BSL]}
   - {name: completion, kind: revision, types: [DWP]}
