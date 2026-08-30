@@ -314,6 +314,53 @@ describe("resolveType", () => {
     }
   });
 
+  it("keeps pilot prototype controls out of qualification implementations", async () => {
+    const sourcePackage = await loadProcessPackage(".lifecycle/process");
+    expect(sourcePackage.ok).toBe(true);
+    if (!sourcePackage.ok) return;
+    const vaiResult = resolveType(sourcePackage.package, "VAI");
+    expect(vaiResult.ok).toBe(true);
+    if (!vaiResult.ok) return;
+
+    const validate = new Ajv2020({ allErrors: true, strict: false }).compile(
+      vaiResult.type.payloadSchema,
+    );
+    const qualification = {
+      title: "Qualification implementation",
+      rationale: "Exercise the declared environment capability.",
+      kind: "qualification",
+      implementation_ref: `procedure:sha256:${"0".repeat(64)}`,
+      independence_mode: "environment-capability",
+      authoring_input_refs: ["VSP-123456789A-r00001"],
+      prohibited_inputs_observed: [
+        "product source code",
+        "product unit tests",
+        "private implementation details",
+        "uncontrolled implementation shortcuts",
+      ],
+      activity_bindings: ["VER-123456789A-r00001"],
+      target_behavior: {
+        supported: ["declared environment capability"],
+        intentionally_unsupported: ["undeclared environment capability"],
+      },
+    };
+    expect(validate(qualification)).toBe(true);
+    expect(validate({
+      ...qualification,
+      prototype_control_bindings: {
+        activity_ref: "VER-123456789A-r00001",
+        known_good: {
+          argv: ["example-command", "valid"],
+          expected_verification_outcome: "pass",
+        },
+        known_bad: {
+          argv: ["example-command"],
+          expected_verification_outcome: "fail",
+        },
+      },
+    })).toBe(false);
+  });
+
   it("preserves additive fields while applying a supported constraint narrowing", async () => {
     const processRoot = await copiedProcessPackage();
     const parentPath = path.join(

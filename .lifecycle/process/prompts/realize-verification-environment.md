@@ -18,7 +18,9 @@ capabilities into the ENV. Record an exact reproducible environment reference an
 minimal qualification VER and VAI needed to exercise those capabilities,
 including a positive capability check and a negative control. Qualification may
 inspect environment implementation details, but it must not make or imply a
-product requirement acceptance claim.
+product requirement acceptance claim. Record both checks as ordinary
+qualification activity bindings; `prototype_control_bindings` are reserved for
+pilot VAIs against exact ART targets and must not appear on this qualification VAI.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
 `skills/author-preflight.md@2` contract.
