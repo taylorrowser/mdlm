@@ -7,6 +7,8 @@ import { canonicalProcessPackage } from "./helpers/canonical-process-package-fix
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 import { runPhaseTwoAssuranceReviewRoute } from
   "./helpers/proportional-phase-2-routes.js";
+import { runPhaseTwoSimplificationReviewBinding } from
+  "./helpers/phase-2-simplification-review-binding.js";
 import { runPhaseTwoReviewCorrectionRendering } from
   "./phase-2-review-correction-rendering.test.js";
 import { runPhaseTwoGateReviewCorrection } from
@@ -162,6 +164,12 @@ it(
   "keeps shared assurance Review work in Phase 2 after public submit",
   runPhaseTwoAssuranceReviewRoute,
   120_000,
+);
+
+it(
+  "accepts a Phase 2 simplification Review without a duplicate plan ID only in its exact context",
+  runPhaseTwoSimplificationReviewBinding,
+  30_000,
 );
 
 it(

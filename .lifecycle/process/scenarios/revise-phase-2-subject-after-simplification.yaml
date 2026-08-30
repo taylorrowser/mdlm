@@ -14,6 +14,7 @@ outputs:
   - name: replacement
     types: [SYS]
     cardinality: one
+    identity_from: {input: subject}
     required_links:
       - {link: corrects-review, target: {input: failed_review}}
       - {link: derived-from, target: {input: parents}}
