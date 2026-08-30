@@ -29,6 +29,7 @@ outputs:
   - name: replacement
     types: [VSP]
     cardinality: one
+    identity_from: {input: strategy}
     required_links:
       - {link: governs, target: {input: requirements}}
       - {link: governs-revision, target: {input: requirements}}
