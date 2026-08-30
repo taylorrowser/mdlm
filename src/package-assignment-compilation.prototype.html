@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Throwaway prototype: package Assignment compilation</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #25211d;
+      --muted: #6d655c;
+      --paper: #f5f0e8;
+      --panel: #fffdf8;
+      --line: #d8cec0;
+      --accent: #a24b32;
+      --good: #276544;
+      --bad: #9b352d;
+      --soft-good: #e7f2ea;
+      --soft-bad: #f8e7e3;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font: 16px/1.45 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    main {
+      width: min(1120px, calc(100% - 32px));
+      margin: 36px auto 72px;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.04; max-width: 850px; }
+    h2 { font-size: 1.25rem; }
+    h3 { font-size: 1rem; margin-bottom: 8px; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .92em; }
+
+    .kicker {
+      color: var(--accent);
+      font-weight: 750;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      font-size: .76rem;
+    }
+
+    .intro { max-width: 880px; color: var(--muted); font-size: 1.06rem; }
+    .grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 18px; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 3px 12px rgb(49 39 28 / 5%);
+    }
+
+    .verdict {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      border-left: 6px solid var(--accent);
+    }
+
+    .verdict.pass { border-left-color: var(--good); background: var(--soft-good); }
+    .verdict.fail { border-left-color: var(--bad); background: var(--soft-bad); }
+    .status { font-size: 1.25rem; font-weight: 800; }
+    .muted { color: var(--muted); }
+
+    .state-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .state-card { border-top: 1px solid var(--line); padding-top: 12px; min-width: 0; }
+    .state-card.wide { grid-column: 1 / -1; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip {
+      display: inline-flex;
+      padding: 3px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .route {
+      padding: 9px 10px;
+      margin-top: 7px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .diagnostic {
+      padding: 10px 12px;
+      border-left: 4px solid var(--bad);
+      background: var(--soft-bad);
+      margin-top: 8px;
+    }
+
+    .diagnostic code { display: block; font-weight: 750; margin-bottom: 3px; }
+    .empty { color: var(--good); font-weight: 700; }
+
+    button {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 12px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    button:hover { border-color: var(--accent); }
+    button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    button:disabled { cursor: default; opacity: .45; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .free-play { margin-top: 18px; }
+
+    .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .tab[aria-selected="true"] { color: #fff; background: var(--ink); border-color: var(--ink); }
+    .walkthrough { margin-top: 18px; }
+    .steps { display: grid; gap: 10px; }
+    .step {
+      display: grid;
+      grid-template-columns: 32px 1fr auto;
+      align-items: center;
+      gap: 10px;
+      border-top: 1px solid var(--line);
+      padding-top: 10px;
+    }
+
+    .step-number {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--paper);
+      font-weight: 800;
+    }
+
+    .step.done .step-number { color: #fff; background: var(--good); }
+    .source-note { font-size: .88rem; color: var(--muted); margin-top: 16px; }
+
+    @media (max-width: 780px) {
+      .grid, .state-grid { grid-template-columns: 1fr; }
+      .state-card.wide { grid-column: auto; }
+      .step { grid-template-columns: 32px 1fr; }
+      .step button { grid-column: 2; justify-self: start; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="kicker">Throwaway logic prototype</p>
+    <h1>Can package loading prove that every Scenario can become a public Assignment?</h1>
+    <p class="intro">
+      This prototype asks whether one compiler can reject the two shapes that reached demos before a complete response scaffold existed: the pre-fix #407 correction with no output-type route, and the Pi171 <code>review-datum-in-context@3</code> batch whose old renderer lost link inputs after the first invocation. The compiler uses symbolic values only. It adds no Lifecycle Data and needs no fixture for each Scenario.
+    </p>
+
+    <section id="verdict" class="panel verdict" aria-live="polite"></section>
+
+    <section class="grid" style="margin-top: 18px">
+      <div class="panel">
+        <h2>Full compiler state</h2>
+        <div id="state" class="state-grid"></div>
+      </div>
+      <div class="panel">
+        <h2>Diagnostics</h2>
+        <div id="diagnostics"></div>
+      </div>
+    </section>
+
+    <section class="panel free-play">
+      <h2>Free play</h2>
+      <p class="muted">Swap the declaration, renderer rule, and symbolic batch in any order.</p>
+      <div class="actions">
+        <button data-action="load-happy">Load fixed correction</button>
+        <button data-action="load-407">Load pre-fix #407</button>
+        <button data-action="load-pi171">Load Pi171 review</button>
+        <button data-action="modern-renderer">Use invocation-scoped links</button>
+        <button data-action="legacy-renderer">Use first-invocation links</button>
+        <button data-action="one-invocation">Compile one invocation</button>
+        <button data-action="two-invocations">Compile two invocations</button>
+        <button class="primary" data-action="compile">Compile public scaffold</button>
+      </div>
+    </section>
+
+    <section class="panel walkthrough">
+      <h2>Guided walkthroughs</h2>
+      <div id="tabs" class="tabs" role="tablist"></div>
+      <div id="walkthrough"></div>
+      <p class="source-note">
+        The examples are reduced copies of package shapes, not live repositories. Pi171 evidence is the durable turn receipt with SHA-256 <code>64040ecf...cdf896</code>; its Invalid outcome matches closed #447. Current <code>main</code> contains the #447 batch-aware renderer at merge <code>b3fadff3</code>.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    /*
+     * Portable prototype module. It has no DOM dependency.
+     * Input is a Scenario declaration plus renderer capabilities.
+     * Output is a complete symbolic route plan or diagnostics.
+     */
+    const AssignmentProjectionCompiler = (() => {
+      const compatibleType = (declared, actual) => declared.includes(actual);
+
+      function outputTypeFor(output, invocation) {
+        if (output.types.length === 1) return { type: output.types[0], via: "single declared output type" };
+        if (!output.identityFrom) return { error: "missing-type-route" };
+        const input = invocation.inputs[output.identityFrom];
+        if (!input || input.length !== 1 || !compatibleType(output.types, input[0].type)) {
+          return { error: "missing-type-route" };
+        }
+        return { type: input[0].type, via: `identity from ${output.identityFrom}` };
+      }
+
+      function compile({ scenario, renderer, invocationCount }) {
+        const diagnostics = [];
+        const routes = [];
+        const width = scenario.batching === "single" ? 1 : invocationCount;
+        const invocations = Array.from({ length: width }, (_, invocation) => ({
+          invocation,
+          inputs: Object.fromEntries(scenario.inputs.map(input => [
+            input.name,
+            [{ type: input.sampleType ?? input.types[0], token: `invocation-${invocation + 1}:${input.name}` }]
+          ]))
+        }));
+
+        for (const invocation of invocations) {
+          for (const output of scenario.outputs) {
+            const selected = outputTypeFor(output, invocation);
+            const handle = width > 1
+              ? `invocation-${invocation.invocation + 1}-${output.name}`
+              : output.name;
+            if (selected.error) {
+              diagnostics.push({
+                code: selected.error,
+                path: `${scenario.id}.outputs.${output.name}.types`,
+                message: `Output '${output.name}' has ${output.types.length} candidate types and no total route from one exact input type.`
+              });
+              continue;
+            }
+
+            const links = [];
+            for (const link of output.requiredLinks) {
+              const targetInput = scenario.inputs.find(input => input.name === link.input);
+              const scopedInvocation = renderer.linkInputScope === "per-invocation"
+                ? invocation
+                : invocations[0];
+              const values = targetInput && scopedInvocation.invocation === invocation.invocation
+                ? scopedInvocation.inputs[link.input]
+                : undefined;
+              if (!targetInput || !values?.length) {
+                diagnostics.push({
+                  code: "missing-link-input",
+                  path: `${handle}.links.${link.type}`,
+                  message: `Required link '${link.type}' cannot address input '${link.input}' inside invocation ${invocation.invocation + 1}.`
+                });
+                continue;
+              }
+              links.push({ type: link.type, target: values[0].token });
+            }
+            routes.push({
+              invocation: invocation.invocation + 1,
+              handle,
+              output: output.name,
+              type: selected.type,
+              typeRoute: selected.via,
+              links
+            });
+          }
+        }
+
+        return {
+          ok: diagnostics.length === 0,
+          scenario: scenario.id,
+          renderer: renderer.name,
+          invocationCount: width,
+          invocations,
+          routes,
+          diagnostics
+        };
+      }
+
+      return Object.freeze({ compile });
+    })();
+
+    const scenarios = {
+      happy: {
+        name: "Fixed #407 architecture correction",
+        id: "revise-phase-2-subject-after-review@1",
+        batching: "single",
+        inputs: [
+          { name: "subject", types: ["ASP"], sampleType: "ASP" },
+          { name: "reviews", types: ["REV"], sampleType: "REV" },
+          { name: "governed_subjects", types: ["STK", "SYS", "DWP"], sampleType: "SYS" }
+        ],
+        outputs: [{
+          name: "replacement",
+          types: ["ASP"],
+          identityFrom: "subject",
+          requiredLinks: [
+            { type: "corrects-review", input: "reviews" },
+            { type: "governs", input: "governed_subjects" }
+          ]
+        }]
+      },
+      issue407: {
+        name: "Pre-fix #407 generic correction",
+        id: "revise-phase-2-subject-after-review@1",
+        batching: "single",
+        inputs: [
+          { name: "subject", types: ["SYS", "ASP", "ICSP", "DWP"], sampleType: "ASP" },
+          { name: "reviews", types: ["REV"], sampleType: "REV" }
+        ],
+        outputs: [{
+          name: "replacement",
+          types: ["SYS", "ASP", "ICSP", "DWP"],
+          requiredLinks: [{ type: "corrects-review", input: "reviews" }]
+        }]
+      },
+      pi171: {
+        name: "Pi171 contextual Review batch",
+        id: "review-datum-in-context@3",
+        batching: "coherent-batch",
+        inputs: [
+          { name: "subject", types: ["MAP", "PSP", "STK", "SYS", "ASP", "ICSP", "DWP", "VSP", "ENV", "VER", "VAI", "BSL", "DEC", "PRB", "CHG", "PAS"], sampleType: "SYS" },
+          { name: "review_context", types: ["BSL"], sampleType: "BSL" },
+          { name: "context_members", types: ["MAP", "QST", "DEC", "ART", "PSP", "STK", "SYS", "ASP", "ICSP", "DWP", "VSP", "ENV", "VER", "VAI", "RUN", "RES", "REV", "BSL", "PRB", "CHG", "PAS"], sampleType: "SYS" }
+        ],
+        outputs: [{
+          name: "review",
+          types: ["REV"],
+          requiredLinks: [
+            { type: "reviews", input: "subject" },
+            { type: "contextualizes", input: "review_context" }
+          ]
+        }]
+      }
+    };
+
+    const renderers = {
+      modern: { name: "invocation-scoped link inputs", linkInputScope: "per-invocation" },
+      legacy: { name: "first-invocation link inputs", linkInputScope: "first-invocation-only" }
+    };
+
+    const state = {
+      scenarioKey: "happy",
+      rendererKey: "modern",
+      invocationCount: 1,
+      result: null,
+      walkthrough: "happy",
+      step: 0
+    };
+
+    const walkthroughs = {
+      happy: {
+        label: "Happy path",
+        description: "A fixed single-type correction compiles one complete public response route.",
+        steps: [
+          ["Load the fixed correction", "load-happy"],
+          ["Use invocation-scoped links", "modern-renderer"],
+          ["Compile the scaffold", "compile"]
+        ]
+      },
+      type: {
+        label: "Missing type route",
+        description: "The original #407 shape named four candidate replacement types but declared no rule that selected one.",
+        steps: [
+          ["Load the pre-fix #407 shape", "load-407"],
+          ["Compile the scaffold", "compile"]
+        ]
+      },
+      link: {
+        label: "Missing link input",
+        description: "The Pi171 shape batches two Reviews. The old projection can see link inputs only in invocation one, so invocation two cannot produce its required Review links.",
+        steps: [
+          ["Load the Pi171 Review shape", "load-pi171"],
+          ["Compile two symbolic invocations", "two-invocations"],
+          ["Replay the old link scoping", "legacy-renderer"],
+          ["Compile and expose the gap", "compile"],
+          ["Switch to invocation-scoped links", "modern-renderer"],
+          ["Compile the repaired route", "compile"]
+        ]
+      }
+    };
+
+    function act(action) {
+      if (action === "load-happy") state.scenarioKey = "happy";
+      if (action === "load-407") state.scenarioKey = "issue407";
+      if (action === "load-pi171") state.scenarioKey = "pi171";
+      if (action === "modern-renderer") state.rendererKey = "modern";
+      if (action === "legacy-renderer") state.rendererKey = "legacy";
+      if (action === "one-invocation") state.invocationCount = 1;
+      if (action === "two-invocations") state.invocationCount = 2;
+      if (action === "compile") {
+        state.result = AssignmentProjectionCompiler.compile({
+          scenario: scenarios[state.scenarioKey],
+          renderer: renderers[state.rendererKey],
+          invocationCount: state.invocationCount
+        });
+      } else {
+        state.result = null;
+      }
+      render();
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, char => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+      })[char]);
+    }
+
+    function chips(values) {
+      return `<div class="chips">${values.map(value => `<span class="chip">${escapeHtml(value)}</span>`).join("")}</div>`;
+    }
+
+    function render() {
+      const scenario = scenarios[state.scenarioKey];
+      const renderer = renderers[state.rendererKey];
+      const result = state.result;
+      const verdict = document.querySelector("#verdict");
+      verdict.className = `panel verdict ${result ? (result.ok ? "pass" : "fail") : ""}`;
+      verdict.innerHTML = result
+        ? `<div><div class="status">${result.ok ? "Compiles" : "Rejected before operation"}</div><div class="muted">${escapeHtml(scenario.name)}</div></div><div>${result.ok ? "complete symbolic scaffold" : `${result.diagnostics.length} compiler diagnostic${result.diagnostics.length === 1 ? "" : "s"}`}</div>`
+        : `<div><div class="status">Not compiled</div><div class="muted">Choose a declaration and renderer, then compile.</div></div>`;
+
+      const inputs = scenario.inputs.map(input => `${input.name}: ${input.types.join(" | ")}`);
+      const outputs = scenario.outputs.map(output => `${output.name}: ${output.types.join(" | ")}`);
+      const routes = result?.routes.length
+        ? result.routes.map(route => `<div class="route">${escapeHtml(route.handle)} -> ${escapeHtml(route.type)} via ${escapeHtml(route.typeRoute)}<br>${escapeHtml(route.links.map(link => `${link.type}=${link.target}`).join(", ") || "no links")}</div>`).join("")
+        : `<span class="muted">No route plan yet.</span>`;
+      document.querySelector("#state").innerHTML = `
+        <div class="state-card"><h3>Scenario</h3><code>${escapeHtml(scenario.id)}</code><p class="muted">${escapeHtml(scenario.name)}</p></div>
+        <div class="state-card"><h3>Compiler target</h3><code>package load</code><p class="muted">${escapeHtml(renderer.name)}</p></div>
+        <div class="state-card wide"><h3>Declared inputs</h3>${chips(inputs)}</div>
+        <div class="state-card wide"><h3>Declared outputs</h3>${chips(outputs)}</div>
+        <div class="state-card"><h3>Batch witness</h3><code>${scenario.batching}</code><p>${result?.invocationCount ?? (scenario.batching === "single" ? 1 : state.invocationCount)} symbolic invocation(s)</p></div>
+        <div class="state-card"><h3>Link addressing</h3><code>${escapeHtml(renderer.linkInputScope)}</code></div>
+        <div class="state-card wide"><h3>Compiled routes</h3>${routes}</div>
+      `;
+
+      const diagnostics = result?.diagnostics ?? [];
+      document.querySelector("#diagnostics").innerHTML = diagnostics.length
+        ? diagnostics.map(item => `<div class="diagnostic"><code>${escapeHtml(item.code)}</code><div>${escapeHtml(item.message)}</div><small>${escapeHtml(item.path)}</small></div>`).join("")
+        : result ? `<p class="empty">No diagnostics. Every symbolic route has a type and invocation-local link inputs.</p>` : `<p class="muted">Diagnostics appear after compilation.</p>`;
+
+      document.querySelector("#tabs").innerHTML = Object.entries(walkthroughs).map(([key, item]) =>
+        `<button class="tab" role="tab" aria-selected="${state.walkthrough === key}" data-tab="${key}">${escapeHtml(item.label)}</button>`
+      ).join("");
+      const guide = walkthroughs[state.walkthrough];
+      document.querySelector("#walkthrough").innerHTML = `
+        <p>${escapeHtml(guide.description)}</p>
+        <div class="steps">${guide.steps.map(([label, action], index) => `
+          <div class="step ${index < state.step ? "done" : ""}">
+            <span class="step-number">${index + 1}</span>
+            <span>${escapeHtml(label)}</span>
+            <button data-step="${index}" data-action="${action}" ${index > state.step ? "disabled" : ""}>${index < state.step ? "Run again" : "Run"}</button>
+          </div>`).join("")}
+        </div>`;
+    }
+
+    document.addEventListener("click", event => {
+      const tab = event.target.closest("[data-tab]");
+      if (tab) {
+        state.walkthrough = tab.dataset.tab;
+        state.step = 0;
+        render();
+        return;
+      }
+      const button = event.target.closest("[data-action]");
+      if (!button) return;
+      if (button.dataset.step !== undefined && Number(button.dataset.step) === state.step) state.step += 1;
+      act(button.dataset.action);
+    });
+
+    render();
+  </script>
+</body>
+</html>
