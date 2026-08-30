@@ -81,7 +81,7 @@ adding the named replacement. Never keep both versions of the same behavior.
 | Complete Phase 3 | Component forms of `write-verification-activity`, `build-pilot-control-prototype`, `realize-verification-environment`, `implement-verification-activity`, and `execute-verification-run`, preferably widened shared contracts | Component forms of `environment-assurance-required`, `pilot-verification-activity-required`, `pilot-target-required`, `pilot-verification-implementation-required`, `verification-run-required`, assurance Review/Correction, plus `formal-verification-activity-required` | Make the Phase 3 gate wait for one suitable representative pilot and complete formal CMP VER coverage; pilot RES never accepts CMP |
 | Phase 4 | `derive-design-requirements`, `create-design-level-candidate`; reuse widened architecture, interface, decomposition, verification, Review, Correction, and gate contracts | `design-level-candidate-required`; reuse level-aware decomposition, verification, Review, Correction, and gate obligations | Reuse the candidate gate; publish supported-CMP acceptance only after the DES candidate gate |
 | Phase 5 | `implement-design-set`, `implement-formal-verification-activity`, `accept-phase-4-design` | `design-set-implementation-required`, `implementation-traceability-review-required`, `formal-verification-implementation-required`, `formal-verification-implementation-review-required`, `design-acceptance-required` | Automatic DES promotion waits for complete reviewed ART coverage and reviewed formal VAI readiness; no new attended gate |
-| Phase 6 | Widen `execute-verification-run`; add `assess-analysis-result`, `witness-demonstration`, `assess-inspection-result`, `accept-verified-level`, `accept-product` | `formal-verification-run-required`, `formal-result-assessment-required`, `verified-level-acceptance-required`, `product-acceptance-required`; reuse `problem-report-required` and CHG obligations | Promote DES, CMP, SYS, then STK in dependency order; one final attended acceptance DEC satisfies `Lifecycle Complete` |
+| Phase 6 | Widen `execute-verification-run`; add `assess-analysis-result`, `witness-demonstration`, `assess-inspection-result`, `accept-product` | `formal-verification-run-required`, `formal-result-assessment-required`, `product-acceptance-required`; reuse `problem-report-required` and CHG obligations | Execute formal evidence bottom-up against existing accepted Revisions; one final attended acceptance DEC satisfies `Lifecycle Complete` |
 
 The exact Phase 3 tracer selector additions are
 `phase-3-entry-requirements`,
@@ -163,26 +163,27 @@ one representative design-boundary pilot and formal DES VER coverage.
 Do not restate component architecture inside DES. Do not add a group candidate,
 new Review datum, new environment datum, or separate Correction phase.
 
-Public demo acceptance seam: one accepted CMP slice produces reviewed DES and
-refined ICSP evidence with exact `STK -> SYS -> CMP -> DES` ancestry, one
-suitable representative pilot, formal DES VER coverage, one direct level
-candidate, a gate DEC, and accepted CMP promotion. The next outcome is Phase 5
-implementation work.
+Public demo acceptance seam: one exact gate-approved CMP candidate slice
+produces reviewed DES and refined ICSP evidence with exact
+`STK -> SYS -> CMP -> DES` ancestry, one suitable representative pilot, formal
+DES VER coverage, one direct level candidate, a gate DEC, and accepted CMP
+promotion. The next outcome is Phase 5 implementation work.
 
 ### 4. Phase 5 independent implementation tracks
 
 Add `phases/phase-5-implementation.yaml`. Add `ART.implements` links to one or
-more exact accepted DES Revisions and a bounded DES-to-path mapping for one
-exact product commit or build. `implement-design-set` publishes one coherent
-product-build ART. `implement-formal-verification-activity` consumes exact VER,
-ENV, and public controlled-build inputs while prohibiting product source, unit
-tests, and private implementation details. Existing REV records substantive
-ART traceability judgment and formal VAI judgment.
+more exact Revisions from the gate-approved DES candidate and a bounded
+DES-to-path mapping for one exact product commit or build. `implement-design-set`
+publishes one coherent product-build ART.
+`implement-formal-verification-activity` consumes exact VER, ENV, and public
+controlled-build inputs while prohibiting product source, unit tests, and
+private implementation details. Existing REV records substantive ART
+traceability judgment and formal VAI judgment.
 
 Do not add BUILD, implementation-plan, unit-test-result, readiness-summary,
 track-state, file, or symbol data. Product code, unit tests, and build logs stay
 in Git or build evidence cited by the one ART. The product and formal-VAI
-Assignments derive independently from the same accepted DES set.
+Assignments derive independently from the same gate-approved DES candidate set.
 
 Public demo acceptance seam: the public operator loop exposes both independently
 ready Assignments without a coordinator. The product worker publishes one exact
@@ -196,17 +197,18 @@ Add `phases/phase-6-verification.yaml`. Extend formal execution so each reviewed
 formal VAI runs against the exact accepted requirement, VER, qualified ENV, and
 controlled ART. Reuse RUN and RES without a summary datum. Add assessment
 Scenarios only for analysis, inspection, or demonstration methods that require
-human judgment. Deterministic test results need no REV. Promote accepted
-baselines bottom-up from the exact required formal RES set. Reuse PRB and CHG
-for failures. Add final attended product acceptance and the profile's
+human judgment. Deterministic test results need no REV. Execute the formal
+evidence bottom-up against the accepted DES, CMP, SYS, and STK Revisions without
+publishing another accepted baseline at each level. Reuse PRB and CHG for
+failures. Add final attended product acceptance and the profile's
 `Lifecycle Complete` condition.
 
 Public demo acceptance seam: one controlled build executes exact formal VAIs
-bottom-up. One deterministic pass needs no Review, one witnessed result records
-the package-declared REV or DEC, accepted baselines promote in dependency order,
-and final STK acceptance yields `Lifecycle Complete`. In the same tiny product
-boundary, a deliberately failing build publishes PRB and CHG and derives only
-the impacted reruns.
+bottom-up against the already accepted requirement Revisions. One deterministic
+pass needs no Review, one witnessed result records the package-declared REV or
+DEC, and final attended product acceptance yields `Lifecycle Complete`. In the
+same tiny product boundary, a deliberately failing build publishes PRB and CHG
+and derives only the impacted reruns.
 
 Phase 7 expansion follows this proof. It should extend Original-V impact through
 CMP, DES, ART, formal VAI and RES, and replacement baselines. It is not part of
@@ -220,7 +222,8 @@ These are package acceptance rules:
 - one VSP and ENV per compatible level and profile;
 - one representative pilot per distinct strategy and public boundary;
 - one formal VER per independently assessable requirement claim;
-- one product-build ART per coherent accepted DES set and exact build commit;
+- one product-build ART per coherent gate-approved DES candidate set and exact
+  build commit;
 - one RUN/RES per formal VAI because execution evidence is immutable;
 - one REV per independently judged subject, with compatible subjects sharing
   one exact Review Context and Assignment when the package permits; and
