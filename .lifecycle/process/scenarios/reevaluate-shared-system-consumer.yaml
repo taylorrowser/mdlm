@@ -6,13 +6,31 @@ phases: [phase-2-system-definition, phase-7-change-control]
 inputs:
   - {name: consumer, types: [DWP], cardinality: one, identity: revision}
   - {name: replacement_requirements, types: [SYS], cardinality: one-or-more, identity: revision}
+  - {name: parents, types: [STK], cardinality: one-or-more, identity: revision}
+  - {name: architecture, types: [ASP], cardinality: one, identity: revision}
+  - {name: interfaces, types: [ICSP], cardinality: zero-or-more, identity: revision}
+  - {name: verification_strategy, types: [VSP], cardinality: one, identity: revision}
+  - {name: planning_source, types: [DWP], cardinality: zero-or-one, identity: revision}
+  - {name: outputs, types: [SYS], cardinality: zero-or-more, identity: revision}
+  - {name: simplification_reviews, types: [REV], cardinality: zero-or-more, identity: revision}
+  - {name: review_causes, types: [REV], cardinality: zero-or-more, identity: revision}
+  - {name: change_causes, types: [CHG], cardinality: zero-or-more, identity: revision}
 outputs:
   - name: replacement_consumer
     types: [DWP]
     cardinality: one
     identity_from: {input: consumer}
     required_links:
+      - {link: decomposes, target: {input: parents}}
       - {link: decomposes, target: {input: replacement_requirements}}
+      - {link: allocated-to, target: {input: architecture}}
+      - {link: governed-by, target: {input: interfaces}}
+      - {link: verified-under, target: {input: verification_strategy}}
+      - {link: derived-from, target: {input: planning_source}}
+      - {link: produces, target: {input: outputs}}
+      - {link: justifies, target: {input: simplification_reviews}}
+      - {link: corrects-review, target: {input: review_causes}}
+      - {link: changed-under, target: {input: change_causes}}
 prompt_ref: prompts/reevaluate-shared-system-consumer.md@1
 review_policy_ref: review-applicability@1
 completion: >-

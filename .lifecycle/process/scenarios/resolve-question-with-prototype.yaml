@@ -13,6 +13,10 @@ inputs:
       && question.payload.state == "open"
       && question.payload.resolution_evidence == "prototype"
       && question.storage.frozen == true
+  - name: blocked_targets
+    types: [PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, QST, DEC]
+    cardinality: zero-or-more
+    identity: stable
 outputs:
   - name: prototype
     types: [ART]
@@ -29,7 +33,8 @@ outputs:
     types: [QST]
     cardinality: one
     identity_from: {input: question}
-    required_links: []
+    required_links:
+      - {link: blocks, target: {input: blocked_targets}}
 prompt_ref: prompts/resolve-question-with-prototype.md@2
 review_policy_ref: review-applicability@1
 participation:

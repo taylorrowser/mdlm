@@ -5,7 +5,9 @@ import { parse, stringify } from "yaml";
 import { beforeAll, describe, expect, it } from "vitest";
 import { validateDefinitionGraph } from "../src/definition-graph.js";
 import {
+  compileAssignmentProjection,
   loadProcessPackage,
+  publicAssignmentRenderer,
   type ProcessPackage,
 } from "../src/index.js";
 import { processPackageDigest } from "../src/process-package-digest.js";
@@ -168,6 +170,66 @@ describe("loadProcessPackage", () => {
         input: inputName,
       });
     }
+  });
+
+  it("compiles complete support links for Phase 2 continuation Assignments", () => {
+    const routes = [
+      ["reevaluate-shared-system-consumer", "replacement_consumer", [
+        ["decomposes", "parents"],
+        ["decomposes", "replacement_requirements"],
+        ["allocated-to", "architecture"],
+        ["governed-by", "interfaces"],
+        ["verified-under", "verification_strategy"],
+        ["derived-from", "planning_source"],
+        ["produces", "outputs"],
+        ["justifies", "simplification_reviews"],
+        ["corrects-review", "review_causes"],
+        ["changed-under", "change_causes"],
+      ]],
+      ["replan-stale-decomposition-work-package", "replacement_plan", [
+        ["decomposes", "subjects"],
+        ["allocated-to", "architecture"],
+        ["governed-by", "interfaces"],
+        ["verified-under", "verification_strategy"],
+        ["corrects-review", "review_causes"],
+        ["changed-under", "change_causes"],
+      ]],
+      ["resolve-question-with-prototype", "updated_question", [
+        ["blocks", "blocked_targets"],
+      ]],
+    ] as const;
+
+    for (const [scenarioId, outputName, links] of routes) {
+      const compiled = compileAssignmentProjection({
+        scenario: validPackage.scenarios[scenarioId]!,
+        renderer: publicAssignmentRenderer,
+        source: `.lifecycle/process/scenarios/${scenarioId}.yaml`,
+      });
+      expect(compiled.ok, scenarioId).toBe(true);
+      if (!compiled.ok) continue;
+      const output = compiled.plan.outputs.find((item) =>
+        item.output === outputName
+      );
+      expect(output?.links, scenarioId).toEqual(links.map(([link, input]) => ({
+        link,
+        target: { kind: "input", input },
+      })));
+    }
+
+    const sharedConsumerResolver = record(
+      validPackage.obligations["shared-system-consumer-reevaluation-required"]!
+        .resolve_with,
+    );
+    const sharedConsumerInputs = record(sharedConsumerResolver.inputs);
+    expect(record(sharedConsumerInputs.replacement_requirements).source).toBe(
+      'select("system-requirements-after-consumer-reevaluation@1", {consumer: consumer})',
+    );
+    const prototypeInputs = record(record(
+      validPackage.obligations["prototype-question-resolution"]!.resolve_with,
+    ).inputs);
+    expect(record(prototypeInputs.blocked_targets).source).toBe(
+      'select("blocked-targets-for-question@1", {question: question})',
+    );
   });
 
   it("rejects an unrenderable Assignment route at the package-loader seam", async () => {
