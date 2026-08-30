@@ -147,6 +147,25 @@ async function correctionPackage(parent: string): Promise<string> {
           target: { output: "stakeholder_requirement" },
         }],
       },
+      {
+        name: "strategy",
+        types: ["VSP"],
+        cardinality: "one",
+        required_links: [
+          { link: "governs", target: { output: "stakeholder_requirement" } },
+          { link: "governs-revision", target: { output: "stakeholder_requirement" } },
+        ],
+      },
+      {
+        name: "plan",
+        types: ["DWP"],
+        cardinality: "one",
+        required_links: [
+          { link: "decomposes", target: { output: "stakeholder_requirement" } },
+          { link: "allocated-to", target: { output: "subject" } },
+          { link: "verified-under", target: { output: "strategy" } },
+        ],
+      },
     ],
     prompt_ref: "prompts/seed-phase-2-correction-subject.md@1",
     review_policy_ref: "review-applicability@1",
@@ -183,7 +202,7 @@ async function correctionPackage(parent: string): Promise<string> {
     },
     phases: ["phase-2-system-definition"],
     inputs: [
-      { name: "subject", types: ["ASP"], cardinality: "one", identity: "revision" },
+      { name: "subject", types: ["ASP", "DWP"], cardinality: "one", identity: "revision" },
       {
         name: "review_context_members",
         types: ["PSP", "STK"],
@@ -248,10 +267,10 @@ async function correctionPackage(parent: string): Promise<string> {
     phases: ["phase-2-system-definition"],
     for_each: 'select("seeded-phase-2-correction-subjects@1", {})',
     subject_as: "subject",
-    satisfied_when: 'exists("failing-reviews-for@1", {subject: subject})',
+    satisfied_when: 'exists("seeded-phase-2-reviews-for@1", {subject: subject})',
     status_rules: [{
       status: "ready",
-      priority: 1000,
+      priority: 1,
       when: 'none("failing-reviews-for@1", {subject: subject})',
       reason: "Publish the exact failed Review.",
     }],
@@ -270,11 +289,11 @@ async function correctionPackage(parent: string): Promise<string> {
       kind: "selector-definition",
       id: "seeded-phase-2-correction-subjects",
       version: 1,
-      description: "The exact seeded ASP correction subject.",
+      description: "The exact seeded ASP and DWP correction subjects.",
       parameters: [],
       result_kind: "revision",
       query: {
-        from: { collection: "revisions", types: ["ASP"] },
+        from: { collection: "revisions", types: ["ASP", "DWP"] },
         as: "subject",
         where: 'subject.provenance.scenario == "seed-phase-2-correction-subject@1"',
         distinct: true,
@@ -296,13 +315,38 @@ async function correctionPackage(parent: string): Promise<string> {
         order_by: ["identity.revision_id"],
       },
     },
+    {
+      kind: "selector-definition",
+      id: "seeded-phase-2-reviews-for",
+      version: 1,
+      description: "Any exact seeded Review already published for one setup subject.",
+      parameters: [{
+        name: "subject",
+        kind: "revision",
+        types: ["ASP", "DWP"],
+      }],
+      result_kind: "revision",
+      query: {
+        from: {
+          relation: "incoming-links",
+          of: "subject",
+          link: "reviews",
+          emit: "source",
+          types: ["REV"],
+        },
+        as: "review",
+        where: "true",
+        distinct: true,
+        order_by: ["identity.revision_id"],
+      },
+    },
   ];
   const reviewPolicy = {
     kind: "policy-definition",
     id: "seed-review-participation",
     version: 1,
     description: "Delegate the exact regression Review without scheduled attention.",
-    parameters: [{ name: "subject", kind: "revision", types: ["ASP"] }],
+    parameters: [{ name: "subject", kind: "revision", types: ["ASP", "DWP"] }],
     result_schema: {
       $schema: "https://json-schema.org/draft/2020-12/schema",
       type: "object",
@@ -334,6 +378,50 @@ async function correctionPackage(parent: string): Promise<string> {
     },
     rules: [],
   };
+  const correctionReviews = {
+    kind: "selector-definition",
+    id: "phase-2-correction-reviews-for-subject",
+    version: 1,
+    description: "Route the exact failed setup Review to the production correction adapter.",
+    parameters: [
+      { name: "subject", kind: "revision", types: ["SYS", "ASP", "ICSP", "DWP"] },
+      { name: "view", kind: "scalar", scalar_type: "string" },
+    ],
+    result_kind: "revision",
+    query: {
+      from: {
+        relation: "incoming-links",
+        of: "subject",
+        link: "reviews",
+        emit: "source",
+        types: ["REV"],
+      },
+      as: "review",
+      where: 'review.payload.outcome == "fail"',
+      distinct: true,
+      order_by: ["identity.revision_id"],
+    },
+  };
+  const correctableDecompositions = {
+    kind: "selector-definition",
+    id: "phase-2-correctable-decompositions",
+    version: 1,
+    description: "Route the exact seeded DWP carrying one failed setup Review.",
+    parameters: [],
+    result_kind: "revision",
+    query: {
+      from: { collection: "revisions", types: ["DWP"] },
+      as: "subject",
+      where: [
+        'state(subject, "disposition") == "active"',
+        '&& none("newer-revisions-for@1", {subject: subject})',
+        '&& exists("phase-2-correction-reviews-for-subject@1",',
+        '  {subject: subject, view: "local"})',
+      ].join(" "),
+      distinct: true,
+      order_by: ["identity.id", "identity.revision"],
+    },
+  };
 
   for (const [relative, value] of [
     ["scenarios/seed-phase-2-correction-subject.yaml", seedScenario],
@@ -341,6 +429,8 @@ async function correctionPackage(parent: string): Promise<string> {
     ["obligations/seed-phase-2-correction-subject-required.yaml", seedObligation],
     ["obligations/seed-failed-phase-2-review-required.yaml", reviewObligation],
     ["policies/seed-review-participation.yaml", reviewPolicy],
+    ["selectors/phase-2-correction-reviews-for-subject.yaml", correctionReviews],
+    ["selectors/phase-2-correctable-decompositions.yaml", correctableDecompositions],
     ...selectors.map((selector) => [`selectors/${selector.id}.yaml`, selector]),
   ] as [string, unknown][]) {
     await fs.writeFile(path.join(packageRoot, relative), stringify(value));
@@ -368,11 +458,11 @@ function prepare(repository: string, scenario: string): JsonObject {
 function submit(
   repository: string,
   packet: JsonObject,
-  fill: (output: JsonObject) => JsonObject,
+  fill: (output: JsonObject) => JsonObject | undefined,
   authority?: string,
 ): JsonObject {
   const response = structuredClone(packet.responseScaffold);
-  response.proposal.outputs = response.proposal.outputs.map(fill);
+  response.proposal.outputs = response.proposal.outputs.map(fill).filter(Boolean);
   response.proposal.completionEvidence = { summary: `Complete ${packet.scenario.reference}.` };
   const arguments_ = ["scenario", "submit", "-", "--json"];
   if (authority) arguments_.splice(3, 0, "--authority", authority);
@@ -394,7 +484,7 @@ export async function runPhaseTwoReviewCorrectionRendering(): Promise<void> {
   await selectProcessPackageFixture(repository, await correctionPackage(root));
 
   const seed = prepare(repository, "seed-phase-2-correction-subject@1");
-  const seeded = submit(repository, seed, (output) => {
+  submit(repository, seed, (output) => {
     if (output.handle === "product") {
       return {
         ...output,
@@ -425,7 +515,7 @@ export async function runPhaseTwoReviewCorrectionRendering(): Promise<void> {
         body: "One stakeholder requirement.\n",
       };
     }
-    return {
+    if (output.handle === "subject") return {
       ...output,
       payload: {
         title: "System architecture",
@@ -444,42 +534,92 @@ export async function runPhaseTwoReviewCorrectionRendering(): Promise<void> {
       },
       body: "One system architecture.\n",
     };
-  });
-  commit(repository, "Seed Phase 2 correction subject");
-  const subjectRevision = seeded.receipt.publications.find(
-    (publication: JsonObject) => publication.handle === "subject",
-  ).revisionId;
-
-  const review = prepare(repository, "seed-failed-phase-2-review@1");
-  submit(repository, review, (output) => {
-    if (output.handle === "context") {
-      return { ...output, payload: {}, body: "The kernel freezes this context.\n" };
-    }
+    if (output.handle === "strategy") return {
+      ...output,
+      payload: {
+        title: "System verification strategy",
+        rationale: "Constrain the exact decomposition.",
+        level: "system",
+        permitted_methods: ["test"],
+        independence: {
+          boundary: "black-box",
+          prohibited_inputs: [
+            "product source code",
+            "product unit tests",
+            "private implementation details",
+            "uncontrolled implementation shortcuts",
+          ],
+        },
+        evidence_policy: "Retain exact observable outcomes.",
+        assessment_policy: "Compare each result to the exact requirement.",
+        environment_profile: {
+          id: "correction-test",
+          purpose: "Exercise the exact correction route.",
+          capabilities: {
+            controllability: ["Provide one request"],
+            observability: ["Observe one result"],
+            external_services: [],
+            timing: "Deterministic completion",
+          },
+        },
+      },
+      body: "One system verification strategy.\n",
+    };
     return {
       ...output,
       payload: {
-        title: `Review ${subjectRevision}`,
-        review_kind: "contextual",
-        reviewer: "independent-reviewer",
-        summary: "The exact deterministic result is missing.",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
-        findings: [{
-          id: "F-001",
-          target: subjectRevision,
-          relationship: "primary",
-          severity: "blocking",
-          summary: "State the deterministic result explicitly.",
-          criterion: "The system behavior must be unambiguous.",
-          evidence: "The exact result is not named.",
-          material_consequence: "Two conforming implementations could disagree.",
-        }],
-        correction_authority: "package-evidence",
-        outcome: "fail",
+        title: "Zero-interface decomposition",
+        rationale: "Bound one system behavior without an independently controlled interface.",
+        stage: "planning",
+        architecture_element: "AEL-0123456789",
+        target_child_type: "SYS",
+        behavioral_slice: "Report one deterministic result.",
+        expected_coverage: ["One operator-visible behavior"],
+        exclusions: ["Implementation design"],
+        dependencies: [],
+        required_review_policy: "review-applicability@1",
       },
-      body: "The exact ASP needs one bounded correction.\n",
+      body: "One zero-interface decomposition.\n",
     };
-  }, "independent-reviewer");
-  commit(repository, "Publish failed Phase 2 Review");
+  });
+  commit(repository, "Seed Phase 2 correction subject");
+  const publishFailedReview = (subjectType: "ASP" | "DWP"): void => {
+    const review = prepare(repository, "seed-failed-phase-2-review@1");
+    const subjectRevision = review.exactInputs[0].inputs.find(
+      (input: JsonObject) => input.name === "subject",
+    ).values[0].identity.revision_id;
+    expect(subjectRevision).toMatch(new RegExp(`^${subjectType}-`));
+    submit(repository, review, (output) => {
+      if (output.handle === "context") {
+        return { ...output, payload: {}, body: "The kernel freezes this context.\n" };
+      }
+      return {
+        ...output,
+        payload: {
+          title: `Review ${subjectRevision}`,
+          review_kind: "contextual",
+          reviewer: "independent-reviewer",
+          summary: "The exact deterministic result is missing.",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@3",
+          findings: [{
+            id: "F-001",
+            target: subjectRevision,
+            relationship: "primary",
+            severity: "blocking",
+            summary: "State the deterministic result explicitly.",
+            criterion: "The system behavior must be unambiguous.",
+            evidence: "The exact result is not named.",
+            material_consequence: "Two conforming implementations could disagree.",
+          }],
+          correction_authority: "package-evidence",
+          outcome: "fail",
+        },
+        body: `The exact ${subjectType} needs one bounded correction.\n`,
+      };
+    }, "independent-reviewer");
+    commit(repository, `Publish failed ${subjectType} Review`);
+  };
+  publishFailedReview("ASP");
 
   const correction = prepare(
     repository,
@@ -541,6 +681,36 @@ export async function runPhaseTwoReviewCorrectionRendering(): Promise<void> {
       handle: "replacement",
       stableId: subject.identity.id,
       revisionId: `${subject.identity.id}-r00002`,
+    }),
+  ]);
+  commit(repository, "Correct ASP");
+
+  publishFailedReview("DWP");
+  const decomposition = prepare(
+    repository,
+    "revise-phase-2-decomposition-after-review@1",
+  );
+  const decompositionSubject = decomposition.exactInputs[0].inputs.find(
+    (input: JsonObject) => input.name === "subject",
+  ).values[0];
+  expect(decomposition.responseScaffold.proposal.outputs[0].links).toEqual([
+    { type: "corrects-review", target: { input: "reviews" } },
+    { type: "decomposes", target: { input: "parents" } },
+    { type: "allocated-to", target: { input: "architecture" } },
+    { type: "verified-under", target: { input: "verification_strategy" } },
+  ]);
+  const decompositionResult = submit(repository, decomposition, (output) =>
+    output.handle === "decision" ? undefined : {
+      ...output,
+      payload: decompositionSubject.data.payload,
+      body: "The corrected zero-interface DWP preserves its exact trace links.\n",
+    }
+  );
+  expect(decompositionResult.receipt.publications).toEqual([
+    expect.objectContaining({
+      handle: "replacement",
+      stableId: decompositionSubject.identity.id,
+      revisionId: `${decompositionSubject.identity.id}-r00002`,
     }),
   ]);
   } finally {

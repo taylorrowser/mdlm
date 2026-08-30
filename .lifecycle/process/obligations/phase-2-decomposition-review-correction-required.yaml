@@ -24,7 +24,7 @@ resolve_with:
   inputs:
     subject: subject
     reviews: 'select("phase-2-correction-reviews-for-subject@1", {subject: subject, view: "local"})'
-    parents: 'select("decomposition-parents-for@1", {plan: subject})'
+    parents: 'select("phase-2-decomposition-subjects-for@1", {plan: subject})'
     architecture: 'one("architectures-for-decomposition@1", {plan: subject})'
     interfaces: 'select("interfaces-for-decomposition@1", {plan: subject})'
     verification_strategy: 'one("strategies-for-decomposition@1", {plan: subject})'
