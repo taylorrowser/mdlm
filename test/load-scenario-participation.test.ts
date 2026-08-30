@@ -70,9 +70,19 @@ describe("Scenario participation Policy validation", () => {
           name: "blocked_targets",
           cardinality: "zero-or-more",
           identity: "stable",
+          conditions: expect.objectContaining({
+            source: expect.stringContaining(
+              'every("blocked-targets-for-question@1"',
+            ),
+          }),
         }),
       ]),
     );
+    expect(loaded.package.aliases["question.resolve"]?.inputs).toMatchObject({
+      blocked_targets: expect.objectContaining({
+        source: "args.blocked_targets",
+      }),
+    });
     expect(loaded.package.obligations["open-question-resolution"]?.resolve_with)
       .toMatchObject({
         inputs: {
@@ -112,6 +122,12 @@ describe("Scenario participation Policy validation", () => {
         ]),
       }),
     );
+    expect(
+      await fs.readFile(
+        ".lifecycle/process/prompts/resolve-question.md",
+        "utf8",
+      ),
+    ).toContain("preferential `intent_scope: product` Question");
     expect(loaded.package.scenarios["record-gate-signoff"]?.outputs).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

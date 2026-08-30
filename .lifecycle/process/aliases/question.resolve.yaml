@@ -5,5 +5,7 @@ description: Resolve one exact open question through the declared Resolver Scena
 scenario: resolve-question@2
 arguments:
   question: {cardinality: one}
+  blocked_targets: {cardinality: zero-or-more}
 inputs:
   question: args.question
+  blocked_targets: args.blocked_targets

@@ -13,6 +13,9 @@ inputs:
     types: [PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, QST, DEC]
     cardinality: zero-or-more
     identity: stable
+    conditions: >-
+      !every("blocked-targets-for-question@1", {question: question},
+        target => target != blocked_targets)
 outputs:
   - name: decision
     types: [DEC]
