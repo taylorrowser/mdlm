@@ -94,6 +94,144 @@ describe("Phase 1 review routing", () => {
     processPackage = await canonicalProcessPackage();
   });
 
+  it("binds verification strategy coverage to stable and revision requirement identities", async () => {
+    const loaded = await loadProcessPackage(".lifecycle/process");
+    expect(loaded.ok, JSON.stringify(loaded.diagnostics)).toBe(true);
+    if (!loaded.ok) return;
+    const fixture = phase1Records();
+    const requirement = fixture.records.find((item) => item.datum.type === "STK")!;
+    const snapshot = {
+      processRef,
+      phaseId: "phase-1-product-assurance",
+      records: fixture.records.filter((item) =>
+        item !== fixture.strategy && item !== fixture.activity
+      ),
+      dependencyComparisons: [],
+    };
+    const evaluation = evaluateLifecycle(loaded.package, snapshot);
+    const obligation = evaluation.looseEnds.find((item) =>
+      item.obligation === "verification-strategy-required"
+    )!;
+
+    const prepared = await dryRunResolverScenario(
+      loaded.package,
+      snapshot,
+      "define-verification-strategy@1",
+      obligation.id,
+      [],
+      evaluation,
+    );
+
+    expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
+    if (!prepared.ok) return;
+    expect(prepared.value.invocations[0]?.inputs).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        name: "stable_requirements",
+        contract: expect.objectContaining({ identity: "stable" }),
+        values: [expect.objectContaining({ identity: expect.objectContaining({
+          id: requirement.datum.id,
+        }) })],
+      }),
+      expect.objectContaining({
+        name: "requirements",
+        contract: expect.objectContaining({ identity: "revision" }),
+        values: [expect.objectContaining({ identity: expect.objectContaining({
+          revision_id: requirement.datum.revision_id,
+        }) })],
+      }),
+    ]));
+    expect(prepared.value.expectedOutputs).toEqual([
+      expect.objectContaining({
+        requiredLinks: [
+          { link: "governs", target: { input: "stable_requirements" } },
+          { link: "governs-revision", target: { input: "requirements" } },
+        ],
+      }),
+    ]);
+
+    const submitted = await submitPreparedResolverScenario(
+      "/tmp/mdlm-issue-428-stable-revision-bindings",
+      loaded.package,
+      {
+        reference: "mdlm-bootstrap@0.92.0",
+        digest: processDigest,
+        language: "mdlm-expression@1",
+      },
+      {
+        scenarioReference: "define-verification-strategy@1",
+        obligationInstance: obligation.id,
+        proposal: {
+          outputs: [{
+            localId: "strategy",
+            name: "strategy",
+            invocation: 0,
+            lifecycleDatum: {
+              type: "VSP",
+              payload: {
+                title: "Stakeholder verification strategy",
+                rationale: "Verify the exact accepted stakeholder commitment.",
+                level: "stakeholder",
+                permitted_methods: ["test"],
+                independence: {
+                  boundary: "black-box",
+                  prohibited_inputs: [
+                    "product source code",
+                    "product unit tests",
+                    "private implementation details",
+                    "uncontrolled implementation shortcuts",
+                  ],
+                },
+                evidence_policy: "Retain the exact black-box observations.",
+                assessment_policy: "Assess every bound requirement.",
+                environment_profile: {
+                  id: "bounded-cli",
+                  purpose: "Run one bounded command-line verification.",
+                  capabilities: {
+                    controllability: ["stdin"],
+                    observability: ["stdout"],
+                    external_services: [],
+                    timing: "bounded",
+                  },
+                },
+              },
+              links: [
+                { type: "governs", target: requirement.datum.id },
+                { type: "governs-revision", target: requirement.datum.revision_id },
+              ],
+              body: "The strategy covers the stable commitment and its exact Revision.",
+            },
+          }],
+          completionEvidence: { summary: "Both requirement identities are covered." },
+        },
+        assignment: "issue-428-stable-revision-bindings",
+        responseDigest: `sha256:${"b".repeat(64)}`,
+        suppliedAuthorities: [],
+        suppliedDelegations: [],
+        loadedSkillRefs: prepared.value.prompt.skills.map((skill) => skill.reference),
+      },
+      {
+        dryRun: prepared.value,
+        evaluation,
+        scenario: loaded.package.scenarios["define-verification-strategy"]!,
+        snapshot,
+        publishMutation: async (_root, _package, _expected, data, executionId) => ({
+          ok: true,
+          value: {
+            created: data.map((datum) => ({
+              id: datum.id,
+              revisionId: datum.revision_id,
+              type: datum.type,
+              path: `.lifecycle/data/.transactions/${executionId}/${datum.type}.md`,
+            })),
+            executionPath: `.lifecycle/data/.transactions/${executionId}/execution.json`,
+          },
+          diagnostics: [],
+        }),
+      },
+    );
+    expect(submitted.ok, JSON.stringify(submitted.diagnostics)).toBe(true);
+  });
+
   it("routes a new VSP to Review before pilot activity authoring", async () => {
     const fixture = phase1Records();
     const snapshot = {
