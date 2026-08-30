@@ -3484,6 +3484,29 @@ export async function inspectSubmissionSettlement(
       diagnostics: [],
     };
   }
+  if (persisted.value?.id === identity &&
+    persisted.value.disposition === "abandoned" && persisted.value.response) {
+    const unable = persisted.value.response.unable;
+    const diagnostics = unable.diagnostics.length > 0
+      ? unable.diagnostics
+      : [{
+          code: "assignment-unable",
+          message: `Assignment could not complete: ${unable.reason}`,
+        }];
+    return {
+      ok: true,
+      value: {
+        contract: "mdlm-submission-outcome@1",
+        outcome: "rejected",
+        assignment: { id: identity },
+        responseDigest: persisted.value.response.digest,
+        diagnostics,
+        retryable: false,
+        correctionConsumed: false,
+      },
+      diagnostics: [],
+    };
+  }
   return {
     ok: true,
     value: {
