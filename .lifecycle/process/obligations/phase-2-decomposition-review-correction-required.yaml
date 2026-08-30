@@ -1,0 +1,34 @@
+kind: obligation-definition
+id: phase-2-decomposition-review-correction-required
+version: 1
+description: Every current failed or collateral-flagged Phase 2 decomposition receives one exact causal same-lineage Correction, then fresh Review.
+phases: [phase-2-system-definition]
+for_each: 'select("phase-2-correctable-decompositions@1", {})'
+subject_as: subject
+satisfied_when: 'exists("newer-revisions-for@1", {subject: subject})'
+status_rules:
+  - status: ready
+    priority: 200
+    when: >-
+      count("review-correction-history-for@1", {subject: subject, view: "autonomous-corrections"}) >= 2
+      || !every("phase-2-correction-reviews-for-subject@1", {subject: subject, view: "authority"}, review =>
+        review.payload.outcome != "fail" || review.payload.correction_authority == "package-evidence")
+    reason: The autonomous correction budget is exhausted or exact judgment changes stakeholder-owned scope; immediate attended escalation is required.
+  - status: ready
+    priority: 100
+    when: 'true'
+    reason: The exact subject and all current primary or collateral Review causes are ready for one local same-lineage Correction.
+default_status: ready
+resolve_with:
+  scenario: revise-phase-2-decomposition-after-review@1
+  inputs:
+    subject: subject
+    reviews: 'select("phase-2-correction-reviews-for-subject@1", {subject: subject, view: "local"})'
+    parents: 'select("phase-2-decomposition-subjects-for@1", {plan: subject})'
+    architecture: 'one("architectures-for-decomposition@1", {plan: subject})'
+    interfaces: 'select("interfaces-for-decomposition@1", {plan: subject})'
+    verification_strategy: 'one("strategies-for-decomposition@1", {plan: subject})'
+    prior_plan: 'first("planning-revisions-for-completion@1", {completion: subject})'
+    outputs: 'select("completion-outputs-for@1", {completion: subject})'
+    simplification_reviews: 'select("completion-simplification-evidence-for@1", {completion: subject})'
+waiver_policy_ref: waiver-applicability@1

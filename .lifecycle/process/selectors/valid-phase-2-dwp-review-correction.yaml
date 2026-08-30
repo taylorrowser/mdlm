@@ -11,9 +11,8 @@ query:
   where: >-
     candidate == replacement
     && ((candidate.payload.stage == "planning"
-        && exists("decomposition-parents-for@1", {plan: candidate})
+        && exists("phase-2-decomposition-subjects-for@1", {plan: candidate})
         && count("architectures-for-decomposition@1", {plan: candidate}) == 1
-        && exists("interfaces-for-decomposition@1", {plan: candidate})
         && count("strategies-for-decomposition@1", {plan: candidate}) == 1)
       || (candidate.payload.stage == "completion"
         && count("planning-revisions-for-completion@1", {completion: candidate}) == 1

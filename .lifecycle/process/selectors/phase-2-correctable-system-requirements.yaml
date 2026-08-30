@@ -1,0 +1,16 @@
+kind: selector-definition
+id: phase-2-correctable-system-requirements
+version: 1
+description: Current Phase 2 system requirement Revisions carrying unresolved primary or collateral Review causes.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [SYS]}
+  as: subject
+  where: >-
+    state(subject, "disposition") == "active"
+    && none("newer-revisions-for@1", {subject: subject})
+    && none("accepted-system-baselines-for-requirement@1", {requirement: subject})
+    && exists("phase-2-correction-reviews-for-subject@1", {subject: subject, view: "local"})
+  distinct: true
+  order_by: [identity.id, identity.revision]

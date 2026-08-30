@@ -1,0 +1,13 @@
+kind: selector-definition
+id: phase-2-architecture-governed-subjects-for
+version: 1
+description: Exact requirements and decomposition plans governed by one Phase 2 architecture Revision.
+parameters:
+  - {name: architecture, kind: revision, types: [ASP]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: architecture, link: governs, emit: target, types: [STK, SYS, DWP]}
+  as: governed_subject
+  where: 'true'
+  distinct: true
+  order_by: [identity.type, identity.revision_id]
