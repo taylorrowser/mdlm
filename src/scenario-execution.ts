@@ -463,9 +463,10 @@ function expressionBindings(
       output.proposal.invocation === invocationIndex &&
       output.proposal.name === outputContract.name
     ).map((output) => output.datum.revision_id);
-    bindings[outputContract.name] = outputContract.cardinality === "one" ||
-        outputContract.cardinality === "zero-or-one"
+    bindings[outputContract.name] = outputContract.cardinality === "one"
       ? values[0]
+      : outputContract.cardinality === "zero-or-one"
+      ? values[0] ?? null
       : values;
   }
   return bindings;
