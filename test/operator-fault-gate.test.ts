@@ -137,6 +137,37 @@ function filledResponse(next: JsonObject): JsonObject {
         output.body = "The attended answer authorizes this exact scope.\n";
       }
     }
+  } else if (packet.scenario.reference === "review-phase-0-foundation@1") {
+    const subject = packet.exactInputs[0].inputs.find(
+      (input: JsonObject) => input.name === "subject",
+    ).values[0];
+    for (const output of response.proposal.outputs) {
+      if (output.handle === "context") {
+        output.payload = {};
+        output.body = "The kernel freezes the exact Review Context.\n";
+      } else if (output.handle === "review") {
+        output.payload = {
+          title: `Review ${subject.identity.revision_id}`,
+          review_kind: "phase-0-foundation",
+          reviewer: "independent-reviewer",
+          summary: "The Decision leaves one reachable behavior unresolved.",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@3",
+          findings: [{
+            id: "F-001",
+            target: subject.identity.revision_id,
+            relationship: "primary",
+            severity: "blocking",
+            summary: "Choose one exact malformed-input behavior.",
+            criterion: "The product behavior must be observable.",
+            evidence: "Two outcomes remain possible for the same input.",
+            material_consequence: "Implementations can return different results.",
+          }],
+          correction_authority: "stakeholder",
+          outcome: "fail",
+        };
+        output.body = "The exact Decision needs one bounded correction.\n";
+      }
+    }
   } else {
     throw new Error(`No focused response for ${packet.scenario.reference}`);
   }
@@ -500,6 +531,67 @@ describe("focused v2 fault-injection gate", () => {
     expect(suppliedOutOfBand.value).toMatchObject({
       outcome: "accepted",
       assignment: { id: attended.value.assignment.id },
+    });
+  });
+
+  it("renders a same-lineage correction with exact causal links", async () => {
+    let next = await command(repository, ["next", "--json"]);
+    while (next.value.outcome === "assignment") {
+      const submitted = await command(
+        repository,
+        ["scenario", "submit", "-", "--json"],
+        `${JSON.stringify(filledResponse(next.value))}\n`,
+      );
+      expect(submitted.status, JSON.stringify(submitted.value)).toBe(0);
+      next = await command(repository, ["next", "--json"]);
+    }
+    expect(next.value).toMatchObject({
+      outcome: "attention-required",
+      assignment: { packet: { scenario: { reference: "resolve-question@2" } } },
+    });
+    const answered = await command(
+      repository,
+      ["scenario", "submit", "-", "--authority", "stakeholder", "--json"],
+      `${JSON.stringify(filledResponse(next.value))}\n`,
+    );
+    expect(answered.status, JSON.stringify(answered.value)).toBe(0);
+
+    const review = await command(repository, ["next", "--json"]);
+    expect(review.value.assignment.packet.scenario.reference)
+      .toBe("review-phase-0-foundation@1");
+    const reviewed = await command(
+      repository,
+      ["scenario", "submit", "-", "--json"],
+      `${JSON.stringify(filledResponse(review.value))}\n`,
+    );
+    expect(reviewed.status, JSON.stringify(reviewed.value)).toBe(0);
+
+    const correction = await command(repository, ["next", "--json"]);
+    expect(correction.status, JSON.stringify(correction.value)).toBe(0);
+    expect(correction.value).toMatchObject({
+      outcome: "attention-required",
+      assignment: {
+        packet: {
+          scenario: { reference: "revise-question-decision-after-review@1" },
+          outputs: [{
+            handle: "replacement",
+            type: "DEC",
+            identity: { input: "decision" },
+          }],
+          responseScaffold: {
+            proposal: {
+              outputs: [{
+                handle: "replacement",
+                type: "DEC",
+                links: [
+                  { type: "resolves", target: { input: "question" } },
+                  { type: "corrects-review", target: { input: "failed_reviews" } },
+                ],
+              }],
+            },
+          },
+        },
+      },
     });
   });
 

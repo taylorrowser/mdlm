@@ -2361,10 +2361,7 @@ function assignmentResponseSkeleton(
   lease: AssignmentLease,
 ): AssignmentResponseSkeleton | undefined {
   const { dryRun, processPackage, scenario } = exact;
-  if (
-    dryRun.invocations.length !== 1 ||
-    dryRun.expectedOutputs.some((output) => output.types.length !== 1)
-  ) return undefined;
+  if (dryRun.invocations.length !== 1) return undefined;
 
   const invocation = dryRun.invocations[0]!;
   const outputByName = new Map(dryRun.expectedOutputs.map((output) => [
@@ -2389,15 +2386,29 @@ function assignmentResponseSkeleton(
 
   const outputs: AssignmentResponseSkeleton["proposal"]["outputs"] = [];
   for (const expected of dryRun.expectedOutputs) {
-    const sourceType = expected.types[0]!;
     const definition = outputDefinitions.find((output) =>
       output?.name === expected.name
     );
+    const identityInputName = typeof object(definition?.identity_from)?.input === "string"
+      ? String(object(definition?.identity_from)!.input)
+      : undefined;
+    const identityInput = identityInputName
+      ? invocation.inputs.find((input) => input.name === identityInputName)
+      : undefined;
+    const boundType = identityInput?.values.length === 1
+      ? identityInput.values[0]!.identity.type
+      : undefined;
+    const sourceType = expected.types.length === 1
+      ? expected.types[0]
+      : boundType && expected.types.includes(boundType)
+      ? boundType
+      : undefined;
     const requiredLinks = Array.isArray(definition?.required_links)
       ? definition.required_links.map(object)
       : [];
     if (
       !definition ||
+      !sourceType ||
       requiredLinks.some((link) => !link) ||
       requiredLinks.length !== expected.requiredLinks.length
     ) return undefined;
@@ -2413,15 +2424,21 @@ function assignmentResponseSkeleton(
         const input = invocation.inputs.find((candidate) =>
           candidate.name === target.input
         );
-        if (!input || input.values.length !== 1) return undefined;
-        const value = input.values[0]!;
-        if (!requiredLinkIdentity(
-          processPackage,
-          sourceType,
-          linkId,
-          value.identity.type,
-        )) return undefined;
-        links.push({ type: linkId, target: { input: target.input } });
+        if (!input) return undefined;
+        for (const value of input.values) {
+          if (!requiredLinkIdentity(
+            processPackage,
+            sourceType,
+            linkId,
+            value.identity.type,
+          )) return undefined;
+          links.push({
+            type: linkId,
+            target: input.values.length === 1
+              ? { input: target.input }
+              : { datum: exactEntityId(value) },
+          });
+        }
         continue;
       }
       if (typeof target?.output === "string") {
