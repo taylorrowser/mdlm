@@ -69,7 +69,7 @@ payload_schema:
               minItems: 1
               prefixItems:
                 - {type: string, minLength: 1, pattern: '^[^/\\]+$'}
-              items: {type: string, minLength: 1}
+              items: {type: string}
             expected_observation: {$ref: '#/properties/prototype_controls/$defs/exact_observation'}
             expected_verification_outcome: {const: pass}
         known_bad:
@@ -82,7 +82,7 @@ payload_schema:
               minItems: 1
               prefixItems:
                 - {type: string, minLength: 1, pattern: '^[^/\\]+$'}
-              items: {type: string, minLength: 1}
+              items: {type: string}
             expected_observation: {$ref: '#/properties/prototype_controls/$defs/exact_observation'}
             expected_verification_outcome: {const: fail}
             fault: {type: string, minLength: 1}

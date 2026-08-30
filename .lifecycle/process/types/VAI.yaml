@@ -55,7 +55,7 @@ payload_schema:
               minItems: 1
               prefixItems:
                 - {type: string, minLength: 1, pattern: '^[^/\\]+$'}
-              items: {type: string, minLength: 1}
+              items: {type: string}
             expected_verification_outcome: {const: pass}
         known_bad:
           type: object
@@ -67,7 +67,7 @@ payload_schema:
               minItems: 1
               prefixItems:
                 - {type: string, minLength: 1, pattern: '^[^/\\]+$'}
-              items: {type: string, minLength: 1}
+              items: {type: string}
             expected_verification_outcome: {const: fail}
     execution_procedure:
       type: object
