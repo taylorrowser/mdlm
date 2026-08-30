@@ -22,8 +22,8 @@ accepted parent. Remove complexity that exists only to support itself. Record a 
 `review_kind: simplification-architecture-interfaces` against the supplied exact
 Review Context. A pass has no blockers. A failure declares one
 `definition_simplification`: use `subject` only for one exact SYS target, or
-`definition-consistency` when the complete SYS/ASP/ICSP/planning-DWP set must
-change atomically. Canonical `blocks` links name exactly that scope. Use `removes`
+`definition-consistency` when the complete SYS/ASP/ICSP/planning-DWP set needs
+serial same-lineage correction. Canonical `blocks` links name exactly that scope. Use `removes`
 and a `scope_reduction` rationale only for exact SYS outputs made unnecessary.
 Retain at least one SYS output. If the accepted parent requires no system behavior,
 return typed inability because parent-scope cancellation is outside this Assignment.

@@ -11,11 +11,21 @@ query:
   as: review
   where: >-
     (
-      (review.payload.outcome == "fail"
-        && exists("matching-failing-review-for@1",
-          {subject: subject, review: review}))
-      || exists("phase-2-review-flags-subject@1",
-        {review: review, subject: subject})
+      (
+        (review.payload.outcome == "fail"
+          && exists("matching-failing-review-for@1",
+            {subject: subject, review: review}))
+        || exists("phase-2-review-flags-subject@1",
+          {review: review, subject: subject})
+        || (view == "local"
+          && review.payload.definition_simplification.correction_set == "definition-consistency"
+          && exists("phase-2-review-blocks-definition-member@1",
+            {review: review, member: subject}))
+      )
+      && (view != "local"
+        || review.payload.definition_simplification.correction_set != "definition-consistency"
+        || none("phase-2-review-removes-output@1",
+          {review: review, output: subject}))
     )
     || (view == "authority"
       && exists("phase-2-review-blocks-definition-member@1",
