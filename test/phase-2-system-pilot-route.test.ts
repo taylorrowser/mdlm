@@ -47,6 +47,22 @@ it("routes one deterministic Phase 2 SYS through the existing pilot evidence gra
     expect(package_.scenarios[id]!.phases).toContain("phase-2-system-definition");
   }
 
+  const resultCorrection = package_.scenarios[
+    "revise-pilot-vai-after-result"
+  ] as unknown as {
+    outputs: Array<{
+      name: string;
+      cardinality: string;
+      identity_from?: { input: string };
+    }>;
+  };
+  expect(resultCorrection.outputs.find((output) =>
+    output.name === "replacement_target"
+  )).toMatchObject({
+    cardinality: "zero-or-one",
+    identity_from: { input: "execution_target" },
+  });
+
   const phase = package_.phases["phase-2-system-definition"] as unknown as {
     outputs: string[];
     gate: { completion: { source: string } };
