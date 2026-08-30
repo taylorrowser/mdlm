@@ -175,10 +175,11 @@ Add `phases/phase-5-implementation.yaml`. Add `ART.implements` links to one or
 more exact Revisions from the gate-approved DES candidate and a bounded
 DES-to-path mapping for one exact product commit or build. `implement-design-set`
 publishes one coherent product-build ART.
-`implement-formal-verification-activity` consumes exact VER, ENV, and public
-controlled-build inputs while prohibiting product source, unit tests, and
-private implementation details. Existing REV records substantive ART
-traceability judgment and formal VAI judgment.
+`implement-formal-verification-activity` consumes exact DES, ASP, ICSP, VSP,
+VER, ENV, and public executable-boundary inputs while prohibiting product
+source, unit tests, and private implementation details. The controlled ART is a
+Phase 6 execution input, not a prerequisite for formal VAI authoring. Existing
+REV records substantive ART traceability judgment and formal VAI judgment.
 
 Do not add BUILD, implementation-plan, unit-test-result, readiness-summary,
 track-state, file, or symbol data. Product code, unit tests, and build logs stay
