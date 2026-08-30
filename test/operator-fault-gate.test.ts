@@ -507,14 +507,16 @@ describe("focused v2 fault-injection gate", () => {
     const next = (await command(repository, ["next", "--json"])).value;
     const response = responseFrom(next);
     const dataRoot = path.join(repository, ".lifecycle/data");
+    const transactionsRoot = path.join(dataRoot, ".transactions");
     const before = await filesDigest(dataRoot);
-    await fs.chmod(dataRoot, 0o500);
+    await fs.mkdir(transactionsRoot, { recursive: true });
+    await fs.chmod(transactionsRoot, 0o500);
     const submitted = await command(
       repository,
       ["scenario", "submit", "-", "--json"],
       `${JSON.stringify(response)}\n`,
     );
-    await fs.chmod(dataRoot, 0o755);
+    await fs.chmod(transactionsRoot, 0o755);
 
     expect(submitted.status).toBe(1);
     expect(submitted.value).toMatchObject({
@@ -529,18 +531,31 @@ describe("focused v2 fault-injection gate", () => {
     expect(await filesDigest(dataRoot)).toBe(before);
     expect(await transactionCount(repository)).toBe(0);
 
+    await fs.rm(path.join(repository, ".lifecycle/work"), {
+      recursive: true,
+      force: true,
+    });
     const replay = await command(
       repository,
       ["scenario", "submit", "-", "--json"],
       `${JSON.stringify(response)}\n`,
     );
-    expect(replay.status).toBe(1);
+    expect(replay.status, JSON.stringify(replay.value)).toBe(1);
     expect(replay.value).toMatchObject({
       outcome: "settlement-required",
       settlement: submitted.value.settlement,
       orchestration: { replay: false },
     });
     expect(await transactionCount(repository)).toBe(0);
+
+    const nextAfterDeletion = await command(repository, ["next", "--json"]);
+    expect(nextAfterDeletion.status).toBe(1);
+    expect(nextAfterDeletion.value.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "submission-settlement-required",
+        path: submitted.value.settlement.execution,
+      }),
+    ]));
 
     for (const identity of [
       submitted.value.settlement.assignment,

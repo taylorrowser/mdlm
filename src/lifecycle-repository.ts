@@ -1081,6 +1081,7 @@ export async function publishScenarioMutation(
   executionId: string,
   executionRecord: unknown,
   kernelFinalizedOutputs: readonly KernelFinalizedScenarioOutput[] = [],
+  beforeCommit?: () => Promise<RepositoryResult<undefined>>,
 ): Promise<RepositoryResult<ScenarioMutationPublication>> {
   const loaded = await readRepositoryData(root, processPackage);
   if (!loaded.ok) return loaded;
@@ -1093,7 +1094,11 @@ export async function publishScenarioMutation(
     executionId,
     executionRecord,
     kernelFinalizedOutputs,
-    () => verifyRepositoryDataSources(root, loaded.value),
+    async () => {
+      const sources = await verifyRepositoryDataSources(root, loaded.value);
+      if (!sources.ok || !beforeCommit) return sources;
+      return beforeCommit();
+    },
   );
 }
 
