@@ -23,6 +23,8 @@ resolve_with:
         {subject: subject})
     gate_rejections: 'select("reviewed-gate-rejections-for-subject@1", {subject: subject})'
     open_product_questions: 'select("open-phase-0-gate-product-questions@1", {})'
+    indexed_product_questions: >-
+      select("current-questions-indexed-by-map@1", {subject: subject})
     product_answer_decisions: >-
       select("applicable-product-answer-decisions-for-foundation-subject@1",
         {subject: subject})

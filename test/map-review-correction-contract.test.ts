@@ -28,7 +28,7 @@ beforeAll(async () => {
   processPackage = await canonicalProcessPackage();
 });
 
-it("binds every open Phase 0 product Question into the MAP correction scaffold", async () => {
+it("binds open and already-indexed product Questions into the MAP correction scaffold", async () => {
   const subject = record("MAP", "MAP-4D9F9CBPSP", {
     title: "Initial decision map",
     purpose: "Track the product-intent decision that blocks PSP compilation.",
@@ -80,10 +80,28 @@ it("binds every open Phase 0 product Question into the MAP correction scaffold",
     attention_checkpoint: "phase-0-gate",
     consolidation_group: "phase-0-stakeholder-questions",
   }, [{ type: "blocks", target: blockedProduct.datum.id }]);
+  const answeredQuestion = record("QST", "QST-ZAZ38SZ9B3", {
+    title: "Choose the product",
+    kind: "preferential",
+    intent_scope: "product",
+    question: "What product should this repository build?",
+    state: "answered",
+    answer: "Build the exact blank-input CLI.",
+    blocking_impact: "PSP compilation needs the product boundary.",
+    attention_checkpoint: "phase-0-gate",
+    consolidation_group: "phase-0-stakeholder-questions",
+  });
   const snapshot = {
     processRef,
     phaseId: "phase-0-wayfinding",
-    records: [subject, reviewContext, failedReview, blockedProduct, openQuestion],
+    records: [
+      subject,
+      reviewContext,
+      failedReview,
+      blockedProduct,
+      openQuestion,
+      answeredQuestion,
+    ],
     dependencyComparisons: [],
   };
 
@@ -116,12 +134,17 @@ it("binds every open Phase 0 product Question into the MAP correction scaffold",
     ?.values.map((value) => value.identity.revision_id)).toEqual([
       "QST-3PX8HMFPEY-r00001",
     ]);
+  expect(invocation.inputs.find((input) => input.name === "indexed_product_questions")
+    ?.values.map((value) => value.identity.revision_id)).toEqual([
+      "QST-ZAZ38SZ9B3-r00001",
+    ]);
   expect(prepared.value.expectedOutputs).toEqual([
     expect.objectContaining({
       name: "replacement",
       types: ["MAP"],
       requiredLinks: expect.arrayContaining([
         { link: "indexes", target: { input: "open_product_questions" } },
+        { link: "indexes", target: { input: "indexed_product_questions" } },
         { link: "corrects-review", target: { input: "failed_reviews" } },
       ]),
     }),

@@ -1,0 +1,15 @@
+kind: selector-definition
+id: current-questions-indexed-by-map
+version: 1
+description: Current exact Question Revisions referenced by one MAP's stable indexes links.
+parameters:
+  - {name: subject, kind: revision, types: [MAP]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [QST]}
+  as: question
+  where: >-
+    none("newer-revisions-for@1", {subject: question})
+    && exists("revision-links-question@1", {subject: subject, question: question})
+  distinct: true
+  order_by: [identity.id, identity.revision]
