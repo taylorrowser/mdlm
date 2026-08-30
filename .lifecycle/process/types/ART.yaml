@@ -239,6 +239,13 @@ payload_schema:
                         exit_status: {type: integer, not: {const: 0}}
         working_directory: {const: fresh-temporary-directory}
 outgoing_links:
+  - id: corrects-pilot-result
+    description: Exact unfavorable pilot results causally addressed by this replacement artifact Revision.
+    targets:
+      - {kind: datum, types: [RES], identity: revision}
+    cardinality: {minimum: 0, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: corrected-by-artifact-revision
   - id: derived-from
     description: Exact question, decision, or product-intent revision that motivated this artifact.
     targets:

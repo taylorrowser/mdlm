@@ -1,0 +1,12 @@
+kind: selector-definition
+id: pilot-art-targets-for-implementation
+version: 1
+description: Exact artifact target selected by one pilot implementation.
+parameters:
+  - {name: implementation, kind: revision, types: [VAI]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: implementation, link: targets, emit: target, types: [ART]}
+  as: target
+  distinct: true
+  order_by: [identity.revision_id]
