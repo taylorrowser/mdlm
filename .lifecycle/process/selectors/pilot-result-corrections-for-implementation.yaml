@@ -45,6 +45,10 @@ query:
           == one("newer-revisions-for@1",
             {subject: one("execution-targets-for-implementation@1",
               {implementation: implementation})})))
+    && exists("pilot-control-target-bindings-match@1", {
+      implementation: replacement,
+      target: one("pilot-art-targets-for-implementation@1",
+        {implementation: replacement})})
     && exists("pilot-implementation-authorizations-for@1",
       {implementation: replacement})
   distinct: true
