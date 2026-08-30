@@ -70,11 +70,6 @@ describe("Scenario participation Policy validation", () => {
           name: "blocked_targets",
           cardinality: "zero-or-more",
           identity: "stable",
-          conditions: expect.objectContaining({
-            source: expect.stringContaining(
-              'every("blocked-targets-for-question@1"',
-            ),
-          }),
         }),
       ]),
     );

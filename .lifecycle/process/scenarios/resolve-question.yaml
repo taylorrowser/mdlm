@@ -1,21 +1,17 @@
 kind: scenario-definition
 id: resolve-question
 version: 2
-description: Answer, defer, or cancel one exact question through a reasoned decision and a new QST revision.
+description: Answer, defer, or cancel one exact dispatchable open question; Resolver authorization owns open-state eligibility.
 phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition]
 inputs:
   - name: question
     types: [QST]
     cardinality: one
     identity: revision
-    conditions: 'question.payload.state == "open"'
   - name: blocked_targets
     types: [PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, QST, DEC]
     cardinality: zero-or-more
     identity: stable
-    conditions: >-
-      !every("blocked-targets-for-question@1", {question: question},
-        target => target != blocked_targets)
 outputs:
   - name: decision
     types: [DEC]
