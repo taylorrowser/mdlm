@@ -1,11 +1,11 @@
 kind: scenario-definition
 id: revise-foundation-after-review
 version: 5
-description: Replace one exact Phase 0 foundation Revision while its correction budget remains, citing every current Review, gate-rejection, or reviewed product-answer cause and preserving immutable history.
+description: Replace one exact PSP Revision while its correction budget remains, citing every current Review, gate-rejection, or reviewed product-answer cause and preserving immutable history.
 phases: [phase-0-wayfinding]
 inputs:
   - name: subject
-    types: [MAP, PSP, STK]
+    types: [PSP]
     cardinality: one
     identity: revision
   - name: prior_failed_reviews
@@ -38,7 +38,7 @@ inputs:
     identity: revision
 outputs:
   - name: replacement
-    types: [MAP, PSP, STK]
+    types: [PSP]
     cardinality: one
     identity_from: {input: subject}
     required_links:
