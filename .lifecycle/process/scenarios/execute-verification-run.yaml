@@ -2,7 +2,7 @@ kind: scenario-definition
 id: execute-verification-run
 version: 2
 description: Execute one exact qualification or pilot implementation and atomically record its immutable run and scoped result.
-phases: [phase-1-product-assurance]
+phases: [phase-1-product-assurance, phase-2-system-definition]
 inputs:
   - {name: implementation, types: [VAI], cardinality: one, identity: revision}
   - {name: activity, types: [VER], cardinality: one, identity: revision}

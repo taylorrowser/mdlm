@@ -247,9 +247,9 @@ outgoing_links:
     freeze_resolution: already-exact
     inverse_label: corrected-by-artifact-revision
   - id: derived-from
-    description: Exact question, decision, or product-intent revision that motivated this artifact.
+    description: Exact question, decision, product-intent, or system-requirement revision that motivated this artifact.
     targets:
-      - {kind: datum, types: [QST, DEC, PSP, STK], identity: revision}
+      - {kind: datum, types: [QST, DEC, PSP, STK, SYS], identity: revision}
     cardinality: {minimum: 0, maximum: many}
     freeze_resolution: already-exact
     inverse_label: prototype-evidence

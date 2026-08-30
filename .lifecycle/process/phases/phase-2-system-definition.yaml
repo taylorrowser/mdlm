@@ -23,13 +23,15 @@ attention_checkpoints:
       && every("complete-phase-2-level-candidates@1", {}, candidate =>
           none("candidate-members-missing-review@1", {candidate: candidate})
           && exists("passing-reviews-for@1", {subject: candidate})
-          && none("failing-reviews-for@1", {subject: candidate}))
+          && none("failing-reviews-for@1", {subject: candidate})
+          && !every("candidates-with-suitable-representative-pilot@1", {}, ready =>
+            ready != candidate))
       && none("open-blocking-questions@1", {})
 routing:
   eligible_when: dispatchable
   status_order: [ready, awaiting-review, failed, stale, blocked]
   tie_breakers: [subject, obligation]
-outputs: [SYS, ASP, ICSP, DWP, REV, BSL, QST, DEC, ART]
+outputs: [SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, QST, DEC, ART]
 progression:
   next_phase: phase-2-pilot-assessment
   readiness: >-
@@ -41,6 +43,8 @@ progression:
         none("candidate-members-missing-review@1", {candidate: candidate})
         && exists("passing-reviews-for@1", {subject: candidate})
         && none("failing-reviews-for@1", {subject: candidate})
+        && !every("candidates-with-suitable-representative-pilot@1", {}, ready =>
+          ready != candidate)
         && exists("accepted-system-baselines-for-candidate@1",
           {candidate: candidate}))
     && none("open-blocking-questions@1", {})
@@ -66,5 +70,7 @@ gate:
   completion: >-
     none("candidate-members-missing-review@1", {candidate: candidate})
     && exists("passing-reviews-for@1", {subject: candidate})
+    && !every("candidates-with-suitable-representative-pilot@1", {}, ready =>
+      ready != candidate)
     && none("open-blocking-questions@1", {})
     && exists("applicable-gate-signoffs-for@1", {candidate: candidate})

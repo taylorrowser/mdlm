@@ -1,0 +1,24 @@
+kind: scenario-definition
+id: define-system-verification-strategy
+version: 1
+description: Define one black-box system strategy for the deterministic representative SYS.
+phases: [phase-2-system-definition]
+inputs:
+  - {name: requirement, types: [SYS], cardinality: one, identity: revision}
+  - {name: stable_requirement, types: [SYS], cardinality: one, identity: stable}
+outputs:
+  - name: strategy
+    types: [VSP]
+    cardinality: one
+    required_links:
+      - {link: governs, target: {input: stable_requirement}}
+      - {link: governs-revision, target: {input: requirement}}
+prompt_ref: prompts/define-system-verification-strategy.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && strategy.payload.level == "system"
+  && strategy.payload.independence.boundary == "black-box"
+resolves: [system-verification-strategy-required]
+prohibited_inputs: [product source code, product unit tests, private implementation details, unstated environment capabilities]
+batching: single

@@ -1,0 +1,16 @@
+kind: selector-definition
+id: current-active-phase-verification-strategies
+version: 1
+description: Current verification strategies applicable to the active assurance route.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [VSP]}
+  as: strategy
+  where: >-
+    (phase.id == "phase-1-product-assurance"
+      && !every("current-phase-1-verification-strategies@1", {}, candidate => candidate != strategy))
+    || (phase.id == "phase-2-system-definition"
+      && !every("current-phase-2-verification-strategies@1", {}, candidate => candidate != strategy))
+  distinct: true
+  order_by: [identity.id, identity.revision]

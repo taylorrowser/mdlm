@@ -1,0 +1,13 @@
+kind: selector-definition
+id: system-requirements-for-level-candidate
+version: 1
+description: Exact SYS definition members frozen by one complete Phase 2 level candidate.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [SYS]}
+  as: requirement
+  where: 'exists("baseline-contains-definition@1", {baseline: candidate, subject: requirement})'
+  distinct: true
+  order_by: [identity.revision_id]

@@ -52,6 +52,11 @@ status_rules:
         {candidate: candidate})
       || exists("open-blocking-questions@1", {})
       || (
+        candidate.payload.kind == "level-candidate"
+        && every("candidates-with-suitable-representative-pilot@1", {}, ready =>
+          ready != candidate)
+      )
+      || (
         candidate.payload.kind == "intent-level-candidate"
         && exists("open-phase-0-gate-product-questions@1", {})
       )
@@ -76,6 +81,11 @@ status_rules:
       && none("candidate-correction-authorities-requiring-review@1",
         {candidate: candidate})
       && none("open-blocking-questions@1", {})
+      && (
+        candidate.payload.kind != "level-candidate"
+        || !every("candidates-with-suitable-representative-pilot@1", {}, ready =>
+          ready != candidate)
+      )
       && (
         candidate.payload.kind != "intent-level-candidate"
         || none("open-phase-0-gate-product-questions@1", {})

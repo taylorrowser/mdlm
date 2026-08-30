@@ -1,9 +1,9 @@
 kind: selector-definition
 id: verification-strategies-for-requirement
 version: 1
-description: Current active verification strategies governing one exact current stakeholder requirement.
+description: Current active verification strategies governing one exact current requirement.
 parameters:
-  - {name: requirement, kind: revision, types: [STK]}
+  - {name: requirement, kind: revision, types: [STK, SYS]}
 result_kind: revision
 query:
   from: {relation: incoming-links, of: requirement, link: governs-revision, emit: source, types: [VSP]}

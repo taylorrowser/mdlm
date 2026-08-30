@@ -4,7 +4,7 @@ version: 1
 description: The supplied pilot activity only when it is itself valid exact coverage for the supplied current requirement Revision.
 parameters:
   - {name: activity, kind: revision, types: [VER]}
-  - {name: requirement, kind: revision, types: [STK]}
+  - {name: requirement, kind: revision, types: [STK, SYS]}
 result_kind: revision
 query:
   from:

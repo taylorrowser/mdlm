@@ -2,7 +2,7 @@ kind: scenario-definition
 id: implement-verification-activity
 version: 1
 description: Implement one reviewed pilot activity against a qualified environment and bounded exact target without product-source access.
-phases: [phase-1-product-assurance]
+phases: [phase-1-product-assurance, phase-2-system-definition]
 inputs:
   - name: activity
     types: [VER]

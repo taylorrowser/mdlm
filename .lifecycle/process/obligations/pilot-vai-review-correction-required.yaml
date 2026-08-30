@@ -24,7 +24,7 @@ resolve_with:
         {activity: one("verification-activities-for-implementation@1",
           {implementation: implementation})})
     requirement: >-
-      one("requirements-for-pilot-activity@1",
+      one("stakeholder-requirements-for-pilot-activity@1",
         {activity: one("verification-activities-for-implementation@1",
           {implementation: implementation})})
     strategy: >-

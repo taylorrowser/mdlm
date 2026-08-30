@@ -2,7 +2,7 @@ kind: obligation-definition
 id: pilot-verification-implementation-required
 version: 1
 description: Every current pilot activity requires one separately authorized source-independent implementation bound to its exact qualified environment and controlled target.
-phases: [phase-1-product-assurance]
+phases: [phase-1-product-assurance, phase-2-system-definition]
 for_each: 'select("current-pilot-verification-activities@1", {})'
 subject_as: activity
 satisfied_when: 'exists("complete-pilot-implementations-for-activity@1", {activity: activity})'

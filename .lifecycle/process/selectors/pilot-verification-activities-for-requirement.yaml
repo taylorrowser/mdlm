@@ -1,9 +1,9 @@
 kind: selector-definition
 id: pilot-verification-activities-for-requirement
 version: 1
-description: Current valid pilot activities covering one exact Phase 1 entry requirement under an applicable exact strategy.
+description: Current valid pilot activities covering one exact requirement under an applicable exact strategy.
 parameters:
-  - {name: requirement, kind: revision, types: [STK]}
+  - {name: requirement, kind: revision, types: [STK, SYS]}
 result_kind: revision
 query:
   from: {relation: incoming-links, of: requirement, link: verifies-revision, emit: source, types: [VER]}
@@ -17,8 +17,11 @@ query:
     && exists("matching-verification-strategies-for-requirement@1",
       {requirement: requirement,
        strategy: one("strategies-for-verification-activity@1", {activity: activity})})
-    && count("pilot-intent-support-for-activity@1", {activity: activity}) == 1
-    && one("pilot-intent-support-for-activity@1", {activity: activity}) ==
-      one("pilot-intent-support-for-requirement@1", {requirement: requirement})
+    && ((requirement.identity.type == "STK"
+      && count("pilot-intent-support-for-activity@1", {activity: activity}) == 1
+      && one("pilot-intent-support-for-activity@1", {activity: activity}) ==
+        one("pilot-intent-support-for-requirement@1", {requirement: requirement}))
+    || (requirement.identity.type == "SYS"
+      && none("pilot-intent-support-for-activity@1", {activity: activity})))
   distinct: true
   order_by: [identity.id, identity.revision]

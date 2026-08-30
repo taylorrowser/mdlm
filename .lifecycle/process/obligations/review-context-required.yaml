@@ -21,7 +21,7 @@ status_rules:
   - status: blocked
     priority: 300
     when: >-
-      phase.id == "phase-1-product-assurance"
+      phase.id in ["phase-1-product-assurance", "phase-2-system-definition"]
       && subject.identity.type == "ENV"
       && (none("complete-environment-assurance-for-environment@1", {environment: subject})
       || none("complete-environment-qualification-for-environment@1", {environment: subject}))
