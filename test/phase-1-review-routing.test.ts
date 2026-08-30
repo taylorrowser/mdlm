@@ -307,7 +307,7 @@ describe("Phase 1 review routing", () => {
       }),
       expect.objectContaining({
         definition: "verification-run-required",
-        scenario: "execute-verification-run@2",
+        scenario: "revise-pilot-vai-after-result@1",
         dispatchable: false,
         blockedBy: [expect.stringContaining("pilot-vai-result-correction-required@1")],
       }),
