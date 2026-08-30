@@ -8,6 +8,7 @@ import {
   type LifecycleRecord,
   type ProcessPackage,
 } from "../src/index.js";
+import { evaluateProcessDefinition } from "../src/evaluator.js";
 import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 
@@ -364,6 +365,25 @@ describe("Phase 1 review routing", () => {
       run,
       result,
     ];
+    const reviewContextMembers = evaluateProcessDefinition(
+      processPackage,
+      {
+        processRef,
+        phaseId: "phase-1-product-assurance",
+        records,
+        dependencyComparisons: [],
+      },
+      "selector",
+      "review-context-members-for@1",
+      { subject: implementation.datum.revision_id },
+    ).result as Array<{ identity: { revision_id: string } }>;
+    expect(reviewContextMembers.map((member) => member.identity.revision_id))
+      .toEqual([
+        target.datum.revision_id,
+        authorization.datum.revision_id,
+        environment.datum.revision_id,
+        activity.datum.revision_id,
+      ]);
     const evaluation = evaluateLifecycle(processPackage, {
       processRef,
       phaseId: "phase-1-product-assurance",

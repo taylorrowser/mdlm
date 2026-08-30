@@ -131,6 +131,13 @@ query:
           || !every("strategies-for-verification-activity@1", {activity: subject}, strategy =>
             strategy != member)
         ))
+      || (subject.identity.type == "VAI"
+        && member.identity.type == "DEC"
+        && member.provenance.scenario == subject.provenance.scenario
+        && member.payload.kind in ["decision", "scope"]
+        && member.payload.effective_scope == subject.identity.revision_id
+        && member.integrity.scenario_execution_valid == true
+        && none("newer-revisions-for@1", {subject: member}))
       || (subject.identity.type == "DWP"
         && subject.payload.stage == "planning"
         && !every("planning-dwp-review-support-for@1", {plan: subject}, support =>
