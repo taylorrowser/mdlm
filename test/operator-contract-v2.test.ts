@@ -21,8 +21,9 @@ async function fixture(name: string): Promise<Record<string, unknown>> {
 }
 
 describe("operator contract v2 fixtures", () => {
-  it("freezes exactly six complete next outcomes", async () => {
+  it("freezes exactly seven complete next outcomes", async () => {
     const outcomes = [
+      "publication-required",
       "assignment",
       "attention-required",
       "profile-boundary-reached",
@@ -33,7 +34,14 @@ describe("operator contract v2 fixtures", () => {
     for (const outcome of outcomes) {
       const value = await fixture(outcome);
       expect(value).toMatchObject({ contract: "mdlm-next@2", outcome });
-      expect(value).not.toHaveProperty("materializedExecutions");
+      if (outcome === "publication-required") {
+        expect(value).toMatchObject({
+          materializedExecutions: [expect.objectContaining({ status: "completed" })],
+        });
+        expect(value).not.toHaveProperty("assignment");
+      } else {
+        expect(value).not.toHaveProperty("materializedExecutions");
+      }
     }
     for (const outcome of ["assignment", "attention-required"]) {
       const value = await fixture(outcome) as {
@@ -87,6 +95,23 @@ describe("operator contract v2 fixtures", () => {
     });
     expect(instructions.action).toBe("execute-assignment");
     expect(instructions.commands.join(" ")).not.toContain("scenario prepare");
+  });
+
+  it("stops at the materialized publication boundary before leasing work", () => {
+    const instructions = operatorInstructions({
+      outcome: "publication-required",
+      materializedExecutions: [{
+        id: "execution-1",
+        scenario: "create-review-context@1",
+        status: "completed",
+      }],
+    });
+    expect(instructions).toMatchObject({
+      action: "publish-materialized-executions",
+      disposition: "continuation",
+      commands: ["mdlm doctor --json", "mdlm next --json"],
+    });
+    expect(instructions.text).toContain("No Assignment is leased");
   });
 
   it("only auto-materializes a context-only Scenario", () => {

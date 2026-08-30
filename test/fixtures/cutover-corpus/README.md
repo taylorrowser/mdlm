@@ -30,6 +30,7 @@ the recorded package digest, record count, and active lease directly. It does
 not load the historical package through the current compiler. Active recovery must return Assignment
 `3848d89a-c926-408c-a802-113407e5de12`; the attended case must remain
 Attention Required for Assignment `ca96351a-38af-4086-a5cb-5af038ab74e0`.
-The old `publication-required` case changes intentionally: v2 owns that atomic
-materialization inside claim and then returns the active Assignment. It may not
-skip the materialized transaction or expose partial publication.
+The retained `publication-required` case remains a public commit boundary: v2
+owns the atomic materialization inside claim, returns no Assignment, and waits
+for the caller to commit before allocating dependent work. It may not skip the
+materialized transaction or bind work to the pre-publication Git identity.

@@ -160,6 +160,14 @@ export interface AttentionContext {
 
 export type OperatorOutcome =
   | OperatorOutcomeBase & {
+      outcome: "publication-required";
+      materializedExecutions: {
+        id: string;
+        scenario: string;
+        status: "completed";
+      }[];
+    }
+  | OperatorOutcomeBase & {
       outcome: "assignment";
       assignment: { id: string; packet: AssignmentPacket };
     }
@@ -1861,6 +1869,9 @@ async function claimNextWorkLocked(
   }
 
   const materializedObligations = new Set<string>();
+  const materializedExecutions: Extract<OperatorOutcome, {
+    outcome: "publication-required";
+  }>["materializedExecutions"] = [];
   while (state.value.assignment) {
     const exact = state.value.assignment;
     const materialization = exactBaselineMaterialization(exact.scenario);
@@ -1912,6 +1923,11 @@ async function claimNextWorkLocked(
     await fs.rm(leasePath(repositoryRoot), { force: true });
     activeLease = undefined;
     if (!materialized.ok) return materialized;
+    materializedExecutions.push({
+      id: materialized.value.id,
+      scenario: materialized.value.definition.scenario,
+      status: materialized.value.status,
+    });
     const fingerprint = await repositoryFingerprint(repositoryRoot);
     if (!fingerprint.ok) return fingerprint;
     const snapshot: LifecycleSnapshot = {
@@ -1931,6 +1947,25 @@ async function claimNextWorkLocked(
       fingerprint.value,
     );
     if (!state.ok) return state;
+  }
+
+  if (materializedExecutions.length > 0) {
+    if (activeLease) {
+      await renewLeaseLock();
+      await fs.rm(leasePath(repositoryRoot), { force: true });
+    }
+    return {
+      ok: true,
+      value: {
+        package: state.value.summary,
+        repository: state.value.fingerprint,
+        contract: "mdlm-next@2",
+        phase: phaseReference(state.value.evaluation),
+        outcome: "publication-required",
+        materializedExecutions,
+      },
+      diagnostics: [],
+    };
   }
 
   if (

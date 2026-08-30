@@ -203,6 +203,9 @@ interface CommandResultBase {
   nextCommand?: StartBriefing["nextCommand"];
   guidance?: StartBriefing["guidance"];
   operatorInstructions?: OperatorInstructions;
+  materializedExecutions?: Extract<AssignmentOutcome, {
+    outcome: "publication-required";
+  }>["materializedExecutions"];
   help?: string;
   migration?: ProcessMigration;
   schema?: TypeSchemaInspection;
@@ -2221,6 +2224,9 @@ async function executeCommand(
         ...(result.assignment ? { assignment: result.assignment } : {}),
         ...(result.authorityRequirement
           ? { authorityRequirement: result.authorityRequirement }
+          : {}),
+        ...(result.materializedExecutions
+          ? { materializedExecutions: result.materializedExecutions }
           : {}),
       }),
     };

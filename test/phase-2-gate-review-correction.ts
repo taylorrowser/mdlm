@@ -165,10 +165,22 @@ function nextPacket(repository: string, expectedScenario: string): JsonObject {
     const next = mdlm(repository, "next", "--json");
     expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
     const outcome = JSON.parse(next.stdout);
+    const lifecycleChanges = spawnSync(
+      "git",
+      ["-C", repository, "status", "--porcelain", "--", ".lifecycle/data"],
+      { encoding: "utf8" },
+    );
+    expect(lifecycleChanges.status, lifecycleChanges.stderr).toBe(0);
     if (outcome.outcome === "publication-required") {
+      expect(outcome.assignment).toBeUndefined();
+      expect(lifecycleChanges.stdout.trim()).not.toBe("");
       commit(repository, "Materialize exact Review Context");
       continue;
     }
+    expect(
+      lifecycleChanges.stdout.trim(),
+      "mdlm next must not allocate an Assignment after materializing uncommitted Lifecycle Data",
+    ).toBe("");
     expect(outcome.assignment, next.stdout).toBeDefined();
     expect(outcome.assignment.packet.scenario.reference).toBe(expectedScenario);
     return outcome.assignment.packet;

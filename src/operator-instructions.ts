@@ -1,4 +1,5 @@
 export type OperatorInstructionAction =
+  | "publish-materialized-executions"
   | "execute-assignment"
   | "obtain-attention"
   | "stop-success"
@@ -15,6 +16,7 @@ export interface OperatorInstructions {
 
 export interface OperatorInstructionSource {
   outcome?:
+    | "publication-required"
     | "assignment"
     | "attention-required"
     | "profile-boundary-reached"
@@ -23,6 +25,11 @@ export interface OperatorInstructionSource {
     | "invalid";
   assignment?: { id: string };
   authorityRequirement?: { authority: string };
+  materializedExecutions?: {
+    id: string;
+    scenario: string;
+    status: "completed";
+  }[];
 }
 
 const base = {
@@ -36,6 +43,17 @@ const loopReminder = "Own the lifecycle loop. For continuing outcomes, complete 
 export function operatorInstructions(
   source: OperatorInstructionSource,
 ): OperatorInstructions {
+  if (source.outcome === "publication-required") {
+    const executions = source.materializedExecutions ?? [];
+    return {
+      ...base,
+      action: "publish-materialized-executions",
+      disposition: "continuation",
+      commands: ["mdlm doctor --json", "mdlm next --json"],
+      text: `Inspect and commit only the exact materialized Lifecycle Data (${executions.map((item) => `${item.id} (${item.scenario})`).join(", ")}), then run mdlm next --json for a fresh outcome. No Assignment is leased at this publication boundary.`,
+    };
+  }
+
   if (source.outcome === "assignment" && source.assignment) {
     return {
       ...base,
