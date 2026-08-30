@@ -156,6 +156,19 @@ describe("loadProcessPackage", () => {
     ]));
   });
 
+  it("binds a completed decomposition work package to its plan lineage", () => {
+    expect(records(
+      validPackage.scenarios["complete-decomposition-work-package"]?.outputs,
+    )).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        name: "completion",
+        types: ["DWP"],
+        cardinality: "one",
+        identity_from: { input: "plan" },
+      }),
+    ]));
+  });
+
   it("recalculates a package digest after nested package bytes change", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-package-digest-"));
     try {
