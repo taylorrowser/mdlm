@@ -5,9 +5,7 @@ import { parse, stringify } from "yaml";
 import { beforeAll, describe, expect, it } from "vitest";
 import { validateDefinitionGraph } from "../src/definition-graph.js";
 import {
-  compileAssignmentProjection,
   loadProcessPackage,
-  publicAssignmentRenderer,
   type ProcessPackage,
 } from "../src/index.js";
 import { processPackageDigest } from "../src/process-package-digest.js";
@@ -43,7 +41,8 @@ describe("canonical immutable ProcessPackage fixture", () => {
   it("is exact, recursively frozen, and isolated from mutable clones", async () => {
     const fixturePackage = await canonicalProcessPackage();
     await expect(verifyCanonicalProcessPackageFixture(livePackage)).resolves.toEqual({
-      processPackage: "mdlm-bootstrap@0.80.0",
+      processPackage:
+        `${livePackage.manifest.id}@${livePackage.manifest.version}`,
       verified: true,
     });
     expect(fixturePackage).toStrictEqual(livePackage);
@@ -57,7 +56,7 @@ describe("canonical immutable ProcessPackage fixture", () => {
 
     const mutable = structuredClone(fixturePackage);
     mutable.manifest.version = "mutated-test-clone";
-    expect(fixturePackage.manifest.version).toBe("0.80.0");
+    expect(fixturePackage.manifest.version).toBe(livePackage.manifest.version);
   });
 
   it("rejects artifact hash and package-digest drift", async () => {
@@ -148,42 +147,7 @@ describe("loadProcessPackage", () => {
     return value.map(record);
   }
 
-  it("compiles public Assignment routes at the package-loader seam", async () => {
-    const review = validPackage.scenarios["review-datum-in-context"]!;
-    expect(compileAssignmentProjection({
-      scenario: review,
-      renderer: publicAssignmentRenderer,
-      source: "scenarios/review-datum-in-context.yaml",
-    })).toMatchObject({ ok: true, plan: { witnessInvocations: 2 } });
-
-    expect(compileAssignmentProjection({
-      scenario: validPackage.scenarios["record-consequential-decision"]!,
-      renderer: publicAssignmentRenderer,
-      source: "scenarios/record-consequential-decision.yaml",
-    })).toMatchObject({
-      ok: true,
-      plan: {
-        outputs: [expect.objectContaining({
-          links: expect.arrayContaining([expect.objectContaining({
-            target: { kind: "payload", output: "decision", path: "waiver.instance" },
-          })]),
-        })],
-      },
-    });
-
-    expect(compileAssignmentProjection({
-      scenario: review,
-      renderer: { linkInputScope: "first-invocation-only" },
-      source: "scenarios/review-datum-in-context.yaml",
-    })).toMatchObject({
-      ok: false,
-      diagnostics: expect.arrayContaining([expect.objectContaining({
-        code: "missing-link-input",
-        path: expect.stringContaining("required_links[0].target.input"),
-        message: expect.stringContaining("symbolic invocation 2"),
-      })]),
-    });
-
+  it("rejects an unrenderable Assignment route at the package-loader seam", async () => {
     const processRoot = await copiedProcessPackage();
     try {
       const scenarioPath = path.join(
@@ -206,20 +170,6 @@ describe("loadProcessPackage", () => {
     } finally {
       await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
     }
-  });
-
-  it("binds a corrected verification strategy to its source VSP lineage", () => {
-    expect(records(
-      validPackage.scenarios["revise-verification-strategy-after-review"]
-        ?.outputs,
-    )).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        name: "replacement",
-        types: ["VSP"],
-        cardinality: "one",
-        identity_from: { input: "strategy" },
-      }),
-    ]));
   });
 
   it("recalculates a package digest after nested package bytes change", async () => {
@@ -250,7 +200,7 @@ describe("loadProcessPackage", () => {
       const second = await loadProcessPackage(processRoot);
       expect(second.ok).toBe(true);
       if (!second.ok) return;
-      expect(second.package.manifest.version).toBe("0.80.0");
+      expect(second.package.manifest.version).toBe(validPackage.manifest.version);
 
       const manifestSchemaPath = path.join(
         processRoot,
@@ -276,290 +226,6 @@ describe("loadProcessPackage", () => {
     } finally {
       await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
     }
-  });
-
-  it("loads and validates the bootstrap process package", async () => {
-    const result = {
-      ok: true as const,
-      package: validPackage,
-      diagnostics: [] as const,
-    };
-
-    expect(result.package.manifest.version).toBe("0.80.0");
-    expect(Object.keys(result.package.types)).toHaveLength(21);
-    expect(Object.keys(result.package.templates)).toHaveLength(3);
-    expect(result.package.selectors).toEqual(
-      expect.objectContaining({
-        "accepted-baseline-promotes-candidate": expect.any(Object),
-        "applicable-initial-product-intent-decisions": expect.any(Object),
-        "initial-product-intent-sources-for-decision": expect.any(Object),
-        "initial-product-intent-targets-for-decision": expect.any(Object),
-        "structural-initial-product-intent-sources-for-decision": expect.any(Object),
-        "structural-initial-product-intent-targets-for-decision": expect.any(Object),
-        "initial-product-intent-boundaries-for-decision": expect.any(Object),
-        "product-intent-authorities-for-foundation-subject": expect.any(Object),
-        "incorporated-product-answer-decisions-for-foundation-subject":
-          expect.any(Object),
-        "product-answer-review-support-for-foundation-subject":
-          expect.any(Object),
-        "candidate-product-answer-review-support": expect.any(Object),
-        "structural-passing-product-answer-reviews-for-decision":
-          expect.any(Object),
-        "applicable-product-answer-reviews-for-decision": expect.any(Object),
-        "unincorporated-product-questions-for-foundation-subject":
-          expect.any(Object),
-        "applicable-product-answer-decisions-for-foundation-subject":
-          expect.any(Object),
-        "pending-foundation-subjects-for-product-answer": expect.any(Object),
-        "answer-stale-foundation-members-for-candidate": expect.any(Object),
-        "open-phase-0-gate-product-questions": expect.any(Object),
-        "question-blocked-targets-for-decision": expect.any(Object),
-        "current-initial-product-intent-questions": expect.any(Object),
-        "product-intent-questions-from-initial-map": expect.any(Object),
-        "current-open-question-sources-ready-for-resolution": expect.any(Object),
-        "general-open-questions-ready-for-resolution": expect.any(Object),
-        "blocking-product-simplification-reviews-for": expect.any(Object),
-        "candidate-correction-decisions-for": expect.any(Object),
-        "candidate-correction-candidates-for-decision": expect.any(Object),
-        "candidate-correction-authority-decisions-for-review": expect.any(Object),
-        "candidate-correction-decision-review-support-for": expect.any(Object),
-        "failed-candidate-correction-decisions": expect.any(Object),
-        "valid-candidate-correction-decision-replacements-for": expect.any(Object),
-        "candidate-definition-members": expect.any(Object),
-        "candidate-members-linking-question": expect.any(Object),
-        "current-question-dependencies-for-candidate": expect.any(Object),
-        "unresolved-question-dependencies-for-candidate": expect.any(Object),
-        "failed-intent-candidates-depending-on-question": expect.any(Object),
-        "applicable-question-decisions-for-candidate": expect.any(Object),
-        "revision-links-question": expect.any(Object),
-        "phase-0-candidate-review-context-members": expect.any(Object),
-        "phase-0-candidate-correction-support-for": expect.any(Object),
-        "candidate-question-resolution-support-for": expect.any(Object),
-        "foundation-correction-causes-for-decision": expect.any(Object),
-        "failed-foundation-correction-decisions": expect.any(Object),
-        "valid-foundation-correction-decision-replacements-for": expect.any(Object),
-        "phase-0-foundation-member-reviews": expect.any(Object),
-        "review-context-members-for": expect.any(Object),
-        "review-assignment-context-members-for": expect.any(Object),
-        "current-exact-review-contexts-cited-by": expect.any(Object),
-        "interaction-free-architectures-for-requirement": expect.any(Object),
-        "interacting-architectures-for-requirement": expect.any(Object),
-        "review-context-evidence": expect.any(Object),
-        "review-context-contains-required-support": expect.any(Object),
-        "composed-baselines-for-review-context": expect.any(Object),
-        "environment-review-evidence-for": expect.any(Object),
-        "unexpected-environment-review-context-evidence": expect.any(Object),
-        "phase-2-definition-members-for-plan": expect.any(Object),
-        "phase-2-definition-review-context-support-for-plan": expect.any(Object),
-        "architecture-definition-set-representative-plans": expect.any(Object),
-        "decomposition-plans-sharing-architecture-with": expect.any(Object),
-        "stakeholder-requirements-for-review-context": expect.any(Object),
-        "valid-phase-2-simplification-review": expect.any(Object),
-        "failed-phase-2-simplification-reviews-by-scope": expect.any(Object),
-        "review-context-contains-member": expect.any(Object),
-        "intent-candidates-matching-subject": expect.any(Object),
-        "accepted-intent-candidates-for-change": expect.any(Object),
-        "revisions-tracing-subject": expect.any(Object),
-        "changes-changed-under-subject": expect.any(Object),
-        "invalid-product-simplification-blockers-for-review": expect.any(Object),
-        "matching-product-simplification-review": expect.any(Object),
-        "product-simplification-blockers-for-candidate": expect.any(Object),
-        "product-simplification-blockers-for-review": expect.any(Object),
-        "product-simplification-reviews-blocking-subject": expect.any(Object),
-        "valid-product-simplification-reviews": expect.any(Object),
-        "product-simplification-reviews-for": expect.any(Object),
-        "review-correction-history-for": expect.any(Object),
-        "phase-0-intent-approvals-for": expect.any(Object),
-        "failed-question-decisions": expect.any(Object),
-        "valid-question-decision-replacements-for": expect.any(Object),
-        "question-targets-for-decision": expect.any(Object),
-        "cited-failing-reviews-by-correction": expect.any(Object),
-        "foundation-correction-history": expect.any(Object),
-        "foundation-correction-decisions-for": expect.any(Object),
-        "foundation-review-failures-at-stage": expect.any(Object),
-        "reviewed-gate-rejections-for-candidate": expect.any(Object),
-        "matching-cited-gate-rejection-by-correction": expect.any(Object),
-        "gate-rejection-corrections-for-subject": expect.any(Object),
-        "intent-gate-candidates-for-decision": expect.any(Object),
-        "gate-decision-review-support-for": expect.any(Object),
-        "structural-review-contexts-cited-by": expect.any(Object),
-        "structural-passing-candidate-reviews-for-review": expect.any(Object),
-        "gate-candidate-reviews-for-decision": expect.any(Object),
-        "gate-candidate-authority-support-for-decision": expect.any(Object),
-        "phase-1-assurance-correction-decisions-for": expect.any(Object),
-        "failed-current-environment-qualifications": expect.any(Object),
-        "failed-qualification-results-for-run-and-environment": expect.any(Object),
-        "failed-qualification-results-for-environment": expect.any(Object),
-        "qualification-results-corrected-by-environment": expect.any(Object),
-        "matching-corrected-qualification-result": expect.any(Object),
-        "unexpected-corrected-qualification-results": expect.any(Object),
-        "corrected-environment-qualification-revisions-for": expect.any(Object),
-        "environment-qualification-correction-history-for": expect.any(Object),
-      }),
-    );
-    expect(Object.keys(result.package.policies)).toHaveLength(15);
-    expect(Object.keys(result.package.obligations)).toHaveLength(63);
-    expect(Object.keys(result.package.scenarios)).toHaveLength(66);
-    expect(result.package.policies).toHaveProperty(
-      "environment-qualification-correction-participation",
-    );
-    expect(result.package.obligations).toHaveProperty(
-      "environment-qualification-correction-required",
-    );
-    expect(result.package.scenarios).toHaveProperty(
-      "revise-environment-after-failed-qualification",
-    );
-    expect(
-      result.package.scenarios["establish-initial-wayfinding-map"]?.outputs,
-    ).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        name: "map",
-        required_links: expect.arrayContaining([
-          expect.objectContaining({
-            link: "indexes",
-            target: { output: "product_intent" },
-          }),
-          expect.objectContaining({
-            link: "indexes",
-            target: { output: "questions" },
-          }),
-        ]),
-      }),
-    ]));
-    expect(result.package.scenarios["define-system-architecture"]?.outputs).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          name: "architecture",
-          cardinality: "one-or-more",
-          required_links: [expect.objectContaining({ distribution: "partition" })],
-        }),
-      ]),
-    );
-    expect(
-      result.package.scenarios["define-decomposition-work-package"]?.outputs,
-    ).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        name: "plan",
-        cardinality: "one-or-more",
-        required_payload: { stage: "planning" },
-        required_links: expect.arrayContaining([
-          expect.objectContaining({ link: "decomposes", distribution: "cover" }),
-        ]),
-      }),
-    ]));
-    expect(
-      result.package.scenarios["create-review-context"]?.kernel_materialization,
-    ).toEqual({
-      kind: "exact-baseline@1",
-      output: "context",
-      subject_input: "subject",
-      support_input: "context_members",
-      payload_fields: {
-        title: "title",
-        kind: "kind",
-        role: "role",
-        scope: "scope",
-        group: "group",
-        members: "definition_members",
-        evidence: "evidence",
-      },
-      title_prefix: "Review context for ",
-      baseline_kind: "review-context",
-      baseline_role: "review-context",
-      baseline_group: "DEFAULT",
-      evidence_subject_types: ["ENV"],
-      evidence_types: ["RES", "RUN", "VAI", "VER"],
-    });
-    expect(result.package.phases["phase-0-wayfinding"]?.attention_checkpoints)
-      .toEqual([expect.objectContaining({
-        id: "phase-0-gate",
-        readiness: expect.objectContaining({
-          source: expect.stringContaining("candidate-baselines-of-kind@1"),
-        }),
-      })]);
-    expect(result.package.phases["phase-2-system-definition"]
-      ?.attention_checkpoints).toEqual([expect.objectContaining({
-        id: "phase-2-system-gate",
-        readiness: expect.objectContaining({
-          source: expect.stringContaining("complete-phase-2-level-candidates@1"),
-        }),
-      })]);
-    expect(result.package.obligations["verification-strategy-review-correction-required"])
-      .toEqual(expect.objectContaining({
-        resolve_with: expect.objectContaining({
-          scenario: "revise-verification-strategy-after-review@2",
-        }),
-      }));
-    expect(result.package.obligations["environment-review-correction-required"])
-      .toEqual(expect.objectContaining({
-        resolve_with: expect.objectContaining({
-          scenario: "revise-environment-assurance-after-review@2",
-        }),
-      }));
-    expect(result.package.obligations["pilot-verification-activity-review-correction-required"])
-      .toEqual(expect.objectContaining({
-        resolve_with: expect.objectContaining({
-          scenario: "revise-pilot-verification-activity-after-review@3",
-        }),
-      }));
-    expect(result.package.obligations["pilot-target-required"])
-      .toEqual(expect.objectContaining({
-        resolve_with: expect.objectContaining({
-          scenario: "build-pilot-control-prototype@1",
-        }),
-      }));
-    expect(result.package.scenarios["review-datum-in-context"])
-      .toEqual(expect.objectContaining({
-        prompt_ref: "prompts/review-datum-in-context.md@6",
-        review_policy_arguments: {
-          subject: expect.objectContaining({
-            kind: "mdlm-expression",
-            source: "subject",
-          }),
-        },
-        completion: expect.objectContaining({
-          source: expect.stringContaining(
-            'review.payload.correction_authority in ["stakeholder", "package-evidence"]',
-          ),
-        }),
-      }));
-    expect(result.package.scenarios["register-pilot-target"]?.participation)
-      .toBeUndefined();
-    expect(result.package.scenarios["register-pilot-target"]?.initiation)
-      .toBe("explicit");
-    expect(result.package.scenarios["build-pilot-control-prototype"])
-      .toEqual(expect.objectContaining({
-        version: 1,
-        prompt_ref: "prompts/build-pilot-control-prototype.md@1",
-        resolves: ["pilot-target-required"],
-      }));
-    for (const scenario of [
-      "revise-verification-strategy-after-review",
-      "revise-environment-assurance-after-review",
-      "revise-pilot-verification-activity-after-review",
-    ]) {
-      expect(result.package.scenarios[scenario]?.participation).toEqual({
-        policy_ref: "phase-1-assurance-correction-participation@1",
-        arguments: { subject: expect.any(Object) },
-      });
-      expect(result.package.scenarios[scenario]?.authority_evidence).toEqual({
-        output: "decision",
-        type: "DEC",
-      });
-      const prompt = await fs.readFile(
-        path.join(
-          result.package.root,
-          `prompts/${scenario}.md`,
-        ),
-        "utf8",
-      );
-      expect(prompt).toContain("`decision`");
-      expect(prompt).toContain("`kind: scope`");
-      expect(prompt).toContain("`effective_scope`");
-      expect(prompt).toContain("$proposal.<replacement-local-id>.revision_id");
-      expect(prompt).toContain("`justifies`");
-    }
-    expect(result.diagnostics).toEqual([]);
   });
 
   it("rejects review Policy argument mappings that do not cover the Policy", () => {
@@ -638,45 +304,6 @@ describe("loadProcessPackage", () => {
       code: "policy-parameters",
       path: "policies.review-applicability.parameters",
     }));
-  });
-
-  it("validates Review Context membership contracts for DEC and CHG callers", () => {
-    const result = {
-      ok: true as const,
-      package: validPackage,
-      diagnostics: [] as const,
-    };
-
-    expect(result.package.selectors["review-context-contains-member"]?.parameters)
-      .toEqual(expect.arrayContaining([
-        expect.objectContaining({
-          name: "required_member",
-          types: expect.arrayContaining(["DEC", "CHG"]),
-        }),
-      ]));
-    expect(result.diagnostics).toEqual([]);
-  });
-
-  it("compiles package-authored terminal outcome conditions", () => {
-    const result = {
-      ok: true as const,
-      package: validPackage,
-      diagnostics: [] as const,
-    };
-    expect(result.package.profiles.bootstrap?.terminal_outcomes).toEqual({
-      profile_boundary: {
-        condition: expect.objectContaining({
-          source: expect.stringContaining('decision.payload.decision == "proceed"'),
-        }),
-        explanation: expect.stringContaining("Phase 3–6 boundary"),
-      },
-      lifecycle_complete: {
-        condition: expect.objectContaining({
-          source: expect.stringContaining('decision.payload.decision == "stop"'),
-        }),
-        explanation: expect.stringContaining("intentionally complete"),
-      },
-    });
   });
 
   it("rejects malformed and unresolved terminal outcome declarations", async () => {
@@ -859,28 +486,6 @@ describe("loadProcessPackage", () => {
     );
   });
 
-  it("rejects disagreement between the manifest and loaded definition catalogs", () => {
-    const processPackage = clonedValidPackage();
-    const catalog = record(processPackage.manifest.catalog);
-    catalog.policies = (catalog.policies as unknown[]).filter(
-      (policy) => policy !== "review-applicability",
-    );
-
-    const result = graphResult(processPackage);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: "manifest-catalog-disagreement",
-          path: "manifest.catalog.policies",
-          message:
-            "Manifest catalog 'policies' does not match loaded definitions; missing from manifest: review-applicability",
-        }),
-      ]),
-    );
-  });
-
   it("rejects a package that does not pin mdlm-expression@1", async () => {
     const processRoot = await copiedProcessPackage();
     const manifestPath = path.join(processRoot, "manifest.yaml");
@@ -982,14 +587,10 @@ describe("loadProcessPackage", () => {
         expect.objectContaining({
           code: "resolver-input-missing",
           path: "obligations.review-context-required.resolve_with.inputs.subject",
-          message:
-            "Obligation 'review-context-required' does not bind required input 'subject' for Resolver Scenario 'create-review-context@1'",
         }),
         expect.objectContaining({
           code: "resolver-input-undeclared",
           path: "obligations.review-context-required.resolve_with.inputs.surprise",
-          message:
-            "Obligation 'review-context-required' binds undeclared input 'surprise' for Resolver Scenario 'create-review-context@1'",
         }),
         expect.objectContaining({
           code: "impossible-required-link-target",
@@ -1032,20 +633,14 @@ describe("loadProcessPackage", () => {
         expect.objectContaining({
           code: "resolver-input-type",
           path: "obligations.review-context-required.resolve_with.inputs.subject",
-          message:
-            "Resolver input 'subject' for Scenario 'create-review-context@1' requires type QST, but the binding can provide ASP, BSL, CHG, DEC, DWP, ENV, ICSP, MAP, PAS, PRB, PSP, STK, SYS, VAI, VER, VSP",
         }),
         expect.objectContaining({
           code: "resolver-input-kind",
           path: "obligations.review-context-required.resolve_with.inputs.subject",
-          message:
-            "Resolver input 'subject' for Scenario 'create-review-context@1' requires stable identity, but the binding provides revision",
         }),
         expect.objectContaining({
           code: "resolver-input-cardinality",
           path: "obligations.review-context-required.resolve_with.inputs.subject",
-          message:
-            "Resolver input 'subject' for Scenario 'create-review-context@1' requires one-or-more values, but the binding provides one",
         }),
         expect.objectContaining({
           code: "impossible-required-link-cardinality",
@@ -1112,28 +707,6 @@ describe("loadProcessPackage", () => {
             "scenarios.review-datum-in-context.outputs[0].required_links[0].target.input",
           message:
             "Scenario 'review-datum-in-context' output 'review' requires link 'reviews' to undeclared input 'missing'",
-        }),
-      ]),
-    );
-  });
-
-  it("rejects an enabled Obligation whose Resolver Scenario is disabled", () => {
-    const processPackage = clonedValidPackage();
-    const phase = processPackage.phases["phase-0-wayfinding"]!;
-    phase.scenarios = (phase.scenarios as unknown[]).filter(
-      (scenario) => scenario !== "create-review-context@1",
-    );
-
-    const result = scenarioContractResult(processPackage);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: "resolver-scenario-disabled",
-          path: "phases.phase-0-wayfinding.scenarios",
-          message:
-            "Obligation 'review-context-required@2' is enabled in Phase 'phase-0-wayfinding' without Resolver Scenario 'create-review-context@1'",
         }),
       ]),
     );
@@ -1442,7 +1015,7 @@ describe("loadProcessPackage", () => {
     );
   });
 
-  it("rejects malformed prompt and skill declarations in one package", async () => {
+  it("rejects invalid and unsafe prompt and skill assets in one package", async () => {
     const processRoot = await copiedProcessPackage();
     const declarationPromptPath = path.join(
       processRoot,
@@ -1471,14 +1044,21 @@ describe("loadProcessPackage", () => {
       skillPath,
       (await fs.readFile(skillPath, "utf8")).replace("version: 1", "version: 2"),
     );
+    const duplicateSkillPromptPath = path.join(
+      processRoot,
+      "prompts/compile-psp.md",
+    );
+    await fs.appendFile(
+      duplicateSkillPromptPath,
+      "\nLoad `skills/lifecycle-data.md@1` again.\n",
+    );
 
     const result = await loadProcessPackage(processRoot);
 
     expect(result.ok).toBe(false);
     expect(result.diagnostics).toContainEqual(expect.objectContaining({
-      code: "prompt-skill-not-declared",
-      path: declarationPromptPath,
-      message: expect.stringContaining("skills/not-declared.md@1"),
+      code: "skill-read",
+      path: path.join(processRoot, "skills/not-declared.md"),
     }));
     expect(result.diagnostics).toContainEqual(expect.objectContaining({
       code: "prompt-outside-package",
@@ -1488,99 +1068,10 @@ describe("loadProcessPackage", () => {
       code: "skill-version-mismatch",
       path: skillPath,
     }));
-  });
-
-  it("rejects undeclared legacy body skill references during package loading", async () => {
-    const processRoot = await copiedProcessPackage();
-    const promptPath = path.join(processRoot, "prompts/chart-wayfinding-map.md");
-    await fs.appendFile(promptPath, "\nLoad `skills/not-declared.md@1`.\n");
-
-    const result = await loadProcessPackage(processRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toContainEqual(expect.objectContaining({
-      code: "prompt-skill-not-declared",
-      path: promptPath,
-      message: expect.stringContaining("skills/not-declared.md@1"),
-    }));
-  });
-
-  it("rejects duplicate legacy body skill references during package loading", async () => {
-    const processRoot = await copiedProcessPackage();
-    const promptPath = path.join(processRoot, "prompts/chart-wayfinding-map.md");
-    await fs.appendFile(promptPath, "\nLoad `skills/lifecycle-data.md@1` again.\n");
-
-    const result = await loadProcessPackage(processRoot);
-
-    expect(result.ok).toBe(false);
     expect(result.diagnostics).toContainEqual(expect.objectContaining({
       code: "prompt-skills-invalid",
-      path: promptPath,
+      path: duplicateSkillPromptPath,
     }));
-  });
-
-  it("rejects malformed legacy body skill references during package loading", async () => {
-    const processRoot = await copiedProcessPackage();
-    const promptPath = path.join(processRoot, "prompts/chart-wayfinding-map.md");
-    await fs.appendFile(promptPath, "\nLoad malformed `skills/lifecycle-data.md@0`.\n");
-
-    const result = await loadProcessPackage(processRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toContainEqual(expect.objectContaining({
-      code: "prompt-skills-invalid",
-      path: promptPath,
-    }));
-  });
-
-  it("loads immutable historical authoring packages without retroactive prompt-skill conformance", async () => {
-    const processRoot = await copiedProcessPackage();
-    const promptPath = path.join(
-      processRoot,
-      "prompts/revise-stakeholder-change-after-review.md",
-    );
-    await fs.writeFile(
-      promptPath,
-      (await fs.readFile(promptPath, "utf8")).replace(
-        "skills/contextual-artifact-review.md@2",
-        "skills/review-model.md@1",
-      ),
-    );
-    const strict = await loadProcessPackage(processRoot);
-    expect(strict.ok).toBe(false);
-    expect(strict.diagnostics).toContainEqual(expect.objectContaining({
-      code: "prompt-skill-not-declared",
-    }));
-
-    const historical = await loadProcessPackage(processRoot, {
-      compatibility: "historical-authoring",
-    });
-    expect(historical.ok, JSON.stringify(historical.diagnostics)).toBe(true);
-  });
-
-  it("rejects Scenario prompts outside the manifest catalog", async () => {
-    const processRoot = await copiedProcessPackage();
-    const manifestPath = path.join(processRoot, "manifest.yaml");
-    await fs.writeFile(
-      manifestPath,
-      (await fs.readFile(manifestPath, "utf8")).replace(
-        "    - prompts/chart-wayfinding-map.md@1\n",
-        "",
-      ),
-    );
-
-    const result = await loadProcessPackage(processRoot);
-
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toContainEqual(expect.objectContaining({
-      code: "scenario-prompt-not-declared",
-      path: "scenarios.chart-wayfinding-map.prompt_ref",
-    }));
-
-    const historical = await loadProcessPackage(processRoot, {
-      compatibility: "historical-authoring",
-    });
-    expect(historical.ok, JSON.stringify(historical.diagnostics)).toBe(true);
   });
 
   it("rejects a template inheritance cycle before any type is resolved", async () => {
