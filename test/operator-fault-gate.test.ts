@@ -4,8 +4,11 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { executeCommandApplication } from "../src/command-application.js";
-import { deriveOperatorOutcome } from "../src/assignment.js";
-import { loadProcessPackage } from "../src/index.js";
+import {
+  assignmentPayloadSummary,
+  deriveOperatorOutcome,
+} from "../src/assignment.js";
+import { loadProcessPackage, resolveType } from "../src/index.js";
 import { initialPhaseId } from "../src/lifecycle-inspection.js";
 import { classifyOperatorOutcome, type OperatorWorkFacts } from "../src/operator-outcome.js";
 import { loadRepositoryInspection } from "../src/repository-inspection.js";
@@ -502,6 +505,47 @@ describe("focused v2 fault-injection gate", () => {
     expect(next.assignment.packet.responseScaffold.proposal.outputs.find(
       (output: JsonObject) => output.handle === "questions",
     ).payload).toBeNull();
+
+    const processPackage = await loadProcessPackage(
+      path.join(process.cwd(), ".lifecycle/process"),
+    );
+    expect(processPackage.ok).toBe(true);
+    if (!processPackage.ok) return;
+    const conditionalRequired = (
+      type: string,
+      trigger: { field: string; value: string },
+      required: string[],
+    ) => {
+      const resolved = resolveType(processPackage.package, type);
+      expect(resolved.ok).toBe(true);
+      if (!resolved.ok) return;
+      const summary = assignmentPayloadSummary(resolved.type.payloadSchema, []);
+      expect(summary.conditional).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          if: expect.objectContaining({
+            properties: expect.objectContaining({
+              [trigger.field]: expect.objectContaining({ const: trigger.value }),
+            }),
+          }),
+          then: expect.objectContaining({
+            required: expect.arrayContaining(required),
+          }),
+        }),
+      ]));
+    };
+    conditionalRequired("DWP", { field: "stage", value: "completion" }, [
+      "parent_coverage_status",
+      "deferred_questions",
+      "cross_group_dependencies",
+      "output_reviews_complete",
+      "simplification_disposition",
+    ]);
+    conditionalRequired("DEC", { field: "kind", value: "pilot-observation" }, [
+      "pilot_observation",
+    ]);
+    conditionalRequired("DEC", { field: "kind", value: "gate-signoff" }, [
+      "gate_outcome",
+    ]);
     const responseItem = next.assignment.packet.responseSchema.oneOf[0]
       .properties.proposal.properties.outputs.items.properties;
     expect(responseItem.handle.description).toContain("Repeated values");
@@ -540,6 +584,18 @@ describe("focused v2 fault-injection gate", () => {
       attended = await command(repository, ["next", "--json"]);
     }
     expect(attended.value.outcome).toBe("attention-required");
+    const updatedQuestion = attended.value.assignment.packet.outputs.find(
+      (output: JsonObject) => output.handle === "updated_question",
+    );
+    expect(updatedQuestion.payloadSummary.conditional).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          then: expect.objectContaining({
+            required: expect.arrayContaining(["attended_answer"]),
+          }),
+        }),
+      ]),
+    );
     expect(attended.value.operatorInstructions.commands[0]).toBe(
       "mdlm scenario submit <response-file> --authority stakeholder --json",
     );
