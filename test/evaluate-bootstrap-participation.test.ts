@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   evaluateLifecycle,
+  loadProcessPackage,
   type LifecycleRecord,
   type ProcessPackage,
 } from "../src/index.js";
@@ -2460,7 +2461,13 @@ describe("bootstrap Scenario participation Policies", () => {
   });
 
   it("routes a failed gate Decision Review through exact attended correction", async () => {
+    const loaded = await loadProcessPackage(".lifecycle/process");
+    expect(loaded.ok, JSON.stringify(loaded.diagnostics)).toBe(true);
+    if (!loaded.ok) return;
     const fixture = reviewedGateFixture(processRef);
+    fixture.candidateReview.datum.created_by.scenario = "review-datum-in-context@3";
+    fixture.candidateReview.datum.payload.review_kind =
+      "simplification-product-definition";
     fixture.signoffReview.datum.payload.outcome = "fail";
     fixture.signoffReview.datum.payload.correction_authority = "stakeholder";
     fixture.signoffReview.datum.payload.findings = [
@@ -2483,7 +2490,7 @@ describe("bootstrap Scenario participation Policies", () => {
       records: fixture.records,
       dependencyComparisons: [],
     };
-    const evaluation = evaluateLifecycle(processPackage, snapshot);
+    const evaluation = evaluateLifecycle(loaded.package, snapshot);
     const correction = evaluation.obligations.find((item) =>
       item.obligation === "gate-signoff-review-correction-required" &&
       item.subject === fixture.signoff.datum.revision_id
@@ -2501,7 +2508,7 @@ describe("bootstrap Scenario participation Policies", () => {
     }));
     expect(correction).toBeDefined();
     const prepared = await dryRunResolverScenario(
-      processPackage,
+      loaded.package,
       snapshot,
       "revise-gate-signoff-after-review@2",
       correction!.id,
@@ -2511,9 +2518,21 @@ describe("bootstrap Scenario participation Policies", () => {
     if (!prepared.ok) return;
     expect(prepared.value.invocations[0]!.inputs).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: "lineage", values: [expect.any(Object)] }),
+      expect.objectContaining({
+        name: "candidate_review",
+        values: [expect.objectContaining({
+          identity: expect.objectContaining({
+            revision_id: fixture.candidateReview.datum.revision_id,
+          }),
+        })],
+      }),
       expect.objectContaining({ name: "prior_failed_reviews", values: [] }),
       expect.objectContaining({ name: "failed_reviews", values: [expect.any(Object)] }),
     ]));
+    expect(prepared.value.expectedOutputs[0]!.requiredLinks).toContainEqual({
+      link: "relies-on-review",
+      target: { input: "candidate_review" },
+    });
   });
 
   it("requires accepted intent before reviewed gate evidence progresses Phase 0", () => {

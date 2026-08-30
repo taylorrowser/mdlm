@@ -23,6 +23,7 @@ resolve_with:
   inputs:
     decision: decision
     candidate: 'one("gate-candidates-for-decision@1", {decision: decision})'
+    candidate_review: 'one("gate-candidate-reviews-for-decision@1", {decision: decision})'
     lineage: >-
       select("review-correction-history-for@1",
         {subject: decision, view: "lineage"})

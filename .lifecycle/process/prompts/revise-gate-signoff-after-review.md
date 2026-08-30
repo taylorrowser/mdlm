@@ -11,7 +11,8 @@ exact Decision lineage and failed Review/finding history, and the exact candidat
 After fresh explicit stakeholder authorization, publish one replacement DEC
 Revision in the same Stable Datum lineage. Preserve the exact candidate scope and
 `justifies` link, cite every supplied failure through `corrects-review`, address
-only those findings, and state `approve` or `reject` explicitly. After two causal
+only those findings, cite the supplied passing candidate Review through
+`relies-on-review`, and state `approve` or `reject` explicitly. After two causal
 replacements fail, this same attended interface is the explicit exhausted-lineage
 escalation; do not introduce another recovery path. The replacement requires a
 fresh independent Review before it can authorize progression.

@@ -6,6 +6,7 @@ phases: [phase-0-wayfinding]
 inputs:
   - {name: decision, types: [DEC], cardinality: one, identity: revision}
   - {name: candidate, types: [BSL], cardinality: one, identity: revision}
+  - {name: candidate_review, types: [REV], cardinality: one, identity: revision}
   - {name: lineage, types: [DEC], cardinality: one-or-more, identity: revision}
   - {name: prior_failed_reviews, types: [REV], cardinality: zero-or-more, identity: revision}
   - {name: failed_reviews, types: [REV], cardinality: one-or-more, identity: revision}
@@ -16,6 +17,7 @@ outputs:
     identity_from: {input: decision}
     required_links:
       - {link: justifies, target: {input: candidate}}
+      - {link: relies-on-review, target: {input: candidate_review}}
       - {link: corrects-review, target: {input: prior_failed_reviews}}
       - {link: corrects-review, target: {input: failed_reviews}}
 prompt_ref: prompts/revise-gate-signoff-after-review.md@2
