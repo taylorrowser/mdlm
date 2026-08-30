@@ -40,6 +40,7 @@ outputs:
   - name: replacement
     types: [VER]
     cardinality: one
+    identity_from: {input: activity}
     required_links:
       - {link: verifies, target: {input: requirement}}
       - {link: verifies-revision, target: {input: requirement}}
