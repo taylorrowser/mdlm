@@ -452,7 +452,7 @@ describe("Phase 1 review routing", () => {
       {
         dryRun: prepared.value,
         evaluation,
-        scenario: processPackage.scenarios["revise-pilot-vai-after-result"],
+        scenario: processPackage.scenarios["revise-pilot-vai-after-result"]!,
         snapshot: {
           processRef,
           phaseId: "phase-1-product-assurance",
