@@ -2,7 +2,7 @@ kind: obligation-definition
 id: environment-qualification-correction-required
 version: 1
 description: A current ENV with a failed singular qualification receives causal same-lineage replacement and fresh assurance while its autonomous budget remains, then attended escalation.
-phases: [phase-1-product-assurance]
+phases: [phase-1-product-assurance, phase-2-system-definition]
 for_each: 'select("failed-current-environment-qualifications@1", {})'
 subject_as: environment
 satisfied_when: >-

@@ -11,6 +11,8 @@ import { runPhaseTwoSimplificationReviewBinding } from
   "./helpers/phase-2-simplification-review-binding.js";
 import { runPhaseTwoReviewCorrectionRendering } from
   "./phase-2-review-correction-rendering.test.js";
+import { runPhaseTwoAssuranceCorrectionPublic } from
+  "./phase-2-assurance-correction-public.js";
 import { runPhaseTwoGateReviewCorrection } from
   "./phase-2-gate-review-correction.js";
 
@@ -176,6 +178,12 @@ it(
   "prepares four exact Phase 2 correction scaffolds and submits ASP",
   runPhaseTwoReviewCorrectionRendering,
   30_000,
+);
+
+it(
+  "renders four failed Phase 2 assurance corrections through public next",
+  runPhaseTwoAssuranceCorrectionPublic,
+  60_000,
 );
 
 it(

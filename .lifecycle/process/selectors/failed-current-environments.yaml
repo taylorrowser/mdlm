@@ -1,7 +1,7 @@
 kind: selector-definition
 id: failed-current-environments
 version: 1
-description: Current exact Phase 1 environment Revisions with a valid failed Review.
+description: Current exact assurance environment Revisions with a valid failed Review.
 parameters: []
 result_kind: revision
 query:

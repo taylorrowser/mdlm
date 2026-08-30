@@ -1,8 +1,8 @@
 kind: scenario-definition
 id: revise-verification-strategy-after-review
 version: 2
-description: Correct one failed Phase 1 verification strategy through bounded autonomous cycles and the same exact attended escalation interface.
-phases: [phase-1-product-assurance]
+description: Correct one failed assurance verification strategy through bounded autonomous cycles and the same exact attended escalation interface.
+phases: [phase-1-product-assurance, phase-2-system-definition]
 inputs:
   - name: strategy
     types: [VSP]
@@ -19,7 +19,7 @@ inputs:
       exists("matching-failing-review-for@1",
         {subject: strategy, review: failed_reviews})
   - name: requirements
-    types: [STK]
+    types: [STK, SYS]
     cardinality: one-or-more
     identity: revision
     conditions: >-

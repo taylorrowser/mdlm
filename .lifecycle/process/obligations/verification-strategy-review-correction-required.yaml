@@ -1,8 +1,8 @@
 kind: obligation-definition
 id: verification-strategy-review-correction-required
 version: 2
-description: A current Phase 1 verification strategy with a failed Review receives causal same-lineage correction while its autonomous budget remains, then attended escalation.
-phases: [phase-1-product-assurance]
+description: A current assurance verification strategy with a failed Review receives causal same-lineage correction while its autonomous budget remains, then attended escalation.
+phases: [phase-1-product-assurance, phase-2-system-definition]
 for_each: 'select("failed-current-verification-strategies@1", {})'
 subject_as: strategy
 satisfied_when: 'exists("corrected-verification-strategy-revisions-for@1", {strategy: strategy})'

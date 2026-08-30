@@ -1,8 +1,8 @@
 kind: obligation-definition
 id: environment-review-correction-required
 version: 2
-description: A current Phase 1 environment with a failed Review receives causal same-lineage correction and a fresh qualification chain while its autonomous budget remains, then attended escalation.
-phases: [phase-1-product-assurance]
+description: A current assurance environment with a failed Review receives causal same-lineage correction and a fresh qualification chain while its autonomous budget remains, then attended escalation.
+phases: [phase-1-product-assurance, phase-2-system-definition]
 for_each: 'select("failed-current-environments@1", {})'
 subject_as: environment
 satisfied_when: 'exists("corrected-environment-revisions-for@1", {environment: environment})'
