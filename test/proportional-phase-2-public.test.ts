@@ -14,6 +14,8 @@ import {
   runPhaseTwoReviewCorrectionRendering,
 } from
   "./phase-2-review-correction-rendering.test.js";
+import { runPhaseTwoAssuranceCorrectionPublic } from
+  "./phase-2-assurance-correction-public.js";
 import { runPhaseTwoGateReviewCorrection } from
   "./phase-2-gate-review-correction.js";
 
@@ -185,6 +187,12 @@ it(
   "corrects a definition-consistency set through five serial public Assignments",
   runPhaseTwoDefinitionConsistencySerialCorrection,
   90_000,
+);
+
+it(
+  "renders four failed Phase 2 assurance corrections through public next",
+  runPhaseTwoAssuranceCorrectionPublic,
+  60_000,
 );
 
 it(

@@ -1,12 +1,12 @@
 kind: selector-definition
 id: failed-current-verification-strategies
 version: 1
-description: Current exact Phase 1 verification strategy Revisions with a valid failed Review.
+description: Current exact active-phase verification strategy Revisions with a valid failed Review.
 parameters: []
 result_kind: revision
 query:
   from:
-    selector: current-phase-1-verification-strategies@1
+    selector: current-active-phase-verification-strategies@1
     arguments: {}
   as: strategy
   where: 'exists("failing-reviews-for@1", {subject: strategy})'

@@ -1,8 +1,8 @@
 kind: scenario-definition
 id: revise-environment-assurance-after-review
 version: 2
-description: Correct one failed Phase 1 environment through bounded autonomous cycles or attended escalation and author a fresh exact qualification activity and implementation atomically.
-phases: [phase-1-product-assurance]
+description: Correct one failed assurance environment through bounded autonomous cycles or attended escalation and author a fresh exact qualification activity and implementation atomically.
+phases: [phase-1-product-assurance, phase-2-system-definition]
 inputs:
   - name: environment
     types: [ENV]

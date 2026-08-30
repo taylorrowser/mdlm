@@ -23,6 +23,14 @@ query:
     && count("requirements-for-pilot-activity@1", {activity: replacement}) == 1
     && one("requirements-for-pilot-activity@1", {activity: replacement})
       == one("requirements-for-pilot-activity@1", {activity: activity})
+    && (
+      (exists("stakeholder-requirements-for-pilot-activity@1", {activity: activity})
+        && count("pilot-intent-support-for-activity@1", {activity: replacement}) == 1
+        && one("pilot-intent-support-for-activity@1", {activity: replacement})
+          == one("pilot-intent-support-for-activity@1", {activity: activity}))
+      || (none("stakeholder-requirements-for-pilot-activity@1", {activity: activity})
+        && none("pilot-intent-support-for-activity@1", {activity: replacement}))
+    )
     && count("strategies-for-verification-activity@1", {activity: activity}) == 1
     && count("strategies-for-verification-activity@1", {activity: replacement}) == 1
     && one("strategies-for-verification-activity@1", {activity: replacement})

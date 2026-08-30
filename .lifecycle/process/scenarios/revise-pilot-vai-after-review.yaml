@@ -2,7 +2,7 @@ kind: scenario-definition
 id: revise-pilot-vai-after-review
 version: 3
 description: Correct one failed source-blind pilot procedure and, only when the Review exposes an exact upstream or boundary inconsistency, reconcile its bound VER, ART, or ENV in the same atomic transaction.
-phases: [phase-1-product-assurance]
+phases: [phase-1-product-assurance, phase-2-system-definition]
 inputs:
   - name: implementation
     types: [VAI]
@@ -44,7 +44,7 @@ inputs:
       && execution_target == one("execution-targets-for-implementation@1",
         {implementation: implementation})
   - name: requirement
-    types: [STK]
+    types: [STK, SYS]
     cardinality: one
     identity: revision
     conditions: >-
@@ -63,6 +63,7 @@ outputs:
   - name: replacement_activity
     types: [VER]
     cardinality: zero-or-one
+    identity_from: {input: activity}
     required_links:
       - {link: verifies, target: {input: requirement}}
       - {link: verifies-revision, target: {input: requirement}}
@@ -71,6 +72,7 @@ outputs:
   - name: replacement_environment
     types: [ENV]
     cardinality: zero-or-one
+    identity_from: {input: environment}
     required_links:
       - {link: realizes, target: {input: strategy}}
       - {link: corrects-review, target: {input: failed_reviews}}
@@ -87,11 +89,13 @@ outputs:
   - name: replacement_target
     types: [ART]
     cardinality: zero-or-one
+    identity_from: {input: execution_target}
     required_links:
       - {link: derived-from, target: {input: requirement}}
   - name: replacement
     types: [VAI]
     cardinality: one
+    identity_from: {input: implementation}
     required_links:
       - {link: corrects-review, target: {input: failed_reviews}}
   - name: authorization

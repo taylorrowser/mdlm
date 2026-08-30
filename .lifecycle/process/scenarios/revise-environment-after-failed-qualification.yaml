@@ -2,7 +2,7 @@ kind: scenario-definition
 id: revise-environment-after-failed-qualification
 version: 1
 description: Replace one ENV after its singular completed qualification RUN fails, preserving failed evidence and publishing a fresh exact qualification VER and VAI atomically.
-phases: [phase-1-product-assurance]
+phases: [phase-1-product-assurance, phase-2-system-definition]
 inputs:
   - name: environment
     types: [ENV]
