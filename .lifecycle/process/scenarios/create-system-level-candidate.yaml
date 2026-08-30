@@ -8,32 +8,18 @@ inputs:
     types: [DWP]
     cardinality: one
     identity: revision
-    conditions: >-
-      completion.payload.stage == "completion"
-      && exists("passing-reviews-for@1", {subject: completion})
-      && none("failing-reviews-for@1", {subject: completion})
   - name: architecture
     types: [ASP]
     cardinality: one
     identity: revision
-    conditions: >-
-      architecture == one("architectures-for-decomposition@1",
-        {plan: one("planning-revisions-for-completion@1", {completion: completion})})
   - name: interfaces
     types: [ICSP]
     cardinality: zero-or-more
     identity: revision
-    conditions: >-
-      exists("matching-decomposition-interface@1",
-        {plan: one("planning-revisions-for-completion@1", {completion: completion}),
-         interface: interfaces})
   - name: verification_strategy
     types: [VSP]
     cardinality: one
     identity: revision
-    conditions: >-
-      verification_strategy == one("strategies-for-decomposition@1",
-        {plan: one("planning-revisions-for-completion@1", {completion: completion})})
 outputs:
   - name: candidate
     types: [BSL]
