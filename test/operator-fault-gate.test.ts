@@ -4,8 +4,11 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { executeCommandApplication } from "../src/command-application.js";
-import { deriveOperatorOutcome } from "../src/assignment.js";
-import { loadProcessPackage } from "../src/index.js";
+import {
+  assignmentPayloadSummary,
+  deriveOperatorOutcome,
+} from "../src/assignment.js";
+import { loadProcessPackage, resolveType } from "../src/index.js";
 import { initialPhaseId } from "../src/lifecycle-inspection.js";
 import { classifyOperatorOutcome, type OperatorWorkFacts } from "../src/operator-outcome.js";
 import { loadRepositoryInspection } from "../src/repository-inspection.js";
@@ -502,6 +505,92 @@ describe("focused v2 fault-injection gate", () => {
     expect(next.assignment.packet.responseScaffold.proposal.outputs.find(
       (output: JsonObject) => output.handle === "questions",
     ).payload).toBeNull();
+
+    const processPackage = await loadProcessPackage(
+      path.join(process.cwd(), ".lifecycle/process"),
+    );
+    expect(processPackage.ok).toBe(true);
+    if (!processPackage.ok) return;
+    const conditionalRequired = (
+      type: string,
+      trigger: { field: string; value: string },
+      required: string[],
+    ) => {
+      const resolved = resolveType(processPackage.package, type);
+      expect(resolved.ok).toBe(true);
+      if (!resolved.ok) return;
+      const summary = assignmentPayloadSummary(resolved.type.payloadSchema, []);
+      expect(summary.conditional).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          if: expect.objectContaining({
+            properties: expect.objectContaining({
+              [trigger.field]: expect.objectContaining({ const: trigger.value }),
+            }),
+          }),
+          then: expect.objectContaining({
+            required: expect.arrayContaining(required),
+          }),
+        }),
+      ]));
+    };
+    conditionalRequired("DWP", { field: "stage", value: "completion" }, [
+      "parent_coverage_status",
+      "deferred_questions",
+      "cross_group_dependencies",
+      "output_reviews_complete",
+      "simplification_disposition",
+    ]);
+    conditionalRequired("DEC", { field: "kind", value: "pilot-observation" }, [
+      "pilot_observation",
+    ]);
+    conditionalRequired("DEC", { field: "kind", value: "gate-signoff" }, [
+      "gate_outcome",
+    ]);
+    const artifact = resolveType(processPackage.package, "ART");
+    expect(artifact.ok).toBe(true);
+    if (artifact.ok) {
+      const argumentCase = assignmentPayloadSummary(
+        artifact.type.payloadSchema,
+        [],
+      ).conditional?.find((rule) =>
+        rule.path === "/properties/public_interface/properties/argument_cases/items/allOf/0"
+      );
+      expect(argumentCase).toEqual(
+        expect.objectContaining({
+          if: expect.objectContaining({
+            properties: expect.objectContaining({
+              kind: expect.objectContaining({ const: "normal" }),
+            }),
+          }),
+        }),
+      );
+      expect(argumentCase).not.toHaveProperty("context");
+    }
+    const review = resolveType(processPackage.package, "REV");
+    expect(review.ok).toBe(true);
+    if (review.ok) {
+      expect(assignmentPayloadSummary(review.type.payloadSchema, []).conditional).toEqual(
+        expect.arrayContaining([expect.objectContaining({
+          path: "/allOf/0/allOf/3/then/allOf/0",
+          context: [expect.objectContaining({
+            branch: "then",
+            if: expect.objectContaining({
+              properties: expect.objectContaining({
+                review_kind: expect.objectContaining({
+                  const: "simplification-product-definition",
+                }),
+              }),
+            }),
+          })],
+          if: expect.objectContaining({
+            properties: expect.objectContaining({
+              outcome: expect.objectContaining({ const: "fail" }),
+            }),
+          }),
+          then: expect.objectContaining({ required: ["simplification"] }),
+        })]),
+      );
+    }
     const responseItem = next.assignment.packet.responseSchema.oneOf[0]
       .properties.proposal.properties.outputs.items.properties;
     expect(responseItem.handle.description).toContain("Repeated values");
@@ -540,6 +629,18 @@ describe("focused v2 fault-injection gate", () => {
       attended = await command(repository, ["next", "--json"]);
     }
     expect(attended.value.outcome).toBe("attention-required");
+    const updatedQuestion = attended.value.assignment.packet.outputs.find(
+      (output: JsonObject) => output.handle === "updated_question",
+    );
+    expect(updatedQuestion.payloadSummary.conditional).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          then: expect.objectContaining({
+            required: expect.arrayContaining(["attended_answer"]),
+          }),
+        }),
+      ]),
+    );
     expect(attended.value.operatorInstructions.commands[0]).toBe(
       "mdlm scenario submit <response-file> --authority stakeholder --json",
     );

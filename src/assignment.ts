@@ -354,6 +354,116 @@ export type AssignmentDisposition =
       orchestration: { action: "stop"; automaticReplacement: false };
     };
 
+export interface AssignmentPayloadConditionalRule {
+  path: string;
+  context?: {
+    if: Record<string, unknown>;
+    branch: "then" | "else";
+  }[];
+  if: Record<string, unknown>;
+  then?: Record<string, unknown>;
+  else?: Record<string, unknown>;
+}
+
+export interface AssignmentPayloadDependentRule {
+  path: string;
+  context?: AssignmentPayloadConditionalRule["context"];
+  required: Record<string, string[]>;
+}
+
+export interface AssignmentPayloadSummary {
+  required: string[];
+  kernelManaged: string[];
+  conditional?: AssignmentPayloadConditionalRule[];
+  dependentRequired?: AssignmentPayloadDependentRule[];
+}
+
+/** Surface authored payload obligations without choosing a conditional schema branch. */
+export function assignmentPayloadSummary(
+  payloadSchema: Record<string, unknown>,
+  kernelManagedPayloadPaths: string[],
+): AssignmentPayloadSummary {
+  const kernelManaged = new Set(kernelManagedPayloadPaths);
+  const required = Array.isArray(payloadSchema.required)
+    ? payloadSchema.required.filter((field): field is string =>
+      typeof field === "string" && !kernelManaged.has(field)
+    )
+    : [];
+  const conditional: AssignmentPayloadConditionalRule[] = [];
+  const conditionalKeys = new Set<string>();
+  const dependentRequired: AssignmentPayloadDependentRule[] = [];
+  const pointerToken = (value: string) => value.replaceAll("~", "~0").replaceAll("/", "~1");
+
+  const visit = (
+    value: unknown,
+    path = "",
+    context: NonNullable<AssignmentPayloadConditionalRule["context"]> = [],
+  ): void => {
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => visit(item, `${path}/${index}`, context));
+      return;
+    }
+    const schema = object(value);
+    if (!schema) return;
+
+    const condition = object(schema.if);
+    const consequent = object(schema.then);
+    const alternative = object(schema.else);
+    if (condition && (consequent || alternative)) {
+      const rule = {
+        path,
+        ...(context.length > 0 ? { context } : {}),
+        if: condition,
+        ...(consequent ? { then: consequent } : {}),
+        ...(alternative ? { else: alternative } : {}),
+      };
+      const key = JSON.stringify(rule);
+      if (!conditionalKeys.has(key)) {
+        conditionalKeys.add(key);
+        conditional.push(rule);
+      }
+    }
+
+    const dependencies = object(schema.dependentRequired);
+    if (dependencies) {
+      const required: Record<string, string[]> = {};
+      for (const [field, dependenciesForField] of Object.entries(dependencies)) {
+        if (!Array.isArray(dependenciesForField)) continue;
+        const fields = dependenciesForField.filter((dependency): dependency is string =>
+          typeof dependency === "string" && !kernelManaged.has(dependency)
+        );
+        if (fields.length > 0) required[field] = [...new Set(fields)].sort();
+      }
+      if (Object.keys(required).length > 0) {
+        dependentRequired.push({
+          path,
+          ...(context.length > 0 ? { context } : {}),
+          required,
+        });
+      }
+    }
+
+    for (const [key, child] of Object.entries(schema)) {
+      const childPath = `${path}/${pointerToken(key)}`;
+      if (condition && key === "then") {
+        visit(child, childPath, [...context, { if: condition, branch: "then" }]);
+      } else if (condition && key === "else") {
+        visit(child, childPath, [...context, { if: condition, branch: "else" }]);
+      } else {
+        visit(child, childPath, context);
+      }
+    }
+  };
+  visit(payloadSchema);
+
+  return {
+    required,
+    kernelManaged: kernelManagedPayloadPaths,
+    ...(conditional.length > 0 ? { conditional } : {}),
+    ...(dependentRequired.length > 0 ? { dependentRequired } : {}),
+  };
+}
+
 export interface AssignmentPacket {
   contract: "mdlm-assignment-packet@3";
   assignment: { id: string };
@@ -395,10 +505,7 @@ export interface AssignmentPacket {
     handle: string;
     type: string;
     identity?: { input: string };
-    payloadSummary: {
-      required: string[];
-      kernelManaged: string[];
-    };
+    payloadSummary: AssignmentPayloadSummary;
   })[];
   completion: ScenarioDryRun["completion"];
   responseSchema: Record<string, unknown>;
@@ -2517,15 +2624,12 @@ function assignmentResponseSkeleton(
       const repeated = ["one-or-more", "zero-or-more"].includes(expected.cardinality);
       const resolved = resolveType(processPackage, sourceType);
       if (!resolved.ok) return undefined;
-      const kernelManaged = materialization?.output === route.output
-        ? new Set(Object.values(materialization.payloadFields))
-        : new Set<string>();
-      const requiredPayload = Array.isArray(resolved.type.payloadSchema.required)
-        ? resolved.type.payloadSchema.required
-          .filter((field): field is string =>
-            typeof field === "string" && !kernelManaged.has(field)
-          )
-        : [];
+      const payloadSummary = assignmentPayloadSummary(
+        resolved.type.payloadSchema,
+        materialization?.output === route.output
+          ? Object.values(materialization.payloadFields)
+          : [],
+      );
       outputs.push({
         handle: responseHandle(invocationIndex, route.handle),
         ...(repeated || batched ? { output: route.handle } : {}),
@@ -2533,7 +2637,7 @@ function assignmentResponseSkeleton(
         type: sourceType,
         payload: expected.cardinality.startsWith("zero-")
           ? null
-          : Object.fromEntries(requiredPayload.map((field) => [field, null])),
+          : Object.fromEntries(payloadSummary.required.map((field) => [field, null])),
         links,
         body: null,
       });
@@ -2905,14 +3009,12 @@ function packet(
         ...(typeof identityFrom?.input === "string"
           ? { identity: { input: identityFrom.input } }
           : {}),
-        payloadSummary: {
-          required: Array.isArray(schemas[type]?.payload.required)
-            ? schemas[type]!.payload.required as string[]
-            : [],
-          kernelManaged: materialization?.output === output.name
+        payloadSummary: assignmentPayloadSummary(
+          schemas[type]!.payload,
+          materialization?.output === output.name
             ? Object.values(materialization.payloadFields)
             : [],
-        },
+        ),
       };
     }),
     completion: exact.dryRun.completion,
