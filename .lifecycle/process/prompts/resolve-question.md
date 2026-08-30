@@ -31,8 +31,8 @@ do not manufacture a DEC merely to repeat the answer. Always create the next
 QST revision with state `answered`, `deferred`, or `cancelled`. Preserve the
 input QST's exact `kind`, `intent_scope`, question text, and complete `blocks`
 link set so the reviewed answer retains its exact affected foundation scope. An initial
-`intent_scope: product` Question must be answered, not deferred or cancelled,
-and its normalized attended answer must be self-contained.
+preferential `intent_scope: product` Question must be answered, not deferred or
+cancelled, and its normalized attended answer must be self-contained.
 Do not rewrite the old question. Record alternatives and effective scope when material.
 A deferral is not an answer, and uncertainty must remain visible.
 

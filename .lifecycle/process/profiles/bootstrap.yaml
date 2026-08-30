@@ -1,6 +1,6 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 41
+version: 42
 status: experimental
 description: Complete bootstrap profile with proportional grouped system definition, reviewed intent, qualification/pilot, exact accepted-STK and shared-SYS change control, and a reviewed expansion Decision.
 enabled:
@@ -65,6 +65,7 @@ success_criteria:
   - every type named by an authority-evidence contract publishes only through validated Scenario execution
   - every current open QST receives one package-authored exact source boundary before a same-lineage Resolver output, while prototype-bound empirical QST routes to exact bounded ART, DEC, and satisfying QST evidence and generic empirical questions retain their non-prototype resolver
   - one small MAP-to-reviewed-intent slice reaches an exact reviewed Gate Sign-off through generic surfaces
+  - every replacement or newly published QST declares the exact stable Lifecycle Data that it continues to block
   - the initial product-intent Question is frozen and resolved through immediate attended stakeholder authority before autonomous PSP compilation receives its exact passing-reviewed scope Decision
   - the complete required Phase 0 foundation emerges from package Obligations, including exact correction and re-Review after failure
   - the exact intent candidate is the earliest complete evidence-bearing product set and receives independent product-simplification judgment before downstream verification or decomposition

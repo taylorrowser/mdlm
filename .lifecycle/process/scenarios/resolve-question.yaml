@@ -9,13 +9,25 @@ inputs:
     cardinality: one
     identity: revision
     conditions: 'question.payload.state == "open"'
+  - name: blocked_targets
+    types: [PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, QST, DEC]
+    cardinality: zero-or-more
+    identity: stable
+    conditions: >-
+      !every("blocked-targets-for-question@1", {question: question},
+        target => target != blocked_targets)
 outputs:
   - name: decision
     types: [DEC]
     cardinality: zero-or-one
     required_links:
       - {link: resolves, target: {output: updated_question}}
-  - {name: updated_question, types: [QST], cardinality: one, identity_from: {input: question}, required_links: []}
+  - name: updated_question
+    types: [QST]
+    cardinality: one
+    identity_from: {input: question}
+    required_links:
+      - {link: blocks, target: {input: blocked_targets}}
 prompt_ref: prompts/resolve-question.md@2
 review_policy_ref: review-applicability@1
 participation:
@@ -30,19 +42,14 @@ completion: >-
   && updated_question.payload.kind == question.payload.kind
   && updated_question.payload.intent_scope == question.payload.intent_scope
   && updated_question.payload.question == question.payload.question
-  && every("blocked-targets-for-question@1", {question: question}, target =>
-    !every("blocked-targets-for-question@1", {question: updated_question},
-      updated_target => updated_target != target))
-  && every("blocked-targets-for-question@1", {question: updated_question}, target =>
-    !every("blocked-targets-for-question@1", {question: question},
-      original_target => original_target != target))
   && updated_question.payload.state in ["answered", "deferred", "cancelled"]
   && (
     question.payload.intent_scope != "product"
+    || question.payload.kind != "preferential"
     || (
       updated_question.payload.state == "answered"
       && present(updated_question.payload.attended_answer)
-      && decision != null
+      && present(decision)
       && decision.payload.decision == updated_question.payload.attended_answer
       && !present(decision.payload.attended_answer_change)
     )
@@ -69,7 +76,7 @@ completion: >-
     question.payload.kind != "preferential"
     || updated_question.payload.state != "answered"
     || (
-      decision != null
+      present(decision)
       && decision.payload.kind == "scope"
       && decision.payload.effective_scope == updated_question.identity.revision_id
     )
@@ -77,10 +84,10 @@ completion: >-
   && (
     (question.payload.kind == "empirical"
     && updated_question.payload.state == "answered")
-    || decision != null
+    || present(decision)
   )
   && (
-    decision == null
+    !present(decision)
     || (
       count("resolved-question-revisions-for-decision@1", {decision: decision}) == 1
       && every("resolved-question-revisions-for-decision@1", {decision: decision},
@@ -90,7 +97,7 @@ completion: >-
   && (
     updated_question.payload.state != "deferred"
     || (
-      decision != null
+      present(decision)
       && decision.payload.kind == "deferral"
       && decision.payload.effective_scope == updated_question.identity.revision_id
       && present(updated_question.payload.reactivation_condition)
@@ -99,7 +106,7 @@ completion: >-
   && (
     updated_question.payload.state != "cancelled"
     || (
-      decision != null
+      present(decision)
       && decision.payload.kind == "cancellation"
       && decision.payload.effective_scope == updated_question.identity.revision_id
     )

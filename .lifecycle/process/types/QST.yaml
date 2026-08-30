@@ -51,9 +51,10 @@ payload_schema:
   allOf:
     - if:
         properties:
+          kind: {const: preferential}
           intent_scope: {const: product}
           state: {const: answered}
-        required: [intent_scope, state]
+        required: [kind, intent_scope, state]
       then:
         required: [attended_answer]
     - if: {required: [attended_answer]}
