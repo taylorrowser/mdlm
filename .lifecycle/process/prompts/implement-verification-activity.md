@@ -25,7 +25,8 @@ When the ART supplies `prototype_controls`, bind the exact known-good and
 known-bad argv without rewriting either command. Apply the same reviewed VER to
 both. The known-good control must be expected to pass, and the one-fault
 known-bad control must be expected to fail. Record both exact bindings in
-`prototype_control_bindings`.
+`prototype_control_bindings`. Preserve the bare `PATH`-resolved executable name
+in argv position zero. Never replace it with an absolute or relative host path.
 
 Define bounded checkout, environment-check, and per-product-case deadlines as
 infrastructure-safety limits rather than product timing claims. On timeout,
