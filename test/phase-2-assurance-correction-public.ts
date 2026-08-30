@@ -40,8 +40,12 @@ const cases: Array<{
   },
 ];
 
-function commit(repository: string, message: string): void {
-  const added = spawnSync("git", ["-C", repository, "add", ".lifecycle"], {
+function commit(
+  repository: string,
+  message: string,
+  paths = [".lifecycle"],
+): void {
+  const added = spawnSync("git", ["-C", repository, "add", "--", ...paths], {
     encoding: "utf8",
   });
   expect(added.status, added.stderr).toBe(0);
@@ -231,13 +235,52 @@ async function focusedPackage(parent: string, subject: Subject): Promise<string>
   return root;
 }
 
+const publishedMaterializations = new Map<string, Set<string>>();
+
 function nextPacket(repository: string, scenario: string): JsonObject {
-  const next = mdlm(repository, "next", "--json");
-  expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
-  const outcome = JSON.parse(next.stdout);
-  expect(outcome.assignment, next.stdout).toBeDefined();
-  expect(outcome.assignment.packet.scenario.reference).toBe(scenario);
-  return outcome.assignment.packet;
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const next = mdlm(repository, "next", "--json");
+    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+    const outcome = JSON.parse(next.stdout);
+    if (outcome.outcome === "publication-required") {
+      expect(outcome.assignment).toBeUndefined();
+      const seen = publishedMaterializations.get(repository) ?? new Set<string>();
+      const executions = outcome.materializedExecutions as JsonObject[];
+      expect(executions.length).toBeGreaterThan(0);
+      const roots = executions.map((execution) => {
+        expect(execution.status).toBe("completed");
+        expect(seen.has(execution.id), `replayed materialization ${execution.id}`)
+          .toBe(false);
+        return `.lifecycle/data/.transactions/${execution.id}`;
+      });
+      const status = spawnSync("git", [
+        "-C",
+        repository,
+        "status",
+        "--porcelain=v1",
+        "--untracked-files=all",
+        "--",
+        ".lifecycle/data",
+      ], { encoding: "utf8" });
+      expect(status.status, status.stderr).toBe(0);
+      const changed = status.stdout.trim().split("\n").filter(Boolean)
+        .map((line) => line.slice(3));
+      expect(changed.length).toBeGreaterThan(0);
+      expect(changed.every((file) =>
+        roots.some((root) => file === root || file.startsWith(`${root}/`))
+      ), status.stdout).toBe(true);
+      const doctor = mdlm(repository, "doctor", "--json");
+      expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
+      commit(repository, "Publish exact materialized Lifecycle Data", roots);
+      executions.forEach((execution) => seen.add(execution.id));
+      publishedMaterializations.set(repository, seen);
+      continue;
+    }
+    expect(outcome.assignment, next.stdout).toBeDefined();
+    expect(outcome.assignment.packet.scenario.reference).toBe(scenario);
+    return outcome.assignment.packet;
+  }
+  throw new Error(`Public route did not reach ${scenario}`);
 }
 
 function submitSeed(
