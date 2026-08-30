@@ -1,6 +1,8 @@
 # Example Process Package Phases 3 through 6 implementation plan
 
-Status: implementation-readiness audit dated 2026-08-30. This is planning
+Status: implementation-readiness audit updated against exact `origin/main`
+`a794af83bf01229dbcea21e33391ef9d403b02b4`, tree
+`9712b0ed6e710977a2dda86a82885bb3a044dab7`, on 2026-08-30. This is planning
 evidence. It does not satisfy the Phase 2 reliability gate or authorize a
 package change.
 
@@ -10,15 +12,17 @@ The full-V extension is ready to split into dependency-ordered tickets, but it
 is not ready to implement. GitHub issue
 [#222](https://github.com/taylorrowser/mdlm/issues/222) still requires two
 distinct fresh products to complete Phase 2 under one exact reviewed release
-identity. The Phase 2 representative-pilot route remains open in
-[#439](https://github.com/taylorrowser/mdlm/issues/439) and draft
-[PR #441](https://github.com/taylorrowser/mdlm/pull/441); its current public
-proof is blocked by kernel issue
-[#464](https://github.com/taylorrowser/mdlm/issues/464). The related
+identity. The Phase 2 representative-pilot route in
+[#439](https://github.com/taylorrowser/mdlm/issues/439), its optional
+same-lineage kernel prerequisite in
+[#464](https://github.com/taylorrowser/mdlm/issues/464), and package-load
+Assignment compilation in
+[#479](https://github.com/taylorrowser/mdlm/issues/479) are merged. The related
 per-strategy fanout reduction remains open in
 [#446](https://github.com/taylorrowser/mdlm/issues/446) and draft
-[PR #448](https://github.com/taylorrowser/mdlm/pull/448). Finish those streams
-and collect #222's evidence before opening Phase 3 implementation.
+[PR #448](https://github.com/taylorrowser/mdlm/pull/448). That change reduces
+Phase 1 cost. It is not an extra Phase 3 admission gate. Only #222 or an
+explicit tracker decision changing #222 controls admission.
 
 The narrow Phase 3 tracer and the complete Phase 3 goal are different releases.
 The tracer proves accepted SYS to reviewed CMP definition and gate behavior. A
@@ -33,18 +37,22 @@ kernel.
 
 ## Audited source and current inventory
 
-The source baseline is `origin/main` commit
-`7f9db37b20e6013ff3e94b6e5c6b5659a8683ca6`, tree
-`f4e0486108b802be5cc3e45a754fa0e76d10c1e2`. It contains
-`mdlm-bootstrap@0.97.0` and `bootstrap@43`.
+The source baseline is the exact commit and tree named above. It contains
+`mdlm-bootstrap@0.104.0`, digest
+`sha256:7d08015d2ca9cd88163939c793dbe0c0bcb6335995b06de2e24f72d2fb29e67c`,
+and `bootstrap@43`. This exact package passed package compilation in 3.98
+seconds during focused release preflight. The composed source, package, and
+AgentSession runner then passed the sole authoritative release gate and
+artifact installation. Those results qualify canary use. They do not satisfy
+#222's two-product Phase 2 gate.
 
 | Catalog | Current | Missing full-V inventory |
 | --- | ---: | --- |
 | Types | 21 | `CMP`, `DES` |
 | Phases | 5 | `phase-3-component-definition`, `phase-4-design-definition`, `phase-5-implementation`, `phase-6-verification` |
-| Scenarios | 71 | Definition-level CMP/DES authoring, implementation, formal assessment, promotion, and final acceptance contracts listed below |
-| Obligations | 68 | CMP/DES definition and verification, implementation readiness, formal execution, promotion, and final acceptance rules listed below |
-| Selectors | 409 | CMP/DES discovery, implementation coverage, and formal-evidence currentness selectors |
+| Scenarios | 77 | Definition-level CMP/DES authoring, implementation, formal assessment, promotion, and final acceptance contracts listed below |
+| Obligations | 74 | CMP/DES definition and verification, implementation readiness, formal execution, promotion, and final acceptance rules listed below |
+| Selectors | 429 | CMP/DES discovery, implementation coverage, and formal-evidence currentness selectors |
 | Policies | 16 | None currently justified |
 | States | 6 | None currently justified |
 
@@ -54,16 +62,16 @@ The profile enables `MAP`, `QST`, `DEC`, `ART`, `PSP`, `STK`, `SYS`, `ASP`,
 pilot assessment, and the narrow Phase 7 route. It explicitly disables
 component and design decomposition, formal verification execution, and
 component and design implementation. See the current
-[manifest](https://github.com/taylorrowser/mdlm/blob/7f9db37b20e6013ff3e94b6e5c6b5659a8683ca6/.lifecycle/process/manifest.yaml),
-[profile](https://github.com/taylorrowser/mdlm/blob/7f9db37b20e6013ff3e94b6e5c6b5659a8683ca6/.lifecycle/process/profiles/bootstrap.yaml),
-and [package README](https://github.com/taylorrowser/mdlm/blob/7f9db37b20e6013ff3e94b6e5c6b5659a8683ca6/.lifecycle/process/README.md).
+[manifest](https://github.com/taylorrowser/mdlm/blob/a794af83bf01229dbcea21e33391ef9d403b02b4/.lifecycle/process/manifest.yaml),
+[profile](https://github.com/taylorrowser/mdlm/blob/a794af83bf01229dbcea21e33391ef9d403b02b4/.lifecycle/process/profiles/bootstrap.yaml),
+and [package README](https://github.com/taylorrowser/mdlm/blob/a794af83bf01229dbcea21e33391ef9d403b02b4/.lifecycle/process/README.md).
 
 The accepted target is the Phase 3 through 6 portion of
 [the v0.8 process overview](../mdlm-process-overview-v0.8.md). Evidence
 separation and implementation order come from
 `docs/research/v-model-verification-and-implementation-sequence-2026-08-28.md`.
 The current package route and fanout limits come from
-[the post-0.86 architecture scout](https://github.com/taylorrowser/mdlm/blob/7f9db37b20e6013ff3e94b6e5c6b5659a8683ca6/docs/handoffs/full-v-package-architecture-after-0.86.md).
+[the post-0.86 architecture scout](https://github.com/taylorrowser/mdlm/blob/a794af83bf01229dbcea21e33391ef9d403b02b4/docs/handoffs/full-v-package-architecture-after-0.86.md).
 The older
 `docs/research/phase-3-smallest-tracer-2026-08-28.md` note still owns the tracer
 boundary, but its group-candidate step is stale. Current main uses one direct
@@ -82,6 +90,46 @@ adding the named replacement. Never keep both versions of the same behavior.
 | Phase 4 | `derive-design-requirements`, `create-design-level-candidate`; reuse widened architecture, interface, decomposition, verification, Review, Correction, and gate contracts | `design-level-candidate-required`; reuse level-aware decomposition, verification, Review, Correction, and gate obligations | Reuse the candidate gate; publish supported-CMP acceptance only after the DES candidate gate |
 | Phase 5 | `implement-design-set`, `implement-formal-verification-activity`, `accept-phase-4-design` | `design-set-implementation-required`, `implementation-traceability-review-required`, `formal-verification-implementation-required`, `formal-verification-implementation-review-required`, `design-acceptance-required` | Automatic DES promotion waits for complete reviewed ART coverage and reviewed formal VAI readiness; no new attended gate |
 | Phase 6 | Widen `execute-verification-run`; add `assess-analysis-result`, `witness-demonstration`, `assess-inspection-result`, `accept-product` | `formal-verification-run-required`, `formal-result-assessment-required`, `product-acceptance-required`; reuse `problem-report-required` and CHG obligations | Execute formal evidence bottom-up against existing accepted Revisions; one final attended acceptance DEC satisfies `Lifecycle Complete` |
+
+## Full-V readiness matrix
+
+A gate-approved candidate is not an Accepted Baseline. The next phase promotes
+it only after the downstream evidence named here exists.
+
+| Increment | Exact entry | Work and judgment | Exact exit |
+| --- | --- | --- | --- |
+| Phase 3 definition tracer | Accepted Phase 2 SYS baseline, its exact SYS/ASP/ICSP/DWP/VSP members, and current Reviews | Produce CMP, component ASP, ICSP, component VSP, complete DWP lineage, exact Review Contexts, independent Reviews, simplification evidence, and one direct CMP level candidate. The candidate gate is nondelegable attended stakeholder work. Its DEC needs an independent passing Review before it applies. | Gate-approved CMP candidate and exact ancestry, then `Profile Boundary Reached` because component pilot and formal VER coverage are deliberately absent. |
+| Complete Phase 3 | A fresh repository on the next qualified package reaches exact accepted Phase 2 SYS; the tracer's operational evidence has validated the decomposition, Review, and gate contracts | Add one representative good/bad component pilot per distinct strategy and public boundary, plus one reviewed formal VER per independently assessable CMP claim. Reuse compatible VSP and ENV evidence. Pilot RES proves verification-design suitability only. Create and gate the CMP candidate only after that evidence is complete. | Gate-approved CMP candidate with suitable representative pilot evidence and complete reviewed formal CMP VER coverage. Phase 4 becomes dispatchable. |
+| Phase 4 | Exact gate-approved CMP candidate, member and candidate Reviews, applicable reviewed gate DEC, and Phase 3 verification-design evidence | Produce DES from exact CMP parents, refine ICSP where needed, preserve `STK -> SYS -> CMP -> DES` ancestry, run independent Reviews and simplification, produce one representative design-boundary pilot and reviewed formal DES VER coverage, then gate one direct DES level candidate. Reuse the component ASP. Do not create a design ASP unless public operation proves it is needed. | Gate-approved DES candidate, suitable design pilot, complete reviewed formal DES VER coverage, and mechanically accepted CMP baseline. Phase 5 becomes dispatchable. |
+| Phase 5 | Exact gate-approved DES candidate, member and candidate Reviews, applicable reviewed gate DEC | Dispatch product implementation and source-blind formal VAI authoring independently. Publish one controlled-build ART per coherent DES candidate and exact commit with bounded DES Revision-to-path mappings. The VAI consumes exact DES/ASP/ICSP/VSP/VER/ENV and the public executable boundary while excluding product source, unit tests, and private details. Review ART traceability and VAI independently. | Mechanically accepted DES baseline, reviewed formal VAI, and controlled ART. No second attended gate. |
+| Phase 6 | Exact accepted DES baseline, reviewed formal VAI, controlled ART, accepted CMP/SYS/STK ancestry, VER, and qualified ENV | Publish one immutable RUN/RES per formal VAI, bottom-up. Automatic test passes need no Review. Analysis, inspection, and demonstration use the package-declared REV or DEC. A failure opens the existing PRB/CHG route and invalidates only impacted evidence. | Complete current passing formal evidence, required assessments, no unresolved applicable failures, and one final nondelegable attended product-acceptance DEC produce `Lifecycle Complete`. |
+
+## Public CLI and identity rules
+
+Every increment stays on `mdlm next` and Assignment response submission. The
+package loader compiles each Scenario's public response projection through a
+one-invocation or synthetic two-invocation witness. A new or widened Scenario
+must have one total output-type route, invocation-local required links, and an
+`identity_from` binding for each same-lineage output. Run that package
+compilation check first. Retain one public CLI regression for the increment's
+acceptance seam, not a fixture for every Scenario.
+
+The current type contracts show the minimum Phase 3 and 4 widening:
+
+- `ASP.level` gains `component`. Phase 4 reuses that component architecture.
+- `DWP` gains exact SYS-to-CMP and CMP-to-DES parent/output routes while keeping
+  one stable DWP identity from planning through completion.
+- `ICSP`, `VSP`, `VER`, prototype `ART`, `REV`, and Review Context membership
+  gain exact CMP and DES targets only where the matrix uses them.
+- Candidate selectors bind exact phase, definition level, and Scenario
+  provenance. They must not let an older SYS candidate satisfy CMP or DES work.
+- Same-lineage Correction preserves the failed Revision, exact Review and
+  Finding causes, unaffected evidence, and stable subject identity. Two
+  package-evidence cycles may remain autonomous. The existing attended
+  escalation boundary remains intact.
+- Open Questions route to their declared authority. Candidate gates remain
+  nondelegable attended work. Independent Review remains package-delegated with
+  no stakeholder interruption.
 
 The exact Phase 3 tracer selector additions are
 `phase-3-entry-requirements`,
@@ -103,14 +151,31 @@ typed outcome.
 
 ### 0. Admission and Phase 2 readiness
 
-Make no Phase 3 through 6 package change. Finish #464, #439, and #446, then
-satisfy #222 with two distinct Phase 2 completions under one exact release
-identity.
+Make no Phase 3 through 6 package change. #439 and #464 are closed. #446 may
+continue independently as cost reduction. Satisfy #222 with two distinct Phase
+2 completions under one exact release identity before creating a Phase 3, 4, 5,
+or 6 implementation child.
 
 Public demo acceptance seam: preserve both terminal Phase 2 outcomes, exact
 package digest, Assignment packets, responses, receipts, doctor results, and
 publication commits. The gate either passes from that evidence or Phase 3 stays
 unopened.
+
+The first post-gate issue remains uncreated. Use this template only after #222
+is satisfied or the tracker records an explicit replacement decision:
+
+- Title: `Add the narrow Phase 3 component-definition tracer`.
+- Parent: #222, with the exact two-product gate evidence linked in the issue.
+- Scope: the CMP type, Phase 3 definition, three Scenario and Obligation pairs
+  named below, minimum level-aware widening, direct candidate, reviewed gate,
+  and declared profile boundary. In the fresh full-V profile, route accepted
+  Phase 2 SYS directly to Phase 3 and leave the one-time pilot-assessment and
+  narrow Phase 7 definitions loadable but disabled. No component pilot, formal
+  CMP VER, Phase 4, kernel change, runner change, or repository migration.
+- Acceptance: one fresh public demo advances from exact accepted SYS evidence
+  through reviewed CMP/ASP/ICSP/VSP and complete DWP lineage to a reviewed gate
+  DEC, then returns `Profile Boundary Reached`. Package compilation and one
+  focused public CLI regression pass.
 
 ### 1. Narrow Phase 3 definition tracer
 
@@ -243,16 +308,11 @@ current.
    narrow tracer's documented temporary deviation and avoid duplicate
    acceptance. A later ticket must decide whether fresh full-V packages move SYS
    acceptance to Phase 3.
-2. **Fresh full-V profile cutover.** The post-0.86 scout recommends removing the
-   one-time Phase 2 pilot-assessment and dedicated Phase 7 detour from the fresh
-   linear profile. Decide during Phase 3 ticket drafting whether old definitions
-   remain loadable but disabled or are deleted as one dependency slice. Never
-   migrate frozen repositories.
-3. **Product commit admission.** Phase 5 must choose from operational evidence
+2. **Product commit admission.** Phase 5 must choose from operational evidence
    between a separately bound product repository and an opt-in, process-neutral
    exact-descendant-commit capability. Do not implement that kernel capability
    unless the Phase 5 tracer proves the same-repository need.
-4. **Final human evidence shape.** Before Phase 6 implementation, specify which
+3. **Final human evidence shape.** Before Phase 6 implementation, specify which
    demonstration and final-acceptance claims use REV and which use DEC. Reuse
    those types unless a missing durable claim proves a new type is necessary.
 
@@ -270,10 +330,11 @@ package identity belong to each ticket's rebase against then-current main.
   through Phase 6 sections
 - `docs/research/v-model-verification-and-implementation-sequence-2026-08-28.md`
 - `docs/research/phase-3-smallest-tracer-2026-08-28.md`
-- [Post-0.86 full-V package architecture](https://github.com/taylorrowser/mdlm/blob/7f9db37b20e6013ff3e94b6e5c6b5659a8683ca6/docs/handoffs/full-v-package-architecture-after-0.86.md)
+- [Post-0.86 full-V package architecture](https://github.com/taylorrowser/mdlm/blob/a794af83bf01229dbcea21e33391ef9d403b02b4/docs/handoffs/full-v-package-architecture-after-0.86.md)
 - [GitHub issue #222](https://github.com/taylorrowser/mdlm/issues/222),
   [issue #439](https://github.com/taylorrowser/mdlm/issues/439),
   [PR #441](https://github.com/taylorrowser/mdlm/pull/441),
   [issue #446](https://github.com/taylorrowser/mdlm/issues/446),
-  [PR #448](https://github.com/taylorrowser/mdlm/pull/448), and
-  [issue #464](https://github.com/taylorrowser/mdlm/issues/464), read 2026-08-30
+  [PR #448](https://github.com/taylorrowser/mdlm/pull/448),
+  [issue #464](https://github.com/taylorrowser/mdlm/issues/464), and
+  [issue #479](https://github.com/taylorrowser/mdlm/issues/479), read 2026-08-30
