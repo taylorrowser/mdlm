@@ -142,6 +142,20 @@ describe("loadProcessPackage", () => {
     return value.map(record);
   }
 
+  it("binds a corrected verification strategy to its source VSP lineage", () => {
+    expect(records(
+      validPackage.scenarios["revise-verification-strategy-after-review"]
+        ?.outputs,
+    )).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        name: "replacement",
+        types: ["VSP"],
+        cardinality: "one",
+        identity_from: { input: "strategy" },
+      }),
+    ]));
+  });
+
   it("recalculates a package digest after nested package bytes change", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-package-digest-"));
     try {
