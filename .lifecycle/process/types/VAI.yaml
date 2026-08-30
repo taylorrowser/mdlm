@@ -16,6 +16,10 @@ payload_schema:
         properties: {kind: {const: pilot}, independence_mode: {const: source-blind}}
         required: [kind, independence_mode]
       then: {required: [execution_procedure]}
+    - if: {required: [prototype_control_bindings]}
+      then:
+        properties: {kind: {const: pilot}}
+        required: [kind]
   properties:
     kind: {enum: [qualification, pilot, formal]}
     implementation_ref: {type: string, pattern: '^(git:[a-f0-9]{40}|procedure:sha256:[a-f0-9]{64})$'}

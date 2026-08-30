@@ -35,6 +35,7 @@ completion: >-
   && qualification_activity.payload.claim.scope == "environment-capability"
   && qualification_implementation.payload.kind == "qualification"
   && qualification_implementation.payload.independence_mode == "environment-capability"
+  && !present(qualification_implementation.payload.prototype_control_bindings)
 resolves: [environment-assurance-required]
 prohibited_inputs: [undeclared environment capability, product requirement acceptance claim, mutable environment reference]
 batching: single
