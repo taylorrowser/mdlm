@@ -22,12 +22,26 @@ async function preserveFailureEvidence(
   return evidencePath;
 }
 
+async function createSuccessEvidenceTarget(
+  requestedPath = process.env.MDLM_CUTOVER_SUCCESS_EVIDENCE,
+): Promise<string> {
+  if (requestedPath !== undefined) {
+    return requestedPath;
+  }
+  const preservedRoot = await fs.mkdtemp(
+    path.join(os.tmpdir(), "mdlm-installed-success-record-"),
+  );
+  temporaryRoots.push(preservedRoot);
+  preservedRoots.add(preservedRoot);
+  return path.join(preservedRoot, "success.json");
+}
+
 async function preserveSuccessEvidence(
   root: string,
   evidence: Record<string, unknown>,
-  durablePath = process.env.MDLM_CUTOVER_SUCCESS_EVIDENCE
-    ?? path.join(os.tmpdir(), "mdlm-installed-cutover-success.json"),
+  requestedPath?: string,
 ): Promise<{ evidencePath: string; durablePath: string }> {
+  const durablePath = await createSuccessEvidenceTarget(requestedPath);
   const evidencePath = path.join(root, "installed-cutover-success.json");
   const bytes = `${JSON.stringify(evidence, null, 2)}\n`;
   await fs.writeFile(evidencePath, bytes);
@@ -503,6 +517,27 @@ describe("installed v2 cutover journey", () => {
       .toHaveProperty("assignment.packet.exactInputs[0].inputs[0].values[0].revisionId", "VER-r00001");
     expect(preservedRoots.has(root)).toBe(true);
     preservedRoots.delete(root);
+  });
+
+  it("allocates an isolated default success evidence target", async () => {
+    const originalTarget = process.env.MDLM_CUTOVER_SUCCESS_EVIDENCE;
+    delete process.env.MDLM_CUTOVER_SUCCESS_EVIDENCE;
+    try {
+      const first = await createSuccessEvidenceTarget();
+      const second = await createSuccessEvidenceTarget();
+      expect(first).not.toBe(second);
+      for (const target of [first, second]) {
+        expect(path.basename(target)).toBe("success.json");
+        expect(preservedRoots.has(path.dirname(target))).toBe(true);
+        preservedRoots.delete(path.dirname(target));
+      }
+    } finally {
+      if (originalTarget === undefined) {
+        delete process.env.MDLM_CUTOVER_SUCCESS_EVIDENCE;
+      } else {
+        process.env.MDLM_CUTOVER_SUCCESS_EVIDENCE = originalTarget;
+      }
+    }
   });
 
   it("keeps unused optional gate outputs null", () => {
@@ -1177,10 +1212,13 @@ describe("installed v2 cutover journey", () => {
       scenarios,
     };
     const successPaths = await preserveSuccessEvidence(root, successEvidence);
-    expect(successPaths.durablePath).toBe(
-      process.env.MDLM_CUTOVER_SUCCESS_EVIDENCE
-        ?? path.join(os.tmpdir(), "mdlm-installed-cutover-success.json"),
-    );
+    if (process.env.MDLM_CUTOVER_SUCCESS_EVIDENCE !== undefined) {
+      expect(successPaths.durablePath).toBe(process.env.MDLM_CUTOVER_SUCCESS_EVIDENCE);
+    } else {
+      expect(path.basename(successPaths.durablePath)).toBe("success.json");
+      expect(path.basename(path.dirname(successPaths.durablePath)))
+        .toMatch(/^mdlm-installed-success-record-/);
+    }
     } catch (error) {
       failureState.repository = {
         path: repository,
