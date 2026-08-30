@@ -103,3 +103,51 @@ it("groups one coherent stakeholder context into one ASP and DWP readiness route
     })],
   });
 }, 420_000);
+
+it("routes one reviewed Phase 2 completion directly to its level candidate", async () => {
+  const processPackage = await canonicalProcessPackage();
+
+  expect(processPackage.scenarios["create-decomposition-group-candidate"])
+    .toBeUndefined();
+  expect(processPackage.obligations["decomposition-group-candidate-required"])
+    .toBeUndefined();
+
+  const obligation = processPackage.obligations["system-level-candidate-required"] as unknown as {
+    for_each: { source: string };
+    subject_as: string;
+    resolve_with: {
+      scenario: string;
+      inputs: Record<string, { source: string }>;
+    };
+  };
+  expect(obligation.for_each.source).toBe(
+    'select("current-decomposition-completions@1", {})',
+  );
+  expect(obligation.subject_as).toBe("completion");
+  expect(obligation.resolve_with).toEqual(expect.objectContaining({
+    scenario: "create-system-level-candidate@2",
+    inputs: expect.objectContaining({
+      completion: expect.objectContaining({ source: "completion" }),
+    }),
+  }));
+  expect(obligation.resolve_with.inputs).not.toHaveProperty("group");
+
+  const scenario = processPackage.scenarios["create-system-level-candidate"] as unknown as {
+    version: number;
+    inputs: Array<{ name: string }>;
+    outputs: Array<{ required_links: unknown[] }>;
+    completion: { source: string };
+  };
+  expect(scenario.version).toBe(2);
+  expect(scenario.inputs.map((input) => input.name)).toEqual([
+    "completion",
+    "architecture",
+    "interfaces",
+    "verification_strategy",
+  ]);
+  expect(scenario.outputs[0]!.required_links).toEqual([]);
+  expect(scenario.completion.source).toContain(
+    'level-candidate-matches-completion@1',
+  );
+  expect(scenario.completion.source).not.toContain("group");
+});
