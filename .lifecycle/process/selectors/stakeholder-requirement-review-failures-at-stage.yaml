@@ -1,15 +1,15 @@
 kind: selector-definition
-id: non-map-foundation-review-failures-at-stage
+id: stakeholder-requirement-review-failures-at-stage
 version: 1
-description: Current PSP foundation failures at one correction-authority stage.
+description: Current STK foundation failures at one correction-authority stage.
 parameters:
   - {name: stage, kind: scalar, scalar_type: string}
 result_kind: revision
 query:
-  from: {collection: revisions, types: [PSP]}
+  from: {collection: revisions, types: [STK]}
   as: subject
   where: >-
     !every("foundation-review-failures-at-stage@1", {stage: stage}, failure =>
       failure != subject)
   distinct: true
-  order_by: [identity.type, identity.id, identity.revision]
+  order_by: [identity.id, identity.revision]
