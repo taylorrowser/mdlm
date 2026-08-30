@@ -10,6 +10,7 @@ outputs:
   - name: replacement_consumer
     types: [DWP]
     cardinality: one
+    identity_from: {input: consumer}
     required_links:
       - {link: decomposes, target: {input: replacement_requirements}}
 prompt_ref: prompts/reevaluate-shared-system-consumer.md@1

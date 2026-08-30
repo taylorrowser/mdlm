@@ -147,6 +147,28 @@ describe("loadProcessPackage", () => {
     return value.map(record);
   }
 
+  it("binds scalar Phase 2 continuation outputs to their exact input lineages", () => {
+    const bindings = [
+      ["reevaluate-shared-system-consumer", "replacement_consumer", "consumer"],
+      ["replan-stale-decomposition-work-package", "replacement_plan", "prior_plan"],
+      ["resolve-question-with-prototype", "updated_question", "question"],
+      ["revise-phase-2-subject-after-simplification", "replacement", "subject"],
+      ["revise-pilot-assessment-after-review", "replacement", "assessment"],
+      ["revise-pilot-expansion-decision-after-review", "replacement", "decision"],
+      ["revise-pilot-vai-after-result", "replacement_environment", "environment"],
+    ] as const;
+
+    for (const [scenarioId, outputName, inputName] of bindings) {
+      const scenario = validPackage.scenarios[scenarioId]!;
+      const output = records(scenario.outputs).find((item) =>
+        item.name === outputName
+      );
+      expect(output?.identity_from, `${scenarioId}.${outputName}`).toEqual({
+        input: inputName,
+      });
+    }
+  });
+
   it("rejects an unrenderable Assignment route at the package-loader seam", async () => {
     const processRoot = await copiedProcessPackage();
     try {

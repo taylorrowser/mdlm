@@ -14,6 +14,7 @@ outputs:
   - name: replacement_plan
     types: [DWP]
     cardinality: one
+    identity_from: {input: prior_plan}
     required_links:
       - {link: decomposes, target: {input: parents}}
       - {link: allocated-to, target: {input: architecture}}
