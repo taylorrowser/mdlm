@@ -1,8 +1,8 @@
 kind: obligation-definition
 id: phase-1-assurance-review-required
 version: 1
-description: Each active Phase 1 assurance Revision needs one atomic evidence-bearing Review Context and independent Review.
-phases: [phase-1-product-assurance]
+description: Each active Phase 1 or representative Phase 2 assurance Revision needs one atomic evidence-bearing Review Context and independent Review.
+phases: [phase-1-product-assurance, phase-2-system-definition]
 for_each: 'select("phase-1-assurance-review-required-revisions@1", {})'
 subject_as: subject
 satisfied_when: >-

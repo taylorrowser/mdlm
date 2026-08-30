@@ -20,14 +20,31 @@ interface PacketValue {
 
 interface Packet {
   assignment: { id: string };
-  scenario: { reference: string };
-  prompt: { skills: { reference: string }[] };
+  scenario: {
+    reference: string;
+    skills: { reference: string }[];
+  };
   exactInputs: {
     inputs: {
       name: string;
       values: PacketValue[];
     }[];
   }[];
+  responseScaffold: {
+    contract: string;
+    assignment: string;
+    kind: "proposal";
+    proposal: {
+      outputs: Array<{
+        handle: string;
+        type: string;
+        payload: unknown;
+        links: unknown[];
+        body: unknown;
+      }>;
+      completionEvidence: unknown;
+    };
+  };
 }
 
 function exactInputValuesAt(
@@ -84,16 +101,7 @@ function prepareAny(repository: string): Packet {
   expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
   const nextOutcome = JSON.parse(next.stdout);
   expect(nextOutcome.assignment, next.stdout).toBeDefined();
-  const assignment = nextOutcome.assignment.id as string;
-  const prepared = mdlm(
-    repository,
-    "scenario",
-    "prepare",
-    assignment,
-    "--json",
-  );
-  expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
-  return JSON.parse(prepared.stdout) as Packet;
+  return nextOutcome.assignment.packet as Packet;
 }
 
 function prepare(repository: string, scenario: string): Packet {
@@ -106,21 +114,27 @@ function submit(
   repository: string,
   packet: Packet,
   outputs: unknown[],
-  authoritySupplies: string[] = [],
-) {
-  const response = {
-    contract: "mdlm-assignment-response@1",
-    assignment: packet.assignment.id,
-    kind: "proposal",
-    proposal: {
-      outputs,
-      completionEvidence: {
-        summary: `Completed ${packet.scenario.reference}.`,
-      },
-      loadedSkillRefs: packet.prompt.skills.map((skill) => skill.reference),
-      authoritySupplies,
-      standingDelegations: [],
-    },
+): {
+  outputs: { name: string; lifecycleDatum: { revisionId: string } }[];
+} {
+  const response = structuredClone(packet.responseScaffold);
+  response.proposal.outputs = response.proposal.outputs.map((expected) => {
+    const supplied = outputs.find((output: any) =>
+      output.localId === expected.handle || output.name === expected.handle
+    ) as any;
+    expect(supplied, `Missing ${expected.handle} output`).toBeDefined();
+    return {
+      handle: expected.handle,
+      type: supplied.lifecycleDatum.type,
+      payload: supplied.lifecycleDatum.payload,
+      links: expected.links.length > 0
+        ? expected.links
+        : supplied.lifecycleDatum.links,
+      body: supplied.lifecycleDatum.body,
+    };
+  });
+  response.proposal.completionEvidence = {
+    summary: `Completed ${packet.scenario.reference}.`,
   };
   const result = mdlmWithInput(
     repository,
@@ -131,8 +145,19 @@ function submit(
     "--json",
   );
   expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
-  return JSON.parse(result.stdout).execution as {
-    outputs: { name: string; lifecycleDatum: { revisionId: string } }[];
+  const accepted = JSON.parse(result.stdout) as {
+    receipt: {
+      publications: { handle: string; revisionId: string }[];
+    };
+  };
+  return {
+    outputs: accepted.receipt.publications.map((publication: {
+      handle: string;
+      revisionId: string;
+    }) => ({
+      name: publication.handle,
+      lifecycleDatum: { revisionId: publication.revisionId },
+    })),
   };
 }
 
@@ -226,7 +251,6 @@ function reviewPacket(repository: string, packet: Packet): string {
         body: packetBoundReviewBody(packet, invocation),
       },
     })),
-    ["independent-reviewer"],
   );
   commit(repository, `Review ${subjects.join(", ")}`);
   return subjects[0]!;
@@ -245,7 +269,10 @@ function prepareScenarioAfterReviews(
   throw new Error(`public route did not reach ${scenario}`);
 }
 
-async function phaseTwoOnlyPackage(parent: string): Promise<string> {
+async function phaseTwoOnlyPackage(
+  parent: string,
+  assuranceReview = false,
+): Promise<string> {
   const root = path.join(parent, "process");
   await fs.cp(path.join(process.cwd(), ".lifecycle/process"), root, {
     recursive: true,
@@ -260,6 +287,15 @@ async function phaseTwoOnlyPackage(parent: string): Promise<string> {
   phase.order = 0;
   phase.entry = "true";
   phase.attention_checkpoints = [];
+  if (assuranceReview) {
+    phase.routing.status_order = [
+      "awaiting-review",
+      "ready",
+      "failed",
+      "stale",
+      "blocked",
+    ];
+  }
   await fs.writeFile(phasePath, stringify(phase));
   for (const phaseId of [
     "phase-0-wayfinding",
@@ -278,9 +314,25 @@ async function phaseTwoOnlyPackage(parent: string): Promise<string> {
     "selectors/review-required-revisions.yaml",
   );
   const reviewSelector = parse(await fs.readFile(reviewSelectorPath, "utf8"));
-  reviewSelector.query.where +=
-    ' && (subject.provenance.scenario != "seed-public-phase-2-definitions@1" || subject.identity.type == "VSP")';
+  reviewSelector.query.where += assuranceReview
+    ? ' && subject.provenance.scenario != "seed-public-phase-2-definitions@1"'
+    : ' && (subject.provenance.scenario != "seed-public-phase-2-definitions@1" || subject.identity.type == "VSP")';
   await fs.writeFile(reviewSelectorPath, stringify(reviewSelector));
+
+  if (assuranceReview) {
+    const activeStrategiesPath = path.join(
+      root,
+      "selectors/current-phase-2-verification-strategies.yaml",
+    );
+    const activeStrategies = parse(
+      await fs.readFile(activeStrategiesPath, "utf8"),
+    );
+    activeStrategies.query.where =
+      'strategy.provenance.scenario == "seed-public-phase-2-definitions@1"' +
+      ' && state(strategy, "disposition") == "active"' +
+      ' && none("newer-revisions-for@1", {subject: strategy})';
+    await fs.writeFile(activeStrategiesPath, stringify(activeStrategies));
+  }
 
   const seedDefinitions = {
     kind: "scenario-definition",
@@ -423,6 +475,10 @@ async function phaseTwoOnlyPackage(parent: string): Promise<string> {
     },
     waiver_policy_ref: "waiver-applicability@1",
   };
+  if (assuranceReview) {
+    definitionsObligation.status_rules[0]!.status = "awaiting-review";
+    acceptanceObligation.status_rules[1]!.status = "awaiting-review";
+  }
   const selectors = [
     {
       kind: "selector-definition",
@@ -518,31 +574,7 @@ async function phaseTwoOnlyPackage(parent: string): Promise<string> {
       "seed-public-phase-2-acceptance",
     ),
   );
-  phase.scenarios.unshift(
-    "seed-public-phase-2-definitions@1",
-    "seed-public-phase-2-acceptance@1",
-  );
-  phase.obligations.unshift(
-    "public-phase-2-definitions-required@1",
-    "public-phase-2-acceptance-required@1",
-  );
   await fs.writeFile(phasePath, stringify(phase));
-  const manifestPath = path.join(root, "manifest.yaml");
-  const manifest = parse(await fs.readFile(manifestPath, "utf8"));
-  manifest.catalog.selectors.push(...selectors.map((selector) => selector.id));
-  manifest.catalog.obligations.push(
-    "public-phase-2-definitions-required",
-    "public-phase-2-acceptance-required",
-  );
-  manifest.catalog.scenarios.push(
-    "seed-public-phase-2-definitions",
-    "seed-public-phase-2-acceptance",
-  );
-  manifest.assets.prompts.push(
-    "prompts/seed-public-phase-2-definitions.md@1",
-    "prompts/seed-public-phase-2-acceptance.md@1",
-  );
-  await fs.writeFile(manifestPath, stringify(manifest));
   return root;
 }
 
@@ -865,6 +897,82 @@ export async function runZeroInterfacePhaseTwoRoute(): Promise<void> {
     const shown = mdlm(repository, "show", system, "--json");
     expect(shown.status, `${shown.stderr}${shown.stdout}`).toBe(0);
     expect(JSON.parse(shown.stdout).lifecycleDatum.datum.type).toBe("SYS");
+  } finally {
+    await fs.rm(parent, { recursive: true, force: true });
+  }
+}
+
+export async function runPhaseTwoAssuranceReviewRoute(): Promise<void> {
+  const parent = await fs.mkdtemp(
+    path.join(os.tmpdir(), "mdlm-public-phase2-assurance-review-"),
+  );
+  try {
+    const repository = path.join(parent, "repository");
+    await fs.mkdir(repository);
+    const processRoot = await phaseTwoOnlyPackage(parent, true);
+    await selectProcessPackageFixture(repository, processRoot);
+    const seeded = await seedPublicPhaseTwoEntry(repository, [{
+      statement: "Report one observable result",
+      systemContext: "representative-system",
+    }]);
+
+    const packet = prepare(repository, "review-phase-1-assurance@1");
+    expect(exactInputs(packet, "subject")).toEqual([
+      seeded.strategy.datum.revision_id,
+    ]);
+    submit(
+      repository,
+      packet,
+      [{
+        localId: "context",
+        name: "review_context",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "BSL",
+          payload: {
+            title: `Review context for ${seeded.strategy.datum.revision_id}`,
+            kind: "review-context",
+            role: "review-context",
+            scope: seeded.strategy.datum.revision_id,
+            group: "DEFAULT",
+            definition_members: [seeded.strategy.datum.revision_id],
+            evidence: [],
+          },
+          links: [],
+          body: "The exact active Phase 2 strategy under Review.\n",
+        },
+      }, {
+        localId: "review",
+        name: "review",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "REV",
+          payload: {
+            title: "Phase 2 assurance Review",
+            review_kind: "phase-1-assurance",
+            reviewer: "independent-reviewer",
+            summary: "The exact strategy is traceable and bounded.",
+            rubric_ref: "policies/rubrics/bootstrap-review.md@3",
+            findings: [],
+            correction_authority: "author",
+            outcome: "pass",
+          },
+          links: [
+            { type: "reviews", target: seeded.strategy.datum.revision_id },
+            { type: "contextualizes", target: "$proposal.context.revision_id" },
+          ],
+          body: "The active Phase 2 assurance Revision passes Review.\n",
+        },
+      }],
+    );
+    commit(repository, "Review active Phase 2 assurance");
+
+    const next = mdlm(repository, "next", "--json");
+    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+    const outcome = JSON.parse(next.stdout);
+    expect(outcome.phase).toBe("phase-2-system-definition@10");
+    expect(outcome.outcome).not.toBe("process-dead-end");
+    expect(outcome.assignment).toBeDefined();
   } finally {
     await fs.rm(parent, { recursive: true, force: true });
   }

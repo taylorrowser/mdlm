@@ -1,7 +1,7 @@
 kind: scenario-definition
 id: review-phase-1-assurance
 version: 1
-description: Independently judge one exact Phase 1 assurance Revision and publish its evidence-bearing Review Context with the REV.
+description: Independently judge one exact active-phase assurance Revision and publish its evidence-bearing Review Context with the REV.
 kernel_materialization:
   kind: exact-baseline@1
   output: review_context
@@ -14,7 +14,7 @@ kernel_materialization:
   baseline_group: DEFAULT
   evidence_subject_types: [ENV]
   evidence_types: [RES, RUN, VAI, VER]
-phases: [phase-1-product-assurance]
+phases: [phase-1-product-assurance, phase-2-system-definition]
 inputs:
   - {name: subject, types: [VSP, ENV, VER, VAI], cardinality: one, identity: revision}
   - {name: review_context_members, types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS], cardinality: zero-or-more, identity: revision}

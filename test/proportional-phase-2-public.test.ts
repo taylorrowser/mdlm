@@ -5,6 +5,8 @@ import {
 } from "../src/index.js";
 import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
+import { runPhaseTwoAssuranceReviewRoute } from
+  "./helpers/proportional-phase-2-routes.js";
 
 const processRef = "mdlm-bootstrap@0.74.0#coherent-phase-2-readiness";
 
@@ -151,3 +153,9 @@ it("routes one reviewed Phase 2 completion directly to its level candidate", asy
   );
   expect(scenario.completion.source).not.toContain("group");
 });
+
+it(
+  "keeps shared assurance Review work in Phase 2 after public submit",
+  runPhaseTwoAssuranceReviewRoute,
+  120_000,
+);

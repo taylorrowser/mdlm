@@ -4,7 +4,7 @@ version: 1
 scenario: review-phase-1-assurance
 ---
 
-# Review one Phase 1 assurance Revision
+# Review one active-phase assurance Revision
 
 Read:
 

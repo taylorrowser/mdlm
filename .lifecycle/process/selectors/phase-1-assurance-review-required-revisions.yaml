@@ -1,7 +1,7 @@
 kind: selector-definition
 id: phase-1-assurance-review-required-revisions
 version: 1
-description: Exact active Phase 1 assurance Revisions requiring independent judgment.
+description: Exact active-phase assurance Revisions requiring independent judgment.
 parameters: []
 result_kind: revision
 query:
@@ -12,5 +12,23 @@ query:
     && state(subject, "disposition") == "active"
     && none("newer-revisions-for@1", {subject: subject})
     && none("implemented-changes-impacting-revision@2", {subject: subject})
+    && (
+      (subject.identity.type == "VSP"
+        && !every("current-active-phase-verification-strategies@1", {}, strategy =>
+          strategy != subject))
+      || (subject.identity.type == "ENV"
+        && !every("strategies-for-environment@1", {environment: subject}, strategy =>
+          every("current-active-phase-verification-strategies@1", {}, active =>
+            active != strategy)))
+      || (subject.identity.type == "VER"
+        && !every("strategies-for-verification-activity@1", {activity: subject}, strategy =>
+          every("current-active-phase-verification-strategies@1", {}, active =>
+            active != strategy)))
+      || (subject.identity.type == "VAI"
+        && !every("verification-activities-for-implementation@1", {implementation: subject}, activity =>
+          every("strategies-for-verification-activity@1", {activity: activity}, strategy =>
+            every("current-active-phase-verification-strategies@1", {}, active =>
+              active != strategy))))
+    )
   distinct: true
   order_by: [identity.type, identity.id, identity.revision]
