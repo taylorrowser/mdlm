@@ -8,9 +8,6 @@ inputs:
     types: [MAP, PSP, STK]
     cardinality: one-or-more
     identity: revision
-    conditions: >-
-      exists("passing-reviews-for@1", {subject: definition_members})
-      && none("failing-reviews-for@1", {subject: definition_members})
   - name: member_reviews
     types: [REV]
     cardinality: one-or-more
