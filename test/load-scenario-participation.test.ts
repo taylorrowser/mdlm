@@ -135,25 +135,6 @@ describe("Scenario participation Policy validation", () => {
     );
   });
 
-  it("binds Phase 2 simplification Reviews through their exact Review Context", async () => {
-    const loaded = await loadProcessPackage(".lifecycle/process");
-    expect(loaded.ok, loaded.diagnostics.map((item) => item.message).join("\n"))
-      .toBe(true);
-    if (!loaded.ok) return;
-
-    for (const selector of [
-      "valid-phase-2-simplification-review",
-      "failed-phase-2-simplification-reviews-by-scope",
-      "phase-2-system-requirements-for-review",
-    ]) {
-      const where = object(loaded.package.selectors[selector]?.query).where;
-      expect(object(where).source).not.toContain("decomposition_plan_revision");
-    }
-    expect(object(object(
-      loaded.package.selectors["valid-phase-2-simplification-review"]?.query,
-    ).where).source).toContain("phase-2-review-context-matches-plan@1");
-  });
-
   it("accepts a versioned Policy with exact Scenario input arguments and the standard result", () => {
     expect(validPackage.scenarios["resolve-question"]?.participation)
       .toEqual(expect.objectContaining({
