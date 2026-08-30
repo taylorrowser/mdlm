@@ -43,7 +43,7 @@ compatibility:
 profiles:
   default: bootstrap@43
   available:
-    - profiles/bootstrap.yaml@42
+    - profiles/bootstrap.yaml@43
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md
