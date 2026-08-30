@@ -10,3 +10,5 @@ version: 1
 - For pilot and formal work, use no product source, unit tests, private functions, or implementation notes.
 - Exercise only public controlled interfaces and data.
 - Declare both supported and intentionally unsupported target behavior for discrimination.
+- Preserve a bare `PATH`-resolved executable name in copied inline control argv.
+  Do not replace it with an absolute or relative host path.

@@ -16,7 +16,9 @@ minimal known-good control expected to pass and one known-bad control expected t
 fail that same VER. Each control is an ordered argv of opaque literal tokens and
 an exact expected observation. Give the bad control exactly one bounded fault
 that explains how it differs from the good control. Commands must run without a
-checkout in a fresh temporary directory.
+checkout in a fresh temporary directory. Set argv position zero to a bare
+executable name resolved through `PATH`, such as `node` or `python3`. Never
+record an absolute or relative host path there.
 
 Set `supported_behavior` to only the VER's `expected_success_activity` and
 `unsupported_behavior` to only its `expected_discrimination_activity`. Do not

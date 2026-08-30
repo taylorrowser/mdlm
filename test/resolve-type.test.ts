@@ -287,6 +287,33 @@ describe("resolveType", () => {
     })).toBe(true);
   });
 
+  it("requires portable executables for inline pilot controls and their bindings", async () => {
+    const sourcePackage = await loadProcessPackage(".lifecycle/process");
+    expect(sourcePackage.ok).toBe(true);
+    if (!sourcePackage.ok) return;
+    const artResult = resolveType(sourcePackage.package, "ART");
+    const vaiResult = resolveType(sourcePackage.package, "VAI");
+    expect(artResult.ok).toBe(true);
+    expect(vaiResult.ok).toBe(true);
+    if (!artResult.ok || !vaiResult.ok) return;
+
+    const ajv = new Ajv2020({ allErrors: true, strict: false });
+    const record = (value: unknown) => value as Record<string, unknown>;
+    for (const [result, controlsName] of [
+      [artResult, "prototype_controls"],
+      [vaiResult, "prototype_control_bindings"],
+    ] as const) {
+      const controls = record(record(result.type.payloadSchema.properties)[controlsName]);
+      for (const controlName of ["known_good", "known_bad"]) {
+        const control = record(record(controls.properties)[controlName]);
+        const argvSchema = record(record(control.properties).argv);
+        const validate = ajv.compile(argvSchema);
+        expect(validate(["node", "-e", "process.exit(0)"])).toBe(true);
+        expect(validate(["/usr/bin/node", "-e", "process.exit(0)"])).toBe(false);
+      }
+    }
+  });
+
   it("preserves additive fields while applying a supported constraint narrowing", async () => {
     const processRoot = await copiedProcessPackage();
     const parentPath = path.join(
