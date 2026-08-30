@@ -26,6 +26,6 @@ resolve_with:
     indexed_product_questions: >-
       select("current-questions-indexed-by-map@1", {subject: subject})
     product_answer_decisions: >-
-      select("applicable-product-answer-decisions-for-foundation-subject@1",
+      select("applicable-product-answer-decisions-for-map@1",
         {subject: subject})
 waiver_policy_ref: waiver-applicability@1

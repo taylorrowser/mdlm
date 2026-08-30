@@ -54,7 +54,11 @@ async function preferReviewWork(packageRoot: string): Promise<void> {
   await fs.writeFile(scenarioPath, stringify(scenario));
 }
 
-function response(packet: AssignmentPacket, failMapReview = false): string {
+function response(
+  packet: AssignmentPacket,
+  failMapReview = false,
+  correctionAuthority: "author" | "package-evidence" = "package-evidence",
+): string {
   const source: JsonObject = structuredClone(packet.responseScaffold);
   const scenario = packet.scenario.reference;
   if (scenario === "establish-initial-wayfinding-map@2") {
@@ -146,12 +150,42 @@ function response(packet: AssignmentPacket, failMapReview = false): string {
               material_consequence: "The operator can request an answer twice.",
             }]
             : [],
-          correction_authority: failMapReview ? "package-evidence" : "author",
+          correction_authority: failMapReview ? correctionAuthority : "author",
           outcome: failMapReview ? "fail" : "pass",
         };
         output.body = failMapReview
           ? "The MAP needs one bounded correction.\n"
           : "The subject passes its contextual Review.\n";
+      }
+    }
+  } else if (scenario === "escalate-foundation-review-correction@3") {
+    const subject = input(packet, "subject").values[0]!;
+    for (const output of source.proposal.outputs) {
+      if (output.handle === "replacement") {
+        output.payload = {
+          ...subject.data.payload,
+          frontier: ["Corrected product intent"],
+        };
+        output.body = "The attended correction removes the stale frontier.\n";
+      } else if (output.handle === "decision") {
+        output.payload = {
+          title: "Authorize the bounded MAP correction",
+          kind: "scope",
+          rationale: "The stale product-intent frontier requires correction.",
+          decision: "Remove the answered Question from the active frontier.",
+          alternatives: ["Retain the stale frontier."],
+          effective_scope: "$proposal.replacement.revision_id",
+          scope_correction: {
+            disposition: "bound",
+            options: {
+              bounded: "Remove only the stale frontier claim.",
+              defer_or_remove: "Remove the MAP from the candidate.",
+              retain: "Keep the answered Question active.",
+            },
+            necessity: "The MAP must agree with the answered Question.",
+          },
+        };
+        output.body = "The attended authority selects the bounded correction.\n";
       }
     }
   } else {
@@ -281,3 +315,79 @@ it("omits or publishes an optional MAP correction in the bound input lineage", a
   }
   throw new Error("The public operator seam did not claim the MAP correction");
 }, 30_000);
+
+it("restores MAP authority links after an attended correction dropped them", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-map-lineage-correction-"));
+  temporaryRoots.push(root);
+  const repository = path.join(root, "repository");
+  const packageRoot = path.join(root, "package");
+  await fs.cp(processRoot, packageRoot, { recursive: true });
+  await preferReviewWork(packageRoot);
+  const initialized = await initializeRepositoryFromProcessPackage(repository, packageRoot);
+  expect(initialized.ok, initialized.ok ? "" : JSON.stringify(initialized.diagnostics))
+    .toBe(true);
+  if (!initialized.ok) return;
+
+  let answeredQuestion: string | undefined;
+  let answerDecision: string | undefined;
+  let failedMapReviews = 0;
+  for (let step = 0; step < 14; step += 1) {
+    const claimed = await claimNextWork(repository);
+    expect(claimed.ok, claimed.ok ? "" : JSON.stringify(claimed.diagnostics)).toBe(true);
+    if (!claimed.ok || !(
+      claimed.value.outcome === "assignment" ||
+      claimed.value.outcome === "attention-required"
+    )) return;
+    const packet = claimed.value.assignment.packet;
+
+    if (
+      packet.scenario.reference === "revise-wayfinding-map-after-review@1" &&
+      input(packet, "subject").values[0]!.identity.revision === 2
+    ) {
+      expect(input(packet, "indexed_product_questions").values.map(
+        (value) => value.identity.revision_id,
+      )).toContain(answeredQuestion);
+      expect(input(packet, "product_answer_decisions").values.map(
+        (value) => value.identity.revision_id,
+      )).toContain(answerDecision);
+      expect(packet.responseScaffold.proposal.outputs[0]!.links).toEqual(
+        expect.arrayContaining([
+          { type: "indexes", target: { datum: answeredQuestion!.replace(/-r[0-9]{5}$/, "") } },
+          { type: "incorporates-answer", target: { input: "product_answer_decisions" } },
+          { type: "corrects-review", target: { input: "failed_reviews" } },
+        ]),
+      );
+      return;
+    }
+
+    const subject = packet.scenario.reference === "review-phase-0-foundation@1"
+      ? input(packet, "subject").values[0]!
+      : undefined;
+    const failMapReview = subject?.identity.type === "MAP" && answeredQuestion !== undefined;
+    const submitted = await submitAssignmentResponse(
+      repository,
+      response(
+        packet,
+        failMapReview,
+        failedMapReviews === 0 ? "author" : "package-evidence",
+      ),
+      packet.scenario.reference === "resolve-question@2" ||
+          packet.scenario.reference === "escalate-foundation-review-correction@3"
+        ? ["stakeholder"]
+        : [],
+    );
+    expect(submitted.ok, submitted.ok ? "" : JSON.stringify(submitted.diagnostics))
+      .toBe(true);
+    if (!submitted.ok || submitted.value.outcome !== "accepted") return;
+    if (failMapReview) failedMapReviews += 1;
+    if (packet.scenario.reference === "resolve-question@2") {
+      answeredQuestion = submitted.value.receipt.publications.find(
+        (publication) => publication.handle === "updated_question",
+      )?.revisionId;
+      answerDecision = submitted.value.receipt.publications.find(
+        (publication) => publication.handle === "decision",
+      )?.revisionId;
+    }
+  }
+  throw new Error("The public operator seam did not claim the attended MAP correction");
+}, 45_000);
