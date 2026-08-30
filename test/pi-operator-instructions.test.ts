@@ -45,12 +45,19 @@ describe("generic pi lifecycle operator instructions", () => {
       "approve-change-request.md",
       "decide-pilot-expansion.md",
       "record-consequential-decision.md",
-      "record-gate-signoff.md",
     ]) {
       const source = await fs.readFile(path.join(processRoot, prompt), "utf8");
       expect(source).toContain("`authoritySupplies`");
       expect(source).toContain("`mdlm scenario submit [response-file|-] --json`");
     }
+    const gate = await fs.readFile(
+      path.join(processRoot, "record-gate-signoff.md"),
+      "utf8",
+    );
+    expect(gate).not.toContain("`authoritySupplies`");
+    expect(gate).toContain(
+      "`mdlm scenario submit [response-file|-] --authority stakeholder --json`",
+    );
   });
 
   it("declare one continuous clean-interface loop with exact stop boundaries", async () => {

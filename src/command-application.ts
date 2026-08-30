@@ -156,6 +156,9 @@ interface CommandResultBase {
   contract?: AssignmentOutcome["contract"] | AssignmentPacket["contract"] | AssignmentSubmission["contract"] | AssignmentDisposition["contract"] | AssignmentState["contract"] | OperatorStatus["contract"] | StartBriefing["contract"] | SubmissionOutcome["contract"];
   outcome?: AssignmentOutcome["outcome"] | SubmissionOutcome["outcome"] | "invalid";
   assignment?: { id: string; packet?: AssignmentPacket };
+  authorityRequirement?: Extract<AssignmentOutcome, {
+    outcome: "attention-required";
+  }>["authorityRequirement"];
   scenarioReference?: string;
   disposition?: AssignmentDisposition["disposition"] | Extract<AssignmentState, { selected: true }>["disposition"];
   retryAvailability?: Extract<AssignmentState, { selected: true }>["retryAvailability"];
@@ -2216,6 +2219,9 @@ async function executeCommand(
       operatorInstructions: operatorInstructions({
         outcome: result.outcome as AssignmentOutcome["outcome"] | "invalid",
         ...(result.assignment ? { assignment: result.assignment } : {}),
+        ...(result.authorityRequirement
+          ? { authorityRequirement: result.authorityRequirement }
+          : {}),
       }),
     };
   }

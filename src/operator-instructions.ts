@@ -22,6 +22,7 @@ export interface OperatorInstructionSource {
     | "process-dead-end"
     | "invalid";
   assignment?: { id: string };
+  authorityRequirement?: { authority: string };
 }
 
 const base = {
@@ -50,12 +51,13 @@ export function operatorInstructions(
   }
 
   if (source.outcome === "attention-required" && source.assignment) {
+    const authority = source.authorityRequirement?.authority;
     return {
       ...base,
       action: "obtain-attention",
       disposition: "continuation",
       commands: [
-        "mdlm scenario submit <response-file> --json",
+        `mdlm scenario submit <response-file>${authority ? ` --authority ${authority}` : ""} --json`,
         "mdlm doctor --json",
         "mdlm next --json",
       ],
