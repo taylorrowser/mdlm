@@ -11,6 +11,8 @@ import { runPhaseTwoSimplificationReviewBinding } from
   "./helpers/phase-2-simplification-review-binding.js";
 import { runPhaseTwoReviewCorrectionRendering } from
   "./phase-2-review-correction-rendering.test.js";
+import { runPhaseTwoGateReviewCorrection } from
+  "./phase-2-gate-review-correction.js";
 
 const processRef = "mdlm-bootstrap@0.74.0#coherent-phase-2-readiness";
 
@@ -174,4 +176,10 @@ it(
   "prepares four exact Phase 2 correction scaffolds and submits ASP",
   runPhaseTwoReviewCorrectionRendering,
   30_000,
+);
+
+it(
+  "routes a failed Phase 2 gate Decision Review to renewed exact sign-off",
+  runPhaseTwoGateReviewCorrection,
+  45_000,
 );
