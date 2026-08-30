@@ -58,6 +58,72 @@ afterAll(async () => {
 });
 
 describe("Scenario participation Policy validation", () => {
+  it("declares the blocking links required by question resolution and gate rejection", async () => {
+    const loaded = await loadProcessPackage(".lifecycle/process");
+    expect(loaded.ok, loaded.diagnostics.map((item) => item.message).join("\n"))
+      .toBe(true);
+    if (!loaded.ok) return;
+
+    expect(loaded.package.scenarios["resolve-question"]?.inputs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "blocked_targets",
+          cardinality: "zero-or-more",
+          identity: "stable",
+        }),
+      ]),
+    );
+    expect(loaded.package.obligations["open-question-resolution"]?.resolve_with)
+      .toMatchObject({
+        inputs: {
+          blocked_targets: expect.objectContaining({
+            source:
+              'select("blocked-targets-for-question@1", {question: question})',
+          }),
+        },
+      });
+    expect(loaded.package.scenarios["resolve-question"]?.outputs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "updated_question",
+          required_links: [
+            { link: "blocks", target: { input: "blocked_targets" } },
+          ],
+        }),
+      ]),
+    );
+    expect(loaded.package.scenarios["resolve-question"]?.completion).toEqual(
+      expect.objectContaining({
+        source: expect.stringMatching(
+          /question\.payload\.kind != "preferential"[\s\S]*!present\(decision\)/,
+        ),
+      }),
+    );
+    expect(loaded.package.types.QST?.payload_schema).toEqual(
+      expect.objectContaining({
+        allOf: expect.arrayContaining([
+          expect.objectContaining({
+            if: expect.objectContaining({
+              properties: expect.objectContaining({
+                kind: { const: "preferential" },
+              }),
+            }),
+          }),
+        ]),
+      }),
+    );
+    expect(loaded.package.scenarios["record-gate-signoff"]?.outputs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "questions",
+          required_links: [
+            { link: "blocks", target: { input: "candidate" } },
+          ],
+        }),
+      ]),
+    );
+  });
+
   it("accepts a versioned Policy with exact Scenario input arguments and the standard result", () => {
     expect(validPackage.scenarios["resolve-question"]?.participation)
       .toEqual(expect.objectContaining({
