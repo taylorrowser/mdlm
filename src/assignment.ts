@@ -2204,7 +2204,10 @@ export function assignmentResponseSchema(
                   output: { type: "string", pattern: "^[A-Za-z][A-Za-z0-9_-]*$" },
                   invocation: { type: "integer", minimum: 0 },
                   type: { type: "string", pattern: "^[A-Z]{3,8}$" },
-                  payload: { type: ["object", "null"] },
+                  payload: {
+                    type: ["object", "null"],
+                    description: "Authored payload. An exact {output: \"<handle>\"} value references that same response output's generated Revision ID.",
+                  },
                   links: {
                     type: "array",
                     items: {
@@ -2539,6 +2542,27 @@ function internalLinkTarget(
     : undefined;
 }
 
+function internalPayloadReferences(
+  value: unknown,
+): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => internalPayloadReferences(item));
+  }
+  const record = object(value);
+  if (!record) return value;
+  const entries = Object.entries(record);
+  if (
+    entries.length === 1 &&
+    typeof record.output === "string"
+  ) {
+    return `$proposal.${record.output}.revision_id`;
+  }
+  return Object.fromEntries(entries.map(([key, item]) => [
+    key,
+    internalPayloadReferences(item),
+  ]));
+}
+
 function scenarioProposalFromResponse(
   exact: ExactAssignment,
   lease: AssignmentLease,
@@ -2718,7 +2742,7 @@ function scenarioProposalFromResponse(
       invocation,
       lifecycleDatum: {
         type: output.type,
-        payload: kernelPayload ?? authoredPayload,
+        payload: kernelPayload ?? internalPayloadReferences(authoredPayload) as Record<string, unknown>,
         links: links as { type: string; target: string }[],
         body: authoredBody,
       },
