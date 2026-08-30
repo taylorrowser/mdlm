@@ -1389,6 +1389,15 @@ describe("bootstrap Scenario participation Policies", () => {
 
   it("routes a reviewed gate rejection to its exact implicated member", () => {
     const fixture = reviewedGateFixture(processRef);
+    const product = lifecycleDatum("PSP", "PSP-4K3M9Q2D8F", {
+      title: "Report export product",
+      rationale: "Provide the exact product parent for the requirement.",
+      problem: "A report author needs one export outcome.",
+      users: ["report author"],
+      goals: ["Export one report."],
+      non_goals: ["General reporting platform."],
+      success_measures: ["The report export is observable."],
+    });
     const member = lifecycleDatum("STK", "STK-4K3M9Q2D8F", {
       title: "Rejected requirement",
       rationale: "The gate found this exact draft ambiguous.",
@@ -1397,7 +1406,7 @@ describe("bootstrap Scenario participation Policies", () => {
       stakeholder: "report author",
       priority: "must",
       system_context: "product",
-    });
+    }, { links: [{ type: "derived-from", target: product.datum.id }] });
     fixture.candidate.datum.payload.definition_members = [
       member.datum.revision_id,
     ];
@@ -1421,18 +1430,18 @@ describe("bootstrap Scenario participation Policies", () => {
     const evaluation = evaluateLifecycle(processPackage, {
       processRef,
       phaseId: "phase-0-wayfinding",
-      records: [...fixture.records, member],
+      records: [...fixture.records, product, member],
       dependencyComparisons: [],
     });
 
     expect(evaluation.obligations.find((item) =>
-      item.obligation === "foundation-review-correction-required" &&
+      item.obligation === "stakeholder-requirement-review-correction-required" &&
       item.subject === member.datum.revision_id
     )).toEqual(expect.objectContaining({
       satisfied: false,
       status: "ready",
       dispatchable: true,
-      actionableResolver: "revise-foundation-after-review@5",
+      actionableResolver: "revise-stakeholder-requirement-after-review@1",
     }));
     expect(evaluation.obligations.find((item) =>
       item.obligation === "candidate-gate-signoff" &&
@@ -1441,7 +1450,7 @@ describe("bootstrap Scenario participation Policies", () => {
       satisfied: false,
       status: "blocked",
       dispatchable: false,
-      actionableResolver: "revise-foundation-after-review@5",
+      actionableResolver: "revise-stakeholder-requirement-after-review@1",
     }));
     expect(evaluation.phase?.gate.evaluations[0]).toEqual(
       expect.objectContaining({ complete: false }),
@@ -1604,6 +1613,15 @@ describe("bootstrap Scenario participation Policies", () => {
   });
 
   it("preserves both autonomous foundation cycles after an attended correction", async () => {
+    const product = lifecycleDatum("PSP", "PSP-9K3M9Q2D8F", {
+      title: "Stakeholder outcome product",
+      rationale: "Provide the exact parent for the corrected requirement.",
+      problem: "The operator needs one observable outcome.",
+      users: ["operator"],
+      goals: ["Expose one outcome."],
+      non_goals: ["Additional outcomes."],
+      success_measures: ["The outcome is observable."],
+    });
     const original = lifecycleDatum("STK", "STK-9K3M9Q2D8F", {
       title: "Stakeholder-owned requirement",
       rationale: "The first correction requires stakeholder judgment.",
@@ -1612,7 +1630,7 @@ describe("bootstrap Scenario participation Policies", () => {
       stakeholder: "operator",
       priority: "must",
       system_context: "product",
-    });
+    }, { links: [{ type: "derived-from", target: product.datum.id }] });
     const failedReview = (
       subject: LifecycleRecord,
       id: string,
@@ -1658,10 +1676,13 @@ describe("bootstrap Scenario participation Policies", () => {
     attended.datum.revision = 2;
     attended.datum.revision_id = `${original.datum.id}-r00002`;
     attended.datum.created_by.scenario = "escalate-foundation-review-correction@3";
-    attended.datum.links = [{
-      type: "corrects-review",
-      target: stakeholderFailure.datum.revision_id,
-    }];
+    attended.datum.links = [
+      { type: "derived-from", target: product.datum.id },
+      {
+        type: "corrects-review",
+        target: stakeholderFailure.datum.revision_id,
+      },
+    ];
     const authorityDecision = lifecycleDatum("DEC", "DEC-9K3M9Q2D8F", {
       title: "Attended foundation correction authority",
       rationale: "The stakeholder authorized this exact intent correction.",
@@ -1678,12 +1699,13 @@ describe("bootstrap Scenario participation Policies", () => {
     const firstAutonomous = structuredClone(original);
     firstAutonomous.datum.revision = 3;
     firstAutonomous.datum.revision_id = `${original.datum.id}-r00003`;
-    firstAutonomous.datum.links = [stakeholderFailure, attendedFailure].map(
-      (review) => ({
+    firstAutonomous.datum.links = [
+      { type: "derived-from", target: product.datum.id },
+      ...[stakeholderFailure, attendedFailure].map((review) => ({
         type: "corrects-review",
         target: review.datum.revision_id,
-      }),
-    );
+      })),
+    ];
     const firstAutonomousFailure = failedReview(
       firstAutonomous,
       "REV-9K3M9Q2D8H",
@@ -1692,18 +1714,22 @@ describe("bootstrap Scenario participation Policies", () => {
     secondAutonomous.datum.revision = 4;
     secondAutonomous.datum.revision_id = `${original.datum.id}-r00004`;
     secondAutonomous.datum.links = [
-      stakeholderFailure,
-      attendedFailure,
-      firstAutonomousFailure,
-    ].map((review) => ({
-      type: "corrects-review",
-      target: review.datum.revision_id,
-    }));
+      { type: "derived-from", target: product.datum.id },
+      ...[
+        stakeholderFailure,
+        attendedFailure,
+        firstAutonomousFailure,
+      ].map((review) => ({
+        type: "corrects-review",
+        target: review.datum.revision_id,
+      })),
+    ];
     const secondAutonomousFailure = failedReview(
       secondAutonomous,
       "REV-9K3M9Q2D8J",
     );
     const baseRecords = [
+      product,
       original,
       stakeholderFailure,
       attended,
@@ -1724,14 +1750,14 @@ describe("bootstrap Scenario participation Policies", () => {
       subject: LifecycleRecord,
     ) => evaluation.obligations.find((item) =>
       item.subject === subject.datum.revision_id &&
-      (item.obligation === "foundation-review-correction-required" ||
+      (item.obligation === "stakeholder-requirement-review-correction-required" ||
         item.obligation === "foundation-review-escalation-required")
     );
 
     expect(correctionFor(evaluate(baseRecords), attended)).toEqual(
       expect.objectContaining({
-        obligation: "foundation-review-correction-required",
-        actionableResolver: "revise-foundation-after-review@5",
+        obligation: "stakeholder-requirement-review-correction-required",
+        actionableResolver: "revise-stakeholder-requirement-after-review@1",
       }),
     );
     const afterFirstAutonomous = [
@@ -1743,8 +1769,8 @@ describe("bootstrap Scenario participation Policies", () => {
       evaluate(afterFirstAutonomous),
       firstAutonomous,
     )).toEqual(expect.objectContaining({
-      obligation: "foundation-review-correction-required",
-      actionableResolver: "revise-foundation-after-review@5",
+      obligation: "stakeholder-requirement-review-correction-required",
+      actionableResolver: "revise-stakeholder-requirement-after-review@1",
     }));
 
     const exhaustedRecords = [
@@ -1759,7 +1785,7 @@ describe("bootstrap Scenario participation Policies", () => {
       actionableResolver: "escalate-foundation-review-correction@3",
     }));
     expect(exhausted.obligations.some((item) =>
-      item.obligation === "foundation-review-correction-required" &&
+      item.obligation === "stakeholder-requirement-review-correction-required" &&
       item.subject === secondAutonomous.datum.revision_id
     )).toBe(false);
     expect(escalation).toBeDefined();
@@ -1910,6 +1936,8 @@ describe("bootstrap Scenario participation Policies", () => {
       fixture.candidate.datum.revision_id,
       ...foundation.map((subject) => subject.datum.revision_id),
     ];
+    fixture.candidateReview.datum.payload.review_kind =
+      "simplification-product-definition";
     fixture.candidateReview.datum.payload.outcome = "fail";
     fixture.candidateReview.datum.payload.correction_authority = "package-evidence";
     delete fixture.candidateReview.datum.payload.findings;
@@ -1960,7 +1988,7 @@ describe("bootstrap Scenario participation Policies", () => {
     ];
     const hasRequirementCorrection = (evaluation: ReturnType<typeof evaluateLifecycle>) =>
       evaluation.obligations.some((item) =>
-        item.obligation === "foundation-review-correction-required" &&
+        item.obligation === "stakeholder-requirement-review-correction-required" &&
         item.subject === requirement.datum.revision_id
       );
     const evaluate = () => evaluateLifecycle(processPackage, {
@@ -2028,12 +2056,12 @@ describe("bootstrap Scenario participation Policies", () => {
     const evaluation = evaluate();
 
     expect(evaluation.obligations.find((item) =>
-      item.obligation === "foundation-review-correction-required" &&
+      item.obligation === "stakeholder-requirement-review-correction-required" &&
       item.subject === requirement.datum.revision_id
     )).toEqual(expect.objectContaining({
       status: "ready",
       dispatchable: true,
-      actionableResolver: "revise-foundation-after-review@5",
+      actionableResolver: "revise-stakeholder-requirement-after-review@1",
     }));
     expect(evaluation.obligations.some((item) =>
       item.obligation === "foundation-review-correction-required" &&
@@ -2045,7 +2073,7 @@ describe("bootstrap Scenario participation Policies", () => {
     )).toEqual(expect.objectContaining({
       status: "blocked",
       dispatchable: false,
-      actionableResolver: "revise-foundation-after-review@5",
+      actionableResolver: "revise-stakeholder-requirement-after-review@1",
     }));
   });
 
