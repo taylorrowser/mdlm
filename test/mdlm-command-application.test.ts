@@ -236,6 +236,75 @@ describe("clean mdlm command application", () => {
     });
   });
 
+  it("settles an abandoned nonretryable inability from its authenticated lease", async () => {
+    const next = await executeMdlm(repository, "next", "--json");
+    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+    const assignment = JSON.parse(next.stdout).assignment.id as string;
+    const unable = {
+      reason: "insufficient-declared-inputs",
+      diagnostics: [{
+        code: "phase-0-map-authority-links-unavailable",
+        message: "The Assignment lacks the exact authority links required to proceed.",
+        path: "assignment.packet.exactInputs",
+      }],
+    };
+    const responseSource = `${JSON.stringify({
+      contract: "mdlm-assignment-response@2",
+      assignment,
+      kind: "unable",
+      unable,
+    })}\n`;
+    const responseDigest = `sha256:${createHash("sha256")
+      .update(responseSource)
+      .digest("hex")}`;
+    const submitted = await executeMdlmWithInput(
+      repository,
+      responseSource,
+      "scenario",
+      "submit",
+      "-",
+      "--json",
+    );
+    expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(1);
+    expect(JSON.parse(submitted.stdout)).toMatchObject({
+      command: "scenario.submit",
+      outcome: "rejected",
+      assignment: { id: assignment },
+      responseDigest,
+      retryable: false,
+    });
+
+    const lease = JSON.parse(await fs.readFile(
+      path.join(repository, ".lifecycle/work/active-assignment.json"),
+      "utf8",
+    ));
+    expect(lease).toMatchObject({
+      id: assignment,
+      disposition: "abandoned",
+      response: { kind: "unable", digest: responseDigest, unable },
+    });
+
+    const settlement = await executeMdlm(
+      repository,
+      "scenario",
+      "settlement",
+      assignment,
+      "--json",
+    );
+    expect(settlement.status, `${settlement.stderr}${settlement.stdout}`).toBe(0);
+    expect(JSON.parse(settlement.stdout)).toEqual({
+      ok: true,
+      command: "scenario.settlement",
+      contract: "mdlm-submission-outcome@1",
+      outcome: "rejected",
+      assignment: { id: assignment },
+      responseDigest,
+      diagnostics: [],
+      retryable: false,
+      correctionConsumed: false,
+    });
+  });
+
   it(
     "publishes only through scenario submit and retains package readers",
     async () => {
