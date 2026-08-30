@@ -25,8 +25,9 @@ permutations.
 
 `bundles/package-0.79.0.tar.gz` contains the exact selected package bytes.
 The two lane snapshot bundles contain repository descriptors, Lifecycle Data,
-and active leases. `cutover-corpus.test.ts` extracts and authenticates them with
-the public repository loader. Active recovery must return Assignment
+and active leases. `cutover-corpus.test.ts` pins each archive and authenticates
+the recorded package digest, record count, and active lease directly. It does
+not load the historical package through the current compiler. Active recovery must return Assignment
 `3848d89a-c926-408c-a802-113407e5de12`; the attended case must remain
 Attention Required for Assignment `ca96351a-38af-4086-a5cb-5af038ab74e0`.
 The old `publication-required` case changes intentionally: v2 owns that atomic
