@@ -152,6 +152,50 @@ describe("mdlm init", () => {
     expect(git(destination, "rev-list", "--count", "HEAD").stdout).toBe("1\n");
   });
 
+  it("accepts only a pristine existing Git repository", async () => {
+    const destination = path.join(parent, "product");
+    await fs.mkdir(destination);
+    expect(git(destination, "init", "--quiet").status).toBe(0);
+    expect(git(destination, "config", "mdlm.test-marker", "preserved").status)
+      .toBe(0);
+
+    const initialized = execute(parent, ["init", destination, "--json"]);
+
+    expect(initialized.status, `${initialized.stderr}${initialized.stdout}`).toBe(0);
+    expect(git(destination, "config", "--get", "mdlm.test-marker").stdout)
+      .toBe("preserved\n");
+    expect(git(destination, "status", "--porcelain").stdout).toBe("");
+    expect(git(destination, "rev-list", "--count", "HEAD").stdout).toBe("1\n");
+
+    const withHistory = path.join(parent, "with-history");
+    await fs.mkdir(withHistory);
+    expect(git(withHistory, "init", "--quiet").status).toBe(0);
+    expect(git(
+      withHistory,
+      "-c",
+      "user.name=Test",
+      "-c",
+      "user.email=test@example.com",
+      "commit",
+      "--quiet",
+      "--allow-empty",
+      "--message",
+      "existing history",
+    ).status).toBe(0);
+    const existingHead = git(withHistory, "rev-parse", "HEAD").stdout;
+
+    const rejected = execute(parent, ["init", withHistory, "--json"]);
+
+    expect(rejected.status).toBe(1);
+    expect(JSON.parse(rejected.stdout)).toEqual(expect.objectContaining({
+      ok: false,
+      diagnostics: [expect.objectContaining({
+        code: "destination-not-empty",
+      })],
+    }));
+    expect(git(withHistory, "rev-parse", "HEAD").stdout).toBe(existingHead);
+  });
+
   it("rejects a nonempty destination without altering it", async () => {
     const destination = path.join(parent, "product");
     await fs.mkdir(destination);

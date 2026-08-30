@@ -28,6 +28,8 @@ const operatorAssetRoot = fileURLToPath(new URL("../operator/", import.meta.url)
 
 const operatorGuide = "MDLM.md";
 
+type DestinationState = "absent" | "empty" | "pristine-git" | "nonempty";
+
 export type RepositoryInitialization =
   | {
       ok: true;
@@ -147,11 +149,40 @@ async function initializeGit(repositoryRoot: string): Promise<void> {
 
 async function destinationState(
   destination: string,
-): Promise<"absent" | "empty" | "nonempty"> {
+): Promise<DestinationState> {
   try {
     const stat = await fs.lstat(destination);
     if (!stat.isDirectory()) return "nonempty";
-    return (await fs.readdir(destination)).length === 0 ? "empty" : "nonempty";
+    const entries = await fs.readdir(destination);
+    if (entries.length === 0) return "empty";
+    if (entries.length !== 1 || entries[0] !== ".git") return "nonempty";
+
+    const gitDirectory = await fs.lstat(path.join(destination, ".git"));
+    if (!gitDirectory.isDirectory() || gitDirectory.isSymbolicLink()) {
+      return "nonempty";
+    }
+    const insideWorkTree = (await git(destination, [
+      "rev-parse",
+      "--is-inside-work-tree",
+    ])).trim();
+    const gitDirectoryPath = (await git(destination, [
+      "rev-parse",
+      "--git-dir",
+    ])).trim();
+    const commitCount = (await git(destination, [
+      "rev-list",
+      "--all",
+      "--count",
+    ])).trim();
+    const status = await git(destination, [
+      "status",
+      "--porcelain",
+      "--untracked-files=all",
+    ]);
+    return insideWorkTree === "true" && gitDirectoryPath === ".git" &&
+        commitCount === "0" && status === ""
+      ? "pristine-git"
+      : "nonempty";
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return "absent";
     throw error;
@@ -161,10 +192,29 @@ async function destinationState(
 async function publish(
   preparationRoot: string,
   destination: string,
-  state: "absent" | "empty",
+  state: Exclude<DestinationState, "nonempty">,
 ): Promise<void> {
   if (state === "absent") {
     await fs.rename(preparationRoot, destination);
+    return;
+  }
+
+  if (state === "pristine-git") {
+    if (await destinationState(destination) !== "pristine-git") {
+      throw new Error("The existing Git repository changed during initialization");
+    }
+    const backup = await fs.mkdtemp(
+      path.join(path.dirname(destination), ".mdlm-existing-git-"),
+    );
+    await fs.rmdir(backup);
+    await fs.rename(destination, backup);
+    try {
+      await fs.rename(preparationRoot, destination);
+    } catch (error) {
+      await fs.rename(backup, destination);
+      throw error;
+    }
+    await fs.rm(backup, { recursive: true, force: true });
     return;
   }
 
@@ -183,7 +233,7 @@ async function initializeRepository(
   loadPackage: () => Promise<LoadProcessPackageResult>,
 ): Promise<RepositoryInitialization> {
   const resolvedDestination = path.resolve(destination);
-  let state: "absent" | "empty" | "nonempty";
+  let state: DestinationState;
   try {
     state = await destinationState(resolvedDestination);
   } catch (error) {
@@ -236,6 +286,13 @@ async function initializeRepository(
         loaded.package,
         summary,
       );
+      if (state === "pristine-git") {
+        await fs.cp(
+          path.join(resolvedDestination, ".git"),
+          path.join(preparationRoot, ".git"),
+          { recursive: true },
+        );
+      }
     } catch (error) {
       return failure(
         "initialization-preparation-failed",
