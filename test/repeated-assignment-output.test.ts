@@ -298,7 +298,6 @@ it("renders and validates repeated and batched symbolic outputs", async () => {
 
     const response = structuredClone(packet.responseScaffold);
     const groupTemplate = response.proposal.outputs[0];
-    const questionTemplate = response.proposal.outputs[1];
     response.proposal.outputs = targets.map((target: string, index: number) => ({
       ...structuredClone(groupTemplate),
       handle: `group-${index + 1}`,
@@ -308,7 +307,7 @@ it("renders and validates repeated and batched symbolic outputs", async () => {
         ...groupTemplate.links.filter((link: Json) => link.type === "asks"),
       ],
       body: `Group ${index + 1}.\n`,
-    })).concat(questionTemplate);
+    }));
     response.proposal.completionEvidence = {
       summary: "Every exact item belongs to one group.",
     };

@@ -2604,15 +2604,18 @@ function scenarioProposalFromResponse(
     output.handle,
     output.type,
   ]));
-  const omittedOutputs = new Set(exact.dryRun.expectedOutputs.flatMap((contract) => {
-    if (!contract.cardinality.startsWith("zero-")) return [];
-    const handle = handleByName.get(contract.name) ?? contract.name;
-    const values = response.proposal.outputs.filter((output) =>
-      responseOutput(output) === handle
+  const omittedOutputs = new Set(scaffold.proposal.outputs.flatMap((expectedOutput) => {
+    const contract = exact.dryRun.expectedOutputs.find((candidate) =>
+      (handleByName.get(candidate.name) ?? candidate.name) ===
+        responseOutput(expectedOutput)
     );
-    return values
-      .filter((output) => output.payload === null && output.body === null)
-      .map((output) => output.handle);
+    if (!contract?.cardinality.startsWith("zero-")) return [];
+    const values = response.proposal.outputs.filter((output) =>
+      responseKey(output) === responseKey(expectedOutput)
+    );
+    return values.every((output) => output.payload === null && output.body === null)
+      ? [expectedOutput.handle]
+      : [];
   }));
   const activeLinks = (links: SymbolicProposalLink[]) => links.filter((link) =>
     !("output" in link.target && omittedOutputs.has(link.target.output))
