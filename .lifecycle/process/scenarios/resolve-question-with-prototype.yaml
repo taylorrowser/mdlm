@@ -28,6 +28,7 @@ outputs:
   - name: updated_question
     types: [QST]
     cardinality: one
+    identity_from: {input: question}
     required_links: []
 prompt_ref: prompts/resolve-question-with-prototype.md@2
 review_policy_ref: review-applicability@1

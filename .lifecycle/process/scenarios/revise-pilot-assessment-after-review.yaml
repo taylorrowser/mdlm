@@ -27,6 +27,7 @@ outputs:
   - name: replacement
     types: [PAS]
     cardinality: one
+    identity_from: {input: assessment}
     required_links:
       - {link: measures, target: {input: context}}
       - {link: corrects-review, target: {input: failed_reviews}}
