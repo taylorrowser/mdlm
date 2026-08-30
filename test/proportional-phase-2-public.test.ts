@@ -9,6 +9,8 @@ import { runPhaseTwoAssuranceReviewRoute } from
   "./helpers/proportional-phase-2-routes.js";
 import { runPhaseTwoReviewCorrectionRendering } from
   "./phase-2-review-correction-rendering.test.js";
+import { runPhaseTwoAssuranceCorrectionPublic } from
+  "./phase-2-assurance-correction-public.js";
 
 const processRef = "mdlm-bootstrap@0.74.0#coherent-phase-2-readiness";
 
@@ -166,4 +168,10 @@ it(
   "prepares four exact Phase 2 correction scaffolds and submits ASP",
   runPhaseTwoReviewCorrectionRendering,
   30_000,
+);
+
+it(
+  "renders four failed Phase 2 assurance corrections through public next",
+  runPhaseTwoAssuranceCorrectionPublic,
+  60_000,
 );
