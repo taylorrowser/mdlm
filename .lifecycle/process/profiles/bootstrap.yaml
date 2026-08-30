@@ -1,8 +1,8 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 42
+version: 43
 status: experimental
-description: Complete bootstrap profile with proportional grouped system definition, reviewed intent, qualification/pilot, exact accepted-STK and shared-SYS change control, and a reviewed expansion Decision.
+description: Complete bootstrap profile with proportional direct system definition, reviewed intent, qualification/pilot, exact accepted-STK and shared-SYS change control, and a reviewed expansion Decision.
 enabled:
   types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]
   phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-2-pilot-assessment, phase-7-change-control]
@@ -88,8 +88,8 @@ success_criteria:
   - failed or collateral-flagged Reviews of every current Phase 2 SYS, ASP, ICSP, and planning/completion DWP derive one subject-bounded same-lineage Correction with complete exact causes, two autonomous cycles, attended escalation, and fresh Review
   - ambiguous current single-valued architecture, strategy, or DWP cardinality derives exact attended cancellation and independent Review rather than arbitrary selection or a Process Dead End
   - DWP completion binds every exact parent, output, architecture, interface, and simplification Review through canonical source-owned links; incomplete accounts cannot publish
-  - exact reviewed completion evidence derives a reviewed SYS level candidate composed from its package-discovered group candidate and shared architecture/interface context
-  - failed or reviewed-rejected group and level candidates preserve every exact unaffected member, evidence item, and composition while naming their predecessor through supersedes and returning to fresh Review and the same gate
+  - exact reviewed completion evidence derives one reviewed SYS level candidate containing its complete definition and simplification evidence without an intermediate singleton group candidate
+  - a failed or reviewed-rejected level candidate preserves every exact unaffected member and evidence item while naming its predecessor through supersedes and returning to fresh Review and the same gate
   - reviewed approving Phase 2 gate evidence mechanically publishes one exact flattened level-accepted baseline before progression, without redundant stakeholder authority
   - exact reviewed level-gate authorization controls progression into pilot assessment
   - every complete Phase 2 level candidate derives one exact durable observation before the package freezes their complete evidence boundary

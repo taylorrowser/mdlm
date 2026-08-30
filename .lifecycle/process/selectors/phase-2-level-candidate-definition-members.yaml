@@ -1,17 +1,13 @@
 kind: selector-definition
 id: phase-2-level-candidate-definition-members
 version: 1
-description: Exact flattened definition Revisions directly held by or composed beneath one Phase 2 level candidate.
+description: Exact flattened definition Revisions directly held by one Phase 2 level candidate.
 parameters:
   - {name: candidate, kind: baseline, types: [BSL]}
 result_kind: revision
 query:
   from: {collection: revisions, types: [SYS, ASP, ICSP, DWP, VSP]}
   as: member
-  where: >-
-    exists("baseline-contains-definition@1",
-      {baseline: candidate, subject: member})
-    || exists("composed-groups-containing-member@1",
-      {candidate: candidate, member: member})
+  where: 'exists("baseline-contains-definition@1", {baseline: candidate, subject: member})'
   distinct: true
   order_by: [identity.type, identity.id, identity.revision]

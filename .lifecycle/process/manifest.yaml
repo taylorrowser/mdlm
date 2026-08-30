@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.88.0
+version: 0.89.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
@@ -41,7 +41,7 @@ compatibility:
   template_inheritance: single-parent-additive
   repository_migration: fresh-only
 profiles:
-  default: bootstrap@42
+  default: bootstrap@43
   available:
     - profiles/bootstrap.yaml@42
 provenance:

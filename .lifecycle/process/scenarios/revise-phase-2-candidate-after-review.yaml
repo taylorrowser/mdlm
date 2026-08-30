@@ -1,13 +1,12 @@
 kind: scenario-definition
 id: revise-phase-2-candidate-after-review
-version: 1
-description: Replace one failed or reviewed-rejected Phase 2 group or level candidate without discarding unaffected exact evidence.
+version: 2
+description: Replace one failed or reviewed-rejected Phase 2 level candidate without discarding unaffected exact evidence.
 phases: [phase-2-system-definition]
 inputs:
   - {name: candidate, types: [BSL], cardinality: one, identity: revision}
   - {name: definition_members, types: [SYS, ASP, ICSP, DWP, VSP], cardinality: one-or-more, identity: revision}
   - {name: evidence, types: [REV, DEC], cardinality: zero-or-more, identity: revision}
-  - {name: composed_groups, types: [BSL], cardinality: zero-or-more, identity: revision}
   - {name: failed_reviews, types: [REV], cardinality: zero-or-more, identity: revision}
   - {name: gate_rejections, types: [DEC], cardinality: zero-or-more, identity: revision}
 outputs:
@@ -16,7 +15,6 @@ outputs:
     cardinality: one
     required_links:
       - {link: supersedes, target: {input: candidate}}
-      - {link: composes, target: {input: composed_groups}}
       - {link: corrects-review, target: {input: failed_reviews}}
       - {link: corrects-gate-rejection, target: {input: gate_rejections}}
   - name: decision
@@ -24,7 +22,7 @@ outputs:
     cardinality: zero-or-one
     required_links:
       - {link: justifies, target: {output: replacement}}
-prompt_ref: prompts/revise-phase-2-candidate-after-review.md@1
+prompt_ref: prompts/revise-phase-2-candidate-after-review.md@2
 review_policy_ref: review-applicability@1
 participation:
   policy_ref: phase-2-correction-participation@1

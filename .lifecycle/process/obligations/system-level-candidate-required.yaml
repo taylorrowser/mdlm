@@ -1,48 +1,55 @@
 kind: obligation-definition
 id: system-level-candidate-required
-version: 1
-description: Every complete reviewed decomposition group candidate requires one exact composed system-level candidate.
+version: 2
+description: Every current reviewed DWP completion requires one exact system-level candidate containing its definition and simplification evidence.
 phases: [phase-2-system-definition]
-for_each: 'select("complete-phase-2-group-candidates@1", {})'
-subject_as: group
-satisfied_when: >-
-  count("completions-for-group-candidate@1", {group: group}) == 1
-  && exists("complete-level-candidates-for-group@1",
-    {group: group,
-     completion: one("completions-for-group-candidate@1", {group: group})})
+for_each: 'select("current-decomposition-completions@1", {})'
+subject_as: completion
+satisfied_when: 'exists("complete-level-candidates-for-completion@1", {completion: completion})'
 status_rules:
   - status: blocked
     priority: 250
-    when: 'count("completions-for-group-candidate@1", {group: group}) != 1'
-    reason: Level candidate creation requires one semantically complete exact group candidate.
-    blocked_by:
-      - obligation: decomposition-group-candidate-required@1
-        subjects: 'select("completions-for-group-candidate@1", {group: group})'
-  - status: blocked
+    when: >-
+      count("planning-revisions-for-completion@1", {completion: completion}) != 1
+      || none("decomposition-outputs-for@1",
+        {plan: one("planning-revisions-for-completion@1", {completion: completion})})
+      || count("architectures-for-decomposition@1",
+        {plan: one("planning-revisions-for-completion@1", {completion: completion})}) != 1
+      || count("strategies-for-decomposition@1",
+        {plan: one("planning-revisions-for-completion@1", {completion: completion})}) != 1
+      || none("architecture-simplification-reviews-for@1",
+        {plan: one("planning-revisions-for-completion@1", {completion: completion})})
+    reason: Level candidate creation requires one complete exact DWP definition and simplification-evidence chain.
+  - status: awaiting-review
     priority: 200
     when: >-
-      none("passing-reviews-for@1", {subject: group})
-      || exists("failing-reviews-for@1", {subject: group})
-      || exists("candidate-members-missing-review@1", {candidate: group})
-    reason: Level candidate composition waits for passing current Review of the exact group candidate and every review-required member.
+      none("passing-reviews-for@1", {subject: completion})
+      || exists("failing-reviews-for@1", {subject: completion})
+    reason: Level candidate creation waits for the current DWP completion to pass independent Review.
     blocked_by:
       - obligation: passing-review-required@2
-        subjects: '[group]'
+        subjects: '[completion]'
   - status: ready
     priority: 100
     when: >-
-      count("completions-for-group-candidate@1", {group: group}) == 1
-      && exists("passing-reviews-for@1", {subject: group})
-      && none("failing-reviews-for@1", {subject: group})
-      && none("candidate-members-missing-review@1", {candidate: group})
-    reason: The exact reviewed group candidate is ready to compose with shared system context.
+      exists("passing-reviews-for@1", {subject: completion})
+      && none("failing-reviews-for@1", {subject: completion})
+      && count("planning-revisions-for-completion@1", {completion: completion}) == 1
+      && exists("decomposition-outputs-for@1",
+        {plan: one("planning-revisions-for-completion@1", {completion: completion})})
+      && count("architectures-for-decomposition@1",
+        {plan: one("planning-revisions-for-completion@1", {completion: completion})}) == 1
+      && count("strategies-for-decomposition@1",
+        {plan: one("planning-revisions-for-completion@1", {completion: completion})}) == 1
+      && exists("architecture-simplification-reviews-for@1",
+        {plan: one("planning-revisions-for-completion@1", {completion: completion})})
+    reason: The exact reviewed DWP completion is ready to freeze directly as its system-level candidate.
 default_status: blocked
 resolve_with:
-  scenario: create-system-level-candidate@1
+  scenario: create-system-level-candidate@2
   inputs:
-    group: group
-    completion: 'one("completions-for-group-candidate@1", {group: group})'
-    architecture: 'one("architectures-for-decomposition@1", {plan: one("planning-revisions-for-completion@1", {completion: one("completions-for-group-candidate@1", {group: group})})})'
-    interfaces: 'select("interfaces-for-decomposition@1", {plan: one("planning-revisions-for-completion@1", {completion: one("completions-for-group-candidate@1", {group: group})})})'
-    verification_strategy: 'one("strategies-for-decomposition@1", {plan: one("planning-revisions-for-completion@1", {completion: one("completions-for-group-candidate@1", {group: group})})})'
+    completion: completion
+    architecture: 'one("architectures-for-decomposition@1", {plan: one("planning-revisions-for-completion@1", {completion: completion})})'
+    interfaces: 'select("interfaces-for-decomposition@1", {plan: one("planning-revisions-for-completion@1", {completion: completion})})'
+    verification_strategy: 'one("strategies-for-decomposition@1", {plan: one("planning-revisions-for-completion@1", {completion: completion})})'
 waiver_policy_ref: waiver-applicability@1
