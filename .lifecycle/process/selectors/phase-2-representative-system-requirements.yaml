@@ -1,0 +1,18 @@
+kind: selector-definition
+id: phase-2-representative-system-requirements
+version: 1
+description: One deterministic SYS representative for each complete reviewed Phase 2 level candidate.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [SYS]}
+  as: requirement
+  where: >-
+    !every("complete-phase-2-level-candidates@1", {}, candidate =>
+      none("passing-reviews-for@1", {subject: candidate})
+      || exists("candidate-members-missing-review@1", {candidate: candidate})
+      || every("representative-system-requirements-for-level-candidate@1",
+        {candidate: candidate}, representative => representative != requirement))
+    && exists("passing-reviews-for@1", {subject: requirement})
+  distinct: true
+  order_by: [identity.revision_id]

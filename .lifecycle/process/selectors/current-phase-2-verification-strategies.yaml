@@ -1,0 +1,18 @@
+kind: selector-definition
+id: current-phase-2-verification-strategies
+version: 1
+description: Current active verification strategies applicable to a representative Phase 2 SYS requirement.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [VSP]}
+  as: strategy
+  where: >-
+    state(strategy, "disposition") == "active"
+    && state(strategy, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: strategy})
+    && !every("phase-2-representative-system-requirements@1", {}, requirement =>
+      none("matching-verification-strategies-for-requirement@1",
+        {requirement: requirement, strategy: strategy}))
+  distinct: true
+  order_by: [identity.id, identity.revision]

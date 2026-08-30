@@ -2,14 +2,14 @@ kind: scenario-definition
 id: revise-pilot-vai-after-result
 version: 1
 description: Correct one pilot procedure after accepted unfavorable execution evidence, optionally reconciling only its exact bound ENV or ART.
-phases: [phase-1-product-assurance]
+phases: [phase-1-product-assurance, phase-2-system-definition]
 inputs:
   - {name: implementation, types: [VAI], cardinality: one, identity: revision}
   - {name: failed_results, types: [RES], cardinality: one-or-more, identity: revision}
   - {name: activity, types: [VER], cardinality: one, identity: revision}
   - {name: environment, types: [ENV], cardinality: one, identity: revision}
   - {name: execution_target, types: [ART], cardinality: one, identity: revision}
-  - {name: requirement, types: [STK], cardinality: one, identity: revision}
+  - {name: requirement, types: [STK, SYS], cardinality: one, identity: revision}
   - {name: strategy, types: [VSP], cardinality: one, identity: revision}
 outputs:
   - name: replacement_environment
@@ -31,12 +31,14 @@ outputs:
   - name: replacement_target
     types: [ART]
     cardinality: zero-or-one
+    identity_from: {input: execution_target}
     required_links:
       - {link: derived-from, target: {input: requirement}}
       - {link: corrects-pilot-result, target: {input: failed_results}}
   - name: replacement
     types: [VAI]
     cardinality: one
+    identity_from: {input: implementation}
     required_links:
       - {link: realizes, target: {input: activity}}
       - {link: corrects-pilot-result, target: {input: failed_results}}

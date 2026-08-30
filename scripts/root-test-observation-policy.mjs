@@ -70,6 +70,7 @@ const classification = Object.freeze({
   "test/evaluate-obligation-history.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process obligation-history evaluation"],
   "test/evaluate-review-flow.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process review-flow evaluation"],
   "test/phase-1-review-routing.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process Phase 1 obligation and resolver evaluation"],
+  "test/phase-2-system-pilot-route.test.ts": [CANONICAL_IN_PROCESS_KIND, "source Process Package compilation and representative Phase 2 pilot contract inspection"],
   "test/evaluate-shared-system-change.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process shared-change evaluation"],
   "test/evaluate-system-decomposition.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process system-decomposition evaluation"],
   "test/initial-product-intent-selectors.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process selector evaluation"],

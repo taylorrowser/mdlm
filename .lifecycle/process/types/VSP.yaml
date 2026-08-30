@@ -53,16 +53,16 @@ outgoing_links:
     freeze_resolution: already-exact
     inverse_label: corrected-by-assurance-revision
   - id: governs
-    description: Stable stakeholder commitments governed by this level strategy.
+    description: Stable stakeholder or system commitments governed by this level strategy.
     targets:
-      - {kind: datum, types: [STK], identity: stable}
+      - {kind: datum, types: [STK, SYS], identity: stable}
     cardinality: {minimum: 1, maximum: many}
     freeze_resolution: exact-revision
     inverse_label: governed-by
   - id: governs-revision
-    description: Exact Phase 1 entry requirement Revisions covered by this strategy Revision.
+    description: Exact requirement Revisions covered by this strategy Revision.
     targets:
-      - {kind: datum, types: [STK], identity: revision}
+      - {kind: datum, types: [STK, SYS], identity: revision}
     cardinality: {minimum: 1, maximum: many}
     freeze_resolution: already-exact
     inverse_label: governed-exactly-by

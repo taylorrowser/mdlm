@@ -1,9 +1,9 @@
 kind: selector-definition
 id: matching-verification-strategies-for-requirement
 version: 1
-description: One exact strategy when it governs the supplied current Phase 1 entry requirement.
+description: One exact strategy when it governs the supplied current requirement.
 parameters:
-  - {name: requirement, kind: revision, types: [STK]}
+  - {name: requirement, kind: revision, types: [STK, SYS]}
   - {name: strategy, kind: revision, types: [VSP]}
 result_kind: revision
 query:

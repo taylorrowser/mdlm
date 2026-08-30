@@ -1,0 +1,20 @@
+kind: obligation-definition
+id: system-verification-strategy-required
+version: 1
+description: Every deterministic representative SYS requires one exact system verification strategy.
+phases: [phase-2-system-definition]
+for_each: 'select("phase-2-representative-system-requirements@1", {})'
+subject_as: requirement
+satisfied_when: 'exists("verification-strategies-for-requirement@1", {requirement: requirement})'
+status_rules:
+  - status: ready
+    priority: 100
+    when: 'none("verification-strategies-for-requirement@1", {requirement: requirement})'
+    reason: The reviewed representative SYS is ready for one black-box system verification strategy.
+default_status: blocked
+resolve_with:
+  scenario: define-system-verification-strategy@1
+  inputs:
+    requirement: requirement
+    stable_requirement: 'one("stable-system-identity-for-requirement@1", {requirement: requirement})'
+waiver_policy_ref: waiver-applicability@1

@@ -20,14 +20,31 @@ interface PacketValue {
 
 interface Packet {
   assignment: { id: string };
-  scenario: { reference: string };
-  prompt: { skills: { reference: string }[] };
+  scenario: {
+    reference: string;
+    skills: { reference: string }[];
+  };
   exactInputs: {
     inputs: {
       name: string;
       values: PacketValue[];
     }[];
   }[];
+  responseScaffold: {
+    contract: string;
+    assignment: string;
+    kind: "proposal";
+    proposal: {
+      outputs: Array<{
+        handle: string;
+        type: string;
+        payload: unknown;
+        links: unknown[];
+        body: unknown;
+      }>;
+      completionEvidence: unknown;
+    };
+  };
 }
 
 function exactInputValuesAt(
@@ -84,16 +101,7 @@ function prepareAny(repository: string): Packet {
   expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
   const nextOutcome = JSON.parse(next.stdout);
   expect(nextOutcome.assignment, next.stdout).toBeDefined();
-  const assignment = nextOutcome.assignment.id as string;
-  const prepared = mdlm(
-    repository,
-    "scenario",
-    "prepare",
-    assignment,
-    "--json",
-  );
-  expect(prepared.status, `${prepared.stderr}${prepared.stdout}`).toBe(0);
-  return JSON.parse(prepared.stdout) as Packet;
+  return nextOutcome.assignment.packet as Packet;
 }
 
 function prepare(repository: string, scenario: string): Packet {
@@ -106,21 +114,27 @@ function submit(
   repository: string,
   packet: Packet,
   outputs: unknown[],
-  authoritySupplies: string[] = [],
-) {
-  const response = {
-    contract: "mdlm-assignment-response@1",
-    assignment: packet.assignment.id,
-    kind: "proposal",
-    proposal: {
-      outputs,
-      completionEvidence: {
-        summary: `Completed ${packet.scenario.reference}.`,
-      },
-      loadedSkillRefs: packet.prompt.skills.map((skill) => skill.reference),
-      authoritySupplies,
-      standingDelegations: [],
-    },
+): {
+  outputs: { name: string; lifecycleDatum: { revisionId: string } }[];
+} {
+  const response = structuredClone(packet.responseScaffold);
+  response.proposal.outputs = response.proposal.outputs.map((expected) => {
+    const supplied = outputs.find((output: any) =>
+      output.localId === expected.handle || output.name === expected.handle
+    ) as any;
+    expect(supplied, `Missing ${expected.handle} output`).toBeDefined();
+    return {
+      handle: expected.handle,
+      type: supplied.lifecycleDatum.type,
+      payload: supplied.lifecycleDatum.payload,
+      links: expected.links.length > 0
+        ? expected.links
+        : supplied.lifecycleDatum.links,
+      body: supplied.lifecycleDatum.body,
+    };
+  });
+  response.proposal.completionEvidence = {
+    summary: `Completed ${packet.scenario.reference}.`,
   };
   const result = mdlmWithInput(
     repository,
@@ -131,8 +145,19 @@ function submit(
     "--json",
   );
   expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
-  return JSON.parse(result.stdout).execution as {
-    outputs: { name: string; lifecycleDatum: { revisionId: string } }[];
+  const accepted = JSON.parse(result.stdout) as {
+    receipt: {
+      publications: { handle: string; revisionId: string }[];
+    };
+  };
+  return {
+    outputs: accepted.receipt.publications.map((publication: {
+      handle: string;
+      revisionId: string;
+    }) => ({
+      name: publication.handle,
+      lifecycleDatum: { revisionId: publication.revisionId },
+    })),
   };
 }
 
@@ -226,7 +251,6 @@ function reviewPacket(repository: string, packet: Packet): string {
         body: packetBoundReviewBody(packet, invocation),
       },
     })),
-    ["independent-reviewer"],
   );
   commit(repository, `Review ${subjects.join(", ")}`);
   return subjects[0]!;
@@ -245,21 +269,35 @@ function prepareScenarioAfterReviews(
   throw new Error(`public route did not reach ${scenario}`);
 }
 
-async function phaseTwoOnlyPackage(parent: string): Promise<string> {
+async function phaseTwoOnlyPackage(
+  parent: string,
+  assuranceReview = false,
+): Promise<string> {
   const root = path.join(parent, "process");
   await fs.cp(path.join(process.cwd(), ".lifecycle/process"), root, {
     recursive: true,
   });
   const profilePath = path.join(root, "profiles/bootstrap.yaml");
   const profile = parse(await fs.readFile(profilePath, "utf8"));
-  profile.enabled.phases = ["phase-2-system-definition"];
+  profile.enabled.phases = assuranceReview
+    ? ["phase-1-product-assurance", "phase-2-system-definition"]
+    : ["phase-2-system-definition"];
   await fs.writeFile(profilePath, stringify(profile));
 
   const phasePath = path.join(root, "phases/phase-2-system-definition.yaml");
   const phase = parse(await fs.readFile(phasePath, "utf8"));
-  phase.order = 0;
+  phase.order = assuranceReview ? 1 : 0;
   phase.entry = "true";
   phase.attention_checkpoints = [];
+  if (assuranceReview) {
+    phase.routing.status_order = [
+      "awaiting-review",
+      "ready",
+      "failed",
+      "stale",
+      "blocked",
+    ];
+  }
   await fs.writeFile(phasePath, stringify(phase));
   for (const phaseId of [
     "phase-0-wayfinding",
@@ -272,15 +310,51 @@ async function phaseTwoOnlyPackage(parent: string): Promise<string> {
     other.order += 10;
     await fs.writeFile(otherPath, stringify(other));
   }
+  if (assuranceReview) {
+    const phaseOnePath = path.join(
+      root,
+      "phases/phase-1-product-assurance.yaml",
+    );
+    const phaseOne = parse(await fs.readFile(phaseOnePath, "utf8"));
+    phaseOne.order = 0;
+    phaseOne.entry = "true";
+    phaseOne.progression.readiness =
+      'none("current-pilot-verification-activities@1", {})';
+    phaseOne.progression.authorization.condition =
+      'exists("public-phase-1-markers@1", {})';
+    phaseOne.progression.authorization.scenario =
+      "seed-public-phase-1-marker@1";
+    phaseOne.progression.authorization.subjects =
+      'select("public-phase-1-markers@1", {})';
+    phaseOne.progression.authorization.evidence_selector =
+      "public-phase-1-markers@1";
+    await fs.writeFile(phaseOnePath, stringify(phaseOne));
+  }
 
   const reviewSelectorPath = path.join(
     root,
     "selectors/review-required-revisions.yaml",
   );
   const reviewSelector = parse(await fs.readFile(reviewSelectorPath, "utf8"));
-  reviewSelector.query.where +=
-    ' && (subject.provenance.scenario != "seed-public-phase-2-definitions@1" || subject.identity.type == "VSP")';
+  reviewSelector.query.where += assuranceReview
+    ? ' && subject.provenance.scenario != "seed-public-phase-2-definitions@1"'
+    : ' && (subject.provenance.scenario != "seed-public-phase-2-definitions@1" || subject.identity.type == "VSP")';
   await fs.writeFile(reviewSelectorPath, stringify(reviewSelector));
+
+  if (assuranceReview) {
+    const activeStrategiesPath = path.join(
+      root,
+      "selectors/current-phase-2-verification-strategies.yaml",
+    );
+    const activeStrategies = parse(
+      await fs.readFile(activeStrategiesPath, "utf8"),
+    );
+    activeStrategies.query.where =
+      'strategy.provenance.scenario == "seed-public-phase-2-definitions@1"' +
+      ' && state(strategy, "disposition") == "active"' +
+      ' && none("newer-revisions-for@1", {subject: strategy})';
+    await fs.writeFile(activeStrategiesPath, stringify(activeStrategies));
+  }
 
   const seedDefinitions = {
     kind: "scenario-definition",
@@ -322,6 +396,22 @@ async function phaseTwoOnlyPackage(parent: string): Promise<string> {
     prohibited_inputs: [],
     batching: "coherent-batch",
   };
+  if (assuranceReview) {
+    (seedDefinitions.outputs as unknown[]).splice(2, 0, {
+      name: "system",
+      types: ["SYS"],
+      cardinality: "one",
+      required_links: [
+        { link: "derived-from", target: { output: "requirements" } },
+      ],
+    });
+    (seedDefinitions.outputs[3] as {
+      required_links: unknown[];
+    }).required_links = [
+      { link: "governs", target: { output: "system" } },
+      { link: "governs-revision", target: { output: "system" } },
+    ];
+  }
   const seedAcceptance = {
     kind: "scenario-definition",
     id: "seed-public-phase-2-acceptance",
@@ -423,7 +513,130 @@ async function phaseTwoOnlyPackage(parent: string): Promise<string> {
     },
     waiver_policy_ref: "waiver-applicability@1",
   };
+  const activityScenario = {
+    kind: "scenario-definition",
+    id: "seed-public-phase-2-activity",
+    version: 1,
+    description: "Publish one SYS-backed pilot VER through the public regression.",
+    phases: ["phase-2-system-definition"],
+    inputs: [
+      {
+        name: "requirement",
+        types: ["SYS"],
+        cardinality: "one",
+        identity: "revision",
+      },
+      {
+        name: "strategy",
+        types: ["VSP"],
+        cardinality: "one",
+        identity: "revision",
+      },
+    ],
+    outputs: [{
+      name: "activity",
+      types: ["VER"],
+      cardinality: "one",
+      required_links: [
+        { link: "verifies", target: { input: "requirement" } },
+        { link: "verifies-revision", target: { input: "requirement" } },
+        { link: "governed-by", target: { input: "strategy" } },
+      ],
+    }],
+    prompt_ref: "prompts/seed-public-phase-2-activity.md@1",
+    review_policy_ref: "review-applicability@1",
+    completion: "execution.integrity.contract_valid == true",
+    resolves: ["public-phase-2-activity-required"],
+    prohibited_inputs: [],
+    batching: "single",
+  };
+  const activityObligation = {
+    kind: "obligation-definition",
+    id: "public-phase-2-activity-required",
+    version: 1,
+    description: "The public regression requires one SYS-backed pilot VER.",
+    phases: ["phase-2-system-definition"],
+    for_each: 'select("public-phase-2-systems@1", {})',
+    subject_as: "requirement",
+    satisfied_when:
+      'exists("pilot-verification-activities-for-requirement@1", {requirement: requirement})',
+    status_rules: [{
+      status: "awaiting-review",
+      priority: 1000,
+      when:
+        'exists("passing-reviews-for@1", {subject: one("public-phase-2-strategies@1", {})})',
+      reason: "Publish the exact SYS-backed pilot VER after strategy Review.",
+    }],
+    default_status: "blocked",
+    resolve_with: {
+      scenario: "seed-public-phase-2-activity@1",
+      inputs: {
+        requirement: "requirement",
+        strategy: 'one("public-phase-2-strategies@1", {})',
+      },
+    },
+    waiver_policy_ref: "waiver-applicability@1",
+  };
+  const markerScenario = {
+    kind: "scenario-definition",
+    id: "seed-public-phase-1-marker",
+    version: 1,
+    description: "Publish one marker that authorizes synthetic Phase 1 progression.",
+    phases: ["phase-1-product-assurance"],
+    inputs: [],
+    outputs: [{
+      name: "marker",
+      types: ["MAP"],
+      cardinality: "one",
+      required_links: [],
+    }],
+    prompt_ref: "prompts/seed-public-phase-1-marker.md@1",
+    review_policy_ref: "review-applicability@1",
+    completion: "execution.integrity.contract_valid == true",
+    resolves: ["public-phase-1-marker-required"],
+    prohibited_inputs: [],
+    batching: "single",
+  };
+  const markerObligation = {
+    kind: "obligation-definition",
+    id: "public-phase-1-marker-required",
+    version: 1,
+    description: "The public regression requires one Phase 1 marker.",
+    phases: ["phase-1-product-assurance"],
+    for_each: "[phase]",
+    subject_as: "required_phase",
+    satisfied_when: 'exists("public-phase-1-markers@1", {})',
+    status_rules: [{
+      status: "ready",
+      priority: 1000,
+      when: 'none("public-phase-1-markers@1", {})',
+      reason: "Publish the Phase 1 progression marker.",
+    }],
+    default_status: "blocked",
+    resolve_with: { scenario: "seed-public-phase-1-marker@1", inputs: {} },
+    waiver_policy_ref: "waiver-applicability@1",
+  };
+  if (assuranceReview) {
+    definitionsObligation.status_rules[0]!.status = "awaiting-review";
+    acceptanceObligation.status_rules[1]!.status = "awaiting-review";
+  }
   const selectors = [
+    {
+      kind: "selector-definition",
+      id: "public-phase-1-markers",
+      version: 1,
+      description: "Exact MAP seeded by the public Phase 1 regression setup.",
+      parameters: [],
+      result_kind: "revision",
+      query: {
+        from: { collection: "revisions", types: ["MAP"] },
+        as: "marker",
+        where:
+          'marker.provenance.scenario == "seed-public-phase-1-marker@1"',
+        distinct: true,
+        order_by: ["identity.revision_id"],
+      },
+    },
     {
       kind: "selector-definition",
       id: "public-phase-2-products",
@@ -465,7 +678,25 @@ async function phaseTwoOnlyPackage(parent: string): Promise<string> {
       query: {
         from: { collection: "revisions", types: ["VSP"] },
         as: "strategy",
-        where: 'strategy.payload.level == "stakeholder"',
+        where: assuranceReview
+          ? 'strategy.payload.level == "system"'
+          : 'strategy.payload.level == "stakeholder"',
+        distinct: true,
+        order_by: ["identity.revision_id"],
+      },
+    },
+    {
+      kind: "selector-definition",
+      id: "public-phase-2-systems",
+      version: 1,
+      description: "Exact SYS seeded by the assurance public regression.",
+      parameters: [],
+      result_kind: "revision",
+      query: {
+        from: { collection: "revisions", types: ["SYS"] },
+        as: "requirement",
+        where:
+          'requirement.provenance.scenario == "seed-public-phase-2-definitions@1"',
         distinct: true,
         order_by: ["identity.revision_id"],
       },
@@ -490,6 +721,8 @@ async function phaseTwoOnlyPackage(parent: string): Promise<string> {
   for (const [relative, value] of [
     ["scenarios/seed-public-phase-2-definitions.yaml", seedDefinitions],
     ["scenarios/seed-public-phase-2-acceptance.yaml", seedAcceptance],
+    ["scenarios/seed-public-phase-2-activity.yaml", activityScenario],
+    ["scenarios/seed-public-phase-1-marker.yaml", markerScenario],
     [
       "obligations/public-phase-2-definitions-required.yaml",
       definitionsObligation,
@@ -498,6 +731,11 @@ async function phaseTwoOnlyPackage(parent: string): Promise<string> {
       "obligations/public-phase-2-acceptance-required.yaml",
       acceptanceObligation,
     ],
+    [
+      "obligations/public-phase-2-activity-required.yaml",
+      activityObligation,
+    ],
+    ["obligations/public-phase-1-marker-required.yaml", markerObligation],
     ...selectors.map((selector) => [`selectors/${selector.id}.yaml`, selector]),
   ] as [string, unknown][]) {
     await fs.writeFile(path.join(root, relative), stringify(value));
@@ -518,31 +756,18 @@ async function phaseTwoOnlyPackage(parent: string): Promise<string> {
       "seed-public-phase-2-acceptance",
     ),
   );
-  phase.scenarios.unshift(
-    "seed-public-phase-2-definitions@1",
-    "seed-public-phase-2-acceptance@1",
+  await fs.writeFile(
+    path.join(root, "prompts/seed-public-phase-2-activity.md"),
+    seedPrompt(
+      "seed-public-phase-2-activity",
+      "seed-public-phase-2-activity",
+    ),
   );
-  phase.obligations.unshift(
-    "public-phase-2-definitions-required@1",
-    "public-phase-2-acceptance-required@1",
+  await fs.writeFile(
+    path.join(root, "prompts/seed-public-phase-1-marker.md"),
+    seedPrompt("seed-public-phase-1-marker", "seed-public-phase-1-marker"),
   );
   await fs.writeFile(phasePath, stringify(phase));
-  const manifestPath = path.join(root, "manifest.yaml");
-  const manifest = parse(await fs.readFile(manifestPath, "utf8"));
-  manifest.catalog.selectors.push(...selectors.map((selector) => selector.id));
-  manifest.catalog.obligations.push(
-    "public-phase-2-definitions-required",
-    "public-phase-2-acceptance-required",
-  );
-  manifest.catalog.scenarios.push(
-    "seed-public-phase-2-definitions",
-    "seed-public-phase-2-acceptance",
-  );
-  manifest.assets.prompts.push(
-    "prompts/seed-public-phase-2-definitions.md@1",
-    "prompts/seed-public-phase-2-acceptance.md@1",
-  );
-  await fs.writeFile(manifestPath, stringify(manifest));
   return root;
 }
 
@@ -552,9 +777,13 @@ async function seedPublicPhaseTwoEntry(
 ): Promise<{
   product: { datum: { id: string; revision_id: string } };
   requirements: { datum: { id: string; revision_id: string } }[];
+  system?: { datum: { id: string; revision_id: string } };
   strategy: { datum: { id: string; revision_id: string } };
 }> {
   const seedPacket = prepare(repository, "seed-public-phase-2-definitions@1");
+  const includesSystem = seedPacket.responseScaffold.proposal.outputs.some(
+    (output) => output.handle === "system",
+  );
   const seedExecution = submit(repository, seedPacket, [
     {
       localId: "product",
@@ -594,6 +823,25 @@ async function seedPublicPhaseTwoEntry(
         body: "One stakeholder-visible behavior.\n",
       },
     })),
+    ...(includesSystem ? [{
+      localId: "system",
+      name: "system",
+      invocation: 0,
+      lifecycleDatum: {
+        type: "SYS",
+        payload: {
+          title: "Representative observable system behavior",
+          rationale: "Bind the pilot to one exact system behavior.",
+          statement: "The system shall report one observable result.",
+          verification_intent: "Observe the exact reported result.",
+        },
+        links: [{
+          type: "derived-from",
+          target: "$proposal.requirement-1.revision_id",
+        }],
+        body: "One exact representative system behavior.\n",
+      },
+    }] : []),
     {
       localId: "strategy",
       name: "strategy",
@@ -659,6 +907,8 @@ async function seedPublicPhaseTwoEntry(
   const strategy = asRecord(
     outputs.find(({ name }) => name === "strategy")!.revision,
   );
+  const systemOutput = outputs.find(({ name }) => name === "system");
+  const system = systemOutput ? asRecord(systemOutput.revision) : undefined;
   const acceptancePacket = prepare(
     repository,
     "seed-public-phase-2-acceptance@1",
@@ -688,7 +938,12 @@ async function seedPublicPhaseTwoEntry(
     },
   ]);
   commit(repository, "Freeze public Phase 2 entry definitions");
-  return { product, requirements: seededRequirements, strategy };
+  return {
+    product,
+    requirements: seededRequirements,
+    ...(system ? { system } : {}),
+    strategy,
+  };
 }
 
 
@@ -865,6 +1120,136 @@ export async function runZeroInterfacePhaseTwoRoute(): Promise<void> {
     const shown = mdlm(repository, "show", system, "--json");
     expect(shown.status, `${shown.stderr}${shown.stdout}`).toBe(0);
     expect(JSON.parse(shown.stdout).lifecycleDatum.datum.type).toBe("SYS");
+  } finally {
+    await fs.rm(parent, { recursive: true, force: true });
+  }
+}
+
+export async function runPhaseTwoAssuranceReviewRoute(): Promise<void> {
+  const parent = await fs.mkdtemp(
+    path.join(os.tmpdir(), "mdlm-public-phase2-assurance-review-"),
+  );
+  try {
+    const repository = path.join(parent, "repository");
+    await fs.mkdir(repository);
+    const processRoot = await phaseTwoOnlyPackage(parent, true);
+    await selectProcessPackageFixture(repository, processRoot);
+    const markerPacket = prepare(
+      repository,
+      "seed-public-phase-1-marker@1",
+    );
+    submit(repository, markerPacket, [{
+      localId: "marker",
+      name: "marker",
+      invocation: 0,
+      lifecycleDatum: {
+        type: "MAP",
+        payload: {
+          title: "Synthetic Phase 1 progression marker",
+          purpose: "Reach the exact Phase 2 assurance regression seam.",
+          frontier: ["phase-2-assurance"],
+        },
+        links: [],
+        body: "Public regression setup only.\n",
+      },
+    }]);
+    commit(repository, "Publish Phase 1 progression marker");
+    const seeded = await seedPublicPhaseTwoEntry(repository, [{
+      statement: "Report one observable result",
+      systemContext: "representative-system",
+    }]);
+    expect(seeded.system).toBeDefined();
+    const reviewAssurance = (subject: string): void => {
+      const packet = prepare(repository, "review-phase-1-assurance@1");
+      expect(exactInputs(packet, "subject")).toEqual([subject]);
+      submit(repository, packet, [{
+        localId: "context",
+        name: "review_context",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "BSL",
+          payload: {
+            title: `Review context for ${subject}`,
+            kind: "review-context",
+            role: "review-context",
+            scope: subject,
+            group: "DEFAULT",
+            definition_members: [subject],
+            evidence: [],
+          },
+          links: [],
+          body: "The exact active Phase 2 strategy under Review.\n",
+        },
+      }, {
+        localId: "review",
+        name: "review",
+        invocation: 0,
+        lifecycleDatum: {
+          type: "REV",
+          payload: {
+            title: "Phase 2 assurance Review",
+            review_kind: "phase-1-assurance",
+            reviewer: "independent-reviewer",
+            summary: "The exact strategy is traceable and bounded.",
+            rubric_ref: "policies/rubrics/bootstrap-review.md@3",
+            findings: [],
+            correction_authority: "author",
+            outcome: "pass",
+          },
+          links: [
+            { type: "reviews", target: subject },
+            { type: "contextualizes", target: "$proposal.context.revision_id" },
+          ],
+          body: "The active Phase 2 assurance Revision passes Review.\n",
+        },
+      }]);
+      commit(repository, `Review ${subject}`);
+    };
+    reviewAssurance(seeded.strategy.datum.revision_id);
+
+    const activityPacket = prepare(
+      repository,
+      "seed-public-phase-2-activity@1",
+    );
+    expect(exactInputs(activityPacket, "requirement")).toEqual([
+      seeded.system!.datum.revision_id,
+    ]);
+    const activityExecution = submit(repository, activityPacket, [{
+      localId: "activity",
+      name: "activity",
+      invocation: 0,
+      lifecycleDatum: {
+        type: "VER",
+        payload: {
+          title: "Representative system pilot activity",
+          rationale: "Exercise the exact representative system behavior.",
+          kind: "pilot",
+          method: "test",
+          assessment_mode: "automatic",
+          claim: {
+            kind: "pilot",
+            scope: "verification-design",
+            formal_evidence_eligible: false,
+          },
+          acceptance_criteria: ["The exact observable result is reported."],
+          evidence_requirements: ["Retain the exact output bytes."],
+          expected_success_activity: "Observe the expected result.",
+          expected_discrimination_activity: "Reject a mismatched result.",
+        },
+        links: [],
+        body: "One exact SYS-backed pilot activity.\n",
+      },
+    }]);
+    const activity = submittedRevision(activityExecution, "activity");
+    commit(repository, "Publish representative system pilot activity");
+    reviewAssurance(activity);
+
+    const next = mdlm(repository, "next", "--json");
+    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+    const outcome = JSON.parse(next.stdout);
+    expect(outcome.phase).toBe("phase-2-system-definition@10");
+    expect(outcome.outcome).not.toBe("process-dead-end");
+    expect(outcome.assignment).toBeDefined();
   } finally {
     await fs.rm(parent, { recursive: true, force: true });
   }
