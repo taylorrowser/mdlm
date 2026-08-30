@@ -2096,6 +2096,11 @@ class LifecycleEvaluator {
                 "Collection 'baselines'",
               ),
           )
+        : collection === "stable-data"
+        ? [...new Set(this.entities.map((entity) => entity.identity?.id))]
+          .filter((id): id is string => id !== undefined)
+          .map((id) => this.entityForReference(id))
+          .filter((entity): entity is Entity => entity !== undefined)
         : this.entities;
     } else if (from.selector !== undefined) {
       results = this.invokeSelector(from, context);
