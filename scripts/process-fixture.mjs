@@ -63,6 +63,18 @@ function git(arguments_) {
   }).trim();
 }
 
+function gitSucceeds(arguments_) {
+  try {
+    execFileSync("git", arguments_, {
+      cwd: REPOSITORY_ROOT,
+      stdio: "ignore",
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function filePaths(root, directory = root) {
   const entries = await fs.readdir(directory, { withFileTypes: true });
   const nested = await Promise.all(entries.map(async (entry) => {
@@ -208,6 +220,9 @@ async function provenancePackage(manifest) {
   if (sourceCommit !== manifest.provenance.sourceCommit) {
     fail("source commit does not resolve exactly");
   }
+  if (!gitSucceeds(["merge-base", "--is-ancestor", sourceCommit, "HEAD"])) {
+    fail("source commit is not reachable from HEAD; run `npm run process-fixture:refresh`");
+  }
   const sourceTree = git(["rev-parse", "--verify", `${sourceCommit}^{tree}`]);
   if (sourceTree !== manifest.provenance.sourceTree) {
     fail("source tree does not belong to source commit");
@@ -232,6 +247,41 @@ async function provenancePackage(manifest) {
   } finally {
     await fs.rm(temporaryRoot, { recursive: true, force: true });
   }
+}
+
+function checkpointProcessPackage(processPackage) {
+  const status = git([
+    "status",
+    "--porcelain=v1",
+    "--untracked-files=all",
+    "--",
+    PROCESS_ROOT,
+  ]);
+  if (status === "") return undefined;
+
+  const reference = `${processPackage.manifest.id}@${processPackage.manifest.version}`;
+  execFileSync("git", ["add", "--all", "--", PROCESS_ROOT], {
+    cwd: REPOSITORY_ROOT,
+    stdio: "ignore",
+  });
+  execFileSync(
+    "git",
+    [
+      "commit",
+      "--only",
+      "--message",
+      `chore(process): checkpoint ${reference} fixture source`,
+      "--",
+      PROCESS_ROOT,
+    ],
+    { cwd: REPOSITORY_ROOT, stdio: "ignore" },
+  );
+  const sourceCommit = git(["rev-parse", "HEAD"]);
+  process.stdout.write(`PROCESS_FIXTURE_SOURCE_CHECKPOINT commit=${sourceCommit}\n`);
+  return {
+    sourceCommit,
+    sourceTree: git(["rev-parse", `${sourceCommit}^{tree}`]),
+  };
 }
 
 function validateSerializedPackage(content, manifest) {
@@ -299,12 +349,21 @@ async function checkFixture() {
   );
 }
 
-async function buildFixture(processPackage, previousManifest) {
+async function buildFixture(processPackage, previousManifest, knownProvenance) {
   const digest = await packageDigest(PROCESS_ROOT);
   let sourceCommit;
   let sourceTree;
-  if (
+  if (knownProvenance) {
+    sourceCommit = knownProvenance.sourceCommit;
+    sourceTree = knownProvenance.sourceTree;
+  } else if (
     previousManifest.processPackage.digest === digest &&
+    gitSucceeds([
+      "merge-base",
+      "--is-ancestor",
+      previousManifest.provenance.sourceCommit,
+      "HEAD",
+    ]) &&
     (await provenancePackage(previousManifest)).digest === digest
   ) {
     sourceCommit = previousManifest.provenance.sourceCommit;
@@ -404,22 +463,49 @@ async function refreshFixture() {
   await recoverFixturePublication();
   const previousManifest = await readManifest();
   const processPackage = await sourceProcessPackage(PROCESS_ROOT);
-  const first = await buildFixture(processPackage, previousManifest);
+  const checkpoint = checkpointProcessPackage(processPackage);
+  const first = await buildFixture(processPackage, previousManifest, checkpoint);
   await validateGeneratedFixture(first);
   const generatedManifest = validateManifest(JSON.parse(first.manifest.toString("utf8")));
-  const second = await buildFixture(processPackage, generatedManifest);
+  const second = await buildFixture(
+    processPackage,
+    generatedManifest,
+    generatedManifest.provenance,
+  );
   if (!first.archive.equals(second.archive) || !first.manifest.equals(second.manifest)) {
     fail("refresh is not idempotent");
   }
-  await validateGeneratedFixture(second);
   await publishFixture(first);
-  await checkFixture();
+  const [publishedArchive, publishedManifest] = await Promise.all([
+    fs.readFile(ARCHIVE_PATH),
+    fs.readFile(MANIFEST_PATH),
+  ]);
+  if (!first.archive.equals(publishedArchive) || !first.manifest.equals(publishedManifest)) {
+    fail("published fixture differs from the validated fixture");
+  }
+  process.stdout.write(
+    `PROCESS_FIXTURE_OK package=${generatedManifest.processPackage.reference} ` +
+    `digest=${generatedManifest.processPackage.digest}\n`,
+  );
   process.stdout.write("PROCESS_FIXTURE_REFRESHED\n");
+}
+
+function printHelp() {
+  process.stdout.write(
+    "Usage: node scripts/process-fixture.mjs <check|refresh>\n\n" +
+    "  check    Verify the canonical fixture and its reachable source commit.\n" +
+    "  refresh  Commit only dirty .lifecycle/process files as a source checkpoint,\n" +
+    "           then refresh the canonical fixture from that exact commit. Other\n" +
+    "           staged and unstaged files are left unchanged. Do not amend the\n" +
+    "           source checkpoint; commit the refreshed fixture after it.\n",
+  );
 }
 
 const command = process.argv[2];
 try {
-  if (command === "check") await checkFixture();
+  if (command === "--help" || command === "help" || process.argv.includes("--help")) {
+    printHelp();
+  } else if (command === "check") await checkFixture();
   else if (command === "refresh") await refreshFixture();
   else fail("expected `check` or `refresh`");
 } catch (error) {
