@@ -1,7 +1,7 @@
 kind: selector-definition
 id: corrected-pilot-verification-implementation-revisions-for
 version: 1
-description: Valid newer pilot VAI Revisions preserving exact VER and binding either the reviewed ENV/ART Revisions or their single exact same-transaction successors while citing every and only failed Review.
+description: Valid newer pilot VAI Revisions binding either the reviewed VER/ENV/ART Revisions or their single exact same-transaction successors while citing every and only failed Review.
 parameters:
   - {name: implementation, kind: revision, types: [VAI]}
 result_kind: revision
@@ -19,10 +19,19 @@ query:
     && every("all-cited-reviews-by-correction@1", {replacement: replacement}, review =>
         exists("matching-failing-review-for@1",
           {subject: implementation, review: review}))
-    && one("verification-activities-for-implementation@1",
-      {implementation: replacement})
-      == one("verification-activities-for-implementation@1",
-        {implementation: implementation})
+    && (
+      one("verification-activities-for-implementation@1",
+        {implementation: replacement})
+        == one("verification-activities-for-implementation@1",
+          {implementation: implementation})
+      || (count("newer-revisions-for@1",
+          {subject: one("verification-activities-for-implementation@1",
+            {implementation: implementation})}) == 1
+        && one("verification-activities-for-implementation@1",
+          {implementation: replacement})
+          == one("newer-revisions-for@1",
+            {subject: one("verification-activities-for-implementation@1",
+              {implementation: implementation})})))
     && (
       one("environments-for-implementation@1", {implementation: replacement})
         == one("environments-for-implementation@1", {implementation: implementation})

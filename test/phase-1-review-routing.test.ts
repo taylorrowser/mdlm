@@ -4,6 +4,7 @@ import { operatorWorkProjection } from "../src/assignment.js";
 import { submitPreparedResolverScenario } from "../src/scenario-execution.js";
 import {
   evaluateLifecycle,
+  loadProcessPackage,
   type LifecycleRecord,
   type ProcessPackage,
 } from "../src/index.js";
@@ -188,6 +189,44 @@ describe("Phase 1 review routing", () => {
       expect(declaration).toContain("phase-1-assurance-review-required@1");
       expect(declaration).not.toContain("passing-review-required@2");
     }
+  });
+
+  it("routes a failed pilot VAI Review to an exact upstream VER revision", async () => {
+    const loaded = await loadProcessPackage(".lifecycle/process");
+    expect(loaded.ok, JSON.stringify(loaded.diagnostics)).toBe(true);
+    if (!loaded.ok) return;
+    const scenario = loaded.package.scenarios["revise-pilot-vai-after-review"]!;
+    const reconciliation = loaded.package.selectors[
+      "valid-pilot-vai-activity-reconciliations"
+    ]!;
+    const completion = scenario.completion as { source: string };
+    const query = reconciliation.query as { where: { source: string } };
+
+    expect(scenario.outputs).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        name: "replacement_activity",
+        types: ["VER"],
+        cardinality: "zero-or-one",
+        required_links: expect.arrayContaining([
+          { link: "verifies", target: { input: "requirement" } },
+          { link: "verifies-revision", target: { input: "requirement" } },
+          { link: "governed-by", target: { input: "strategy" } },
+          { link: "corrects-review", target: { input: "failed_reviews" } },
+        ]),
+      }),
+    ]));
+    expect(completion.source).toContain(
+      'exists("valid-pilot-vai-activity-reconciliations@1"',
+    );
+    expect(completion.source).toContain(
+      'one("verification-activities-for-implementation@1",\n      {implementation: replacement}) == replacement_activity',
+    );
+    expect(query.where.source).toContain(
+      "candidate.identity.id == activity.identity.id",
+    );
+    expect(query.where.source).toContain(
+      "candidate.payload.claim == activity.payload.claim",
+    );
   });
 
   it("routes an inconclusive pilot result to correction before another run", async () => {

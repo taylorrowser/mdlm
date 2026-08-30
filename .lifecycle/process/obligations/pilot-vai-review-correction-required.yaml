@@ -1,7 +1,7 @@
 kind: obligation-definition
 id: pilot-vai-review-correction-required
-version: 2
-description: A current source-blind pilot VAI with failed Review evidence receives one exact same-lineage correction, with only the bound ART or ENV lineage available for optional reconciliation before fresh Review and execution.
+version: 3
+description: A current source-blind pilot VAI with failed Review evidence receives one exact same-lineage correction, with only the bound VER, ART, or ENV lineage available for optional reconciliation before fresh Review and execution.
 phases: [phase-1-product-assurance]
 for_each: 'select("failed-current-pilot-verification-implementations@1", {})'
 subject_as: implementation
@@ -13,7 +13,7 @@ status_rules:
     reason: Every exact failed Review and finding for this source-blind pilot procedure requires one causal correction; participation remains autonomous for two cycles before attended escalation.
 default_status: ready
 resolve_with:
-  scenario: revise-pilot-vai-after-review@2
+  scenario: revise-pilot-vai-after-review@3
   inputs:
     implementation: implementation
     failed_reviews: 'select("failing-reviews-for@1", {subject: implementation})'

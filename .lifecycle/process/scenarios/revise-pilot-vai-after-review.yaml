@@ -1,7 +1,7 @@
 kind: scenario-definition
 id: revise-pilot-vai-after-review
-version: 2
-description: Correct one failed source-blind pilot procedure and, only when the Review exposes an exact boundary inconsistency, reconcile its bound ART or ENV in the same atomic transaction.
+version: 3
+description: Correct one failed source-blind pilot procedure and, only when the Review exposes an exact upstream or boundary inconsistency, reconcile its bound VER, ART, or ENV in the same atomic transaction.
 phases: [phase-1-product-assurance]
 inputs:
   - name: implementation
@@ -60,6 +60,14 @@ inputs:
       && strategy == one("strategies-for-verification-activity@1",
         {activity: activity})
 outputs:
+  - name: replacement_activity
+    types: [VER]
+    cardinality: zero-or-one
+    required_links:
+      - {link: verifies, target: {input: requirement}}
+      - {link: verifies-revision, target: {input: requirement}}
+      - {link: governed-by, target: {input: strategy}}
+      - {link: corrects-review, target: {input: failed_reviews}}
   - name: replacement_environment
     types: [ENV]
     cardinality: zero-or-one
@@ -85,14 +93,13 @@ outputs:
     types: [VAI]
     cardinality: one
     required_links:
-      - {link: realizes, target: {input: activity}}
       - {link: corrects-review, target: {input: failed_reviews}}
   - name: authorization
     types: [DEC]
     cardinality: one
     required_links:
       - {link: justifies, target: {output: replacement}}
-prompt_ref: prompts/revise-pilot-vai-after-review.md@2
+prompt_ref: prompts/revise-pilot-vai-after-review.md@3
 review_policy_ref: review-applicability@1
 participation:
   policy_ref: phase-1-assurance-correction-participation@1
@@ -102,6 +109,20 @@ completion: >-
   execution.integrity.contract_valid == true
   && replacement.identity.id == implementation.identity.id
   && replacement.identity.type == implementation.identity.type
+  && (
+    (replacement_activity == null
+      && one("verification-activities-for-implementation@1",
+        {implementation: replacement}) == activity)
+    || (replacement_activity != null
+      && exists("valid-pilot-vai-activity-reconciliations@1", {
+        implementation: implementation,
+        activity: activity,
+        requirement: requirement,
+        strategy: strategy,
+        replacement: replacement_activity})
+      && one("verification-activities-for-implementation@1",
+        {implementation: replacement}) == replacement_activity)
+  )
   && (
     (replacement_environment == null
       && qualification_activity == null
@@ -146,5 +167,5 @@ completion: >-
       && authorization.payload.kind == "scope")
   )
 resolves: [pilot-vai-review-correction-required]
-prohibited_inputs: [mutation of failed VAI, RUN, RES, Review, ENV, or ART history, changed VER or pilot claim class, ART behavior-scope change, ENV capability change outside the exact VSP profile, unrelated ENV or ART, borrowed qualification evidence, product source, product unit tests, private implementation details]
+prohibited_inputs: [mutation of failed VAI history, mutation of supplied VER history, mutation of prior RUN or RES evidence, mutation of failed Review history, mutation of supplied ENV history, mutation of supplied ART history, changed pilot claim class, VER requirement change, VER strategy change, ART behavior-scope change, ENV capability change outside the exact VSP profile, unrelated VER, unrelated ENV, unrelated ART, borrowed qualification evidence, product source, product unit tests, private implementation details]
 batching: single
