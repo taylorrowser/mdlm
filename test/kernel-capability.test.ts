@@ -7,10 +7,40 @@ import {
   resolveType,
   type LifecycleRecord,
 } from "../src/index.js";
+import { evaluateProcessDefinition } from "../src/evaluator.js";
 import {
   copiedProcessPackage,
   renamedBaselineProcessPackage,
 } from "./helpers/process-package.js";
+
+async function processPackageExercisingStableDataCollection(): Promise<string> {
+  const processRoot = await copiedProcessPackage();
+  await fs.writeFile(
+    path.join(processRoot, "selectors/stable-stakeholder-identities.yaml"),
+    `kind: selector-definition
+id: stable-stakeholder-identities
+version: 1
+description: Stable stakeholder identities.
+parameters: []
+result_kind: stable-datum
+query:
+  from: {collection: stable-data, types: [STK]}
+  as: requirement
+  distinct: true
+  order_by: [identity.id]
+`,
+  );
+  const manifestPath = path.join(processRoot, "manifest.yaml");
+  const manifest = await fs.readFile(manifestPath, "utf8");
+  await fs.writeFile(
+    manifestPath,
+    manifest.replace(
+      "  selectors:\n",
+      "  selectors:\n    - stable-stakeholder-identities\n",
+    ),
+  );
+  return processRoot;
+}
 
 async function processPackageExercisingBaselineRelations(): Promise<string> {
   const processRoot = await renamedBaselineProcessPackage();
@@ -150,6 +180,38 @@ function record(
 }
 
 describe("exact-baseline@1 Kernel Capability", () => {
+  it("materializes stable-data collections as distinct stable identities", async () => {
+    const processRoot = await processPackageExercisingStableDataCollection();
+    const loaded = await loadProcessPackage(processRoot);
+    expect(loaded.ok, loaded.diagnostics.map((item) => item.message).join("\n")).toBe(
+      true,
+    );
+    if (!loaded.ok) return;
+    const first = record("STK-23456789AB", "STK", { title: "First" });
+    const secondRevision = structuredClone(first);
+    secondRevision.datum.revision = 2;
+    secondRevision.datum.revision_id = "STK-23456789AB-r00002";
+    const other = record("STK-3456789ABC", "STK", { title: "Other" });
+
+    const selected = evaluateProcessDefinition(
+      loaded.package,
+      {
+        processRef: "git:current",
+        phaseId: "phase-1-product-assurance",
+        records: [first, secondRevision, other],
+        dependencyComparisons: [],
+      },
+      "selector",
+      "stable-stakeholder-identities@1",
+      {},
+    );
+
+    expect(selected.result).toEqual([
+      { key: "STK-23456789AB" },
+      { key: "STK-3456789ABC" },
+    ]);
+  });
+
   it("loads the bootstrap package through an explicit versioned binding", async () => {
     const result = await loadProcessPackage(
       path.join(process.cwd(), ".lifecycle/process"),
