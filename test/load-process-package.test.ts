@@ -149,7 +149,7 @@ describe("loadProcessPackage", () => {
     return value.map(record);
   }
 
-  it("binds scalar Phase 2 continuation outputs to their exact input lineages", () => {
+  it("binds scalar continuation outputs to their exact input lineages", () => {
     const bindings = [
       ["reevaluate-shared-system-consumer", "replacement_consumer", "consumer"],
       ["replan-stale-decomposition-work-package", "replacement_plan", "prior_plan"],
@@ -158,6 +158,7 @@ describe("loadProcessPackage", () => {
       ["revise-pilot-assessment-after-review", "replacement", "assessment"],
       ["revise-pilot-expansion-decision-after-review", "replacement", "decision"],
       ["revise-pilot-vai-after-result", "replacement_environment", "environment"],
+      ["revise-environment-after-failed-qualification", "replacement", "environment"],
     ] as const;
 
     for (const [scenarioId, outputName, inputName] of bindings) {
