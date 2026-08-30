@@ -1,0 +1,33 @@
+kind: selector-definition
+id: valid-pilot-vai-activity-reconciliations
+version: 1
+description: The exact same-lineage pilot VER replacement preserving one failed pilot VAI's claim, requirement, and strategy.
+parameters:
+  - {name: implementation, kind: revision, types: [VAI]}
+  - {name: activity, kind: revision, types: [VER]}
+  - {name: requirement, kind: revision, types: [STK]}
+  - {name: strategy, kind: revision, types: [VSP]}
+  - {name: replacement, kind: revision, types: [VER]}
+result_kind: revision
+query:
+  from: {relation: revisions, of: activity, emit: entity, types: [VER]}
+  as: candidate
+  where: >-
+    candidate == replacement
+    && candidate.identity.id == activity.identity.id
+    && candidate.identity.revision > activity.identity.revision
+    && candidate.payload.kind == activity.payload.kind
+    && candidate.payload.claim == activity.payload.claim
+    && count("all-cited-reviews-by-correction@1", {replacement: candidate})
+      == count("failing-reviews-for@1", {subject: implementation})
+    && every("all-cited-reviews-by-correction@1", {replacement: candidate}, review =>
+      exists("matching-failing-review-for@1",
+        {subject: implementation, review: review}))
+    && count("requirements-for-pilot-activity@1", {activity: candidate}) == 1
+    && one("requirements-for-pilot-activity@1", {activity: candidate})
+      == requirement
+    && count("strategies-for-verification-activity@1", {activity: candidate}) == 1
+    && one("strategies-for-verification-activity@1", {activity: candidate})
+      == strategy
+  distinct: true
+  order_by: [identity.revision]
