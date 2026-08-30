@@ -10,9 +10,12 @@ it("allows an intent candidate when the exact stable-link target set is empty", 
   const scenario = loaded.package.scenarios["create-phase-0-intent-candidate"]!;
   const definitionMembers = (scenario.inputs as Array<Record<string, unknown>>)
     .find((input) => input.name === "definition_members");
+  const memberReviews = (scenario.inputs as Array<Record<string, unknown>>)
+    .find((input) => input.name === "member_reviews");
   const stableLinkTargets = (scenario.inputs as Array<Record<string, unknown>>)
     .find((input) => input.name === "stable_link_targets");
   expect(definitionMembers).not.toHaveProperty("conditions");
+  expect(memberReviews).not.toHaveProperty("conditions");
   expect(stableLinkTargets).toMatchObject({
     cardinality: "zero-or-more",
   });

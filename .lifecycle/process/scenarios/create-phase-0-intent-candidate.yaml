@@ -12,9 +12,6 @@ inputs:
     types: [REV]
     cardinality: one-or-more
     identity: revision
-    conditions: >-
-      !every("phase-0-foundation-member-reviews@1", {}, review =>
-        review != member_reviews)
   - name: stable_link_targets
     types: [QST]
     cardinality: zero-or-more
