@@ -450,10 +450,10 @@ describe("exact-baseline@1 Kernel Capability", () => {
     expect(result.diagnostics).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          code: "impossible-required-link",
-          path: "scenarios.create-system-level-candidate.outputs[0].required_links[0].link",
+          code: "incompatible-kernel-capability",
+          path: "types.BSL.outgoing_links",
           message:
-            "Scenario 'create-system-level-candidate' output 'candidate' requires link 'composes', but output type BSL does not declare it",
+            "Type 'BSL' bound to exact-baseline@1 must declare the 'composes' exact-revision link to BSL",
         }),
       ]),
     );
