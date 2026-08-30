@@ -8,16 +8,15 @@ skills: [skills/lifecycle-data.md@1, skills/verification-writing.md@1, skills/co
 # Correct a failed pilot verification activity
 
 Create the next Revision in the supplied pilot VER lineage. Address every and only
-the supplied exact failed Review findings while preserving the exact requirement,
-strategy, pilot claim, and source-independent boundary. For a stakeholder
-requirement, preserve the supplied accepted parent intent and use it only to
-resolve relative terms; link `derived-from` to that exact PSP Revision. For a
-system requirement, no parent-intent input or `derived-from` link is supplied.
-Do not add behavior absent from the exact supplied definitions. Link
-`corrects-review` to every supplied failed REV. Preserve immutable failed history
-and do not inspect
-product source, unit tests, or private implementation details. The replacement
-requires a fresh exact Review Context and independent Review before implementation.
+the supplied exact failed Review findings while preserving the exact requirement
+set, strategy, pilot claim, and source-independent boundary. Preserve every stable
+and exact requirement link. When accepted parent intent is supplied, use it only
+to resolve relative terms and retain its exact `derived-from` link. When no parent
+intent is supplied, emit no `derived-from` link. Do not add behavior absent from
+the exact supplied definitions. Link `corrects-review` to every supplied failed
+REV. Preserve immutable failed history and do not inspect product source, unit
+tests, or private implementation details. The replacement requires a fresh exact
+Review Context and independent Review before implementation.
 
 When the Assignment participation is autonomous, omit the optional `decision`
 output. When it is attended, publish exactly one `decision` DEC in the same atomic

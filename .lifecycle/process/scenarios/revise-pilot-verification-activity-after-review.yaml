@@ -12,9 +12,12 @@ inputs:
     types: [REV]
     cardinality: one-or-more
     identity: revision
-  - name: requirement
+    conditions: >-
+      exists("matching-failing-review-for@1",
+        {subject: activity, review: failed_reviews})
+  - name: requirements
     types: [STK, SYS, CMP, DES]
-    cardinality: one
+    cardinality: one-or-more
     identity: revision
   - name: strategy
     types: [VSP]
@@ -30,8 +33,8 @@ outputs:
     cardinality: one
     identity_from: {input: activity}
     required_links:
-      - {link: verifies, target: {input: requirement}}
-      - {link: verifies-revision, target: {input: requirement}}
+      - {link: verifies, target: {input: requirements}}
+      - {link: verifies-revision, target: {input: requirements}}
       - {link: governed-by, target: {input: strategy}}
       - {link: derived-from, target: {input: intent_support}}
       - {link: corrects-review, target: {input: failed_reviews}}
@@ -53,6 +56,8 @@ completion: >-
   && replacement.payload.kind == "pilot"
   && replacement.payload.claim.scope == "verification-design"
   && replacement.payload.claim.formal_evidence_eligible == false
+  && intent_support == one("pilot-intent-support-for-activity@1",
+    {activity: activity})
   && exists("corrected-pilot-verification-activity-revisions-for@1", {activity: activity})
   && (
     (policy("phase-1-assurance-correction-participation@1",
@@ -65,5 +70,5 @@ completion: >-
         {replacement: replacement}) == 1)
   )
 resolves: [pilot-verification-activity-review-correction-required]
-prohibited_inputs: [mutation of failed activity or Review history, changed requirement or strategy boundary, unstated product behavior, product source, product unit tests]
-batching: single
+prohibited_inputs: [mutation of failed activity or Review history, changed requirement set or strategy boundary, unstated product behavior, product source, product unit tests]
+batching: coherent-batch

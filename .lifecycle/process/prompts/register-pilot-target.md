@@ -7,13 +7,13 @@ skills: [skills/lifecycle-data.md@1, skills/reproducibility.md@1, skills/traceab
 
 # Register an exact pilot target
 
-Record one existing exact Git commit as an ART derived from the supplied exact
-requirement Revision. Before proposing output, use a public Git object lookup to
+Record one existing exact Git commit as an ART derived from every supplied exact
+requirement Revision for the pilot activity. Before proposing output, use a public Git object lookup to
 confirm the 40-hex object resolves as a commit, then retain that observation in
 `evidence_refs`; a branch, tag, abbreviated hash, or unobserved object is not an
 eligible target. Use `kind: prototype` or `kind: implementation` truthfully.
 Bound `supported_behavior` to behavior actually present at that immutable commit
-and relevant to the exact requirement. Record at least one intentionally
+and relevant to the exact requirement set. Record at least one intentionally
 unsupported behavior capable of discriminating the pilot design.
 
 Record the complete controlled public execution interface needed by a fresh

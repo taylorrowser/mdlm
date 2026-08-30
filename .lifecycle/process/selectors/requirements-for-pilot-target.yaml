@@ -1,0 +1,12 @@
+kind: selector-definition
+id: requirements-for-pilot-target
+version: 1
+description: Exact stakeholder, system, component, or design requirement Revisions from which one pilot target is derived.
+parameters:
+  - {name: target, kind: revision, types: [ART]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: target, link: derived-from, emit: target, types: [STK, SYS, CMP, DES]}
+  as: requirement
+  distinct: true
+  order_by: [identity.revision_id]

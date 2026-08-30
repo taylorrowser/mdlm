@@ -1,0 +1,23 @@
+kind: selector-definition
+id: pilot-verification-activities-for-strategy
+version: 1
+description: Current valid pilot activities covering the complete governed requirement set of one exact Phase 1 strategy.
+parameters:
+  - {name: strategy, kind: revision, types: [VSP]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: strategy, link: governed-by, emit: source, types: [VER]}
+  as: activity
+  where: >-
+    activity.payload.kind == "pilot"
+    && state(activity, "disposition") == "active"
+    && state(activity, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: activity})
+    && count("strategies-for-verification-activity@1", {activity: activity}) == 1
+    && one("strategies-for-verification-activity@1", {activity: activity}) == strategy
+    && select("requirements-for-pilot-activity@1", {activity: activity})
+      == select("phase-1-requirements-governed-by-strategy@1", {strategy: strategy})
+    && select("pilot-intent-support-for-activity@1", {activity: activity})
+      == select("pilot-intent-support-for-strategy@1", {strategy: strategy})
+  distinct: true
+  order_by: [identity.id, identity.revision]

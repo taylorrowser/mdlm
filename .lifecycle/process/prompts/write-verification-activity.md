@@ -12,12 +12,13 @@ Read, in order:
 2. `skills/verification-writing.md@1`
 3. `skills/verification-independence.md@1`
 
-Write from the exact requirement, strategy, and accepted parent intent support,
+Write one pilot from the exact governed requirement set, strategy, and accepted parent intent support,
 not product source, unit tests, or private implementation notes. Use the parent
-intent only to resolve terms that the requirement leaves relative, such as the
+intent only to resolve terms that the requirements leave relative, such as the
 supported argument count, accepted units, or closed value set. Do not add behavior
-that the requirement and its parent intent do not state. Link `derived-from` to
-that exact supplied PSP Revision so later Review uses the same accepted intent.
+that the requirements and their parent intent do not state. Link `verifies` and
+`verifies-revision` to every supplied STK identity. Link `derived-from` to the
+supplied PSP Revision so later Review uses the same accepted intent.
 
 Supply every required VER payload field: `title`, `rationale`, `kind`, `method`,
 `assessment_mode`, `claim`, `acceptance_criteria`, `evidence_requirements`,
@@ -29,7 +30,7 @@ Define one activity expected to succeed for a declared supported behavior and on
 expected to expose intentionally unsupported or incorrect behavior. Make both
 activities concrete enough to execute from the supplied definitions. The activity
 evaluates whether the verification design is executable and discriminating; it
-does not accept or broaden the requirement.
+does not accept or broaden any requirement.
 
 Before proposing authored Lifecycle Data, apply the bounded ephemeral
 `skills/author-preflight.md@2` contract.

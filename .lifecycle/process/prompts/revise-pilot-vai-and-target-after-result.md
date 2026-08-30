@@ -13,4 +13,6 @@ Preserve every accepted RUN and RES. Create one same-lineage ART Revision that
 cites every supplied unfavorable result and preserves the exact supported and
 unsupported behavior. Create one same-lineage VAI Revision that targets that
 replacement ART, keeps the exact reviewed VER and ENV, and cites the same
-results. Do not execute the prior VAI again or change unrelated lifecycle data.
+results. Preserve the ART's stable and exact trace links to every supplied
+requirement Revision. Do not execute the prior VAI again or change unrelated
+lifecycle data.

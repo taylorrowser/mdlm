@@ -1,11 +1,11 @@
 kind: selector-definition
 id: valid-pilot-vai-target-reconciliations
 version: 1
-description: The exact same-lineage ART replacement preserving one failed pilot VAI's requirement and behavior scope.
+description: The exact same-lineage ART replacement preserving one failed pilot VAI's complete requirement set and behavior scope.
 parameters:
   - {name: implementation, kind: revision, types: [VAI]}
   - {name: target, kind: revision, types: [ART]}
-  - {name: requirement, kind: revision, types: [STK]}
+  - {name: activity, kind: revision, types: [VER]}
   - {name: replacement, kind: revision, types: [ART]}
 result_kind: revision
 query:
@@ -18,9 +18,7 @@ query:
     && candidate.payload.kind == target.payload.kind
     && candidate.payload.supported_behavior == target.payload.supported_behavior
     && candidate.payload.unsupported_behavior == target.payload.unsupported_behavior
-    && count("current-pilot-targets-for-requirement@1",
-      {requirement: requirement}) == 1
-    && one("current-pilot-targets-for-requirement@1",
-      {requirement: requirement}) == candidate
+    && count("current-pilot-targets-for-activity@1", {activity: activity}) == 1
+    && one("current-pilot-targets-for-activity@1", {activity: activity}) == candidate
   distinct: true
   order_by: [identity.revision]

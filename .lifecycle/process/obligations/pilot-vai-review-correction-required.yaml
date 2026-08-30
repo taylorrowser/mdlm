@@ -20,8 +20,8 @@ resolve_with:
     activity: 'one("verification-activities-for-implementation@1", {implementation: implementation})'
     environment: 'one("environments-for-implementation@1", {implementation: implementation})'
     execution_target: 'one("execution-targets-for-implementation@1", {implementation: implementation})'
-    requirement: >-
-      one("requirements-for-pilot-activity@1",
+    requirements: >-
+      select("requirements-for-pilot-activity@1",
         {activity: one("verification-activities-for-implementation@1",
           {implementation: implementation})})
     strategy: >-
