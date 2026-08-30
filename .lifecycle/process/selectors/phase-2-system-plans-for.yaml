@@ -1,0 +1,13 @@
+kind: selector-definition
+id: phase-2-system-plans-for
+version: 1
+description: Exact decomposition plan bounded by one Phase 2 system requirement Revision.
+parameters:
+  - {name: requirement, kind: revision, types: [SYS]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: requirement, link: decomposes, emit: target, types: [DWP]}
+  as: plan
+  where: 'true'
+  distinct: true
+  order_by: [identity.revision_id]

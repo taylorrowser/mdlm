@@ -1,0 +1,15 @@
+kind: selector-definition
+id: phase-2-correctable-interfaces
+version: 1
+description: Current Phase 2 interface Revisions carrying unresolved primary or collateral Review causes.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [ICSP]}
+  as: subject
+  where: >-
+    state(subject, "disposition") == "active"
+    && none("newer-revisions-for@1", {subject: subject})
+    && exists("phase-2-correction-reviews-for-subject@1", {subject: subject, view: "local"})
+  distinct: true
+  order_by: [identity.id, identity.revision]

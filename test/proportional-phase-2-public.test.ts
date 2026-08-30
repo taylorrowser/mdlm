@@ -7,6 +7,8 @@ import { canonicalProcessPackage } from "./helpers/canonical-process-package-fix
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 import { runPhaseTwoAssuranceReviewRoute } from
   "./helpers/proportional-phase-2-routes.js";
+import { runPhaseTwoReviewCorrectionRendering } from
+  "./phase-2-review-correction-rendering.test.js";
 
 const processRef = "mdlm-bootstrap@0.74.0#coherent-phase-2-readiness";
 
@@ -158,4 +160,10 @@ it(
   "keeps shared assurance Review work in Phase 2 after public submit",
   runPhaseTwoAssuranceReviewRoute,
   120_000,
+);
+
+it(
+  "prepares four exact Phase 2 correction scaffolds and submits ASP",
+  runPhaseTwoReviewCorrectionRendering,
+  30_000,
 );
