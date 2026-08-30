@@ -1,7 +1,7 @@
 kind: selector-definition
 id: current-pilot-verification-activities
 version: 1
-description: Current valid pilot activities tied to exactly one current Phase 1 requirement Revision and its exact applicable strategy.
+description: Current valid pilot activities tied to exactly one requirement Revision at the active assurance level and its exact applicable strategy.
 parameters: []
 result_kind: revision
 query:
@@ -13,6 +13,14 @@ query:
     && state(activity, "validity") == "valid"
     && none("newer-revisions-for@1", {subject: activity})
     && count("requirements-for-pilot-activity@1", {activity: activity}) == 1
+    && (
+      (phase.id == "phase-1-product-assurance"
+        && exists("stakeholder-requirements-for-pilot-activity@1",
+          {activity: activity}))
+      || (phase.id == "phase-2-system-definition"
+        && none("stakeholder-requirements-for-pilot-activity@1",
+          {activity: activity}))
+    )
     && exists("pilot-activity-matches-requirement@1",
       {activity: activity,
        requirement: one("requirements-for-pilot-activity@1", {activity: activity})})

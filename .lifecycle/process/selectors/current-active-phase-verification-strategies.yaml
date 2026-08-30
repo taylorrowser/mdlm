@@ -8,9 +8,14 @@ query:
   from: {collection: revisions, types: [VSP]}
   as: strategy
   where: >-
-    (phase.id == "phase-1-product-assurance"
-      && !every("current-phase-1-verification-strategies@1", {}, candidate => candidate != strategy))
-    || (phase.id == "phase-2-system-definition"
-      && !every("current-phase-2-verification-strategies@1", {}, candidate => candidate != strategy))
+    state(strategy, "disposition") == "active"
+    && state(strategy, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: strategy})
+    && (
+      (phase.id == "phase-1-product-assurance"
+        && strategy.payload.level == "stakeholder")
+      || (phase.id == "phase-2-system-definition"
+        && strategy.payload.level == "system")
+    )
   distinct: true
   order_by: [identity.id, identity.revision]
