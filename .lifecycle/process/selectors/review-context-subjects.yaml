@@ -1,0 +1,20 @@
+kind: selector-definition
+id: review-context-subjects
+version: 1
+description: Review-required Revisions plus Phase 3 planning DWPs that need a frozen preparatory context without a Review.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [MAP, PSP, STK, SYS, CMP, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS]}
+  as: subject
+  where: >-
+    !every("review-required-revisions@1", {}, required => required != subject)
+    || (phase.id == "phase-3-component-definition"
+      && subject.identity.type == "DWP"
+      && subject.payload.stage == "planning"
+      && subject.payload.target_child_type == "CMP"
+      && state(subject, "disposition") == "active"
+      && state(subject, "validity") == "valid"
+      && none("newer-revisions-for@1", {subject: subject}))
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

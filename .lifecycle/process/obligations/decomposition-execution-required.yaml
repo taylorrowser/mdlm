@@ -67,7 +67,7 @@ resolve_with:
   scenario: execute-decomposition-work-package@2
   inputs:
     plan: plan
-    parents: 'select("decomposition-parents-for@1", {plan: plan})'
+    parents: 'select("stakeholder-decomposition-parents-for@1", {plan: plan})'
     architecture: 'one("architectures-for-decomposition@1", {plan: plan})'
     interfaces: 'select("interfaces-for-decomposition@1", {plan: plan})'
 waiver_policy_ref: waiver-applicability@1

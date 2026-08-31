@@ -11,7 +11,7 @@ query:
     state(architecture, "disposition") == "active"
     && state(architecture, "validity") == "valid"
     && none("newer-revisions-for@1", {subject: architecture})
-    && exists("accepted-requirements-for-architecture@1",
+    && exists("decomposition-parents-for-architecture@1",
       {architecture: architecture})
   distinct: true
   order_by: [identity.id, identity.revision]

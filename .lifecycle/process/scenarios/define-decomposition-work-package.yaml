@@ -1,10 +1,10 @@
 kind: scenario-definition
 id: define-decomposition-work-package
-version: 3
-description: Plan the smallest justified set of cohesive many-to-many change-and-verification slices for the exact accepted requirements governed by one architecture context.
-phases: [phase-2-system-definition]
+version: 4
+description: Plan the smallest justified decomposition from exact accepted parents to the active phase's child requirement type.
+phases: [phase-2-system-definition, phase-3-component-definition]
 inputs:
-  - {name: parents, types: [STK], cardinality: one-or-more, identity: revision}
+  - {name: parents, types: [STK, SYS], cardinality: one-or-more, identity: revision}
   - {name: architecture, types: [ASP], cardinality: one, identity: revision}
   - {name: interfaces, types: [ICSP], cardinality: zero-or-more, identity: revision}
   - {name: verification_strategy, types: [VSP], cardinality: one, identity: revision}
@@ -19,7 +19,7 @@ outputs:
       - {link: governed-by, target: {input: interfaces}}
       - {link: verified-under, target: {input: verification_strategy}}
   - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
-prompt_ref: prompts/define-decomposition-work-package.md@2
+prompt_ref: prompts/define-decomposition-work-package.md@3
 review_policy_ref: review-applicability@1
 completion: 'execution.integrity.contract_valid == true'
 resolves: [decomposition-planning-required]

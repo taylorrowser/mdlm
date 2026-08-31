@@ -23,8 +23,8 @@ resolve_with:
   inputs:
     completion: completion
     plan: 'one("planning-revisions-for-completion@1", {completion: completion})'
-    parents: 'select("component-parents-for-plan@1", {plan: one("planning-revisions-for-completion@1", {completion: completion})})'
-    outputs: 'select("component-outputs-for-plan@1", {plan: one("planning-revisions-for-completion@1", {completion: completion})})'
+    parents: 'select("system-decomposition-parents-for@1", {plan: one("planning-revisions-for-completion@1", {completion: completion})})'
+    outputs: 'select("component-decomposition-outputs-for@1", {plan: one("planning-revisions-for-completion@1", {completion: completion})})'
     architecture: 'one("architectures-for-decomposition@1", {plan: one("planning-revisions-for-completion@1", {completion: completion})})'
     interfaces: 'select("interfaces-for-decomposition@1", {plan: one("planning-revisions-for-completion@1", {completion: completion})})'
     verification_strategy: 'one("strategies-for-decomposition@1", {plan: one("planning-revisions-for-completion@1", {completion: completion})})'

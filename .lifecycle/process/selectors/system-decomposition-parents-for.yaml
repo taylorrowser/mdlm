@@ -1,7 +1,7 @@
 kind: selector-definition
-id: component-parents-for-plan
+id: system-decomposition-parents-for
 version: 1
-description: Exact system parent Revisions bounded by one CMP-target DWP plan.
+description: Exact SYS parents for a CMP-target decomposition, as a typed adapter over the shared parent relation.
 parameters:
   - {name: plan, kind: revision, types: [DWP]}
 result_kind: revision

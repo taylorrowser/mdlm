@@ -24,7 +24,7 @@ resolve_with:
   inputs:
     subject: subject
     reviews: 'select("phase-2-correction-reviews-for-subject@1", {subject: subject, view: "local"})'
-    parents: 'select("system-output-parents-for@1", {output: subject})'
+    parents: 'select("stakeholder-decomposition-output-parents-for@1", {output: subject})'
     plans: 'first("phase-2-system-plans-for@1", {requirement: subject})'
     architectures: 'first("phase-2-system-architectures-for@1", {requirement: subject})'
     interfaces: 'select("phase-2-system-interfaces-for@1", {requirement: subject})'

@@ -1,8 +1,8 @@
 kind: obligation-definition
 id: decomposition-completion-required
-version: 1
-description: Every reviewed and simplified DWP plan requires a completion Revision in the same Stable Datum lineage.
-phases: [phase-2-system-definition]
+version: 2
+description: Every current DWP plan requires a same-lineage completion after the evidence required for its child type exists.
+phases: [phase-2-system-definition, phase-3-component-definition]
 for_each: 'select("decomposition-plans@1", {})'
 subject_as: plan
 satisfied_when: 'exists("decomposition-completions-for@1", {plan: plan})'
@@ -19,10 +19,11 @@ status_rules:
   - status: blocked
     priority: 200
     when: >-
-      none("decomposition-outputs-for@1", {plan: plan})
-      || exists("unreviewed-decomposition-outputs-for@1", {plan: plan})
-      || none("architecture-simplification-reviews-for@1", {plan: plan})
-    reason: Exact outputs, output Reviews, and the late semantic simplification Review must complete first.
+      plan.payload.target_child_type == "SYS"
+      && (none("decomposition-outputs-for@1", {plan: plan})
+        || exists("unreviewed-decomposition-outputs-for@1", {plan: plan})
+        || none("architecture-simplification-reviews-for@1", {plan: plan}))
+    reason: Exact SYS outputs, output Reviews, and the late semantic simplification Review must complete first.
     blocked_by:
       - obligation: decomposition-output-reviews-required@1
         subjects: '[plan]'
@@ -31,14 +32,18 @@ status_rules:
   - status: ready
     priority: 100
     when: >-
-      exists("decomposition-outputs-for@1", {plan: plan})
-      && none("unreviewed-decomposition-outputs-for@1", {plan: plan})
-      && exists("architecture-simplification-reviews-for@1", {plan: plan})
+      ((plan.payload.target_child_type == "SYS"
+          && exists("decomposition-outputs-for@1", {plan: plan})
+          && none("unreviewed-decomposition-outputs-for@1", {plan: plan})
+          && exists("architecture-simplification-reviews-for@1", {plan: plan}))
+        || (plan.payload.target_child_type == "CMP"
+          && exists("decomposition-outputs-for@1", {plan: plan})
+          && exists("valid-review-contexts-for@1", {subject: plan})))
       && none("blocking-questions-for-decomposition@1", {plan: plan})
-    reason: Coverage evidence can now be recorded in the exact DWP completion Revision.
+    reason: Exact outputs and the child-type-specific evidence are ready for the same-lineage DWP completion.
 default_status: blocked
 resolve_with:
-  scenario: complete-decomposition-work-package@2
+  scenario: complete-decomposition-work-package@3
   inputs:
     plan: plan
     parents: 'select("decomposition-parents-for@1", {plan: plan})'

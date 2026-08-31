@@ -1,0 +1,16 @@
+kind: selector-definition
+id: matching-decomposition-output-parent
+version: 1
+description: The supplied exact STK or SYS parent Revision when one matching decomposition output canonically derives from it.
+parameters:
+  - {name: output, kind: revision, types: [SYS, CMP]}
+  - {name: parent, kind: revision, types: [STK, SYS]}
+result_kind: revision
+query:
+  from:
+    selector: decomposition-output-parents-for@1
+    arguments: {output: output}
+  as: linked
+  where: 'linked.identity.revision_id == parent.identity.revision_id'
+  distinct: true
+  order_by: [identity.revision_id]

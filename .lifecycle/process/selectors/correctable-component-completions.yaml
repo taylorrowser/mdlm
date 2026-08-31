@@ -6,7 +6,7 @@ parameters: []
 result_kind: revision
 query:
   from:
-    selector: current-component-decomposition-completions@1
+    selector: current-decomposition-completions@1
     arguments: {}
   as: completion
   where: >-

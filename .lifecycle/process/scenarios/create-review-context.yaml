@@ -39,6 +39,6 @@ completion: >-
       {subject: subject, context: context, required_support: member}))
   && context.storage.frozen == true
   && exists("valid-review-contexts-for@1", {subject: subject})
-resolves: [review-context-required, component-decomposition-plan-context-required]
+resolves: [review-context-required]
 prohibited_inputs: [mutable latest aliases, generated indexes as lifecycle truth]
 batching: either

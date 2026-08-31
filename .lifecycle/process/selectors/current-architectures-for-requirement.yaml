@@ -1,15 +1,17 @@
 kind: selector-definition
 id: current-architectures-for-requirement
 version: 1
-description: Current valid architecture Revisions governing one exact accepted requirement Revision.
+description: Current valid architecture Revisions governing one exact accepted STK or SYS Revision at the matching level.
 parameters:
-  - {name: requirement, kind: revision, types: [STK]}
+  - {name: requirement, kind: revision, types: [STK, SYS]}
 result_kind: revision
 query:
   from: {relation: incoming-links, of: requirement, link: governs, emit: source, types: [ASP]}
   as: architecture
   where: >-
-    state(architecture, "disposition") == "active"
+    ((requirement.identity.type == "STK" && architecture.payload.level == "system")
+      || (requirement.identity.type == "SYS" && architecture.payload.level == "component"))
+    && state(architecture, "disposition") == "active"
     && state(architecture, "validity") == "valid"
     && none("newer-revisions-for@1", {subject: architecture})
   distinct: true

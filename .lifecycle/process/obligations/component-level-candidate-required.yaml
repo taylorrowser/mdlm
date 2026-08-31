@@ -3,7 +3,7 @@ id: component-level-candidate-required
 version: 1
 description: Every coherently reviewed component DWP completion requires one direct level candidate.
 phases: [phase-3-component-definition]
-for_each: 'select("current-component-decomposition-completions@1", {})'
+for_each: 'select("current-decomposition-completions@1", {})'
 subject_as: completion
 satisfied_when: 'exists("complete-component-level-candidates-for-completion@1", {completion: completion})'
 status_rules:

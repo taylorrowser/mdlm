@@ -15,7 +15,7 @@ status_rules:
     when: 'none("decomposition-completions-for@1", {plan: plan})'
     reason: Parent coverage is recorded by the exact DWP completion Revision.
     blocked_by:
-      - obligation: decomposition-completion-required@1
+      - obligation: decomposition-completion-required@2
         subjects: '[plan]'
   - status: ready
     priority: 100
@@ -25,7 +25,7 @@ status_rules:
     reason: Coverage gaps require another exact completion Revision or an explicit disposition.
 default_status: blocked
 resolve_with:
-  scenario: complete-decomposition-work-package@2
+  scenario: complete-decomposition-work-package@3
   inputs:
     plan: plan
     parents: 'select("decomposition-parents-for@1", {plan: plan})'

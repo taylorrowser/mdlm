@@ -12,7 +12,7 @@ query:
     member == completion
     || !every("planning-revisions-for-completion@1", {completion: completion}, plan =>
       member != plan
-      && every("component-outputs-for-plan@1", {plan: plan}, output => output != member)
+      && every("decomposition-outputs-for@1", {plan: plan}, output => output != member)
       && every("architectures-for-decomposition@1", {plan: plan}, architecture => architecture != member)
       && every("interfaces-for-decomposition@1", {plan: plan}, interface => interface != member)
       && every("strategies-for-decomposition@1", {plan: plan}, strategy => strategy != member))
