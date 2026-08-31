@@ -538,7 +538,7 @@ it("runs the accepted-SYS Phase 3 slice through a reviewed gate", async () => {
 
     const planPacket = nextPacket(
       repository,
-      "define-component-decomposition-work-package@1",
+      "define-decomposition-work-package@4",
     );
     const planResult = submit(repository, planPacket, [{
       output: "plan",
@@ -622,7 +622,7 @@ it("runs the accepted-SYS Phase 3 slice through a reviewed gate", async () => {
 
     const completionPacket = nextPacket(
       repository,
-      "complete-component-decomposition-work-package@1",
+      "complete-decomposition-work-package@3",
     );
     expect(inputRevisions(completionPacket, "outputs")).toEqual([
       classifier,

@@ -901,7 +901,7 @@ describe("loadProcessPackage", () => {
     const obligation = await fs.readFile(obligationPath, "utf8");
     await fs.writeFile(
       obligationPath,
-      obligation.replace("review-required-revisions@1", "missing-selector@1"),
+      obligation.replace("review-context-subjects@1", "missing-selector@1"),
     );
 
     const result = await loadProcessPackage(processRoot);

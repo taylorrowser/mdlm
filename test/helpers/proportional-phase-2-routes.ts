@@ -1001,7 +1001,7 @@ export async function reconstructZeroInterfacePhaseTwoRouteForCapture(): Promise
 
     const planPacket = prepareScenarioAfterReviews(
       repository,
-      "define-decomposition-work-package@3",
+      "define-decomposition-work-package@4",
     );
     expect(exactInputs(planPacket, "interfaces")).toEqual([]);
     const planExecution = submit(repository, planPacket, [

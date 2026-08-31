@@ -390,7 +390,7 @@ describe("bootstrap Scenario participation Policies", () => {
           { type: "governed-by", target: interfaceSpec.datum.revision_id },
           { type: "verified-under", target: strategy.datum.revision_id },
         ],
-        scenario: "define-decomposition-work-package@3",
+        scenario: "define-decomposition-work-package@4",
       },
     );
     const snapshot = (extra: LifecycleRecord[]) =>
@@ -824,7 +824,7 @@ describe("bootstrap Scenario participation Policies", () => {
       expect.objectContaining({
         status: "ready",
         dispatchable: true,
-        actionableResolver: "define-decomposition-work-package@3",
+        actionableResolver: "define-decomposition-work-package@4",
       }),
     );
   });

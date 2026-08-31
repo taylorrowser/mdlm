@@ -35,8 +35,8 @@ function record(
       scenario:
         type === "DWP"
           ? revisionNumber === 1
-            ? "define-decomposition-work-package@3"
-            : "complete-decomposition-work-package@2"
+            ? "define-decomposition-work-package@4"
+            : "complete-decomposition-work-package@3"
           : "test-fixture@1",
       prompt_ref: "prompts/test-fixture.md@1",
       process_ref: "git:current",
