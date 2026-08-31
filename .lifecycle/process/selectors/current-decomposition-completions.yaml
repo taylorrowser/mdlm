@@ -1,7 +1,7 @@
 kind: selector-definition
 id: current-decomposition-completions
 version: 1
-description: Current valid DWP completion Revisions ready for candidate evaluation.
+description: Current valid DWP completion Revisions for the active phase's declared child type.
 parameters: []
 result_kind: revision
 query:
@@ -9,6 +9,8 @@ query:
   as: completion
   where: >-
     completion.payload.stage == "completion"
+    && ((phase.id == "phase-2-system-definition" && completion.payload.target_child_type == "SYS")
+      || (phase.id == "phase-3-component-definition" && completion.payload.target_child_type == "CMP"))
     && state(completion, "disposition") == "active"
     && state(completion, "validity") == "valid"
     && none("newer-revisions-for@1", {subject: completion})

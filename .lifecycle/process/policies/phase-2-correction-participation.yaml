@@ -1,7 +1,7 @@
 kind: policy-definition
 id: phase-2-correction-participation
 version: 1
-description: Keep two exact Phase 2 Review-correction cycles autonomous, then require immediate stakeholder escalation through the same Correction interface.
+description: Keep two exact definition Review-correction cycles autonomous, then require immediate stakeholder escalation through the same Correction interface.
 parameters:
   - {name: subject, kind: revision, types: [SYS, ASP, ICSP, DWP, BSL]}
 result_schema:

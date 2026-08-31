@@ -1,0 +1,13 @@
+kind: selector-definition
+id: component-decomposition-outputs-for
+version: 1
+description: Current exact CMP outputs for a CMP-target DWP, as a typed adapter over the shared output relation.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: plan, link: decomposes, emit: source, types: [CMP]}
+  as: output
+  where: 'plan.payload.target_child_type == "CMP" && none("newer-revisions-for@1", {subject: output})'
+  distinct: true
+  order_by: [identity.revision_id]

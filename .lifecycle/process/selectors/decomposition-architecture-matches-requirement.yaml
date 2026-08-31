@@ -4,7 +4,7 @@ version: 1
 description: Current architecture for a requirement only when the DWP canonically links its exact Revision.
 parameters:
   - {name: plan, kind: revision, types: [DWP]}
-  - {name: requirement, kind: revision, types: [STK]}
+  - {name: requirement, kind: revision, types: [STK, SYS]}
 result_kind: revision
 query:
   from:

@@ -1,6 +1,6 @@
 ---
 id: define-decomposition-work-package
-version: 2
+version: 3
 scenario: define-decomposition-work-package
 ---
 
@@ -18,7 +18,8 @@ Read, in order:
 8. `skills/author-preflight.md@2`
 
 Prefer one bounded cohesive many-to-many change-and-verification slice covering
-all exact supplied parents governed by the architecture. Produce a small set only
+all exact supplied parents governed by the architecture. A stakeholder parent
+decomposes to SYS, while a system parent decomposes to CMP. Produce a small set only
 for distinct responsibility, boundary, risk, or verification need, never merely
 for parent count. Every output must cover at least one supplied parent and every
 supplied parent must be covered by at least one output.

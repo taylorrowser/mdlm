@@ -1,0 +1,24 @@
+kind: scenario-definition
+id: define-component-verification-strategy
+version: 1
+description: Define one component-level black-box verification strategy for one exact accepted SYS slice.
+phases: [phase-3-component-definition]
+inputs:
+  - {name: requirements, types: [SYS], cardinality: one-or-more, identity: revision}
+  - {name: stable_requirements, types: [SYS], cardinality: one-or-more, identity: stable}
+outputs:
+  - name: strategy
+    types: [VSP]
+    cardinality: one
+    required_links:
+      - {link: governs, target: {input: stable_requirements}, distribution: cover}
+      - {link: governs-revision, target: {input: requirements}, distribution: cover}
+prompt_ref: prompts/define-component-verification-strategy.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && strategy.payload.level == "component"
+  && strategy.payload.independence.boundary == "black-box"
+resolves: [component-verification-strategy-required]
+prohibited_inputs: [product source code, product unit tests, unstated environment capabilities]
+batching: coherent-batch

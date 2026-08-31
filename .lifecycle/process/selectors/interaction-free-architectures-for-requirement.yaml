@@ -3,7 +3,7 @@ id: interaction-free-architectures-for-requirement
 version: 1
 description: Current exact architecture for a requirement that declares no interaction requiring an interface contract.
 parameters:
-  - {name: requirement, kind: revision, types: [STK]}
+  - {name: requirement, kind: revision, types: [STK, SYS]}
 result_kind: revision
 query:
   from:

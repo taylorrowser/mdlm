@@ -3,7 +3,7 @@ id: interacting-architectures-for-requirement
 version: 1
 description: Current exact architecture for a requirement that declares at least one interaction requiring interface definition.
 parameters:
-  - {name: requirement, kind: revision, types: [STK]}
+  - {name: requirement, kind: revision, types: [STK, SYS]}
 result_kind: revision
 query:
   from:

@@ -12,7 +12,7 @@ payload_schema:
   type: object
   required: [level, permitted_methods, independence, evidence_policy, assessment_policy, environment_profile]
   properties:
-    level: {enum: [stakeholder, system]}
+    level: {enum: [stakeholder, system, component]}
     permitted_methods:
       type: array
       minItems: 1

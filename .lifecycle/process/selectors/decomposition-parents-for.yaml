@@ -1,12 +1,15 @@
 kind: selector-definition
 id: decomposition-parents-for
 version: 1
-description: Exact stakeholder parent revisions bounded by one DWP plan.
+description: Exact STK or SYS parent Revisions bounded by one DWP plan and matching its declared child type.
 parameters:
   - {name: plan, kind: revision, types: [DWP]}
 result_kind: revision
 query:
-  from: {relation: outgoing-links, of: plan, link: decomposes, emit: target, types: [STK]}
+  from: {relation: outgoing-links, of: plan, link: decomposes, emit: target, types: [STK, SYS]}
   as: parent
+  where: >-
+    (plan.payload.target_child_type == "SYS" && parent.identity.type == "STK")
+    || (plan.payload.target_child_type == "CMP" && parent.identity.type == "SYS")
   distinct: true
   order_by: [identity.revision_id]

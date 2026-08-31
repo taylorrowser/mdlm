@@ -1,0 +1,22 @@
+kind: selector-definition
+id: structural-component-definition-reviews-for-completion
+version: 1
+description: Structurally passing coherent-set Reviews for candidate Review Context assembly without validity recursion.
+parameters:
+  - {name: completion, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: completion, link: reviews, emit: source, types: [REV]}
+  as: review
+  where: >-
+    completion.payload.target_child_type == "CMP"
+    && review.provenance.scenario == "review-datum-in-context@3"
+    && review.payload.outcome == "pass"
+    && count("structural-review-contexts-cited-by@1", {review: review}) == 1
+    && every("structural-review-contexts-cited-by@1", {review: review}, context =>
+      context.payload.scope == completion.identity.revision_id
+      && context.provenance.process_ref == process.current_ref
+      && context.provenance.scenario == "create-review-context@2")
+    && none("newer-revisions-for@1", {subject: review})
+  distinct: true
+  order_by: [identity.revision_id]

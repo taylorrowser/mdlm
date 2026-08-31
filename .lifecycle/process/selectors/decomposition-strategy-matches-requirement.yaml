@@ -4,11 +4,11 @@ version: 1
 description: Current strategy for a requirement only when the DWP canonically links its exact Revision.
 parameters:
   - {name: plan, kind: revision, types: [DWP]}
-  - {name: requirement, kind: revision, types: [STK]}
+  - {name: requirement, kind: revision, types: [STK, SYS]}
 result_kind: revision
 query:
   from:
-    selector: current-strategies-for-phase-2-requirement@1
+    selector: current-strategies-for-decomposition-requirement@1
     arguments: {requirement: requirement}
   as: strategy
   where: 'exists("matching-decomposition-strategy@1", {plan: plan, strategy: strategy})'

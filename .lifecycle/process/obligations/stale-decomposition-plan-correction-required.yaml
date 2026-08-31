@@ -52,7 +52,7 @@ resolve_with:
   scenario: replan-stale-decomposition-work-package@1
   inputs:
     prior_plan: 'plan'
-    parents: 'select("decomposition-parents-for@1", {plan: plan})'
+    parents: 'select("stakeholder-decomposition-parents-for@1", {plan: plan})'
     retained_requirements: 'select("retained-system-requirements-for-stale-plan@1", {plan: plan})'
     subjects: 'select("phase-2-decomposition-subjects-for@1", {plan: plan})'
     architecture: 'one("replacement-architectures-for-stale-plan@1", {plan: plan})'

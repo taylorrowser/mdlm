@@ -2,7 +2,7 @@ kind: scenario-definition
 id: revise-gate-signoff-after-review
 version: 2
 description: Replace one failed gate sign-off Decision under fresh stakeholder authority without changing its exact candidate scope.
-phases: [phase-0-wayfinding, phase-2-system-definition]
+phases: [phase-0-wayfinding, phase-2-system-definition, phase-3-component-definition]
 inputs:
   - {name: decision, types: [DEC], cardinality: one, identity: revision}
   - {name: candidate, types: [BSL], cardinality: one, identity: revision}

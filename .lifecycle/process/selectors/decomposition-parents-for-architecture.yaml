@@ -1,0 +1,17 @@
+kind: selector-definition
+id: decomposition-parents-for-architecture
+version: 1
+description: Exact accepted STK or SYS decomposition parents governed by one architecture Revision.
+parameters:
+  - {name: architecture, kind: revision, types: [ASP]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: architecture, link: governs, emit: target, types: [STK, SYS]}
+  as: requirement
+  where: >-
+    (requirement.identity.type == "STK"
+      && exists("matching-phase-2-entry-requirement@1", {requirement: requirement}))
+    || (requirement.identity.type == "SYS"
+      && !every("phase-3-entry-requirements@1", {}, entry => entry != requirement))
+  distinct: true
+  order_by: [identity.revision_id]

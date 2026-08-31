@@ -1,7 +1,7 @@
 kind: selector-definition
-id: system-output-parents-for
+id: stakeholder-decomposition-output-parents-for
 version: 1
-description: Exact stakeholder parent Revisions from which one SYS output is canonically derived.
+description: Exact STK parents from which one SYS decomposition output derives.
 parameters:
   - {name: output, kind: revision, types: [SYS]}
 result_kind: revision

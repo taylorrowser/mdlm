@@ -11,7 +11,7 @@ query:
   as: requirement
   where: >-
     count("current-architectures-for-requirement@1", {requirement: requirement}) == 1
-    && requirement == first("accepted-requirements-for-architecture@1",
+    && requirement == first("decomposition-parents-for-architecture@1",
       {architecture: one("current-architectures-for-requirement@1", {requirement: requirement})})
   distinct: true
   order_by: [identity.revision_id]

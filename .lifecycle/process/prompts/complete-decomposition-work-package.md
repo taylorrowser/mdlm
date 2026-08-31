@@ -1,6 +1,6 @@
 ---
 id: complete-decomposition-work-package
-version: 1
+version: 2
 scenario: complete-decomposition-work-package
 ---
 
@@ -14,11 +14,11 @@ Read, in order:
 4. `skills/traceability.md@1`
 
 Create the next exact Revision in the planning DWP lineage. Account for every
-supplied parent through at least one supplied reviewed SYS Revision, record
-deferred questions and cross-group dependencies, and retain every supplied
+supplied parent through at least one supplied child Revision. For SYS output,
+record deferred questions and cross-group dependencies and retain every supplied
 simplification Review. The source-owned `decomposes`, `produces`, `allocated-to`,
 `governed-by`, `verified-under`, `derived-from`, and `justifies` links—and each
-SYS `derived-from` link—are the sole canonical exact account. Do not duplicate
+child `derived-from` link—are the sole canonical exact account. Do not duplicate
 those identities in payload fields or claim completion while any blocker,
 coverage gap, or required Review remains unresolved. Waived or terminated
 coverage requires a separately implemented exact authority route and is not a

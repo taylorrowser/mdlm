@@ -3,7 +3,7 @@ id: current-decomposition-plans-for-requirement
 version: 1
 description: Current DWP planning Revisions whose exact payload and links bind the package-selected requirement, architecture, interfaces, and strategy.
 parameters:
-  - {name: requirement, kind: revision, types: [STK]}
+  - {name: requirement, kind: revision, types: [STK, SYS]}
 result_kind: revision
 query:
   from: {relation: incoming-links, of: requirement, link: decomposes, emit: source, types: [DWP]}

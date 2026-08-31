@@ -17,7 +17,7 @@ kernel_materialization:
 phases: [phase-0-wayfinding]
 inputs:
   - {name: subject, types: [MAP, PSP, STK, DEC], cardinality: one, identity: revision}
-  - {name: review_context_members, types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS], cardinality: zero-or-more, identity: revision}
+  - {name: review_context_members, types: [MAP, QST, DEC, ART, PSP, STK, SYS, CMP, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS], cardinality: zero-or-more, identity: revision}
 outputs:
   - {name: review_context, handle: context, types: [BSL], cardinality: one, required_links: []}
   - name: review

@@ -1,0 +1,32 @@
+kind: obligation-definition
+id: component-definition-review-correction-required
+version: 1
+description: A failed coherent component definition Review requires one causal same-lineage DWP completion replacement and fresh Review.
+phases: [phase-3-component-definition]
+for_each: 'select("correctable-component-completions@1", {})'
+subject_as: completion
+satisfied_when: 'exists("newer-revisions-for@1", {subject: completion})'
+status_rules:
+  - status: ready
+    priority: 200
+    when: >-
+      count("review-correction-history-for@1",
+        {subject: completion, view: "autonomous-corrections"}) >= 2
+    reason: Two autonomous correction cycles are exhausted; the same replacement interface requires attended authority.
+  - status: ready
+    priority: 100
+    when: 'true'
+    reason: Preserve the failed Review and replace only its exact primary DWP completion lineage.
+default_status: ready
+resolve_with:
+  scenario: revise-component-completion-after-review@1
+  inputs:
+    completion: completion
+    plan: 'one("planning-revisions-for-completion@1", {completion: completion})'
+    parents: 'select("system-decomposition-parents-for@1", {plan: one("planning-revisions-for-completion@1", {completion: completion})})'
+    outputs: 'select("component-decomposition-outputs-for@1", {plan: one("planning-revisions-for-completion@1", {completion: completion})})'
+    architecture: 'one("architectures-for-decomposition@1", {plan: one("planning-revisions-for-completion@1", {completion: completion})})'
+    interfaces: 'select("interfaces-for-decomposition@1", {plan: one("planning-revisions-for-completion@1", {completion: completion})})'
+    verification_strategy: 'one("strategies-for-decomposition@1", {plan: one("planning-revisions-for-completion@1", {completion: completion})})'
+    failed_reviews: 'select("failing-reviews-for@1", {subject: completion})'
+waiver_policy_ref: waiver-applicability@1

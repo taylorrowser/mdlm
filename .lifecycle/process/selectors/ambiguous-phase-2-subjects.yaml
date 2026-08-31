@@ -12,16 +12,16 @@ query:
     && none("newer-revisions-for@1", {subject: subject})
     && (
       (subject.identity.type == "ASP"
-        && exists("accepted-requirements-for-architecture@1",
+        && exists("decomposition-parents-for-architecture@1",
           {architecture: subject})
-        && !every("accepted-requirements-for-architecture@1",
+        && !every("decomposition-parents-for-architecture@1",
           {architecture: subject}, requirement =>
             count("current-architectures-for-requirement@1",
               {requirement: requirement}) <= 1))
       || (subject.identity.type == "VSP"
         && exists("requirements-governed-by-strategy@1", {strategy: subject})
         && !every("requirements-governed-by-strategy@1", {strategy: subject}, requirement =>
-          count("current-strategies-for-phase-2-requirement@1",
+          count("current-strategies-for-decomposition-requirement@1",
             {requirement: requirement}) <= 1))
       || (subject.identity.type == "DWP"
         && subject.payload.stage == "planning"

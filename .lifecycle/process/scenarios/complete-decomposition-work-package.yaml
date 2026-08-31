@@ -1,16 +1,16 @@
 kind: scenario-definition
 id: complete-decomposition-work-package
-version: 2
-description: Record the next exact completion Revision for a reviewed, covered, simplified decomposition plan.
-phases: [phase-2-system-definition]
+version: 3
+description: Record the next exact completion Revision for a covered decomposition plan.
+phases: [phase-2-system-definition, phase-3-component-definition]
 inputs:
   - {name: plan, types: [DWP], cardinality: one, identity: revision}
-  - {name: parents, types: [STK], cardinality: one-or-more, identity: revision}
-  - {name: outputs, types: [SYS], cardinality: one-or-more, identity: revision}
+  - {name: parents, types: [STK, SYS], cardinality: one-or-more, identity: revision}
+  - {name: outputs, types: [SYS, CMP], cardinality: one-or-more, identity: revision}
   - {name: architecture, types: [ASP], cardinality: one, identity: revision}
   - {name: interfaces, types: [ICSP], cardinality: zero-or-more, identity: revision}
   - {name: verification_strategy, types: [VSP], cardinality: one, identity: revision}
-  - {name: simplification_reviews, types: [REV], cardinality: one-or-more, identity: revision}
+  - {name: simplification_reviews, types: [REV], cardinality: zero-or-more, identity: revision}
 outputs:
   - name: completion
     types: [DWP]
@@ -25,14 +25,16 @@ outputs:
       - {link: verified-under, target: {input: verification_strategy}}
       - {link: justifies, target: {input: simplification_reviews}}
   - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
-prompt_ref: prompts/complete-decomposition-work-package.md@1
+prompt_ref: prompts/complete-decomposition-work-package.md@2
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true
   && completion.identity.id == plan.identity.id
   && completion.payload.stage == "completion"
-  && completion.payload.parent_coverage_status == "complete"
-  && completion.payload.output_reviews_complete == true
+  && completion.payload.target_child_type == plan.payload.target_child_type
+  && (completion.payload.target_child_type != "SYS"
+    || (completion.payload.parent_coverage_status == "complete"
+      && completion.payload.output_reviews_complete == true))
   && count("decomposition-parents-for@1", {plan: completion})
     == count("decomposition-parents-for@1", {plan: plan})
   && every("decomposition-parents-for@1", {plan: plan}, parent =>
@@ -43,11 +45,12 @@ completion: >-
     == count("decomposition-outputs-for@1", {plan: plan})
   && every("completion-outputs-for@1", {completion: completion}, output =>
     exists("matching-decomposition-output@1", {plan: plan, output: output})
-    && every("system-output-parents-for@1", {output: output}, parent =>
+    && every("decomposition-output-parents-for@1", {output: output}, parent =>
       exists("matching-decomposition-parent@1", {plan: plan, parent: parent})))
-  && every("completion-simplification-evidence-for@1", {completion: completion}, review =>
-    exists("simplification-evidence-matches-plan@1",
-      {plan: plan, evidence: review}))
+  && (completion.payload.target_child_type != "SYS"
+    || every("completion-simplification-evidence-for@1", {completion: completion}, review =>
+      exists("simplification-evidence-matches-plan@1",
+        {plan: plan, evidence: review})))
   && count("architectures-for-decomposition@1", {plan: completion}) == 1
   && one("architectures-for-decomposition@1", {plan: completion}) == one("architectures-for-decomposition@1", {plan: plan})
   && count("strategies-for-decomposition@1", {plan: completion}) == 1

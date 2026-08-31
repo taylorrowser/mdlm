@@ -29,6 +29,6 @@ resolve_with:
     interfaces: 'select("interfaces-for-decomposition@1", {plan: subject})'
     verification_strategy: 'one("strategies-for-decomposition@1", {plan: subject})'
     prior_plan: 'first("planning-revisions-for-completion@1", {completion: subject})'
-    outputs: 'select("completion-outputs-for@1", {completion: subject})'
+    outputs: 'select("system-completion-outputs-for@1", {completion: subject})'
     simplification_reviews: 'select("completion-simplification-evidence-for@1", {completion: subject})'
 waiver_policy_ref: waiver-applicability@1

@@ -12,7 +12,7 @@ payload_schema:
   type: object
   required: [level, elements, internal_interactions, controlled_boundaries, constraints, nominated_risks]
   properties:
-    level: {const: system}
+    level: {enum: [system, component]}
     elements:
       type: array
       minItems: 1
@@ -53,7 +53,7 @@ outgoing_links:
   - id: governs
     description: Exact requirements and decomposition plans organized by this architecture revision.
     targets:
-      - {kind: datum, types: [STK, SYS, DWP], identity: revision}
+      - {kind: datum, types: [STK, SYS, CMP, DWP], identity: revision}
     cardinality: {minimum: 1, maximum: many}
     freeze_resolution: already-exact
     inverse_label: governed-by

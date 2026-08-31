@@ -45,6 +45,7 @@ const classification = Object.freeze({
   "test/load-process-package.test.ts": [CANONICAL_IN_PROCESS_KIND, "temporary Process Package copies and in-process graph/schema compilation"],
   "test/mdlm-assignment.test.ts": [PROCESS_REPOSITORY_KIND, "repository, compiled CLI, Git, lease lock, and publication lock"],
   "test/proportional-distinct-context-phase-2-public.test.ts": [PROCESS_REPOSITORY_KIND, "captured repository, Git, compiled CLI, and public assignment route"],
+  "test/phase-3-component-definition-public.test.ts": [PROCESS_REPOSITORY_KIND, "temporary Process Package, compiled CLI, Git, and public Phase 3 route"],
   "test/mdlm-lifecycle.test.ts": [PROCESS_REPOSITORY_KIND, "mixed in-process projections and repository/public command application"],
   "test/mdlm-process-migration.test.ts": [PROCESS_REPOSITORY_KIND, "compiled CLI, Git-backed repository, and Process Package migration"],
   "test/evaluate-phase.test.ts": [CANONICAL_IN_PROCESS_KIND, "in-process evaluation and temporary Process Package loading"],
@@ -166,8 +167,8 @@ function boundaryTitle(call, name) {
 export function verifyRootTestObservationPolicy(root = process.cwd()) {
   const manifestFiles = rootTestManifest.map((entry) => entry.file).sort();
   const policyFiles = rootTestObservationPolicy.map((entry) => entry.file).sort();
-  if (new Set(policyFiles).size !== 40
-    || policyFiles.length !== 40
+  if (new Set(policyFiles).size !== 41
+    || policyFiles.length !== 41
     || JSON.stringify(policyFiles) !== JSON.stringify(manifestFiles)) {
     throw new Error("Root observation policy must classify every manifest file exactly once");
   }

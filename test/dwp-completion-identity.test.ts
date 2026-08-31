@@ -99,8 +99,8 @@ it("publishes a DWP completion in the input plan lineage", async () => {
       language: "mdlm-expression@1",
     },
     {
-      scenarioReference: "complete-decomposition-work-package@2",
-      obligationInstance: "decomposition-completion-required@1:DWP-4510000001-r00001:test",
+      scenarioReference: "complete-decomposition-work-package@3",
+      obligationInstance: "decomposition-completion-required@2:DWP-4510000001-r00001:test",
       proposal: {
         outputs: [{
           name: "completion",
@@ -140,15 +140,15 @@ it("publishes a DWP completion in the input plan lineage", async () => {
         executable: true,
         sideEffectFree: true,
         definition: {
-          obligation: "decomposition-completion-required@1",
-          scenario: "complete-decomposition-work-package@2",
+          obligation: "decomposition-completion-required@2",
+          scenario: "complete-decomposition-work-package@3",
         },
         authorization: {
           mode: "dispatchable-obligation",
-          obligation: "decomposition-completion-required@1:DWP-4510000001-r00001:test",
+          obligation: "decomposition-completion-required@2:DWP-4510000001-r00001:test",
         },
         obligation: {
-          instance: "decomposition-completion-required@1:DWP-4510000001-r00001:test",
+          instance: "decomposition-completion-required@2:DWP-4510000001-r00001:test",
           subject: plan.datum.revision_id,
           status: "ready",
           dispatchable: true,

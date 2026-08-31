@@ -1,43 +1,12 @@
 kind: obligation-definition
 id: decomposition-planning-required
-version: 1
-description: Each coherent architecture requires the smallest justified set of exact many-to-many DWPs after its controlled interfaces and verification strategy are available.
-phases: [phase-2-system-definition]
-for_each: 'select("phase-2-architecture-representative-requirements@1", {})'
+version: 2
+description: Each selected STK or SYS slice requires one bounded DWP after its architecture, interface, and verification strategy are available.
+phases: [phase-2-system-definition, phase-3-component-definition]
+for_each: 'select("decomposition-representative-requirements@1", {})'
 subject_as: requirement
 satisfied_when: 'count("current-decomposition-plans-for-requirement@1", {requirement: requirement}) >= 1'
 status_rules:
-  - status: blocked
-    priority: 400
-    when: 'exists("stale-decomposition-plans-for-requirement@1", {requirement: requirement})'
-    reason: The prior exact DWP has stale Review support and must receive one same-lineage replacement rather than creating a copied planning lineage.
-    blocked_by:
-      - obligation: stale-decomposition-plan-correction-required@1
-        subjects: 'select("stale-decomposition-plans-for-requirement@1", {requirement: requirement})'
-  - status: blocked
-    priority: 300
-    when: 'count("current-architectures-for-requirement@1", {requirement: requirement}) != 1'
-    reason: DWP planning requires one unambiguous exact architecture Revision.
-    blocked_by:
-      - obligation: system-architecture-required@1
-        subjects: 'select("matching-phase-2-entry-requirement@1", {requirement: requirement})'
-  - status: blocked
-    priority: 250
-    when: >-
-      count("interacting-architectures-for-requirement@1", {requirement: requirement}) == 1
-      && none("current-interfaces-for-architecture@1",
-        {architecture: one("current-architectures-for-requirement@1", {requirement: requirement})})
-    reason: DWP planning requires at least one exact normative interface Revision.
-    blocked_by:
-      - obligation: interface-control-specification-required@1
-        subjects: 'select("current-architectures-for-requirement@1", {requirement: requirement})'
-  - status: blocked
-    priority: 200
-    when: 'count("current-strategies-for-phase-2-requirement@1", {requirement: requirement}) != 1'
-    reason: DWP planning requires one unambiguous exact verification strategy Revision.
-    blocked_by:
-      - obligation: verification-strategy-required@1
-        subjects: '[phase]'
   - status: ready
     priority: 100
     when: >-
@@ -45,14 +14,14 @@ status_rules:
       && (exists("interaction-free-architectures-for-requirement@1", {requirement: requirement})
         || exists("current-interfaces-for-architecture@1",
           {architecture: one("current-architectures-for-requirement@1", {requirement: requirement})}))
-      && count("current-strategies-for-phase-2-requirement@1", {requirement: requirement}) == 1
-    reason: Exact accepted parent, architecture, complete interface set, and verification context are sufficient for bounded DWP planning.
+      && count("current-strategies-for-decomposition-requirement@1", {requirement: requirement}) == 1
+    reason: Exact accepted parents, architecture, interface set, and verification strategy are ready for one bounded DWP plan.
 default_status: blocked
 resolve_with:
-  scenario: define-decomposition-work-package@3
+  scenario: define-decomposition-work-package@4
   inputs:
-    parents: 'select("accepted-requirements-for-architecture@1", {architecture: one("current-architectures-for-requirement@1", {requirement: requirement})})'
+    parents: 'select("decomposition-parents-for-architecture@1", {architecture: one("current-architectures-for-requirement@1", {requirement: requirement})})'
     architecture: 'one("current-architectures-for-requirement@1", {requirement: requirement})'
     interfaces: 'select("current-interfaces-for-architecture@1", {architecture: one("current-architectures-for-requirement@1", {requirement: requirement})})'
-    verification_strategy: 'one("current-strategies-for-phase-2-requirement@1", {requirement: requirement})'
+    verification_strategy: 'one("current-strategies-for-decomposition-requirement@1", {requirement: requirement})'
 waiver_policy_ref: waiver-applicability@1

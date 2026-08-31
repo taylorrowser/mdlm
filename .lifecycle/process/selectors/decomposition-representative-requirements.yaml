@@ -1,0 +1,16 @@
+kind: selector-definition
+id: decomposition-representative-requirements
+version: 1
+description: One deterministic accepted requirement representative for each current architecture in the active decomposition phase.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [STK, SYS]}
+  as: requirement
+  where: >-
+    ((phase.id == "phase-2-system-definition"
+        && !every("phase-2-architecture-representative-requirements@1", {}, selected => selected != requirement))
+      || (phase.id == "phase-3-component-definition"
+        && !every("phase-3-architecture-representative-requirements@1", {}, selected => selected != requirement)))
+  distinct: true
+  order_by: [identity.revision_id]

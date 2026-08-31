@@ -33,7 +33,7 @@ routing:
   tie_breakers: [subject, obligation]
 outputs: [SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, QST, DEC, ART]
 progression:
-  next_phase: phase-2-pilot-assessment
+  next_phase: phase-3-component-definition
   readiness: >-
     exists("phase-2-entry-requirements@1", {})
     && every("phase-2-entry-requirements@1", {}, requirement =>

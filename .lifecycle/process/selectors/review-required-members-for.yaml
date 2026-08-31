@@ -8,6 +8,11 @@ result_kind: revision
 query:
   from: {relation: baseline-members, of: candidate, emit: entity}
   as: member
-  where: 'policy("review-applicability@1", {subject: member}).required == true'
+  where: >-
+    policy("review-applicability@1", {subject: member}).required == true
+    && (none("phase-3-level-candidate-definition-members@1", {candidate: candidate})
+      || (member.identity.type == "DWP"
+        && member.payload.stage == "completion"
+        && member.payload.target_child_type == "CMP"))
   distinct: true
   order_by: [identity.type, identity.id, identity.revision]

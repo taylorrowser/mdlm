@@ -1,11 +1,11 @@
 kind: scenario-definition
 id: revise-phase-2-candidate-after-review
 version: 2
-description: Replace one failed or reviewed-rejected Phase 2 level candidate without discarding unaffected exact evidence.
-phases: [phase-2-system-definition]
+description: Replace one failed or reviewed-rejected level candidate without discarding unaffected exact evidence.
+phases: [phase-2-system-definition, phase-3-component-definition]
 inputs:
   - {name: candidate, types: [BSL], cardinality: one, identity: revision}
-  - {name: definition_members, types: [SYS, ASP, ICSP, DWP, VSP], cardinality: one-or-more, identity: revision}
+  - {name: definition_members, types: [SYS, CMP, ASP, ICSP, DWP, VSP], cardinality: one-or-more, identity: revision}
   - {name: evidence, types: [REV, DEC], cardinality: zero-or-more, identity: revision}
   - {name: failed_reviews, types: [REV], cardinality: zero-or-more, identity: revision}
   - {name: gate_rejections, types: [DEC], cardinality: zero-or-more, identity: revision}
@@ -13,6 +13,7 @@ outputs:
   - name: replacement
     types: [BSL]
     cardinality: one
+    identity_from: {input: candidate}
     required_links:
       - {link: supersedes, target: {input: candidate}}
       - {link: corrects-review, target: {input: failed_reviews}}

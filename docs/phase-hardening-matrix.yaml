@@ -1787,13 +1787,13 @@ rows:
           - review-context-members-for@1
           - valid-phase-2-simplification-review@1
         obligations:
-          - decomposition-planning-required@1
+          - decomposition-planning-required@2
         participation:
           mode: autonomous
           policies: []
           authority: kernel-autonomous
         resolvers:
-          - define-decomposition-work-package@3
+          - define-decomposition-work-package@4
         next:
           - assignment
         budget: "DWP plan: No correction consumed on the positive route."
@@ -2324,13 +2324,13 @@ rows:
           - applicable-gate-signoffs-for@1
           - system-acceptance-evidence-for-candidate@1
         obligations:
-          - decomposition-completion-required@1
+          - decomposition-completion-required@2
         participation:
           mode: autonomous
           policies: []
           authority: kernel-autonomous
         resolvers:
-          - complete-decomposition-work-package@2
+          - complete-decomposition-work-package@3
         next:
           - assignment
         budget: "DWP completion: Candidate correction/rejection shares two autonomous cycles before attended escalation."

@@ -1,10 +1,10 @@
 kind: selector-definition
 id: matching-decomposition-parent
 version: 1
-description: The supplied exact stakeholder parent Revision when one DWP canonically covers it.
+description: The supplied exact STK or SYS parent Revision when one DWP canonically covers it.
 parameters:
   - {name: plan, kind: revision, types: [DWP]}
-  - {name: parent, kind: revision, types: [STK]}
+  - {name: parent, kind: revision, types: [STK, SYS]}
 result_kind: revision
 query:
   from:

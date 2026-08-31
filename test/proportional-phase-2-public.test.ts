@@ -112,7 +112,7 @@ it("groups one coherent stakeholder context into one ASP and DWP readiness route
     })],
     planning: [expect.objectContaining({
       subject: first.datum.revision_id,
-      actionableResolver: "define-decomposition-work-package@3",
+      actionableResolver: "define-decomposition-work-package@4",
     })],
   });
 }, 420_000);
