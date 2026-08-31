@@ -14,7 +14,6 @@ import { runPhaseTwoSimplificationReviewBinding } from
   "./helpers/phase-2-simplification-review-binding.js";
 import {
   runPhaseTwoDefinitionConsistencySerialCorrection,
-  runPhaseTwoReviewCorrectionRendering,
 } from
   "./phase-2-review-correction-rendering.test.js";
 import { runPhaseTwoAssuranceCorrectionPublic } from
@@ -185,12 +184,6 @@ it(
 it(
   "accepts a Phase 2 simplification Review without a duplicate plan ID only in its exact context",
   runPhaseTwoSimplificationReviewBinding,
-  30_000,
-);
-
-it(
-  "prepares four exact Phase 2 correction scaffolds and submits ASP",
-  runPhaseTwoReviewCorrectionRendering,
   30_000,
 );
 
