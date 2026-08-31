@@ -967,23 +967,6 @@ async function submitScenario(
   if (proposalReferenceDiagnostics.length > 0) {
     return { ok: false, diagnostics: proposalReferenceDiagnostics };
   }
-  const proposedLifecycleData = deriveLifecycleRecordStorage(processPackage, [
-    ...snapshot.records,
-    ...outputData.map(({ datum }): LifecycleRecord =>
-      provisionalLifecycleRecord(datum)
-    ),
-  ]);
-  const datumDiagnostics = outputData.flatMap(({ datum }, index) =>
-    lifecycleDatumDiagnostics(processPackage, datum, proposedLifecycleData).map(
-      (diagnostic) => ({
-        ...diagnostic,
-        path: `proposal.outputs[${index}]${diagnostic.path ? `.${diagnostic.path}` : ""}`,
-      }),
-    )
-  );
-  if (datumDiagnostics.length > 0) {
-    return { ok: false, diagnostics: datumDiagnostics };
-  }
   const linkDiagnostics = requiredLinkDiagnostics(
     processPackage,
     scenario,
@@ -1008,6 +991,24 @@ async function submitScenario(
       output.datum = finalized.value.output.datum;
       kernelFinalizedOutputs.push(finalized.value.output);
     }
+  }
+
+  const proposedLifecycleData = deriveLifecycleRecordStorage(processPackage, [
+    ...snapshot.records,
+    ...outputData.map(({ datum }): LifecycleRecord =>
+      provisionalLifecycleRecord(datum)
+    ),
+  ]);
+  const datumDiagnostics = outputData.flatMap(({ datum }, index) =>
+    lifecycleDatumDiagnostics(processPackage, datum, proposedLifecycleData).map(
+      (diagnostic) => ({
+        ...diagnostic,
+        path: `proposal.outputs[${index}]${diagnostic.path ? `.${diagnostic.path}` : ""}`,
+      }),
+    )
+  );
+  if (datumDiagnostics.length > 0) {
+    return { ok: false, diagnostics: datumDiagnostics };
   }
 
   const resultingRecords = deriveLifecycleRecordStorage(processPackage, [
