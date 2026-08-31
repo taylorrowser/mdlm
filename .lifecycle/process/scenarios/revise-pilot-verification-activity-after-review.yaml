@@ -2,7 +2,7 @@ kind: scenario-definition
 id: revise-pilot-verification-activity-after-review
 version: 3
 description: Correct one failed assurance pilot verification activity through bounded autonomous cycles and the same exact attended escalation interface.
-phases: [phase-1-product-assurance, phase-2-system-definition]
+phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition]
 inputs:
   - name: activity
     types: [VER]
@@ -13,7 +13,7 @@ inputs:
     cardinality: one-or-more
     identity: revision
   - name: requirement
-    types: [STK, SYS]
+    types: [STK, SYS, CMP, DES]
     cardinality: one
     identity: revision
   - name: strategy

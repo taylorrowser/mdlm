@@ -1,0 +1,29 @@
+kind: scenario-definition
+id: refine-design-interface
+version: 1
+description: Refine one exact current ICSP in the same lineage only when DES outputs change its externally observable contract.
+phases: [phase-4-design-definition]
+inputs:
+  - {name: interface, types: [ICSP], cardinality: one, identity: revision}
+  - {name: existing_subjects, types: [ASP, SYS, CMP, DES, DWP], cardinality: one-or-more, identity: revision}
+  - {name: plan, types: [DWP], cardinality: one, identity: revision}
+  - {name: changed_designs, types: [DES], cardinality: one-or-more, identity: revision}
+outputs:
+  - name: replacement
+    types: [ICSP]
+    cardinality: one
+    identity_from: {input: interface}
+    required_links:
+      - {link: defines-interface-for, target: {input: existing_subjects}, distribution: cover}
+      - {link: defines-interface-for, target: {input: plan}}
+      - {link: defines-interface-for, target: {input: changed_designs}, distribution: cover}
+prompt_ref: prompts/refine-design-interface.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && replacement.identity.id == interface.identity.id
+  && replacement.identity.type == interface.identity.type
+  && exists("current-design-interface-refinements-for-plan@1", {plan: plan})
+resolves: [design-interface-refinement-required]
+prohibited_inputs: [unchanged interface restatement, private implementation details, mutable latest aliases]
+batching: coherent-batch

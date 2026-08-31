@@ -44,7 +44,7 @@ outgoing_links:
   - id: defines-interface-for
     description: Exact architecture, requirements, and decomposition plans governed by this boundary contract.
     targets:
-      - {kind: datum, types: [ASP, SYS, CMP, DWP], identity: revision}
+      - {kind: datum, types: [ASP, SYS, CMP, DES, DWP], identity: revision}
     cardinality: {minimum: 1, maximum: many}
     freeze_resolution: already-exact
     inverse_label: interface-defined-by

@@ -22,7 +22,7 @@ outgoing_links:
   - id: derived-from
     description: Exact system requirement Revisions whose necessary component behavior this requirement expresses.
     targets:
-      - {kind: datum, types: [SYS], identity: revision}
+      - {kind: datum, types: [SYS, CMP], identity: revision}
     cardinality: {minimum: 1, maximum: many}
     freeze_resolution: already-exact
     inverse_label: derives

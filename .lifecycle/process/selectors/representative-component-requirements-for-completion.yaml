@@ -1,0 +1,26 @@
+kind: selector-definition
+id: representative-component-requirements-for-completion
+version: 1
+description: One deterministic CMP for component or compatible design completion, or one DES when the design boundary changed.
+parameters:
+  - {name: completion, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [CMP, DES]}
+  as: requirement
+  where: >-
+    (completion.payload.target_child_type == "CMP"
+      && requirement == first("component-requirements-for-completion@1",
+        {completion: completion}))
+    || (completion.payload.target_child_type == "DES"
+      && count("planning-revisions-for-completion@1", {completion: completion}) == 1
+      && (
+        (none("design-interface-refinement-requirements-for-plan@1",
+          {plan: one("planning-revisions-for-completion@1", {completion: completion})})
+          && requirement == first("component-requirements-for-completion@1",
+            {completion: completion}))
+        || requirement == first("design-interface-refinement-requirements-for-plan@1",
+          {plan: one("planning-revisions-for-completion@1", {completion: completion})})
+      ))
+  distinct: true
+  order_by: [identity.revision_id]

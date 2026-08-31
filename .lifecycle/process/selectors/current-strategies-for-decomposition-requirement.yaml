@@ -3,14 +3,15 @@ id: current-strategies-for-decomposition-requirement
 version: 1
 description: Current valid verification strategies covering one exact STK or SYS decomposition parent at the matching level.
 parameters:
-  - {name: requirement, kind: revision, types: [STK, SYS]}
+  - {name: requirement, kind: revision, types: [STK, SYS, CMP]}
 result_kind: revision
 query:
   from: {relation: incoming-links, of: requirement, link: governs-revision, emit: source, types: [VSP]}
   as: strategy
   where: >-
     ((requirement.identity.type == "STK" && strategy.payload.level == "stakeholder")
-      || (requirement.identity.type == "SYS" && strategy.payload.level == "component"))
+      || (requirement.identity.type == "SYS" && strategy.payload.level == "component")
+      || (requirement.identity.type == "CMP" && strategy.payload.level == "design"))
     && state(strategy, "disposition") == "active"
     && state(strategy, "validity") == "valid"
     && none("newer-revisions-for@1", {subject: strategy})

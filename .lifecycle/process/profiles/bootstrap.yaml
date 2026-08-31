@@ -1,24 +1,25 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 44
+version: 45
 status: experimental
-description: Fresh bootstrap profile with reviewed intent, qualification and pilot evidence, proportional direct system definition, and narrow component definition through a reviewed Phase 3 gate.
+description: Fresh bootstrap profile through complete component verification design and one lean reviewed design-definition slice.
 enabled:
-  types: [MAP, QST, DEC, ART, PSP, STK, SYS, CMP, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]
-  phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition]
+  types: [MAP, QST, DEC, ART, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]
+  phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition]
   obligation_statuses: [ready, blocked, awaiting-review, stale, failed]
 disabled_capabilities:
-  - design decomposition lifecycle types
   - formal verification execution
-  - component and design implementation lifecycle types
+  - product and formal-verification implementation
 terminal_outcomes:
   profile_boundary:
     condition: >-
       (
-        phase.id == "phase-3-component-definition"
-        && exists("complete-phase-3-level-candidates@1", {})
-        && every("complete-phase-3-level-candidates@1", {}, candidate =>
-          exists("applicable-gate-signoffs-for@1", {candidate: candidate}))
+        phase.id == "phase-4-design-definition"
+        && exists("complete-phase-4-level-candidates@1", {})
+        && every("complete-phase-4-level-candidates@1", {}, candidate =>
+          exists("applicable-gate-signoffs-for@1", {candidate: candidate})
+          && exists("accepted-component-baselines-for-design-candidate@1",
+            {candidate: candidate}))
       )
       ||
       (
@@ -50,7 +51,7 @@ terminal_outcomes:
           && every("pilot-expansion-decisions-for@1", {assessment: assessment}, decision =>
             decision.payload.decision == "change"))
       )
-    explanation: The selected profile stops successfully at an explicit Phase 1 breadth boundary or after one reviewed Phase 3 component gate; component verification and Phase 4 remain intentionally omitted.
+    explanation: The selected profile stops successfully at an explicit Phase 1 breadth boundary or after one reviewed Phase 4 design gate and mechanical component acceptance; Phase 5 remains intentionally omitted.
   lifecycle_complete:
     condition: >-
       phase.id == "phase-2-pilot-assessment"

@@ -29,5 +29,5 @@ resolve_with:
   inputs:
     candidate: candidate
     definition_members: 'select("phase-2-level-candidate-definition-members@1", {candidate: candidate})'
-    evidence: 'select("system-acceptance-evidence-for-candidate@1", {candidate: candidate})'
+    evidence: 'select("level-acceptance-evidence-for-candidate@1", {candidate: candidate})'
 waiver_policy_ref: waiver-applicability@1

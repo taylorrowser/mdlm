@@ -16,6 +16,8 @@ query:
         && strategy.payload.level == "stakeholder")
       || (phase.id == "phase-2-system-definition"
         && strategy.payload.level == "system")
+      || (phase.id == "phase-3-component-definition"
+        && strategy.payload.level == "component")
     )
   distinct: true
   order_by: [identity.id, identity.revision]

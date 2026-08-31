@@ -2,7 +2,7 @@ kind: obligation-definition
 id: environment-assurance-required
 version: 2
 description: Every applicable exact active-phase strategy requires one realized environment and its qualification activity and implementation.
-phases: [phase-1-product-assurance, phase-2-system-definition]
+phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition]
 for_each: 'select("current-active-phase-verification-strategies@1", {})'
 subject_as: strategy
 satisfied_when: 'exists("complete-environment-assurance-for-strategy@1", {strategy: strategy})'

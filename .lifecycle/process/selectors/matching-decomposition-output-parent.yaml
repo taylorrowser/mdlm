@@ -1,10 +1,10 @@
 kind: selector-definition
 id: matching-decomposition-output-parent
 version: 1
-description: The supplied exact STK or SYS parent Revision when one matching decomposition output canonically derives from it.
+description: The supplied exact STK, SYS, or CMP parent Revision when one matching decomposition output canonically derives from it.
 parameters:
-  - {name: output, kind: revision, types: [SYS, CMP]}
-  - {name: parent, kind: revision, types: [STK, SYS]}
+  - {name: output, kind: revision, types: [SYS, CMP, DES]}
+  - {name: parent, kind: revision, types: [STK, SYS, CMP]}
 result_kind: revision
 query:
   from:

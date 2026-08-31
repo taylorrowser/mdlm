@@ -1,0 +1,21 @@
+kind: selector-definition
+id: suitable-component-pilot-evidence-for-completion
+version: 1
+description: One completion when its deterministic representative CMP has exactly one suitable reviewed component pilot chain.
+parameters:
+  - {name: completion, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [DWP]}
+  as: candidate
+  where: >-
+    candidate == completion
+    && count("representative-component-requirements-for-completion@1", {completion: completion}) == 1
+    && every("representative-component-requirements-for-completion@1", {completion: completion}, requirement =>
+      count("pilot-verification-activities-for-requirement@1", {requirement: requirement}) == 1
+      && count("suitable-pilot-results-for-requirement@1", {requirement: requirement}) == 1)
+    && every("component-pilot-reviewed-subjects-for-completion@1", {completion: completion}, subject =>
+      exists("passing-reviews-for@1", {subject: subject})
+      && none("failing-reviews-for@1", {subject: subject}))
+  distinct: true
+  order_by: [identity.revision_id]

@@ -2,11 +2,11 @@ kind: scenario-definition
 id: complete-decomposition-work-package
 version: 3
 description: Record the next exact completion Revision for a covered decomposition plan.
-phases: [phase-2-system-definition, phase-3-component-definition]
+phases: [phase-2-system-definition, phase-3-component-definition, phase-4-design-definition]
 inputs:
   - {name: plan, types: [DWP], cardinality: one, identity: revision}
-  - {name: parents, types: [STK, SYS], cardinality: one-or-more, identity: revision}
-  - {name: outputs, types: [SYS, CMP], cardinality: one-or-more, identity: revision}
+  - {name: parents, types: [STK, SYS, CMP], cardinality: one-or-more, identity: revision}
+  - {name: outputs, types: [SYS, CMP, DES], cardinality: one-or-more, identity: revision}
   - {name: architecture, types: [ASP], cardinality: one, identity: revision}
   - {name: interfaces, types: [ICSP], cardinality: zero-or-more, identity: revision}
   - {name: verification_strategy, types: [VSP], cardinality: one, identity: revision}
@@ -57,10 +57,11 @@ completion: >-
   && count("strategies-for-decomposition@1", {plan: completion}) == 1
   && one("strategies-for-decomposition@1", {plan: completion}) == verification_strategy
   && verification_strategy == one("strategies-for-decomposition@1", {plan: plan})
-  && count("interfaces-for-decomposition@1", {plan: completion}) == count("interfaces-for-decomposition@1", {plan: plan})
-  && every("interfaces-for-decomposition@1", {plan: plan},
-    interface => exists("matching-decomposition-interface@1",
-      {plan: completion, interface: interface}))
+  && count("interfaces-for-decomposition@1", {plan: completion})
+    == count("completion-interfaces-for-plan@1", {plan: plan})
+  && every("completion-interfaces-for-plan@1", {plan: plan},
+    interface => !every("interfaces-for-decomposition@1", {plan: completion},
+      candidate => candidate != interface))
 resolves: [decomposition-completion-required, decomposition-parent-coverage-required]
 prohibited_inputs: [unreviewed outputs, unresolved blocking questions, incomplete simplification evidence, mutable latest aliases]
 batching: single

@@ -1,0 +1,13 @@
+kind: selector-definition
+id: lower-level-decomposition-parents-for
+version: 1
+description: Typed adapter for exact SYS or CMP parents of one lower-level decomposition plan.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: plan, link: decomposes, emit: target, types: [SYS, CMP]}
+  as: parent
+  where: 'plan.payload.target_child_type in ["CMP", "DES"]'
+  distinct: true
+  order_by: [identity.revision_id]

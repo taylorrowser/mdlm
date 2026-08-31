@@ -1,0 +1,52 @@
+kind: type-definition
+id: DES
+version: 1
+name: Design Requirement
+description: Singular implementable design behavior or constraint derived from exact component requirements without exposing verification implementation.
+extends: requirement@2
+lifecycle:
+  authorship: authored
+  freeze_when: baseline-frozen
+payload_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  required: [interface_effect]
+  properties:
+    interface_effect: {enum: [unchanged, changed]}
+    architecture_allocation:
+      type: object
+      additionalProperties: false
+      required: [architecture_revision, element]
+      properties:
+        architecture_revision: {type: string, pattern: '^ASP-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
+        element: {type: string, pattern: '^AEL-[0-9A-HJKMNP-TV-Z]{10,12}$'}
+outgoing_links:
+  - id: derived-from
+    description: Exact component requirement Revisions whose implementable design this requirement expresses.
+    targets:
+      - {kind: datum, types: [SYS, CMP], identity: revision}
+    cardinality: {minimum: 1, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: derives
+  - id: decomposes
+    description: Exact reviewed Decomposition Work Package plan that bounded this output.
+    targets:
+      - {kind: datum, types: [DWP], identity: revision}
+    cardinality: {minimum: 1, maximum: 1}
+    freeze_resolution: already-exact
+    inverse_label: decomposition-output
+  - id: allocated-to
+    description: Exact component architecture Revision owning the referenced stable element allocation.
+    targets:
+      - {kind: datum, types: [ASP], identity: revision}
+    cardinality: {minimum: 1, maximum: 1}
+    freeze_resolution: already-exact
+    inverse_label: allocation-for
+  - id: governed-by
+    description: Exact normative interface Revisions constraining this design requirement.
+    targets:
+      - {kind: datum, types: [ICSP], identity: revision}
+    cardinality: {minimum: 0, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: governs-requirement
+kernel_managed_payload_paths: []

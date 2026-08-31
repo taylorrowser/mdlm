@@ -134,7 +134,10 @@ async function phaseThreePackage(parent: string): Promise<string> {
 
   const profilePath = path.join(root, "profiles/bootstrap.yaml");
   const profile = parse(await fs.readFile(profilePath, "utf8"));
-  profile.enabled.phases = ["phase-3-component-definition"];
+  profile.enabled.phases = [
+    "phase-3-component-definition",
+    "phase-4-design-definition",
+  ];
   await fs.writeFile(profilePath, stringify(profile));
 
   const phasePath = path.join(root, "phases/phase-3-component-definition.yaml");
@@ -179,6 +182,24 @@ async function phaseThreePackage(parent: string): Promise<string> {
         cardinality: "one",
         required_links: [
           { link: "derived-from", target: { output: "stakeholder_requirement" } },
+        ],
+      },
+      {
+        name: "stakeholder_strategy",
+        types: ["VSP"],
+        cardinality: "one",
+        required_links: [
+          { link: "governs", target: { output: "stakeholder_requirement" } },
+          { link: "governs-revision", target: { output: "stakeholder_requirement" } },
+        ],
+      },
+      {
+        name: "system_strategy",
+        types: ["VSP"],
+        cardinality: "one",
+        required_links: [
+          { link: "governs", target: { output: "system_requirement" } },
+          { link: "governs-revision", target: { output: "system_requirement" } },
         ],
       },
     ],
@@ -338,6 +359,45 @@ function review(
   return submitReview(repository, packet, expectedSubject);
 }
 
+function reviewNext(repository: string): string {
+  const packet = nextPacket(repository, "review-datum-in-context@3");
+  return submitReview(repository, packet, inputRevisions(packet, "subject")[0]!);
+}
+
+function nextAfterReviews(repository: string, scenario: string, reviews: string[]): Json {
+  for (;;) {
+    const outcome = next(repository);
+    if (outcome.outcome === "publication-required") {
+      commit(repository, "Publish exact Review Contexts");
+      continue;
+    }
+    const packet = outcome.assignment?.packet;
+    expect(packet, JSON.stringify(outcome)).toBeDefined();
+    if (packet.scenario.reference === "review-datum-in-context@3") {
+      reviews.push(submitReview(repository, packet, inputRevisions(packet, "subject")[0]!));
+      continue;
+    }
+    expect(packet.scenario.reference).toBe(scenario);
+    return packet;
+  }
+}
+
+function terminalAfterReviews(repository: string, reviews: string[]): Json {
+  for (;;) {
+    const outcome = next(repository);
+    if (outcome.outcome === "publication-required") {
+      commit(repository, "Publish exact terminal Review Context");
+      continue;
+    }
+    if (outcome.assignment?.packet.scenario.reference === "review-datum-in-context@3") {
+      const packet = outcome.assignment.packet;
+      reviews.push(submitReview(repository, packet, inputRevisions(packet, "subject")[0]!));
+      continue;
+    }
+    return outcome;
+  }
+}
+
 function submitReview(
   repository: string,
   packet: Json,
@@ -361,7 +421,30 @@ function submitReview(
   return publication(result, "review");
 }
 
-it("runs the accepted-SYS Phase 3 slice through a reviewed gate", async () => {
+function publishFormalActivity(repository: string): string {
+  const packet = nextPacket(repository, "write-formal-verification-activity@1");
+  const requirement = exactInputs(packet, "requirement")[0];
+  const result = submit(repository, packet, [{
+    output: "activity",
+    payload: {
+      title: `Formal verification for ${requirement!.identity.revision_id}`,
+      rationale: "Specify a source-blind judgment of the exact requirement claim.",
+      kind: "formal",
+      method: "analysis",
+      assessment_mode: "authored",
+      claim: { kind: "formal", scope: "requirement", formal_evidence_eligible: true },
+      acceptance_criteria: ["The exact observable claim is satisfied."],
+      evidence_requirements: ["Retain the authored claim judgment."],
+      expected_success_activity: "The claim is supported.",
+      expected_discrimination_activity: "A contradictory claim is rejected.",
+    },
+    body: "One source-blind formal verification specification.\n",
+  }]);
+  commit(repository, "Publish formal verification specification");
+  return publication(result, "activity");
+}
+
+it("runs accepted-SYS evidence through complete Phase 3 and lean Phase 4", async () => {
   const parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-phase3-public-"));
   try {
     const repository = path.join(parent, "repository");
@@ -406,11 +489,40 @@ it("runs the accepted-SYS Phase 3 slice through a reviewed gate", async () => {
         },
         body: "One exact system requirement.\n",
       },
+      ...["stakeholder", "system"].map((level) => ({
+        output: `${level}_strategy`,
+        payload: {
+          title: `${level} black-box strategy`,
+          rationale: "Preserve the accepted source-blind upstream verification boundary.",
+          level,
+          permitted_methods: ["analysis"],
+          independence: {
+            boundary: "black-box",
+            prohibited_inputs: [
+              "product source code",
+              "product unit tests",
+              "private implementation details",
+              "uncontrolled implementation shortcuts",
+            ],
+          },
+          evidence_policy: "Retain exact authored verification evidence.",
+          assessment_policy: "Judge the exact observable requirement claim.",
+          environment_profile: {
+            id: `${level}-formal`, purpose: "Author formal verification specifications.",
+            capabilities: { controllability: ["claim"], observability: ["evidence"], external_services: [], timing: "bounded" },
+          },
+        },
+        body: `One accepted ${level} strategy.\n`,
+      })),
     ]);
     commit(repository, "Publish exact system ancestry");
     const product = publication(seeded, "product");
     const system = publication(seeded, "system_requirement");
     const stakeholder = publication(seeded, "stakeholder_requirement");
+    const upstreamStrategies = [
+      publication(seeded, "stakeholder_strategy"),
+      publication(seeded, "system_strategy"),
+    ];
     const acceptancePacket = nextPacket(
       repository,
       "seed-accepted-system-slice@1",
@@ -423,7 +535,7 @@ it("runs the accepted-SYS Phase 3 slice through a reviewed gate", async () => {
         role: "accepted",
         scope: "phase-3-public-test",
         group: "DEFAULT",
-        definition_members: [product, stakeholder, system],
+        definition_members: [product, stakeholder, system, ...upstreamStrategies],
         evidence: [],
       },
       body: "The exact system slice is accepted test evidence.\n",
@@ -433,7 +545,7 @@ it("runs the accepted-SYS Phase 3 slice through a reviewed gate", async () => {
 
     const strategyPacket = nextPacket(
       repository,
-      "define-component-verification-strategy@1",
+      "define-lower-level-verification-strategy@1",
     );
     const strategyResult = submit(repository, strategyPacket, [{
       output: "strategy",
@@ -561,15 +673,15 @@ it("runs the accepted-SYS Phase 3 slice through a reviewed gate", async () => {
 
     const executionPacket = nextPacket(
       repository,
-      "execute-component-decomposition-work-package@1",
+      "execute-lower-level-decomposition-work-package@1",
     );
     const componentTemplate = executionPacket.responseScaffold.proposal.outputs.find(
-      (output: Json) => (output.output ?? output.handle) === "requirements",
+      (output: Json) => (output.output ?? output.handle) === "component_requirements",
     );
     expect(componentTemplate).toBeDefined();
     const executionResult = submit(repository, executionPacket, [
       {
-        output: "requirements",
+        output: "component_requirements",
         handle: "classifier-requirement",
         payload: {
           title: "Classify the supplied value",
@@ -584,7 +696,7 @@ it("runs the accepted-SYS Phase 3 slice through a reviewed gate", async () => {
         body: "One solution-independent classifier requirement.\n",
       },
       {
-        output: "requirements",
+        output: "component_requirements",
         handle: "reporter-requirement",
         payload: {
           title: "Report the classification",
@@ -650,10 +762,15 @@ it("runs the accepted-SYS Phase 3 slice through a reviewed gate", async () => {
       plan.replace(/-r[0-9]{5}$/, ""),
     );
 
+    const formalActivities = Array.from(
+      { length: 4 },
+      () => publishFormalActivity(repository),
+    );
+
     const missingReview = next(repository);
-    expect(missingReview.outcome).toBe("publication-required");
+    expect(missingReview.outcome, JSON.stringify(missingReview)).toBe("publication-required");
     expect(missingReview.assignment).toBeUndefined();
-    expect(missingReview.materializedExecutions).toHaveLength(1);
+    expect(missingReview.materializedExecutions.length).toBeGreaterThanOrEqual(5);
     expect(
       git(repository, "status", "--porcelain", "--", ".lifecycle/data").stdout,
     ).not.toBe("");
@@ -670,15 +787,89 @@ it("runs the accepted-SYS Phase 3 slice through a reviewed gate", async () => {
     const correctionRepository = path.join(parent, "correction-repository");
     await fs.cp(repository, correctionRepository, { recursive: true });
 
-    const reviews = [review(repository, completion)];
+    const reviews: string[] = [];
+    const environmentPacket = nextAfterReviews(repository, "realize-verification-environment@1", reviews);
+    const environmentResult = submit(repository, environmentPacket, [
+      { output: "environment", payload: {
+        title: "Component pilot environment", rationale: "Realize the exact component strategy.",
+        strategy_revision: strategy, profile_id: "component-cli",
+        capabilities: { controllability: ["literal value"], observability: ["reported class", "exit status"], external_services: [], timing: "bounded" },
+        reproducibility: { environment_ref: "fixture@1", configuration_digest: `sha256:${"0".repeat(64)}`, reconstruction: "Recreate the fixture." },
+      }, body: "One reproducible environment.\n" },
+      { output: "qualification_activity", payload: {
+        title: "Qualify the component environment", rationale: "Check its declared capabilities.", kind: "qualification", method: "test", assessment_mode: "automatic",
+        claim: { kind: "qualification", scope: "environment-capability", formal_evidence_eligible: false },
+        acceptance_criteria: ["Capabilities are observable."], evidence_requirements: ["Retain observations."],
+        expected_success_activity: "Exercise a declared capability.", expected_discrimination_activity: "Reject an undeclared capability.",
+      }, body: "One qualification activity.\n" },
+      { output: "qualification_implementation", payload: {
+        title: "Environment qualification procedure", rationale: "Exercise positive and negative capability controls.", kind: "qualification",
+        implementation_ref: `procedure:sha256:${"1".repeat(64)}`, independence_mode: "environment-capability",
+        authoring_input_refs: [strategy], prohibited_inputs_observed: ["product source code", "product unit tests", "private implementation details", "uncontrolled implementation shortcuts"],
+        activity_bindings: ["positive capability", "negative capability"],
+        target_behavior: { supported: ["declared capabilities"], intentionally_unsupported: ["undeclared capabilities"] },
+      }, body: "One qualification procedure.\n" },
+    ]);
+    commit(repository, "Realize component pilot environment");
+    const environment = publication(environmentResult, "environment");
 
-    const candidatePacket = nextPacket(
-      repository,
-      "create-component-level-candidate@1",
-    );
+    const qualificationPacket = nextPacket(repository, "execute-verification-run@2");
+    const qualificationResult = submit(repository, qualificationPacket, [
+      { output: "run", payload: {
+        title: "Environment qualification run", kind: "qualification", started_at: "2026-08-31T00:00:00Z", completed_at: "2026-08-31T00:00:01Z", execution_state: "completed",
+        execution_target: { kind: "environment", ref: environment }, runner_ref: "fixture-runner@1", configuration_refs: [strategy],
+        activities_expected: ["capability"], activities_invoked: ["capability"], evidence_locations: ["inline:qualification"],
+      }, body: "One immutable qualification run.\n" },
+      { output: "result", payload: {
+        title: "Passing environment qualification", claim: { kind: "qualification", scope: "environment-capability", outcome: "pass", formal_evidence_eligible: false },
+        assessment_state: "accepted", observations: { expected_success_observed: true, expected_discrimination_observed: true, details: "Both controls behaved as declared." },
+        evidence_refs: ["inline:qualification"], assessor_ref: "fixture-assessor@1",
+      }, body: "The environment is suitable.\n" },
+    ]);
+    commit(repository, "Qualify component pilot environment");
+    const pilotPacket = nextAfterReviews(repository, "write-representative-level-pilot-verification-activity@1", reviews);
+    const pilotResult = submit(repository, pilotPacket, [{ output: "activity", payload: {
+      title: "Component boundary pilot", rationale: "Discriminate good and bad behavior without source.", kind: "pilot", method: "test", assessment_mode: "automatic",
+      claim: { kind: "pilot", scope: "verification-design", formal_evidence_eligible: false }, acceptance_criteria: ["Good passes and bad fails."],
+      evidence_requirements: ["Retain both observations."], expected_success_activity: "valid classification", expected_discrimination_activity: "invalid classification",
+    }, body: "One component pilot activity.\n" }]);
+    commit(repository, "Publish component pilot activity");
+    const pilotActivity = publication(pilotResult, "activity");
+    const targetPacket = nextAfterReviews(repository, "build-representative-level-pilot-control-prototype@1", reviews);
+    const targetResult = submit(repository, targetPacket, [{ output: "target", payload: {
+      title: "Disposable classification controls", kind: "prototype",
+      supported_behavior: ["valid classification"], unsupported_behavior: ["invalid classification"],
+      prototype_controls: { activity_ref: pilotActivity, working_directory: "fresh-temporary-directory",
+        known_good: { argv: ["node", "-e", "process.exit(0)"], expected_observation: { exit_status: 0, stdout: { encoding: "base64", bytes: "" }, stderr: { encoding: "base64", bytes: "" } }, expected_verification_outcome: "pass" },
+        known_bad: { argv: ["node", "-e", "process.exit(2)"], expected_observation: { exit_status: 2, stdout: { encoding: "base64", bytes: "" }, stderr: { encoding: "base64", bytes: "" } }, expected_verification_outcome: "fail", fault: "Wrong exit status" } },
+    }, body: "One disposable good and bad prototype pair.\n" }]);
+    commit(repository, "Publish component pilot controls");
+    const target = publication(targetResult, "target");
+
+    const implementationPacket = nextPacket(repository, "implement-verification-activity@1");
+    const implementationResult = submit(repository, implementationPacket, [
+      { output: "implementation", payload: {
+        title: "Source-blind component pilot", rationale: "Execute only the declared controls.", kind: "pilot", implementation_ref: `procedure:sha256:${"2".repeat(64)}`, independence_mode: "source-blind",
+        authoring_input_refs: [pilotActivity, environment, target], prohibited_inputs_observed: ["product source code", "product unit tests", "private implementation details", "uncontrolled implementation shortcuts"],
+        activity_bindings: ["known_good", "known_bad"], target_behavior: { supported: ["valid classification"], intentionally_unsupported: ["invalid classification"] },
+        prototype_control_bindings: { activity_ref: pilotActivity, known_good: { argv: ["node", "-e", "process.exit(0)"], expected_verification_outcome: "pass" }, known_bad: { argv: ["node", "-e", "process.exit(2)"], expected_verification_outcome: "fail" } },
+        execution_procedure: { deadlines_ms: { checkout: 1000, environment_check: 1000, product_case: 1000 }, deadline_scope: "infrastructure-safety-only", timeout: { termination: "process-group-sigterm-then-sigkill", force_after_ms: 100, reaping: "all-descendants", capture_partial_raw_observation: true }, cleanup: "guaranteed", aggregation: "continue-through-all-cases" },
+      }, body: "One source-blind pilot procedure.\n" },
+      { output: "authorization", payload: { title: "Authorize pilot procedure", rationale: "The bounded exact controls preserve independence.", kind: "decision", decision: "Authorize the exact procedure.", alternatives: ["Do not run."], effective_scope: "$proposal.implementation.revision_id" }, body: "Authorize only this procedure.\n" },
+    ]);
+    commit(repository, "Implement component pilot");
+    const implementation = publication(implementationResult, "implementation");
+    const runPacket = nextAfterReviews(repository, "execute-verification-run@2", reviews);
+    const observation = (control: string, argv: string[], exit_status: number) => ({ artifact_ref: target, control, activity_ref: pilotActivity, argv, working_directory: "fresh-temporary-directory", stdin: { encoding: "base64", bytes: "" }, stdout: { encoding: "base64", bytes: "" }, stderr: { encoding: "base64", bytes: "" }, exit_status, timed_out: false, truncated: false });
+    const runResult = submit(repository, runPacket, [
+      { output: "run", payload: { title: "Component pilot run", kind: "pilot", started_at: "2026-08-31T00:00:02Z", completed_at: "2026-08-31T00:00:03Z", execution_state: "completed", execution_target: { kind: "prototype", ref: target }, runner_ref: "fixture-runner@1", configuration_refs: [implementation], activities_expected: ["known_good", "known_bad"], activities_invoked: ["known_good", "known_bad"], evidence_locations: ["inline:pilot"], control_observations: { known_good: observation("known_good", ["node", "-e", "process.exit(0)"], 0), known_bad: observation("known_bad", ["node", "-e", "process.exit(2)"], 2) } }, body: "One immutable pilot run.\n" },
+      { output: "result", payload: { title: "Suitable component pilot", claim: { kind: "pilot", scope: "verification-design", outcome: "suitable", formal_evidence_eligible: false }, assessment_state: "accepted", observations: { expected_success_observed: true, expected_discrimination_observed: true, details: "Good passed and bad failed." }, control_judgments: { known_good: { observation_ref: "known_good", outcome: "pass" }, known_bad: { observation_ref: "known_bad", outcome: "fail" } }, evidence_refs: ["inline:pilot"], assessor_ref: "fixture-assessor@1" }, body: "The pilot discriminates correctly.\n" },
+    ]);
+    commit(repository, "Execute component pilot");
+
+    const candidatePacket = nextAfterReviews(repository, "create-definition-level-candidate@1", reviews);
     expect(inputRevisions(candidatePacket, "definition_members")).toEqual(
-      [classifier, reporter, architecture, interfaceRevision, plan, completion, strategy]
-        .sort(),
+      expect.arrayContaining([classifier, reporter, architecture, interfaceRevision, plan, completion, strategy, ...formalActivities]),
     );
     const candidateResult = submit(repository, candidatePacket, [{
       output: "candidate",
@@ -689,7 +880,7 @@ it("runs the accepted-SYS Phase 3 slice through a reviewed gate", async () => {
         scope: completion,
         group: "DEFAULT",
         definition_members: inputRevisions(candidatePacket, "definition_members"),
-        evidence: inputRevisions(candidatePacket, "definition_review"),
+        evidence: inputRevisions(candidatePacket, "evidence"),
       },
       body: "One direct coherent component candidate.\n",
     }]);
@@ -697,7 +888,7 @@ it("runs the accepted-SYS Phase 3 slice through a reviewed gate", async () => {
     const candidate = publication(candidateResult, "candidate");
     reviews.push(review(repository, candidate));
 
-    const gatePacket = nextPacket(repository, "record-gate-signoff@3");
+    const gatePacket = nextAfterReviews(repository, "record-gate-signoff@3", reviews);
     expect(inputRevisions(gatePacket, "candidate")).toEqual([candidate]);
     const gateResult = submit(repository, gatePacket, [{
       output: "decision",
@@ -716,13 +907,63 @@ it("runs the accepted-SYS Phase 3 slice through a reviewed gate", async () => {
     const decision = publication(gateResult, "decision");
     reviews.push(review(repository, decision));
 
-    const terminal = next(repository);
-    expect(terminal).toMatchObject({
+    const designStrategyPacket = nextAfterReviews(repository, "define-lower-level-verification-strategy@1", reviews);
+    const designStrategyResult = submit(repository, designStrategyPacket, [{ output: "strategy", payload: {
+      title: "Design black-box strategy", rationale: "Judge exact design claims without implementation knowledge.", level: "design", permitted_methods: ["analysis"],
+      independence: { boundary: "black-box", prohibited_inputs: ["product source code", "product unit tests", "private implementation details", "uncontrolled implementation shortcuts"] },
+      evidence_policy: "Retain exact authored verification evidence.", assessment_policy: "Judge each exact design claim.",
+      environment_profile: { id: "design-formal", purpose: "Author design verification specifications.", capabilities: { controllability: ["claim"], observability: ["evidence"], external_services: [], timing: "bounded" } },
+    }, body: "One reusable design strategy.\n" }]);
+    commit(repository, "Publish design strategy");
+    const designStrategy = publication(designStrategyResult, "strategy");
+
+    const designPlanPacket = nextAfterReviews(repository, "define-decomposition-work-package@4", reviews);
+    const designPlanPayload = { title: "Classification design slice", rationale: "Derive implementable design without adding architecture.", stage: "planning", architecture_element: "AEL-CMPDEF00001", target_child_type: "DES", behavioral_slice: "Implement classification and reporting.", expected_coverage: ["Both component requirements"], exclusions: ["Product implementation"], dependencies: [classifier, reporter, architecture, interfaceRevision, designStrategy], required_review_policy: "review-applicability@1" };
+    const designPlanResult = submit(repository, designPlanPacket, [{ output: "plan", payload: designPlanPayload, body: "One bounded CMP-to-DES plan.\n" }]);
+    commit(repository, "Publish design decomposition plan");
+    const designPlan = publication(designPlanResult, "plan");
+
+    const designExecutionPacket = nextAfterReviews(repository, "execute-lower-level-decomposition-work-package@1", reviews);
+    const designExecutionResult = submit(repository, designExecutionPacket, [
+      { output: "design_requirements", handle: "classifier-design", payload: { title: "Evaluate the supplied value", rationale: "Implement the classifier responsibility.", statement: "The design shall evaluate the supplied value against the declared validity rule.", verification_intent: "Analyze the exact classification decision.", interface_effect: "unchanged", architecture_allocation: { architecture_revision: architecture, element: "AEL-CMPDEF00001" } }, body: "One classifier design requirement.\n" },
+      { output: "design_requirements", handle: "reporter-design", payload: { title: "Emit the classification", rationale: "Implement the reporter responsibility.", statement: "The design shall emit the evaluated classification through the existing contract.", verification_intent: "Analyze the exact emitted classification.", interface_effect: "unchanged", architecture_allocation: { architecture_revision: architecture, element: "AEL-CMPDEF00002" } }, body: "One reporter design requirement.\n" },
+    ]);
+    commit(repository, "Publish two design requirements");
+    const designs = [publication(designExecutionResult, "classifier-design"), publication(designExecutionResult, "reporter-design")];
+    for (const design of designs) {
+      const shown = JSON.parse(mdlm(repository, "show", design, "--json").stdout).lifecycleDatum.datum;
+      expect(shown.links).toEqual(expect.arrayContaining([{ type: "decomposes", target: designPlan }, { type: "allocated-to", target: architecture }]));
+    }
+
+    const designCompletionPacket = nextAfterReviews(repository, "complete-decomposition-work-package@3", reviews);
+    const designCompletionResult = submit(repository, designCompletionPacket, [{ output: "completion", payload: { ...designPlanPayload, stage: "completion" }, body: "The coherent design set is complete.\n" }]);
+    commit(repository, "Complete design decomposition");
+    const designCompletion = publication(designCompletionResult, "completion");
+
+    const designFormalActivities = Array.from({ length: 2 }, () => publishFormalActivity(repository));
+    const designCandidatePacket = nextAfterReviews(repository, "create-definition-level-candidate@1", reviews);
+    expect(inputRevisions(designCandidatePacket, "definition_members")).toEqual(expect.arrayContaining([...designs, designPlan, designCompletion, designStrategy, ...designFormalActivities]));
+    const designCandidateResult = submit(repository, designCandidatePacket, [{ output: "candidate", payload: { title: "Design definition candidate", kind: "level-candidate", role: "candidate", scope: designCompletion, group: "DEFAULT", definition_members: inputRevisions(designCandidatePacket, "definition_members"), evidence: inputRevisions(designCandidatePacket, "evidence") }, body: "One direct coherent design candidate.\n" }]);
+    commit(repository, "Publish design candidate");
+    const designCandidate = publication(designCandidateResult, "candidate");
+    reviews.push(review(repository, designCandidate));
+
+    const designGatePacket = nextAfterReviews(repository, "record-gate-signoff@3", reviews);
+    const designGateResult = submit(repository, designGatePacket, [{ output: "decision", payload: { title: "Approve the design definition", rationale: "The exact reviewed design preserves ancestry and isolation.", kind: "gate-signoff", decision: "Approve this exact design candidate.", alternatives: ["Reject and correct."], effective_scope: designCandidate, gate_outcome: "approve" }, body: "The stakeholder approves this design candidate.\n" }], "stakeholder");
+    commit(repository, "Approve design candidate");
+    reviews.push(review(repository, publication(designGateResult, "decision")));
+
+    const promotionPacket = nextAfterReviews(repository, "promote-component-after-design-gate@1", reviews);
+    const promotionResult = submit(repository, promotionPacket, [{ output: "accepted", payload: { title: "Accepted component definition", kind: "level-accepted", role: "accepted", scope: completion, group: "DEFAULT", definition_members: inputRevisions(promotionPacket, "component_members"), evidence: inputRevisions(promotionPacket, "design_authority_evidence") }, body: "Mechanically accept the exact component predecessor.\n" }]);
+    commit(repository, "Promote exact component candidate");
+    expect(publication(promotionResult, "accepted")).toMatch(/^BSL-/);
+
+    const terminal = terminalAfterReviews(repository, reviews);
+    expect(terminal, JSON.stringify(terminal)).toMatchObject({
       outcome: "profile-boundary-reached",
-      phase: "phase-3-component-definition@1",
+      phase: "phase-4-design-definition@1",
     });
-    expect(reviews).toHaveLength(3);
-    expect(new Set(reviews).size).toBe(3);
+    expect(new Set(reviews).size).toBe(reviews.length);
     expect(git(repository, "status", "--porcelain").stdout).toBe("");
 
     const failedPacket = nextPacket(
@@ -759,7 +1000,7 @@ it("runs the accepted-SYS Phase 3 slice through a reviewed gate", async () => {
 
     const correctionPacket = nextPacket(
       correctionRepository,
-      "revise-component-completion-after-review@1",
+      "revise-definition-completion-after-review@1",
     );
     expect(inputRevisions(correctionPacket, "completion")).toEqual([completion]);
     expect(inputRevisions(correctionPacket, "failed_reviews")).toEqual([failedReview]);
@@ -804,123 +1045,8 @@ it("runs the accepted-SYS Phase 3 slice through a reviewed gate", async () => {
     expect(mdlm(correctionRepository, "show", completion, "--json").status).toBe(0);
     expect(mdlm(correctionRepository, "show", failedReview, "--json").status).toBe(0);
 
-    const correctedCandidatePacket = nextPacket(
-      correctionRepository,
-      "create-component-level-candidate@1",
-    );
-    const correctedMembers = inputRevisions(
-      correctedCandidatePacket,
-      "definition_members",
-    );
-    const correctedReview = inputRevisions(
-      correctedCandidatePacket,
-      "definition_review",
-    )[0];
-    const correctedCandidateResult = submit(
-      correctionRepository,
-      correctedCandidatePacket,
-      [{
-        output: "candidate",
-        payload: {
-          title: "Corrected component definition candidate",
-          kind: "level-candidate",
-          role: "candidate",
-          scope: correctedCompletion,
-          group: "DEFAULT",
-          definition_members: correctedMembers,
-          evidence: [correctedReview],
-        },
-        body: "One corrected coherent component candidate.\n",
-      }],
-    );
-    commit(correctionRepository, "Publish corrected component candidate");
-    const correctedCandidate = publication(correctedCandidateResult, "candidate");
-
-    const candidateReviewPacket = nextPacket(
-      correctionRepository,
-      "review-datum-in-context@3",
-    );
-    expect(inputRevisions(candidateReviewPacket, "subject")).toEqual([
-      correctedCandidate,
-    ]);
-    const failedCandidateResult = submit(
-      correctionRepository,
-      candidateReviewPacket,
-      [{
-        output: "review",
-        payload: {
-          title: `Review ${correctedCandidate}`,
-          review_kind: "contextual",
-          reviewer: "independent-reviewer",
-          summary: "The corrected candidate does not state its exact isolation judgment.",
-          rubric_ref: "policies/rubrics/bootstrap-review.md@3",
-          findings: [{
-            id: "F-002",
-            target: correctedCandidate,
-            relationship: "primary",
-            severity: "blocking",
-            summary: "State the exact candidate isolation judgment.",
-            criterion: "The direct candidate must be independently isolated from other slices.",
-            evidence: "The candidate Review omits the isolation judgment.",
-            material_consequence: "The stakeholder gate could receive a cross-slice candidate.",
-          }],
-          correction_authority: "package-evidence",
-          outcome: "fail",
-        },
-        body: "The exact candidate requires evidence-preserving correction.\n",
-      }],
-      "independent-reviewer",
-    );
-    commit(correctionRepository, "Publish failed component candidate Review");
-    const failedCandidateReview = publication(failedCandidateResult, "review");
-
-    const candidateCorrectionPacket = nextPacket(
-      correctionRepository,
-      "revise-phase-2-candidate-after-review@2",
-    );
-    expect(inputRevisions(candidateCorrectionPacket, "candidate")).toEqual([
-      correctedCandidate,
-    ]);
-    expect(inputRevisions(candidateCorrectionPacket, "failed_reviews")).toEqual([
-      failedCandidateReview,
-    ]);
-    const candidateCorrectionResult = submit(
-      correctionRepository,
-      candidateCorrectionPacket,
-      [{
-        output: "replacement",
-        payload: {
-          title: "Evidence-preserving component candidate correction",
-          kind: "level-candidate",
-          role: "candidate",
-          scope: correctedCompletion,
-          group: "DEFAULT",
-          definition_members: inputRevisions(
-            candidateCorrectionPacket,
-            "definition_members",
-          ),
-          evidence: inputRevisions(candidateCorrectionPacket, "evidence"),
-        },
-        body: "The replacement preserves the exact component membership and evidence.\n",
-      }],
-    );
-    commit(correctionRepository, "Correct component candidate in the same lineage");
-    const replacementCandidate = publication(
-      candidateCorrectionResult,
-      "replacement",
-    );
-    expect(replacementCandidate.replace(/-r[0-9]{5}$/, "")).toBe(
-      correctedCandidate.replace(/-r[0-9]{5}$/, ""),
-    );
-    expect(replacementCandidate).not.toBe(correctedCandidate);
-    expect(mdlm(
-      correctionRepository,
-      "show",
-      failedCandidateReview,
-      "--json",
-    ).status).toBe(0);
     expect(git(correctionRepository, "status", "--porcelain").stdout).toBe("");
   } finally {
     await fs.rm(parent, { recursive: true, force: true });
   }
-});
+}, 420_000);

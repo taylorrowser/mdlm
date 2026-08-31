@@ -1,0 +1,24 @@
+kind: selector-definition
+id: component-pilot-core-evidence-for-completion
+version: 1
+description: Exact reusable component pilot target, environment qualification, implementation, run, and suitable result evidence for one definition completion.
+parameters:
+  - {name: completion, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [ENV, VER, ART, VAI, RUN, RES]}
+  as: evidence
+  where: >-
+    !every("representative-component-requirements-for-completion@1", {completion: completion}, requirement =>
+      every("current-pilot-targets-for-requirement@1", {requirement: requirement}, target => target != evidence)
+      && every("pilot-verification-activities-for-requirement@1", {requirement: requirement}, activity =>
+        every("pilot-environments-for-activity@1", {activity: activity}, environment =>
+          environment != evidence
+          && every("environment-review-evidence-for@1", {environment: environment}, qualification => qualification != evidence))
+        && every("complete-pilot-implementations-for-activity@1", {activity: activity}, implementation =>
+          implementation != evidence
+          && every("exercised-pilot-runs-for-implementation@2", {implementation: implementation}, run =>
+            run != evidence
+            && every("pilot-results-completing-run@1", {run: run}, result => result != evidence)))))
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

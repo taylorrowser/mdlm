@@ -1,0 +1,12 @@
+kind: selector-definition
+id: requirements-governed-by-architecture
+version: 1
+description: Exact STK or SYS requirements directly governed by one architecture Revision.
+parameters:
+  - {name: architecture, kind: revision, types: [ASP]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: architecture, link: governs, emit: target, types: [STK, SYS]}
+  as: requirement
+  distinct: true
+  order_by: [identity.revision_id]

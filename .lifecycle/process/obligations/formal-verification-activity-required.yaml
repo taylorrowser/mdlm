@@ -1,0 +1,31 @@
+kind: obligation-definition
+id: formal-verification-activity-required
+version: 1
+description: Every independently assessable exact current STK, SYS, CMP, and DES claim requires one current passing-reviewed source-blind formal VER.
+phases: [phase-3-component-definition, phase-4-design-definition]
+for_each: 'select("formal-requirements-for-active-definition@1", {})'
+subject_as: requirement
+satisfied_when: >-
+  exists("passing-reviewed-formal-activities-for-requirement@1",
+    {requirement: requirement})
+status_rules:
+  - status: awaiting-review
+    priority: 200
+    when: 'exists("formal-activities-for-requirement@1", {requirement: requirement})'
+    reason: The exact formal verification specification awaits independent Review.
+    blocked_by:
+      - obligation: passing-review-required@2
+        subjects: 'select("formal-activities-for-requirement@1", {requirement: requirement})'
+  - status: ready
+    priority: 100
+    when: >-
+      none("formal-activities-for-requirement@1", {requirement: requirement})
+      && count("formal-strategies-for-requirement@1", {requirement: requirement}) == 1
+    reason: The exact current requirement and its black-box strategy are ready for one source-blind formal verification specification.
+default_status: blocked
+resolve_with:
+  scenario: write-formal-verification-activity@1
+  inputs:
+    requirement: requirement
+    strategy: 'one("formal-strategies-for-requirement@1", {requirement: requirement})'
+waiver_policy_ref: waiver-applicability@1

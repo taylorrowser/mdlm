@@ -1,8 +1,8 @@
-# MDLM bootstrap Example Process Package v0.105
+# MDLM bootstrap Example Process Package v0.107
 
 This package is the bounded Example Process Package shipped with the
 concept-validating MDLM profile. It defines `MAP`, `QST`, `DEC`, `ART`, `PSP`,
-`STK`, `SYS`, `CMP`, `ASP`, `ICSP`, `DWP`, `VSP`, `ENV`, `VER`, `VAI`, `RUN`, `RES`,
+`STK`, `SYS`, `CMP`, `DES`, `ASP`, `ICSP`, `DWP`, `VSP`, `ENV`, `VER`, `VAI`, `RUN`, `RES`,
 `REV`, `BSL`, `PRB`, `CHG`, and `PAS`. These are package-owned lifecycle types,
 not types recognized by the MDLM kernel.
 
@@ -98,17 +98,24 @@ carry architecture, interface, decomposition, allocation, strategy, and coverage
 truth. Scope reduction must remove a proper subset while retaining coherent
 replacement coverage; complete removal is not fabricated as success.
 
-### Phase 3 — narrow component definition
+### Phase 3 — complete component verification design
 
 The fresh profile consumes the exact accepted Phase 2 SYS baseline and derives
 one component ASP, ICSP, VSP, one same-lineage SYS-to-CMP DWP, and a coherent
-CMP set. One preparatory context freezes the planning DWP before its
-same-lineage completion, without adding a Review. One final frozen Review Context
-and one independent Review judge the complete definition set. A direct component
-candidate receives its own Review, followed by one attended gate Decision and
-one independent Decision Review. The profile then returns `Profile Boundary
-Reached`; component pilot evidence, formal CMP verification, acceptance, and
-Phase 4 remain absent.
+CMP set. Shared level-aware routes add reviewed formal VER coverage for current
+STK, SYS, and CMP claims plus one bounded good/bad component pilot. A direct
+component candidate receives its own Review, followed by one attended gate
+Decision and one independent Decision Review.
+
+### Phase 4 — lean design definition
+
+The reviewed Phase 3 candidate enters one CMP-to-DES DWP using the existing
+component ASP and compatible ICSP. The shared decomposition, completion,
+correction, candidate, gate, and formal-VER routes preserve exact ancestry and
+reuse compatible component pilot evidence. One independently reviewed direct
+DES candidate and reviewed attended gate mechanically promote the exact CMP
+candidate to an accepted baseline. The profile then returns `Profile Boundary
+Reached` because Phase 5 is absent.
 
 ### Phase 7 — bounded accepted change
 
@@ -147,8 +154,8 @@ not itself a stop; the next Operator Outcome controls continuation.
 
 ## Scope boundary
 
-Phases 0–2 and the narrow Phase 3 component-definition tracer are the
-implemented fresh bootstrap subset. Component verification and Phase 4–6 breadth, production indexing,
+Phases 0–4 through one lean reviewed design-definition slice are the
+implemented fresh bootstrap subset. Phase 5–6 breadth, production indexing,
 source-isolation containers, brownfield onboarding, formal compliance, and broader
 concurrency remain outside this profile. This package demonstrates one lifecycle
 structure; it does not define universal MDLM semantics.

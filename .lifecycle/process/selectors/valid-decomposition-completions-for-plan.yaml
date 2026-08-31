@@ -1,7 +1,7 @@
 kind: selector-definition
 id: valid-decomposition-completions-for-plan
 version: 1
-description: Semantically complete SYS or CMP DWP Revisions whose canonical links exactly account for one plan, every current output, and every parent lineage.
+description: Semantically complete SYS, CMP, or DES DWP Revisions whose canonical links exactly account for one plan, every current output, and every parent lineage.
 parameters:
   - {name: plan, kind: revision, types: [DWP]}
 result_kind: revision

@@ -1,7 +1,7 @@
 kind: selector-definition
 id: complete-phase-3-level-candidates
 version: 1
-description: Current frozen component-level candidates backed by one exact coherent DWP completion.
+description: Current frozen component candidates backed by one exact coherent DWP completion, complete formal coverage, and suitable representative pilot evidence.
 parameters: []
 result_kind: baseline
 query:
@@ -10,10 +10,15 @@ query:
     arguments: {baseline_kind: '"level-candidate"'}
   as: candidate
   where: >-
-    exists("phase-3-level-candidate-definition-members@1", {candidate: candidate})
-    && every("phase-3-level-candidate-definition-members@1", {candidate: candidate}, member =>
+    exists("definition-level-candidate-members@1", {candidate: candidate})
+    && !every("definition-level-candidate-members@1", {candidate: candidate}, member =>
       member.identity.type != "DWP"
       || member.payload.stage != "completion"
-      || exists("complete-component-level-candidates-for-completion@1", {completion: member}))
+      || member.payload.target_child_type != "CMP")
+    && every("definition-level-candidate-members@1", {candidate: candidate}, member =>
+      member.identity.type != "DWP"
+      || member.payload.stage != "completion"
+      || member.payload.target_child_type != "CMP"
+      || exists("complete-definition-level-candidates-for-completion@1", {completion: member}))
   distinct: true
   order_by: [identity.revision_id]

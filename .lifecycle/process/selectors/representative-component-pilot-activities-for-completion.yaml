@@ -1,0 +1,15 @@
+kind: selector-definition
+id: representative-component-pilot-activities-for-completion
+version: 1
+description: Current pilot VER for the deterministic representative CMP in one definition completion.
+parameters:
+  - {name: completion, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [VER]}
+  as: activity
+  where: >-
+    !every("representative-component-requirements-for-completion@1", {completion: completion}, requirement =>
+      every("pilot-verification-activities-for-requirement@1", {requirement: requirement}, candidate => candidate != activity))
+  distinct: true
+  order_by: [identity.revision_id]

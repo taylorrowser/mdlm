@@ -1,0 +1,12 @@
+kind: selector-definition
+id: decomposition-plans-for-output
+version: 1
+description: Exact DWP plan that bounded one SYS, CMP, or DES decomposition output.
+parameters:
+  - {name: output, kind: revision, types: [SYS, CMP, DES]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: output, link: decomposes, emit: target, types: [DWP]}
+  as: plan
+  distinct: true
+  order_by: [identity.revision_id]

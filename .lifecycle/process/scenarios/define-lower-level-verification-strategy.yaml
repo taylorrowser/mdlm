@@ -1,0 +1,29 @@
+kind: scenario-definition
+id: define-lower-level-verification-strategy
+version: 1
+description: Define one system-, component-, or design-level black-box verification strategy for the active exact definition parent set.
+phases: [phase-2-system-definition, phase-3-component-definition, phase-4-design-definition]
+inputs:
+  - {name: requirements, types: [SYS, CMP], cardinality: one-or-more, identity: revision}
+  - {name: stable_requirements, types: [SYS, CMP], cardinality: one-or-more, identity: stable}
+outputs:
+  - name: strategy
+    types: [VSP]
+    cardinality: one
+    required_links:
+      - {link: governs, target: {input: stable_requirements}, distribution: cover}
+      - {link: governs-revision, target: {input: requirements}, distribution: cover}
+prompt_ref: prompts/define-lower-level-verification-strategy.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && strategy.payload.independence.boundary == "black-box"
+  && ((phase.id == "phase-2-system-definition"
+      && strategy.payload.level == "system")
+    || (phase.id == "phase-3-component-definition"
+      && strategy.payload.level == "component")
+    || (phase.id == "phase-4-design-definition"
+      && strategy.payload.level == "design"))
+resolves: [lower-level-verification-strategy-required]
+prohibited_inputs: [product source code, product unit tests, private implementation details, unstated environment capabilities]
+batching: coherent-batch

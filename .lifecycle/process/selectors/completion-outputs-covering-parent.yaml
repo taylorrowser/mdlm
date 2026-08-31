@@ -1,10 +1,10 @@
 kind: selector-definition
 id: completion-outputs-covering-parent
 version: 1
-description: Exact SYS or CMP outputs in one DWP completion that canonically derive from the supplied parent lineage.
+description: Exact SYS, CMP, or DES outputs in one DWP completion that canonically derive from the supplied parent lineage.
 parameters:
   - {name: completion, kind: revision, types: [DWP]}
-  - {name: parent, kind: revision, types: [STK, SYS]}
+  - {name: parent, kind: revision, types: [STK, SYS, CMP]}
 result_kind: revision
 query:
   from:

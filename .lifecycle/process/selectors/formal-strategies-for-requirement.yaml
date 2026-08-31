@@ -1,0 +1,32 @@
+kind: selector-definition
+id: formal-strategies-for-requirement
+version: 1
+description: One exact level-matching strategy for formal verification of one current requirement.
+parameters:
+  - {name: requirement, kind: revision, types: [STK, SYS, CMP, DES]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [VSP]}
+  as: strategy
+  where: >-
+    state(strategy, "disposition") == "active"
+    && state(strategy, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: strategy})
+    && (
+      (requirement.identity.type == "STK"
+        && strategy.payload.level == "stakeholder"
+        && !every("verification-strategies-for-requirement@1", {requirement: requirement}, candidate => candidate != strategy))
+      || (requirement.identity.type == "SYS"
+        && strategy.payload.level == "system"
+        && !every("verification-strategies-for-requirement@1", {requirement: requirement}, candidate => candidate != strategy))
+      || (requirement.identity.type == "CMP"
+        && strategy.payload.level == "component"
+        && !every("decomposition-plans-for-output@1", {output: requirement}, plan =>
+          every("strategies-for-decomposition@1", {plan: plan}, candidate => candidate != strategy)))
+      || (requirement.identity.type == "DES"
+        && strategy.payload.level == "design"
+        && !every("decomposition-plans-for-output@1", {output: requirement}, plan =>
+          every("strategies-for-decomposition@1", {plan: plan}, candidate => candidate != strategy)))
+    )
+  distinct: true
+  order_by: [identity.revision_id]

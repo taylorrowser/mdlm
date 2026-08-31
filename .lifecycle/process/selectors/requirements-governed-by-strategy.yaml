@@ -1,12 +1,12 @@
 kind: selector-definition
 id: requirements-governed-by-strategy
 version: 1
-description: Exact stakeholder or system requirement Revisions governed by one verification strategy Revision.
+description: Exact STK, SYS, CMP, or DES Revisions governed by one verification strategy Revision.
 parameters:
   - {name: strategy, kind: revision, types: [VSP]}
 result_kind: revision
 query:
-  from: {relation: outgoing-links, of: strategy, link: governs-revision, emit: target, types: [STK, SYS]}
+  from: {relation: outgoing-links, of: strategy, link: governs-revision, emit: target, types: [STK, SYS, CMP, DES]}
   as: requirement
   where: 'state(requirement, "validity") == "valid"'
   distinct: true

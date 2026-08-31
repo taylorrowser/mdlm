@@ -1,13 +1,12 @@
 kind: phase-definition
 id: phase-3-component-definition
-version: 1
+version: 2
 order: 3
-name: Component definition tracer
-purpose: Define and coherently review one exact SYS-to-CMP slice, one direct candidate, and one reviewed gate Decision.
+name: Component definition and verification design
+purpose: Define and review one exact SYS-to-CMP slice, complete source-blind formal coverage and one representative pilot, then approve one direct candidate.
 coverage: bootstrap-subset
 omitted_capabilities:
-  - component pilot and formal verification
-  - component acceptance and Phase 4 design definition
+  - product implementation and formal verification execution
 entry: >-
   process.integrity.package_valid == true
   && exists("phase-3-entry-requirements@1", {})
@@ -22,8 +21,25 @@ routing:
   eligible_when: dispatchable
   status_order: [ready, awaiting-review, failed, stale, blocked]
   tie_breakers: [subject, obligation]
-outputs: [CMP, ASP, ICSP, DWP, VSP, REV, BSL, QST, DEC]
-progression: null
+outputs: [CMP, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, QST, DEC, ART]
+progression:
+  next_phase: phase-4-design-definition
+  readiness: >-
+    exists("complete-phase-3-level-candidates@1", {})
+    && every("complete-phase-3-level-candidates@1", {}, candidate =>
+      exists("passing-reviews-for@1", {subject: candidate})
+      && none("failing-reviews-for@1", {subject: candidate})
+      && exists("applicable-gate-signoffs-for@1", {candidate: candidate}))
+  authorization:
+    condition: >-
+      exists("complete-phase-3-level-candidates@1", {})
+      && every("complete-phase-3-level-candidates@1", {}, candidate =>
+        exists("applicable-gate-signoffs-for@1", {candidate: candidate}))
+    policy_ref: phase-progression-participation@1
+    arguments: {phase: phase}
+    scenario: record-gate-signoff@3
+    subjects: 'select("complete-phase-3-level-candidates@1", {})'
+    evidence_selector: applicable-gate-signoffs-for@1
 gate:
   required: true
   candidate_selector: 'select("complete-phase-3-level-candidates@1", {})'

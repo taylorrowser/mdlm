@@ -3,7 +3,7 @@ id: suitable-pilot-results-for-requirement
 version: 1
 description: Exact suitable pilot results reached through the current activity and implementation for one requirement.
 parameters:
-  - {name: requirement, kind: revision, types: [STK, SYS]}
+  - {name: requirement, kind: revision, types: [STK, SYS, CMP, DES]}
 result_kind: revision
 query:
   from: {collection: revisions, types: [RES]}

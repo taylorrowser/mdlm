@@ -19,6 +19,8 @@ query:
     || (candidate.payload.kind == "level-candidate"
       && (count("completions-for-level-candidate@1", {candidate: candidate}) == 1
         || !every("complete-phase-3-level-candidates@1", {}, complete =>
+          complete != candidate)
+        || !every("complete-phase-4-level-candidates@1", {}, complete =>
           complete != candidate)))
   distinct: true
   order_by: [identity.revision_id]

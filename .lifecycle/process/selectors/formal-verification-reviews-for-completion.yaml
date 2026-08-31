@@ -1,0 +1,15 @@
+kind: selector-definition
+id: formal-verification-reviews-for-completion
+version: 1
+description: Exact passing independent Reviews of every formal VER required by one definition completion.
+parameters:
+  - {name: completion, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [REV]}
+  as: review
+  where: >-
+    !every("formal-verification-activities-for-completion@1", {completion: completion}, activity =>
+      every("passing-reviews-for@1", {subject: activity}, candidate => candidate != review))
+  distinct: true
+  order_by: [identity.revision_id]

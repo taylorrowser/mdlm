@@ -2,7 +2,7 @@ kind: obligation-definition
 id: candidate-gate-signoff
 version: 3
 description: A current candidate requires exact reviewed gate approval after member Reviews, its package-required candidate judgment, and blocking questions resolve.
-phases: [phase-0-wayfinding, phase-2-system-definition, phase-3-component-definition]
+phases: [phase-0-wayfinding, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition]
 for_each: 'select("gate-authorization-candidates@1", {})'
 subject_as: candidate
 satisfied_when: 'exists("applicable-gate-signoffs-for@1", {candidate: candidate})'
@@ -53,7 +53,7 @@ status_rules:
       || exists("open-blocking-questions@1", {})
       || (
         candidate.payload.kind == "level-candidate"
-        && none("phase-3-level-candidate-definition-members@1", {candidate: candidate})
+        && none("definition-level-candidate-members@1", {candidate: candidate})
         && every("candidates-with-suitable-representative-pilot@1", {}, ready =>
           ready != candidate)
       )
@@ -84,7 +84,7 @@ status_rules:
       && none("open-blocking-questions@1", {})
       && (
         candidate.payload.kind != "level-candidate"
-        || exists("phase-3-level-candidate-definition-members@1", {candidate: candidate})
+        || exists("definition-level-candidate-members@1", {candidate: candidate})
         || !every("candidates-with-suitable-representative-pilot@1", {}, ready =>
           ready != candidate)
       )

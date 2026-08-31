@@ -1,0 +1,16 @@
+kind: selector-definition
+id: phase-4-entry-component-requirements
+version: 1
+description: Exact current CMP members of the reviewed and gate-approved Phase 3 candidate.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [CMP]}
+  as: requirement
+  where: >-
+    none("newer-revisions-for@1", {subject: requirement})
+    && !every("complete-phase-3-level-candidates@1", {}, candidate =>
+      !exists("applicable-gate-signoffs-for@1", {candidate: candidate})
+      || every("definition-level-candidate-members@1", {candidate: candidate}, member => member != requirement))
+  distinct: true
+  order_by: [identity.revision_id]

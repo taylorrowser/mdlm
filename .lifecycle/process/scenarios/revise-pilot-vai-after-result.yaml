@@ -2,14 +2,14 @@ kind: scenario-definition
 id: revise-pilot-vai-after-result
 version: 1
 description: Correct one pilot procedure after accepted inconclusive execution evidence, optionally reconciling only its exact bound ENV.
-phases: [phase-1-product-assurance, phase-2-system-definition]
+phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition]
 inputs:
   - {name: implementation, types: [VAI], cardinality: one, identity: revision}
   - {name: failed_results, types: [RES], cardinality: one-or-more, identity: revision}
   - {name: activity, types: [VER], cardinality: one, identity: revision}
   - {name: environment, types: [ENV], cardinality: one, identity: revision}
   - {name: execution_target, types: [ART], cardinality: one, identity: revision}
-  - {name: requirement, types: [STK, SYS], cardinality: one, identity: revision}
+  - {name: requirement, types: [STK, SYS, CMP, DES], cardinality: one, identity: revision}
   - {name: strategy, types: [VSP], cardinality: one, identity: revision}
 outputs:
   - name: replacement_environment

@@ -1,0 +1,22 @@
+kind: selector-definition
+id: definition-members-for-completion
+version: 1
+description: Exact coherent lower-level requirements, architecture, interfaces, strategy, planning, and completion Revisions for one CMP or DES slice.
+parameters:
+  - {name: completion, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [CMP, DES, ASP, ICSP, DWP, VSP]}
+  as: member
+  where: >-
+    completion.payload.target_child_type in ["CMP", "DES"]
+    && (member == completion
+      || !every("planning-revisions-for-completion@1", {completion: completion}, plan =>
+        member != plan
+        && every("decomposition-outputs-for@1", {plan: plan}, output => output != member)
+        && every("architectures-for-decomposition@1", {plan: plan}, architecture => architecture != member)
+        && every("strategies-for-decomposition@1", {plan: plan}, strategy => strategy != member))
+      || !every("interfaces-for-decomposition@1", {plan: completion},
+        interface => interface != member))
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

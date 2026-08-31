@@ -1,0 +1,21 @@
+kind: selector-definition
+id: current-design-interface-refinements-for-plan
+version: 1
+description: Current same-lineage ICSP revisions covering one plan and every DES that declares a changed external contract.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [ICSP]}
+  as: interface
+  where: >-
+    state(interface, "disposition") == "active"
+    && state(interface, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: interface})
+    && exists("interface-defines-subject@1", {interface: interface, subject: plan})
+    && every("design-interface-refinement-requirements-for-plan@1",
+      {plan: plan}, design =>
+        exists("interface-defines-subject@1",
+          {interface: interface, subject: design}))
+  distinct: true
+  order_by: [identity.id, identity.revision]

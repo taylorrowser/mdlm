@@ -1,0 +1,33 @@
+kind: obligation-definition
+id: representative-level-pilot-verification-activity-required
+version: 1
+description: Every representative SYS or CMP with one applicable strategy requires one source-independent pilot verification activity.
+phases: [phase-2-system-definition, phase-3-component-definition, phase-4-design-definition]
+for_each: 'select("representative-pilot-requirements@1", {})'
+subject_as: requirement
+satisfied_when: 'exists("pilot-verification-activities-for-requirement@1", {requirement: requirement})'
+status_rules:
+  - status: awaiting-review
+    priority: 300
+    when: >-
+      count("formal-strategies-for-requirement@1", {requirement: requirement}) == 1
+      && none("passing-reviews-for@1",
+        {subject: one("formal-strategies-for-requirement@1", {requirement: requirement})})
+    reason: Pilot activity authoring waits for passing Review of the exact level strategy.
+    blocked_by:
+      - obligation: passing-review-required@2
+        subjects: 'select("formal-strategies-for-requirement@1", {requirement: requirement})'
+  - status: ready
+    priority: 100
+    when: >-
+      count("formal-strategies-for-requirement@1", {requirement: requirement}) == 1
+      && exists("passing-reviews-for@1",
+        {subject: one("formal-strategies-for-requirement@1", {requirement: requirement})})
+    reason: The representative requirement and reviewed strategy are ready for source-independent pilot activity authoring.
+default_status: blocked
+resolve_with:
+  scenario: write-representative-level-pilot-verification-activity@1
+  inputs:
+    requirement: requirement
+    strategy: 'one("formal-strategies-for-requirement@1", {requirement: requirement})'
+waiver_policy_ref: waiver-applicability@1

@@ -1,0 +1,30 @@
+kind: selector-definition
+id: accepted-baseline-promotes-phase-3-candidate-for-design
+version: 1
+description: Exact complete Phase 3 candidate promoted by an accepted component baseline carrying the supplied Phase 4 authority evidence.
+parameters:
+  - {name: accepted, kind: baseline, types: [BSL]}
+  - {name: design_candidate, kind: baseline, types: [BSL]}
+result_kind: baseline
+query:
+  from:
+    selector: complete-phase-3-level-candidates@1
+    arguments: {}
+  as: promoted
+  where: >-
+    exists("accepted-baseline-promotes-candidate@1",
+      {accepted: accepted, candidate: promoted})
+    && !every("complete-phase-4-level-candidates@1", {}, complete => complete != design_candidate)
+    && every("definition-level-candidate-members@1", {candidate: promoted}, member =>
+      exists("baseline-contains-definition@1", {baseline: accepted, subject: member}))
+    && count("candidate-definition-members@1", {candidate: accepted})
+      == count("definition-level-candidate-members@1", {candidate: promoted})
+    && every("level-acceptance-evidence-for-candidate@1",
+      {candidate: design_candidate}, evidence =>
+        exists("baseline-contains-evidence@1",
+          {baseline: accepted, subject: evidence}))
+    && count("baseline-evidence@1", {baseline: accepted})
+      == count("level-acceptance-evidence-for-candidate@1",
+        {candidate: design_candidate})
+  distinct: true
+  order_by: [identity.revision_id]
