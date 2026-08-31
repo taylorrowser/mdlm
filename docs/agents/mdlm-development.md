@@ -48,40 +48,40 @@ Parallelize bounded diagnosis, read-only review, and future design only when
 they cannot delay or replace the next critical-path action. While a concrete
 gate is pending, change its runbook or design only to close an observed blocker.
 
-### Full demos
+### Targeted demos
 
 An eligible demo lane is initialized under the exact identity required by [Portfolio discipline](#portfolio-discipline), has clean Git state and valid integrity, has no uncertain-publication or provenance stop, and has one sole owner.
 
 When no exact quiet-window reservation or stakeholder-authorized architecture
-sprint exception is active under the host operating policy,
-keep exactly three eligible lifecycle operators: one persistent Codex reference
-lane and two ordinary Pi agent sessions using the current evaluation model.
-Treat every missing retained slot or manager as an operating incident. Follow
-the host policy for slot selection, clearance, restoration, and
-restoration-breach reporting.
+sprint exception is active under the host operating policy, the available demo
+mix and cap is one Codex direct-agent lane and one Pi direct-agent lane using the
+current evaluation models. Run either or both when an exact testable release
+artifact is ready and the lane can close a named learning loop. Zero or one live
+lane is valid while implementation or package work is producing the next
+artifact. An unused slot is not an incident.
 
 A host-policy fleet transition may keep extra lanes running through their
 truthful boundaries. Those draining lanes retire without replacement and do not
-create slot incidents.
+create slot incidents. Retain the deepest or most useful lane in each harness.
 
-Keep old-qualified demos running while newer source is edited, merged, reviewed,
-preflighted, or qualified. Each running lane stays bound to its exact
-last-qualified identity. Never mutate that identity in place. Switch a slot only
-when its qualified replacement starts.
+Each running lane stays bound to its exact qualified identity. Never mutate that
+identity in place. Do not launch an old-release replacement merely to occupy a
+slot. Produce the next testable source and Process Package artifact first, then
+launch the relevant Codex and/or Pi lane promptly enough to prove the named seam.
 
-Pause demos only during an authenticated active qualification quiet window.
-Restore the old-qualified fleet as soon as the window clears, whether
-qualification passes or fails, and replace slots only as qualified replacements
-start.
+Pause demos only during an authenticated active qualification quiet window or at
+another boundary explicitly owned by the host policy. After clearance, resume a
+preserved lane only when it still closes a named learning loop; otherwise use
+the capacity for the next qualified artifact.
 
 An operator-contract cutover may use a recorded stakeholder-authorized sprint
 exception instead. Preserve every lane at its authenticated boundary. After the
 cutover acceptance checks pass, launch one fresh disposable canary under exact
-source, Process Package, artifact, runner, model, and harness identities. Restore
-the three-slot fleet only after that canary completes Phase 0, including a
-rejected then corrected Review proposal, and enters the first Phase 1 RUN/RES
-loop without a contract, authority-envelope, missing-input, generated-ID, or
-ambiguous-publication failure.
+source, Process Package, artifact, runner, model, and harness identities. Expand
+to the other targeted harness only after that canary completes Phase 0,
+including a rejected then corrected Review proposal, and enters the first Phase
+1 RUN/RES loop without a contract, authority-envelope, missing-input,
+generated-ID, or ambiguous-publication failure.
 
 Continue each lane through accepted Reviews, publications, qualification, and Phase entry. Its operational endpoint is the controller result `Lifecycle Complete` or `Profile Boundary Reached`, or a package-declared terminal outcome. The exact stop conditions in the host policy's linked recovery runbook mark the lane stopped or blocked, not complete.
 
@@ -185,16 +185,16 @@ single-identity reliability gate.
 ## Execution sequence
 
 1. Read the portfolio, exact lane evidence, open issues, and release candidate record.
-2. Operate lanes under [Full demos](#full-demos), [Focused fixes](#focused-fixes), and [Integration qualification](#integration-qualification).
+2. Operate lanes under [Targeted demos](#targeted-demos), [Focused fixes](#focused-fixes), and [Integration qualification](#integration-qualification).
 3. Classify each finding and link it to the lane's exact evidence before editing code.
 4. Follow [Release assembly](#release-assembly) when fixes qualify for a candidate.
 5. Update portfolio and release records from exact Git, runner, snapshot, and package evidence.
 
 At each coordinator checkpoint, use `OPERATING-POLICY.md` for measures and
 scheduling and `MONITORING.md` for the report. Confirm that the host-owned
-records identify the critical-path coordinator and next command, account for
-every eligible demo slot, expose delay before the first demo or accepted
-publication, and name the latest operational evidence and current blocker.
+records identify the critical-path coordinator and next command, name each live
+or draining demo, bind every proposed demo to a testable artifact and learning
+loop, and expose delay from artifact readiness to its first operation.
 
 If the next command is known and idle, run it before adding plans, reviews, or
 documentation. A passing qualification proves an exact release can start a
@@ -206,7 +206,7 @@ boundary it reaches.
 
 The machine-readable portfolio and concise human summary are the operating index. Before the first run, every lane records its product, purpose, expected endpoint, expected known failure, sole owner, paths, source commit and tree, Process Package identity and digest, artifact digests, runner commit, model, harness, and public targets. During operation it records the current phase, Assignment, last accepted publication, state, issue, and next action.
 
-Use these states plainly: active, attended, blocked, stopped, terminal, complete, or superseded. Use `complete` only for an operational endpoint defined under [Full demos](#full-demos). A missing process is not a state. Runner output, snapshots, Git state, and package status decide the state.
+Use these states plainly: active, attended, blocked, stopped, terminal, complete, or superseded. Use `complete` only for an operational endpoint defined under [Targeted demos](#targeted-demos). A missing process is not a state. Runner output, snapshots, Git state, and package status decide the state.
 
 Keep release candidates separate from demo history. Demo records answer what happened. Release records answer what exact bundle should run next.
 
