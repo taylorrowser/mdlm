@@ -13,8 +13,8 @@ Preserve every accepted RUN and RES. Create one same-lineage VAI Revision that
 corrects every supplied unfavorable result and will receive fresh Review and
 execution. Do not execute the prior VAI again.
 
-Keep the exact reviewed VER and behavior scope. Reuse the bound ENV and ART by
-default. Replace the ENV or ART only when the supplied RUN and RES identify that
-exact boundary as the cause. An ENV replacement must carry a fresh qualification
-activity and implementation. An ART replacement must preserve its supported and
-unsupported behavior. Do not change unrelated lifecycle data.
+Keep the exact reviewed VER, ART, and behavior scope. Reuse the bound ENV by
+default. Replace the ENV only when the supplied RUN and RES identify that exact
+boundary as the cause. An ENV replacement must carry a fresh qualification
+activity and implementation. The separate unsuitable-result route owns
+same-lineage ART correction. Do not change unrelated lifecycle data.

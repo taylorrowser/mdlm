@@ -1,0 +1,62 @@
+kind: scenario-definition
+id: revise-pilot-vai-and-target-after-result
+version: 1
+description: Correct one unsuitable pilot target and its procedure without replaying accepted evidence.
+phases: [phase-1-product-assurance, phase-2-system-definition]
+inputs:
+  - {name: implementation, types: [VAI], cardinality: one, identity: revision}
+  - {name: failed_results, types: [RES], cardinality: one-or-more, identity: revision}
+  - {name: activity, types: [VER], cardinality: one, identity: revision}
+  - {name: environment, types: [ENV], cardinality: one, identity: revision}
+  - {name: execution_target, types: [ART], cardinality: one, identity: revision}
+  - {name: requirement, types: [STK, SYS], cardinality: one, identity: revision}
+outputs:
+  - name: replacement_target
+    types: [ART]
+    cardinality: one
+    identity_from: {input: execution_target}
+    required_links:
+      - {link: derived-from, target: {input: requirement}}
+      - {link: corrects-pilot-result, target: {input: failed_results}}
+  - name: replacement_with_target
+    types: [VAI]
+    cardinality: one
+    identity_from: {input: implementation}
+    required_links:
+      - {link: realizes, target: {input: activity}}
+      - {link: uses, target: {input: environment}}
+      - {link: targets, target: {output: replacement_target}}
+      - {link: corrects-pilot-result, target: {input: failed_results}}
+  - name: authorization
+    types: [DEC]
+    cardinality: one
+    required_links:
+      - {link: justifies, target: {output: replacement_with_target}}
+prompt_ref: prompts/revise-pilot-vai-and-target-after-result.md@1
+review_policy_ref: review-applicability@1
+participation:
+  policy_ref: phase-1-assurance-correction-participation@1
+  arguments: {subject: implementation}
+authority_evidence: {output: authorization, type: DEC}
+completion: >-
+  execution.integrity.contract_valid == true
+  && replacement_target.identity.id == execution_target.identity.id
+  && replacement_target.identity.type == execution_target.identity.type
+  && replacement_with_target.identity.id == implementation.identity.id
+  && replacement_with_target.identity.type == implementation.identity.type
+  && one("environments-for-implementation@1",
+    {implementation: replacement_with_target}) == environment
+  && one("execution-targets-for-implementation@1",
+    {implementation: replacement_with_target}) == replacement_target
+  && replacement_target.payload.kind == execution_target.payload.kind
+  && replacement_target.payload.supported_behavior
+    == execution_target.payload.supported_behavior
+  && replacement_target.payload.unsupported_behavior
+    == execution_target.payload.unsupported_behavior
+  && exists("pilot-result-corrections-for-implementation@1",
+    {implementation: implementation})
+  && authorization.payload.effective_scope
+    == replacement_with_target.identity.revision_id
+resolves: [pilot-vai-target-result-correction-required]
+prohibited_inputs: [mutation or replay of accepted RUN or RES, execution of the unchanged VAI, unrelated ENV or ART, changed VER or pilot claim class, changed ART behavior scope, product source, product unit tests, private implementation details]
+batching: single

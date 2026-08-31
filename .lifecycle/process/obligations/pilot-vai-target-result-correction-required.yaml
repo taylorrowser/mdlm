@@ -1,28 +1,26 @@
 kind: obligation-definition
-id: pilot-vai-result-correction-required
+id: pilot-vai-target-result-correction-required
 version: 1
-description: Accepted inconclusive pilot evidence requires one causal same-lineage VAI correction before fresh Review and execution.
+description: Accepted unsuitable pilot evidence requires one causal same-lineage ART and VAI correction before fresh Review and execution.
 phases: [phase-1-product-assurance, phase-2-system-definition]
 for_each: 'select("verification-implementations-requiring-run@1", {})'
 subject_as: implementation
 satisfied_when: >-
-  none("unfavorable-pilot-results-for-implementation@1",
+  none("unsuitable-pilot-results-for-implementation@1",
     {implementation: implementation})
   || exists("pilot-result-corrections-for-implementation@1",
     {implementation: implementation})
 status_rules:
   - status: ready
-    priority: 100
+    priority: 101
     when: >-
       implementation.payload.kind == "pilot"
-      && exists("unfavorable-pilot-results-for-implementation@1",
+      && exists("unsuitable-pilot-results-for-implementation@1",
         {implementation: implementation})
-      && none("unsuitable-pilot-results-for-implementation@1",
-        {implementation: implementation})
-    reason: Preserve the accepted RUN and RES, then correct the exact VAI and only the bound ENV or ART proven causal by that evidence.
+    reason: Preserve the accepted RUN and RES, then correct the exact same-lineage ART and VAI before fresh Review and execution.
 default_status: blocked
 resolve_with:
-  scenario: revise-pilot-vai-after-result@1
+  scenario: revise-pilot-vai-and-target-after-result@1
   inputs:
     implementation: implementation
     failed_results: >-
@@ -33,10 +31,6 @@ resolve_with:
     execution_target: 'one("pilot-art-targets-for-implementation@1", {implementation: implementation})'
     requirement: >-
       one("requirements-for-pilot-activity@1",
-        {activity: one("verification-activities-for-implementation@1",
-          {implementation: implementation})})
-    strategy: >-
-      one("strategies-for-verification-activity@1",
         {activity: one("verification-activities-for-implementation@1",
           {implementation: implementation})})
 waiver_policy_ref: waiver-applicability@1

@@ -1,0 +1,22 @@
+kind: selector-definition
+id: unsuitable-pilot-results-for-implementation
+version: 1
+description: Accepted unsuitable pilot results produced by completed runs of one exact implementation.
+parameters:
+  - {name: implementation, kind: revision, types: [VAI]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [RES]}
+  as: result
+  where: >-
+    result.payload.claim.kind == "pilot"
+    && result.payload.claim.scope == "verification-design"
+    && result.payload.claim.outcome == "unsuitable"
+    && result.payload.assessment_state in ["recorded", "accepted", "rejected", "inconclusive", "assessment-required"]
+    && state(result, "validity") == "valid"
+    && exists("pilot-runs-producing-result@1", {result: result})
+    && !every("pilot-runs-producing-result@1", {result: result}, run =>
+      every("completed-runs-for-implementation@1",
+        {implementation: implementation}, completed => completed != run))
+  distinct: true
+  order_by: [identity.revision_id]
