@@ -16,6 +16,7 @@ outputs:
     types: [DWP]
     cardinality: one
     identity_from: {input: plan}
+    required_payload: {stage: completion}
     required_links:
       - {link: derived-from, target: {input: plan}}
       - {link: decomposes, target: {input: parents}}
