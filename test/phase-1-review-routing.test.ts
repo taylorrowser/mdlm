@@ -11,6 +11,8 @@ import {
 import { evaluateProcessDefinition } from "../src/evaluator.js";
 import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
+import { runPilotControlEmptyArgvPublic } from
+  "./pilot-control-empty-argv-public.js";
 
 const processDigest = `sha256:${"c".repeat(64)}`;
 const processRef = `mdlm-bootstrap@0.81.0#${processDigest}`;
@@ -93,6 +95,12 @@ describe("Phase 1 review routing", () => {
   beforeAll(async () => {
     processPackage = await canonicalProcessPackage();
   });
+
+  it(
+    "publishes and preserves empty pilot-control argv tokens",
+    runPilotControlEmptyArgvPublic,
+    30_000,
+  );
 
   it("binds verification strategy coverage to stable and revision requirement identities", async () => {
     const loaded = await loadProcessPackage(".lifecycle/process");
