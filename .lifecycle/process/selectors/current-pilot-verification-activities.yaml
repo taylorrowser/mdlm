@@ -23,6 +23,9 @@ query:
       || (phase.id == "phase-3-component-definition"
         && exists("component-requirements-for-pilot-activity@1",
           {activity: activity}))
+      || (phase.id == "phase-4-design-definition"
+        && !every("requirements-for-pilot-activity@1", {activity: activity},
+          requirement => requirement.identity.type != "DES"))
     )
     && exists("pilot-activity-matches-requirement@1",
       {activity: activity,
