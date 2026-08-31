@@ -923,4 +923,4 @@ it("runs the accepted-SYS Phase 3 slice through a reviewed gate", async () => {
   } finally {
     await fs.rm(parent, { recursive: true, force: true });
   }
-}, 180_000);
+});
