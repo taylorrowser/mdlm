@@ -1325,8 +1325,14 @@ export async function runPhaseTwoAssuranceReviewRoute(): Promise<void> {
     expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
     const outcome = JSON.parse(next.stdout);
     expect(outcome.phase).toBe("phase-2-system-definition@10");
-    expect(outcome.outcome).not.toBe("process-dead-end");
-    expect(outcome.assignment).toBeDefined();
+    expect(outcome.outcome).toBe("publication-required");
+    expect(outcome.materializedExecutions).toEqual([
+      expect.objectContaining({
+        scenario: "create-review-context@2",
+        status: "completed",
+      }),
+    ]);
+    expect(outcome.assignment).toBeUndefined();
   } finally {
     await fs.rm(parent, { recursive: true, force: true });
   }
