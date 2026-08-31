@@ -2,7 +2,7 @@ kind: scenario-definition
 id: realize-verification-environment
 version: 1
 description: Realize one exact strategy profile and author the minimal qualification activity and implementation.
-phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition]
+phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition]
 inputs:
   - {name: strategy, types: [VSP], cardinality: one, identity: revision}
 outputs:

@@ -2,7 +2,7 @@ kind: obligation-definition
 id: verification-run-required
 version: 2
 description: Every qualification implementation requires a completed exact run, while every pilot implementation requires a completed run with exercised success and discrimination evidence.
-phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition]
+phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition]
 for_each: 'select("verification-implementations-requiring-run@1", {})'
 subject_as: implementation
 satisfied_when: >-

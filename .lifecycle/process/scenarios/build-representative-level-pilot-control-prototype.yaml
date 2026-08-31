@@ -2,9 +2,9 @@ kind: scenario-definition
 id: build-representative-level-pilot-control-prototype
 version: 1
 description: Create one disposable inline good/bad control pair for a reviewed representative STK, SYS, or CMP pilot activity.
-phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition]
+phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition]
 inputs:
-  - {name: requirement, types: [STK, SYS, CMP], cardinality: one, identity: revision}
+  - {name: requirement, types: [STK, SYS, CMP, DES], cardinality: one, identity: revision}
   - name: activity
     types: [VER]
     cardinality: one

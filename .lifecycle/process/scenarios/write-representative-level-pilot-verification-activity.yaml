@@ -1,10 +1,10 @@
 kind: scenario-definition
 id: write-representative-level-pilot-verification-activity
 version: 1
-description: Write one source-independent pilot activity for the exact representative SYS or CMP and its level-matching strategy.
-phases: [phase-2-system-definition, phase-3-component-definition]
+description: Write one source-independent pilot activity for the exact representative SYS, CMP, or changed-boundary DES and its level-matching strategy.
+phases: [phase-2-system-definition, phase-3-component-definition, phase-4-design-definition]
 inputs:
-  - {name: requirement, types: [STK, SYS, CMP], cardinality: one, identity: revision}
+  - {name: requirement, types: [STK, SYS, CMP, DES], cardinality: one, identity: revision}
   - {name: strategy, types: [VSP], cardinality: one, identity: revision}
 outputs:
   - name: activity

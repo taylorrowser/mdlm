@@ -17,6 +17,16 @@ status_rules:
       - obligation: prototype-question-resolution@1
         subjects: 'select("blocking-questions-for-decomposition@1", {plan: plan})'
   - status: blocked
+    priority: 250
+    when: >-
+      plan.payload.target_child_type == "DES"
+      && exists("design-interface-refinement-requirements-for-plan@1", {plan: plan})
+      && none("current-design-interface-refinements-for-plan@1", {plan: plan})
+    reason: Changed design boundaries require the exact current refined interface before completion.
+    blocked_by:
+      - obligation: design-interface-refinement-required@1
+        subjects: '[plan]'
+  - status: blocked
     priority: 200
     when: >-
       plan.payload.target_child_type == "SYS"
@@ -49,7 +59,7 @@ resolve_with:
     parents: 'select("decomposition-parents-for@1", {plan: plan})'
     outputs: 'select("decomposition-outputs-for@1", {plan: plan})'
     architecture: 'one("architectures-for-decomposition@1", {plan: plan})'
-    interfaces: 'select("interfaces-for-decomposition@1", {plan: plan})'
+    interfaces: 'select("completion-interfaces-for-plan@1", {plan: plan})'
     verification_strategy: 'one("strategies-for-decomposition@1", {plan: plan})'
     simplification_reviews: 'select("phase-2-simplification-reviews-for-plan@1", {plan: plan})'
 waiver_policy_ref: waiver-applicability@1

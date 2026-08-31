@@ -1,8 +1,8 @@
-# MDLM bootstrap Example Process Package v0.105
+# MDLM bootstrap Example Process Package v0.107
 
 This package is the bounded Example Process Package shipped with the
 concept-validating MDLM profile. It defines `MAP`, `QST`, `DEC`, `ART`, `PSP`,
-`STK`, `SYS`, `CMP`, `ASP`, `ICSP`, `DWP`, `VSP`, `ENV`, `VER`, `VAI`, `RUN`, `RES`,
+`STK`, `SYS`, `CMP`, `DES`, `ASP`, `ICSP`, `DWP`, `VSP`, `ENV`, `VER`, `VAI`, `RUN`, `RES`,
 `REV`, `BSL`, `PRB`, `CHG`, and `PAS`. These are package-owned lifecycle types,
 not types recognized by the MDLM kernel.
 

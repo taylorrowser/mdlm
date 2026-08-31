@@ -10,6 +10,7 @@ lifecycle:
 payload_schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
+  required: [interface_effect]
   properties:
     interface_effect: {enum: [unchanged, changed]}
     architecture_allocation:

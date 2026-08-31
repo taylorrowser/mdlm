@@ -3,7 +3,7 @@ id: current-pilot-targets-for-requirement
 version: 1
 description: Current valid exact repository-backed or inline control artifacts derived from one requirement Revision.
 parameters:
-  - {name: requirement, kind: revision, types: [STK, SYS, CMP]}
+  - {name: requirement, kind: revision, types: [STK, SYS, CMP, DES]}
 result_kind: revision
 query:
   from: {relation: incoming-links, of: requirement, link: derived-from, emit: source, types: [ART]}

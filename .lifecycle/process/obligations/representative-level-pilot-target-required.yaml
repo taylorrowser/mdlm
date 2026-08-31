@@ -2,7 +2,7 @@ kind: obligation-definition
 id: representative-level-pilot-target-required
 version: 1
 description: Every representative STK, SYS, or CMP pilot activity needs one exact disposable control target.
-phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition]
+phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition]
 for_each: 'select("representative-pilot-requirements@1", {})'
 subject_as: requirement
 satisfied_when: 'count("current-pilot-targets-for-requirement@1", {requirement: requirement}) == 1'

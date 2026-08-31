@@ -57,10 +57,11 @@ completion: >-
   && count("strategies-for-decomposition@1", {plan: completion}) == 1
   && one("strategies-for-decomposition@1", {plan: completion}) == verification_strategy
   && verification_strategy == one("strategies-for-decomposition@1", {plan: plan})
-  && count("interfaces-for-decomposition@1", {plan: completion}) == count("interfaces-for-decomposition@1", {plan: plan})
-  && every("interfaces-for-decomposition@1", {plan: plan},
-    interface => exists("matching-decomposition-interface@1",
-      {plan: completion, interface: interface}))
+  && count("interfaces-for-decomposition@1", {plan: completion})
+    == count("completion-interfaces-for-plan@1", {plan: plan})
+  && every("completion-interfaces-for-plan@1", {plan: plan},
+    interface => !every("interfaces-for-decomposition@1", {plan: completion},
+      candidate => candidate != interface))
 resolves: [decomposition-completion-required, decomposition-parent-coverage-required]
 prohibited_inputs: [unreviewed outputs, unresolved blocking questions, incomplete simplification evidence, mutable latest aliases]
 batching: single

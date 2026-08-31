@@ -1,11 +1,11 @@
 kind: selector-definition
 id: representative-pilot-requirements
 version: 1
-description: Current STK requirements in Phase 1, one representative SYS in Phase 2, or one CMP in Phase 3 for the distinct observable boundary.
+description: Current STK requirements in Phase 1, one representative SYS in Phase 2, one CMP in Phase 3, or one changed-boundary DES in Phase 4.
 parameters: []
 result_kind: revision
 query:
-  from: {collection: revisions, types: [STK, SYS, CMP]}
+  from: {collection: revisions, types: [STK, SYS, CMP, DES]}
   as: requirement
   where: >-
     (phase.id == "phase-1-product-assurance"
@@ -16,5 +16,10 @@ query:
       && !every("current-decomposition-completions@1", {}, completion =>
         completion.payload.target_child_type != "CMP"
         || requirement != first("completion-outputs-for@1", {completion: completion})))
+    || (phase.id == "phase-4-design-definition"
+      && requirement.identity.type == "DES"
+      && !every("decomposition-plans@1", {}, plan =>
+        requirement != first("design-interface-refinement-requirements-for-plan@1",
+          {plan: plan})))
   distinct: true
   order_by: [identity.revision_id]
