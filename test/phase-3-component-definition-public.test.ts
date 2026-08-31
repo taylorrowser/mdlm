@@ -737,17 +737,17 @@ it("runs the accepted-SYS Phase 3 slice through a reviewed gate", async () => {
         title: `Review ${completion}`,
         review_kind: "contextual",
         reviewer: "independent-reviewer",
-        summary: "The classifier requirement is ambiguous in the frozen definition set.",
+        summary: "The completion account is ambiguous in the frozen definition set.",
         rubric_ref: "policies/rubrics/bootstrap-review.md@3",
         findings: [{
           id: "F-001",
-          target: classifier,
+          target: completion,
           relationship: "primary",
           severity: "blocking",
-          summary: "Clarify the exact classifier behavior.",
-          criterion: "Every component claim must be unambiguous in its frozen context.",
-          evidence: "The classifier claim does not identify the invalid-value result.",
-          material_consequence: "Conforming implementations could classify the same value differently.",
+          summary: "Clarify the exact completion account.",
+          criterion: "The DWP completion must account unambiguously for its frozen component set.",
+          evidence: "The completion rationale does not identify how its exact outputs close the slice.",
+          material_consequence: "The candidate could advance without an explicit exact-set completion judgment.",
         }],
         correction_authority: "package-evidence",
         outcome: "fail",
@@ -803,6 +803,122 @@ it("runs the accepted-SYS Phase 3 slice through a reviewed gate", async () => {
     expect(freshReview).not.toBe(failedReview);
     expect(mdlm(correctionRepository, "show", completion, "--json").status).toBe(0);
     expect(mdlm(correctionRepository, "show", failedReview, "--json").status).toBe(0);
+
+    const correctedCandidatePacket = nextPacket(
+      correctionRepository,
+      "create-component-level-candidate@1",
+    );
+    const correctedMembers = inputRevisions(
+      correctedCandidatePacket,
+      "definition_members",
+    );
+    const correctedReview = inputRevisions(
+      correctedCandidatePacket,
+      "definition_review",
+    )[0];
+    const correctedCandidateResult = submit(
+      correctionRepository,
+      correctedCandidatePacket,
+      [{
+        output: "candidate",
+        payload: {
+          title: "Corrected component definition candidate",
+          kind: "level-candidate",
+          role: "candidate",
+          scope: correctedCompletion,
+          group: "DEFAULT",
+          definition_members: correctedMembers,
+          evidence: [correctedReview],
+        },
+        body: "One corrected coherent component candidate.\n",
+      }],
+    );
+    commit(correctionRepository, "Publish corrected component candidate");
+    const correctedCandidate = publication(correctedCandidateResult, "candidate");
+
+    const candidateReviewPacket = nextPacket(
+      correctionRepository,
+      "review-datum-in-context@3",
+    );
+    expect(inputRevisions(candidateReviewPacket, "subject")).toEqual([
+      correctedCandidate,
+    ]);
+    const failedCandidateResult = submit(
+      correctionRepository,
+      candidateReviewPacket,
+      [{
+        output: "review",
+        payload: {
+          title: `Review ${correctedCandidate}`,
+          review_kind: "contextual",
+          reviewer: "independent-reviewer",
+          summary: "The corrected candidate does not state its exact isolation judgment.",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@3",
+          findings: [{
+            id: "F-002",
+            target: correctedCandidate,
+            relationship: "primary",
+            severity: "blocking",
+            summary: "State the exact candidate isolation judgment.",
+            criterion: "The direct candidate must be independently isolated from other slices.",
+            evidence: "The candidate Review omits the isolation judgment.",
+            material_consequence: "The stakeholder gate could receive a cross-slice candidate.",
+          }],
+          correction_authority: "package-evidence",
+          outcome: "fail",
+        },
+        body: "The exact candidate requires evidence-preserving correction.\n",
+      }],
+      "independent-reviewer",
+    );
+    commit(correctionRepository, "Publish failed component candidate Review");
+    const failedCandidateReview = publication(failedCandidateResult, "review");
+
+    const candidateCorrectionPacket = nextPacket(
+      correctionRepository,
+      "revise-phase-2-candidate-after-review@2",
+    );
+    expect(inputRevisions(candidateCorrectionPacket, "candidate")).toEqual([
+      correctedCandidate,
+    ]);
+    expect(inputRevisions(candidateCorrectionPacket, "failed_reviews")).toEqual([
+      failedCandidateReview,
+    ]);
+    const candidateCorrectionResult = submit(
+      correctionRepository,
+      candidateCorrectionPacket,
+      [{
+        output: "replacement",
+        payload: {
+          title: "Evidence-preserving component candidate correction",
+          kind: "level-candidate",
+          role: "candidate",
+          scope: correctedCompletion,
+          group: "DEFAULT",
+          definition_members: inputRevisions(
+            candidateCorrectionPacket,
+            "definition_members",
+          ),
+          evidence: inputRevisions(candidateCorrectionPacket, "evidence"),
+        },
+        body: "The replacement preserves the exact component membership and evidence.\n",
+      }],
+    );
+    commit(correctionRepository, "Correct component candidate in the same lineage");
+    const replacementCandidate = publication(
+      candidateCorrectionResult,
+      "replacement",
+    );
+    expect(replacementCandidate.replace(/-r[0-9]{5}$/, "")).toBe(
+      correctedCandidate.replace(/-r[0-9]{5}$/, ""),
+    );
+    expect(replacementCandidate).not.toBe(correctedCandidate);
+    expect(mdlm(
+      correctionRepository,
+      "show",
+      failedCandidateReview,
+      "--json",
+    ).status).toBe(0);
     expect(git(correctionRepository, "status", "--porcelain").stdout).toBe("");
   } finally {
     await fs.rm(parent, { recursive: true, force: true });
