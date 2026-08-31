@@ -38,57 +38,32 @@ export const CONTENDED_IN_PROCESS_SETUP_LIMITS = Object.freeze({
 const PROCESS_REPOSITORY_KIND = ROOT_TEST_OBSERVATION_KINDS.PROCESS_REPOSITORY;
 const CANONICAL_IN_PROCESS_KIND = ROOT_TEST_OBSERVATION_KINDS.CANONICAL_IN_PROCESS;
 
-// This is an exhaustive semantic observation-policy dimension, separate from
-// the runtime classification in vitest.suites.mjs. Verification below rejects
-// drift in either list.
-const classification = Object.freeze({
-  "test/load-process-package.test.ts": [CANONICAL_IN_PROCESS_KIND, "temporary Process Package copies and in-process graph/schema compilation"],
-  "test/mdlm-assignment.test.ts": [PROCESS_REPOSITORY_KIND, "repository, compiled CLI, Git, lease lock, and publication lock"],
-  "test/proportional-distinct-context-phase-2-public.test.ts": [PROCESS_REPOSITORY_KIND, "captured repository, Git, compiled CLI, and public assignment route"],
-  "test/phase-3-component-definition-public.test.ts": [PROCESS_REPOSITORY_KIND, "temporary Process Package, compiled CLI, Git, and public Phase 3 route"],
-  "test/mdlm-lifecycle.test.ts": [PROCESS_REPOSITORY_KIND, "mixed in-process projections and repository/public command application"],
-  "test/mdlm-process-migration.test.ts": [PROCESS_REPOSITORY_KIND, "compiled CLI, Git-backed repository, and Process Package migration"],
-  "test/evaluate-phase.test.ts": [CANONICAL_IN_PROCESS_KIND, "in-process evaluation and temporary Process Package loading"],
-  "test/evaluate-scoped-obligation.test.ts": [CANONICAL_IN_PROCESS_KIND, "in-process evaluation and temporary Process Package loading"],
-  "test/load-scenario-participation.test.ts": [CANONICAL_IN_PROCESS_KIND, "temporary Process Package rewrite and in-process compilation/evaluation"],
-  "test/mdlm-assignment-state.test.ts": [PROCESS_REPOSITORY_KIND, "repository, Git, and public command application"],
-  "test/mdlm-clean-onboarding-transaction.test.ts": [PROCESS_REPOSITORY_KIND, "compiled CLI, repository, and Git"],
-  "test/mdlm-cli-output.test.ts": [PROCESS_REPOSITORY_KIND, "side-effecting command application and delayed piped stdout completion"],
-  "test/mdlm-command-application.test.ts": [PROCESS_REPOSITORY_KIND, "repository, public command application, and compiled CLI helper"],
-  "test/mdlm-init.test.ts": [PROCESS_REPOSITORY_KIND, "compiled CLI, Git, FIFO, and package/distribution copies"],
-  "test/mdlm-pilot-assessment.test.ts": [PROCESS_REPOSITORY_KIND, "compiled CLI and temporary repository"],
-  "test/mdlm-process-expression.test.ts": [PROCESS_REPOSITORY_KIND, "repository and public command application"],
-  "test/mdlm-repository-inspection.test.ts": [PROCESS_REPOSITORY_KIND, "repository, Git, public readers, and lazy repository fixture"],
-  "test/mdlm-schema.test.ts": [PROCESS_REPOSITORY_KIND, "selected-package repository and public command application"],
-  "test/operator-outcome.test.ts": [PROCESS_REPOSITORY_KIND, "mixed in-process classification and repository/public/compiled submission"],
-  "test/atomic-review-submit.test.ts": [PROCESS_REPOSITORY_KIND, "temporary Process Package, repository, lease, and atomic public submission"],
-  "test/atomic-review-liveness.test.ts": [CANONICAL_IN_PROCESS_KIND, "source Process Package loading and in-process atomic Review routing"],
-  "test/same-response-payload-reference.test.ts": [PROCESS_REPOSITORY_KIND, "temporary Process Package, repository, Git, and public command submission"],
-  "test/selected-package-cache.test.ts": [PROCESS_REPOSITORY_KIND, "initialized repositories and selected-package filesystem state"],
-  "test/dependency-changes.test.ts": [CANONICAL_IN_PROCESS_KIND, "temporary Process Package copies and in-process dependency evaluation"],
-  "test/proportional-phase-2-public.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process grouped-readiness evaluation"],
-  "test/evaluate-bootstrap-participation.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process evaluation and dry-run resolvers"],
-  "test/evaluate-lifecycle.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process lifecycle evaluation"],
-  "test/evaluate-obligation-history.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process obligation-history evaluation"],
-  "test/evaluate-review-flow.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process review-flow evaluation"],
-  "test/environment-review-correction-identity.test.ts": [PROCESS_REPOSITORY_KIND, "temporary Process Package, repository, and public Assignment submission"],
-  "test/phase-1-review-routing.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process Phase 1 obligation and resolver evaluation"],
-  "test/pilot-art-result-correction-public.test.ts": [PROCESS_REPOSITORY_KIND, "temporary Process Package, repository, Git, and public Assignment submission"],
-  "test/phase-2-system-pilot-route.test.ts": [CANONICAL_IN_PROCESS_KIND, "source Process Package compilation and representative Phase 2 pilot contract inspection"],
-  "test/evaluate-shared-system-change.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process shared-change evaluation"],
-  "test/evaluate-system-decomposition.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process system-decomposition evaluation"],
-  "test/initial-product-intent-selectors.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process selector evaluation"],
-  "test/kernel-capability.test.ts": [CANONICAL_IN_PROCESS_KIND, "temporary Process Package loading and type resolution in process"],
-  "test/cutover-corpus.test.ts": [CANONICAL_IN_PROCESS_KIND, "exact cutover bytes and public contract fixtures"],
-  "test/pi-operator-instructions.test.ts": [CANONICAL_IN_PROCESS_KIND, "static instruction text inspection"],
-  "test/resolve-type.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical and temporary Process Package type resolution"],
-  "test/selector-memoization.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process selector memoization"],
-  "test/textual-expression.test.ts": [CANONICAL_IN_PROCESS_KIND, "in-process expression compilation and evaluation"],
-});
+const processRepositoryRuntimeClasses = new Set([
+  "assignment-publication-heavy",
+  "baseline-integrity-heavy",
+  "process-repository-heavy",
+  "process-repository-safe",
+  "repository-public-fragile",
+]);
+const canonicalInProcessRuntimeClasses = new Set([
+  "canonical-evaluator-safe",
+  "canonical-fixture-filler",
+  "cheap-in-process",
+  "process-package-heavy",
+]);
+
+function classificationFor(entry) {
+  if (processRepositoryRuntimeClasses.has(entry.runtimeClass)) {
+    return [PROCESS_REPOSITORY_KIND, "process/repository runtime class"];
+  }
+  if (canonicalInProcessRuntimeClasses.has(entry.runtimeClass)) {
+    return [CANONICAL_IN_PROCESS_KIND, "canonical/in-process runtime class"];
+  }
+  throw new Error(`Unknown observation-policy runtime class ${entry.runtimeClass}: ${entry.file}`);
+}
 
 export const rootTestObservationPolicy = Object.freeze(rootTestManifest.map((entry) => {
-  const classified = classification[entry.file];
-  if (!classified) throw new Error(`Missing observation policy for ${entry.file}`);
+  const classified = classificationFor(entry);
   const [observationKind, boundaryOwnership] = classified;
   const central = observationKind === PROCESS_REPOSITORY_KIND;
   const contendedSetup = CONTENDED_IN_PROCESS_SETUP_LIMITS[entry.file];
@@ -108,10 +83,6 @@ export const rootTestObservationPolicy = Object.freeze(rootTestManifest.map((ent
         : "retain authoritative 45,000 ms test and 10,000 ms hook defaults for canonical/in-process work",
   });
 }));
-
-if (Object.keys(classification).length !== rootTestManifest.length) {
-  throw new Error("Observation policy contains missing or non-manifest classifications");
-}
 
 const policyByFile = new Map(rootTestObservationPolicy.map((entry) => [entry.file, entry]));
 
@@ -510,7 +481,7 @@ export function renderRootTestObservationInventory(root = process.cwd()) {
     "Authoritative Vitest defaults before per-file policy: tests 45,000 ms; hooks 10,000 ms.",
     `Process/repository policy: tests ${PROCESS_REPOSITORY_TEST_TIMEOUT_MS.toLocaleString("en-US")} ms; hooks ${PROCESS_REPOSITORY_HOOK_TIMEOUT_MS.toLocaleString("en-US")} ms; bounded child observations ${PROCESS_REPOSITORY_CHILD_TIMEOUT_MS.toLocaleString("en-US")} ms.`,
     "",
-    "## Exact 47-file classification",
+    "## Per-file classification",
     "",
     "| File | Runtime class | Boundary ownership | Effective default test/hook | Disposition |",
     "|---|---|---|---:|---|",
