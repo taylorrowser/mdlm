@@ -13,9 +13,7 @@ query:
   where: >-
     completion.payload.target_child_type == "CMP"
     && every("current-exact-review-contexts-cited-by@1", {review: review, subject: completion}, context =>
-      count("review-context-members@1", {context: context})
-        == count("component-definition-members-for-completion@1", {completion: completion})
-      && every("component-definition-members-for-completion@1", {completion: completion}, member =>
+      every("component-definition-members-for-completion@1", {completion: completion}, member =>
         exists("review-context-contains-member@1", {context: context, required_member: member})))
   distinct: true
   order_by: [identity.revision_id]
