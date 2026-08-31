@@ -343,6 +343,19 @@ describe("resolveType", () => {
         supported: ["declared environment capability"],
         intentionally_unsupported: ["undeclared environment capability"],
       },
+      execution_procedure: {
+        content: "Run the positive capability check, then run the negative control.",
+        deadlines_ms: { checkout: 1000, environment_check: 1000, product_case: 1000 },
+        deadline_scope: "infrastructure-safety-only",
+        timeout: {
+          termination: "process-group-sigterm-then-sigkill",
+          force_after_ms: 100,
+          reaping: "all-descendants",
+          capture_partial_raw_observation: true,
+        },
+        cleanup: "guaranteed",
+        aggregation: "continue-through-all-cases",
+      },
     };
     expect(validate(qualification)).toBe(true);
     expect(validate({

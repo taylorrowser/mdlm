@@ -1,6 +1,6 @@
 kind: type-definition
 id: VAI
-version: 2
+version: 3
 name: Verification Activity Implementation
 description: Exact executable or procedural implementation of one verification activity with recorded independence provenance.
 extends: rationale-bearing@1
@@ -12,6 +12,13 @@ payload_schema:
   type: object
   required: [kind, implementation_ref, independence_mode, authoring_input_refs, prohibited_inputs_observed, activity_bindings, target_behavior]
   allOf:
+    - if:
+        properties: {kind: {const: qualification}}
+        required: [kind]
+      then:
+        required: [execution_procedure]
+        properties:
+          execution_procedure: {required: [content]}
     - if:
         properties: {kind: {const: pilot}, independence_mode: {const: source-blind}}
         required: [kind, independence_mode]
@@ -74,6 +81,7 @@ payload_schema:
       additionalProperties: false
       required: [deadlines_ms, deadline_scope, timeout, cleanup, aggregation]
       properties:
+        content: {type: string, minLength: 1, pattern: '\S'}
         deadlines_ms:
           type: object
           additionalProperties: false
