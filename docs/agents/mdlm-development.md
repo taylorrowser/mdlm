@@ -176,11 +176,12 @@ release record and runbook to the new exact identity and obtain a fresh review.
 Restart every preflight on that replacement identity. Do not fold unrelated
 design or hardening into the failed gate.
 
-Source, Process Package, and artifact work does not freeze a running lane. Keep
-each lane on its exact last-qualified identity until a qualified replacement
-starts. Runner-only recovery may continue a valid lane when authenticated
-evidence supports it, but a mixed-runner lane does not count toward a
-single-identity reliability gate.
+Source, Process Package, and artifact work does not itself freeze a useful lane.
+Keep each lane on its exact identity through its named learning boundary, then
+stop or freeze it at the exact boundary owned by the host policy without
+requiring a replacement. Runner-only recovery may continue a valid lane when
+authenticated evidence supports it, but a mixed-runner lane does not count
+toward a single-identity reliability gate.
 
 ## Execution sequence
 
@@ -212,9 +213,10 @@ Keep release candidates separate from demo history. Demo records answer what hap
 
 ## Phase expansion boundary
 
-After the cutover canary restores the fleet, keep Phase 3 and later Process
-Package work behind the two-product,
-same-identity Phase 2 reliability gate owned by [issue
+After the targeted canary satisfies the Phase 0 and first Phase 1 RUN/RES
+acceptance boundary under [Targeted demos](#targeted-demos), keep Phase 3 and
+later Process Package work behind the two-product, same-identity Phase 2
+reliability gate owned by [issue
 #222](https://github.com/taylorrowser/mdlm/issues/222). Apply that issue's exact
 pass criteria. After the gate passes, add one complete operational slice at a
 time and run it before expanding the next Phase.
