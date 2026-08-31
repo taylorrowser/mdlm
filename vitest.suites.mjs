@@ -20,6 +20,7 @@ export const rootTestQualificationManifest = Object.freeze([
   { file: "test/proportional-distinct-context-phase-2-public.test.ts", qualificationGate: "release" },
   { file: "test/phase-3-component-definition-public.test.ts", qualificationGate: "release" },
   { file: "test/dependency-changes.test.ts", qualificationGate: "pr" },
+  { file: "test/dwp-completion-public.test.ts", qualificationGate: "pr" },
   { file: "test/evaluate-phase.test.ts", qualificationGate: "pr" },
   { file: "test/evaluate-scoped-obligation.test.ts", qualificationGate: "pr" },
   { file: "test/load-scenario-participation.test.ts", qualificationGate: "pr" },
@@ -71,6 +72,7 @@ const rootTestRuntimeManifest = [
   { file: "test/phase-3-component-definition-public.test.ts", runtimeClass: "process-repository-heavy", weight: 1, measuredDurationMs: 79_500 },
 
   { file: "test/dependency-changes.test.ts", runtimeClass: "canonical-fixture-filler", weight: 1, measuredDurationMs: 9_352 },
+  { file: "test/dwp-completion-public.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 12_610 },
   { file: "test/evaluate-phase.test.ts", runtimeClass: "canonical-evaluator-safe", weight: 1, measuredDurationMs: 8_883 },
   { file: "test/evaluate-scoped-obligation.test.ts", runtimeClass: "canonical-evaluator-safe", weight: 1, measuredDurationMs: 8_019 },
   { file: "test/load-scenario-participation.test.ts", runtimeClass: "canonical-evaluator-safe", weight: 1, measuredDurationMs: 53_552 },
