@@ -1,0 +1,35 @@
+kind: phase-definition
+id: phase-3-component-definition
+version: 1
+order: 3
+name: Component definition tracer
+purpose: Define and coherently review one exact SYS-to-CMP slice, one direct candidate, and one reviewed gate Decision.
+coverage: bootstrap-subset
+omitted_capabilities:
+  - component pilot and formal verification
+  - component acceptance and Phase 4 design definition
+entry: >-
+  process.integrity.package_valid == true
+  && exists("phase-3-entry-requirements@1", {})
+attention_checkpoints:
+  - id: phase-3-component-gate
+    readiness: >-
+      exists("complete-phase-3-level-candidates@1", {})
+      && every("complete-phase-3-level-candidates@1", {}, candidate =>
+        exists("passing-reviews-for@1", {subject: candidate})
+        && none("failing-reviews-for@1", {subject: candidate}))
+routing:
+  eligible_when: dispatchable
+  status_order: [ready, awaiting-review, failed, stale, blocked]
+  tie_breakers: [subject, obligation]
+outputs: [CMP, ASP, ICSP, DWP, VSP, REV, BSL, QST, DEC]
+progression: null
+gate:
+  required: true
+  candidate_selector: 'select("complete-phase-3-level-candidates@1", {})'
+  candidate_as: candidate
+  obligation: candidate-gate-signoff@3
+  completion: >-
+    exists("passing-reviews-for@1", {subject: candidate})
+    && none("failing-reviews-for@1", {subject: candidate})
+    && exists("applicable-gate-signoffs-for@1", {candidate: candidate})

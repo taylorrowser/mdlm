@@ -1,0 +1,13 @@
+kind: selector-definition
+id: phase-3-entry-requirement-identities
+version: 1
+description: Stable SYS identities for the exact accepted Phase 3 entry Revisions.
+parameters: []
+result_kind: stable-datum
+query:
+  from: {collection: stable-data, types: [SYS]}
+  as: stable
+  where: >-
+    exists("phase-3-entry-revisions-for-identity@1", {stable: stable})
+  distinct: true
+  order_by: [identity.id]

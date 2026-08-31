@@ -1,0 +1,22 @@
+kind: obligation-definition
+id: component-decomposition-execution-required
+version: 1
+description: Every current component DWP plan must produce its exact coherent CMP set.
+phases: [phase-3-component-definition]
+for_each: 'select("current-component-decomposition-plans@1", {})'
+subject_as: plan
+satisfied_when: 'exists("component-outputs-for-plan@1", {plan: plan})'
+status_rules:
+  - status: ready
+    priority: 100
+    when: 'none("blocking-questions-for-decomposition@1", {plan: plan})'
+    reason: The exact component decomposition plan is ready to publish its coherent CMP set.
+default_status: blocked
+resolve_with:
+  scenario: execute-component-decomposition-work-package@1
+  inputs:
+    plan: plan
+    parents: 'select("component-parents-for-plan@1", {plan: plan})'
+    architecture: 'one("architectures-for-decomposition@1", {plan: plan})'
+    interfaces: 'select("interfaces-for-decomposition@1", {plan: plan})'
+waiver_policy_ref: waiver-applicability@1

@@ -1,0 +1,22 @@
+kind: scenario-definition
+id: define-component-architecture
+version: 1
+description: Define one minimal component architecture for one coherent exact accepted SYS slice.
+phases: [phase-3-component-definition]
+inputs:
+  - {name: requirements, types: [SYS], cardinality: one-or-more, identity: revision}
+outputs:
+  - name: architecture
+    types: [ASP]
+    cardinality: one
+    required_links:
+      - {link: governs, target: {input: requirements}, distribution: cover}
+  - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
+prompt_ref: prompts/define-component-architecture.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && architecture.payload.level == "component"
+resolves: [component-architecture-required]
+prohibited_inputs: [product source code, design requirements, mutable latest aliases]
+batching: coherent-batch

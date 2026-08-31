@@ -1,0 +1,27 @@
+kind: scenario-definition
+id: create-component-level-candidate
+version: 1
+description: Freeze one reviewed DWP completion and its exact CMP definition set as a direct level candidate.
+phases: [phase-3-component-definition]
+inputs:
+  - {name: completion, types: [DWP], cardinality: one, identity: revision}
+  - {name: definition_members, types: [CMP, ASP, ICSP, DWP, VSP], cardinality: one-or-more, identity: revision}
+  - {name: definition_review, types: [REV], cardinality: one, identity: revision}
+outputs:
+  - name: candidate
+    types: [BSL]
+    cardinality: one
+    required_links: []
+prompt_ref: prompts/create-component-level-candidate.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && candidate.payload.kind == "level-candidate"
+  && candidate.payload.role == "candidate"
+  && candidate.payload.scope == completion.identity.revision_id
+  && candidate.storage.frozen == true
+  && exists("complete-component-level-candidates-for-completion@1",
+    {completion: completion})
+resolves: [component-level-candidate-required]
+prohibited_inputs: [unreviewed definition set, extra membership, extra evidence, mutable latest aliases]
+batching: single

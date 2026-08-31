@@ -1,0 +1,13 @@
+kind: selector-definition
+id: component-parents-for-plan
+version: 1
+description: Exact system parent Revisions bounded by one CMP-target DWP plan.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: plan, link: decomposes, emit: target, types: [SYS]}
+  as: parent
+  where: 'plan.payload.target_child_type == "CMP"'
+  distinct: true
+  order_by: [identity.revision_id]

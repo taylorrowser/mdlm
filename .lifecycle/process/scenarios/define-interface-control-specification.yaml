@@ -2,7 +2,7 @@ kind: scenario-definition
 id: define-interface-control-specification
 version: 2
 description: Define one normative black-box boundary contract in exact architecture context.
-phases: [phase-2-system-definition]
+phases: [phase-2-system-definition, phase-3-component-definition]
 inputs:
   - {name: architecture, types: [ASP], cardinality: one, identity: revision}
 outputs:
@@ -17,6 +17,6 @@ review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true
   && interface.payload.architecture_revision == architecture.identity.revision_id
-resolves: [interface-control-specification-required]
+resolves: [interface-control-specification-required, component-interface-required]
 prohibited_inputs: [private implementation details, mutable latest aliases, undocumented compatibility assumptions]
 batching: single

@@ -1,0 +1,35 @@
+kind: scenario-definition
+id: complete-component-decomposition-work-package
+version: 1
+description: Record the exact completion Revision for one coherent reviewed SYS-to-CMP decomposition.
+phases: [phase-3-component-definition]
+inputs:
+  - {name: plan, types: [DWP], cardinality: one, identity: revision}
+  - {name: parents, types: [SYS], cardinality: one-or-more, identity: revision}
+  - {name: outputs, types: [CMP], cardinality: one-or-more, identity: revision}
+  - {name: architecture, types: [ASP], cardinality: one, identity: revision}
+  - {name: interfaces, types: [ICSP], cardinality: zero-or-more, identity: revision}
+  - {name: verification_strategy, types: [VSP], cardinality: one, identity: revision}
+outputs:
+  - name: completion
+    types: [DWP]
+    cardinality: one
+    identity_from: {input: plan}
+    required_payload: {stage: completion, target_child_type: CMP}
+    required_links:
+      - {link: derived-from, target: {input: plan}}
+      - {link: decomposes, target: {input: parents}}
+      - {link: produces, target: {input: outputs}}
+      - {link: allocated-to, target: {input: architecture}}
+      - {link: governed-by, target: {input: interfaces}}
+      - {link: verified-under, target: {input: verification_strategy}}
+prompt_ref: prompts/complete-component-decomposition-work-package.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && completion.identity.id == plan.identity.id
+  && completion.payload.stage == "completion"
+  && completion.payload.target_child_type == "CMP"
+resolves: [component-decomposition-completion-required]
+prohibited_inputs: [unresolved blocking questions, mutable latest aliases]
+batching: single

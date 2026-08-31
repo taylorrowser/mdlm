@@ -2,7 +2,7 @@ kind: scenario-definition
 id: record-gate-signoff
 version: 3
 description: Record explicit user approval or rejection against one exact frozen candidate baseline.
-phases: [phase-0-wayfinding, phase-2-system-definition]
+phases: [phase-0-wayfinding, phase-2-system-definition, phase-3-component-definition]
 inputs:
   - name: candidate
     types: [BSL]

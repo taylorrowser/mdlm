@@ -1,0 +1,33 @@
+kind: obligation-definition
+id: component-level-candidate-required
+version: 1
+description: Every coherently reviewed component DWP completion requires one direct level candidate.
+phases: [phase-3-component-definition]
+for_each: 'select("current-component-decomposition-completions@1", {})'
+subject_as: completion
+satisfied_when: 'exists("complete-component-level-candidates-for-completion@1", {completion: completion})'
+status_rules:
+  - status: awaiting-review
+    priority: 200
+    when: >-
+      completion.payload.target_child_type == "CMP"
+      && none("valid-component-definition-reviews-for-completion@1", {completion: completion})
+    reason: The coherent component definition set must pass one independent Review first.
+    blocked_by:
+      - obligation: passing-review-required@2
+        subjects: '[completion]'
+  - status: ready
+    priority: 100
+    when: >-
+      completion.payload.target_child_type == "CMP"
+      && exists("valid-component-definition-reviews-for-completion@1", {completion: completion})
+      && none("failing-reviews-for@1", {subject: completion})
+    reason: The exact coherent reviewed component definition set is ready for one direct candidate.
+default_status: blocked
+resolve_with:
+  scenario: create-component-level-candidate@1
+  inputs:
+    completion: completion
+    definition_members: 'select("component-definition-members-for-completion@1", {completion: completion})'
+    definition_review: 'one("valid-component-definition-reviews-for-completion@1", {completion: completion})'
+waiver_policy_ref: waiver-applicability@1

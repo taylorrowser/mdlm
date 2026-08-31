@@ -1,19 +1,26 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 43
+version: 44
 status: experimental
 description: Complete bootstrap profile with proportional direct system definition, reviewed intent, qualification/pilot, exact accepted-STK and shared-SYS change control, and a reviewed expansion Decision.
 enabled:
-  types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]
-  phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-2-pilot-assessment, phase-7-change-control]
+  types: [MAP, QST, DEC, ART, PSP, STK, SYS, CMP, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]
+  phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition]
   obligation_statuses: [ready, blocked, awaiting-review, stale, failed]
 disabled_capabilities:
-  - component and design decomposition lifecycle types
+  - design decomposition lifecycle types
   - formal verification execution
   - component and design implementation lifecycle types
 terminal_outcomes:
   profile_boundary:
     condition: >-
+      (
+        phase.id == "phase-3-component-definition"
+        && exists("complete-phase-3-level-candidates@1", {})
+        && every("complete-phase-3-level-candidates@1", {}, candidate =>
+          exists("applicable-gate-signoffs-for@1", {candidate: candidate}))
+      )
+      ||
       (
         phase.id == "phase-1-product-assurance"
         && (
@@ -43,7 +50,7 @@ terminal_outcomes:
           && every("pilot-expansion-decisions-for@1", {assessment: assessment}, decision =>
             decision.payload.decision == "change"))
       )
-    explanation: The selected profile stops successfully when Phase 1 contains multiple applicable strategies, environments, or pilot targets beyond its narrow supported breadth, when a reviewed proceed Decision reaches the omitted Phase 3–6 boundary, or when a reviewed change Decision enters and drains the declared narrow change-control route; omitted broader lifecycle capabilities remain outside the supported boundary.
+    explanation: The selected fresh profile stops successfully after one reviewed Phase 3 component gate because component verification and Phase 4 remain intentionally omitted.
   lifecycle_complete:
     condition: >-
       phase.id == "phase-2-pilot-assessment"

@@ -1,0 +1,26 @@
+kind: obligation-definition
+id: component-verification-strategy-required
+version: 1
+description: The exact accepted SYS slice requires one component-level black-box verification strategy.
+phases: [phase-3-component-definition]
+for_each: '[phase]'
+subject_as: required_phase
+satisfied_when: >-
+  exists("phase-3-entry-requirements@1", {})
+  && every("phase-3-entry-requirements@1", {}, requirement =>
+    count("current-component-strategies-for-requirement@1", {requirement: requirement}) == 1)
+status_rules:
+  - status: ready
+    priority: 100
+    when: >-
+      exists("phase-3-entry-requirements@1", {})
+      && every("phase-3-entry-requirements@1", {}, requirement =>
+        count("current-component-strategies-for-requirement@1", {requirement: requirement}) == 0)
+    reason: The exact accepted SYS slice needs one component verification strategy.
+default_status: blocked
+resolve_with:
+  scenario: define-component-verification-strategy@1
+  inputs:
+    requirements: 'select("phase-3-entry-requirements@1", {})'
+    stable_requirements: 'select("phase-3-entry-requirement-identities@1", {})'
+waiver_policy_ref: waiver-applicability@1

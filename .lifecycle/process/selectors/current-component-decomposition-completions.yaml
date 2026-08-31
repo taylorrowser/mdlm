@@ -1,0 +1,17 @@
+kind: selector-definition
+id: current-component-decomposition-completions
+version: 1
+description: Current valid CMP-target DWP completion Revisions ready for component candidate evaluation.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [DWP]}
+  as: completion
+  where: >-
+    completion.payload.stage == "completion"
+    && completion.payload.target_child_type == "CMP"
+    && state(completion, "disposition") == "active"
+    && state(completion, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: completion})
+  distinct: true
+  order_by: [identity.id, identity.revision]

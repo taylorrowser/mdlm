@@ -1,0 +1,17 @@
+kind: selector-definition
+id: component-completions-for-plan
+version: 1
+description: Current completion Revision in the same DWP lineage as one exact component planning Revision.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: plan, link: derived-from, emit: source, types: [DWP]}
+  as: completion
+  where: >-
+    completion.identity.id == plan.identity.id
+    && completion.payload.stage == "completion"
+    && completion.payload.target_child_type == "CMP"
+    && none("newer-revisions-for@1", {subject: completion})
+  distinct: true
+  order_by: [identity.revision]

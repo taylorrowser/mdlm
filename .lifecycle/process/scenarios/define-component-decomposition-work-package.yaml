@@ -1,0 +1,27 @@
+kind: scenario-definition
+id: define-component-decomposition-work-package
+version: 1
+description: Plan one bounded SYS-to-CMP decomposition under exact component definition context.
+phases: [phase-3-component-definition]
+inputs:
+  - {name: parents, types: [SYS], cardinality: one-or-more, identity: revision}
+  - {name: architecture, types: [ASP], cardinality: one, identity: revision}
+  - {name: interfaces, types: [ICSP], cardinality: zero-or-more, identity: revision}
+  - {name: verification_strategy, types: [VSP], cardinality: one, identity: revision}
+outputs:
+  - name: plan
+    types: [DWP]
+    cardinality: one
+    required_payload: {stage: planning, target_child_type: CMP}
+    required_links:
+      - {link: decomposes, target: {input: parents}, distribution: cover}
+      - {link: allocated-to, target: {input: architecture}}
+      - {link: governed-by, target: {input: interfaces}}
+      - {link: verified-under, target: {input: verification_strategy}}
+  - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
+prompt_ref: prompts/define-component-decomposition-work-package.md@1
+review_policy_ref: review-applicability@1
+completion: 'execution.integrity.contract_valid == true'
+resolves: [component-decomposition-planning-required]
+prohibited_inputs: [mutable latest aliases, product source code, design requirements]
+batching: single
