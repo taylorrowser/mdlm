@@ -102,11 +102,13 @@ replacement coverage; complete removal is not fabricated as success.
 
 The fresh profile consumes the exact accepted Phase 2 SYS baseline and derives
 one component ASP, ICSP, VSP, one same-lineage SYS-to-CMP DWP, and a coherent
-CMP set. One frozen Review Context and one independent Review judge the complete
-definition set. A direct component candidate receives its own Review, followed
-by one attended gate Decision and one independent Decision Review. The profile
-then returns `Profile Boundary Reached`; component pilot evidence, formal CMP
-verification, acceptance, and Phase 4 remain absent.
+CMP set. One preparatory context freezes the planning DWP before its
+same-lineage completion, without adding a Review. One final frozen Review Context
+and one independent Review judge the complete definition set. A direct component
+candidate receives its own Review, followed by one attended gate Decision and
+one independent Decision Review. The profile then returns `Profile Boundary
+Reached`; component pilot evidence, formal CMP verification, acceptance, and
+Phase 4 remain absent.
 
 ### Phase 7 — bounded accepted change
 
