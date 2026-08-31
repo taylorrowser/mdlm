@@ -382,8 +382,67 @@ export interface AssignmentPayloadDependentRule {
 export interface AssignmentPayloadSummary {
   required: string[];
   kernelManaged: string[];
+  /** Compact construction hints for required authored fields. */
+  fieldShapes?: Record<string, Record<string, unknown>>;
   conditional?: AssignmentPayloadConditionalRule[];
   dependentRequired?: AssignmentPayloadDependentRule[];
+}
+
+function compactAssignmentFieldSchema(
+  value: unknown,
+): Record<string, unknown> | undefined {
+  const schema = object(value);
+  if (!schema) return undefined;
+  const result: Record<string, unknown> = {};
+  for (const key of [
+    "type",
+    "enum",
+    "const",
+    "format",
+    "pattern",
+    "minimum",
+    "maximum",
+    "minLength",
+    "maxLength",
+    "minItems",
+    "maxItems",
+    "uniqueItems",
+    "additionalProperties",
+  ]) {
+    if (Object.hasOwn(schema, key)) result[key] = structuredClone(schema[key]);
+  }
+
+  const required = Array.isArray(schema.required)
+    ? schema.required.filter((field): field is string => typeof field === "string")
+    : [];
+  if (required.length > 0) result.required = required;
+  const properties = object(schema.properties);
+  if (properties && required.length > 0) {
+    const requiredProperties = Object.fromEntries(required.flatMap((field) => {
+      const projected = compactAssignmentFieldSchema(properties[field]);
+      return projected ? [[field, projected]] : [];
+    }));
+    if (Object.keys(requiredProperties).length > 0) {
+      result.properties = requiredProperties;
+    }
+  }
+
+  const items = compactAssignmentFieldSchema(schema.items);
+  if (items) result.items = items;
+  if (Array.isArray(schema.prefixItems)) {
+    const prefixItems = schema.prefixItems
+      .map(compactAssignmentFieldSchema)
+      .filter((item): item is Record<string, unknown> => item !== undefined);
+    if (prefixItems.length > 0) result.prefixItems = prefixItems;
+  }
+  for (const key of ["allOf", "anyOf", "oneOf"] as const) {
+    if (!Array.isArray(schema[key])) continue;
+    const alternatives = schema[key]
+      .map(compactAssignmentFieldSchema)
+      .filter((item): item is Record<string, unknown> => item !== undefined);
+    if (alternatives.length > 0) result[key] = alternatives;
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
 }
 
 /** Render fields required by the active payload-schema branch. */
@@ -427,6 +486,11 @@ export function assignmentPayloadSummary(
   const conditionalKeys = new Set<string>();
   const dependentRequired: AssignmentPayloadDependentRule[] = [];
   const pointerToken = (value: string) => value.replaceAll("~", "~0").replaceAll("/", "~1");
+  const properties = object(payloadSchema.properties) ?? {};
+  const fieldShapes = Object.fromEntries(required.flatMap((field) => {
+    const projected = compactAssignmentFieldSchema(properties[field]);
+    return projected ? [[field, projected]] : [];
+  }));
 
   const visit = (
     value: unknown,
@@ -493,6 +557,7 @@ export function assignmentPayloadSummary(
   return {
     required,
     kernelManaged: kernelManagedPayloadPaths,
+    ...(Object.keys(fieldShapes).length > 0 ? { fieldShapes } : {}),
     ...(conditional.length > 0 ? { conditional } : {}),
     ...(dependentRequired.length > 0 ? { dependentRequired } : {}),
   };
