@@ -335,6 +335,14 @@ function review(
   expectedSubject: string,
 ): string {
   const packet = nextPacket(repository, "review-datum-in-context@3");
+  return submitReview(repository, packet, expectedSubject);
+}
+
+function submitReview(
+  repository: string,
+  packet: Json,
+  expectedSubject: string,
+): string {
   expect(inputRevisions(packet, "subject")).toEqual([expectedSubject]);
   const result = submit(repository, packet, [{
     output: "review",
@@ -659,6 +667,9 @@ it("runs the accepted-SYS Phase 3 slice through a reviewed gate", async () => {
     expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
     commit(repository, "Publish coherent definition Review Context");
 
+    const correctionRepository = path.join(parent, "correction-repository");
+    await fs.cp(repository, correctionRepository, { recursive: true });
+
     const reviews = [review(repository, completion)];
 
     const candidatePacket = nextPacket(
@@ -713,6 +724,86 @@ it("runs the accepted-SYS Phase 3 slice through a reviewed gate", async () => {
     expect(reviews).toHaveLength(3);
     expect(new Set(reviews).size).toBe(3);
     expect(git(repository, "status", "--porcelain").stdout).toBe("");
+
+    const failedPacket = nextPacket(
+      correctionRepository,
+      "review-datum-in-context@3",
+    );
+    const failedContext = inputRevisions(failedPacket, "review_context")[0];
+    expect(inputRevisions(failedPacket, "subject")).toEqual([completion]);
+    const failedResult = submit(correctionRepository, failedPacket, [{
+      output: "review",
+      payload: {
+        title: `Review ${completion}`,
+        review_kind: "contextual",
+        reviewer: "independent-reviewer",
+        summary: "The classifier requirement is ambiguous in the frozen definition set.",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
+        findings: [{
+          id: "F-001",
+          target: classifier,
+          relationship: "primary",
+          severity: "blocking",
+          summary: "Clarify the exact classifier behavior.",
+          criterion: "Every component claim must be unambiguous in its frozen context.",
+          evidence: "The classifier claim does not identify the invalid-value result.",
+          material_consequence: "Conforming implementations could classify the same value differently.",
+        }],
+        correction_authority: "package-evidence",
+        outcome: "fail",
+      },
+      body: "One exact member-targeted Finding blocks the coherent component set.\n",
+    }], "independent-reviewer");
+    commit(correctionRepository, "Publish failed coherent definition Review");
+    const failedReview = publication(failedResult, "review");
+
+    const correctionPacket = nextPacket(
+      correctionRepository,
+      "revise-component-completion-after-review@1",
+    );
+    expect(inputRevisions(correctionPacket, "completion")).toEqual([completion]);
+    expect(inputRevisions(correctionPacket, "failed_reviews")).toEqual([failedReview]);
+    const correctionResult = submit(correctionRepository, correctionPacket, [{
+      output: "replacement",
+      payload: {
+        title: "Corrected classification component slice",
+        rationale: "Preserve the exact slice while resolving the member-targeted Finding.",
+        stage: "completion",
+        architecture_element: "AEL-CMPDEF00001",
+        target_child_type: "CMP",
+        behavioral_slice: "Classify and report one supplied value.",
+        expected_coverage: ["The accepted system classification behavior"],
+        exclusions: ["Implementation and formal verification"],
+        dependencies: [system, architecture, interfaceRevision, strategy],
+        required_review_policy: "review-applicability@1",
+      },
+      body: "The same-lineage completion now addresses the exact failed Review.\n",
+    }]);
+    commit(correctionRepository, "Correct component completion in the same lineage");
+    const correctedCompletion = publication(correctionResult, "replacement");
+    expect(correctedCompletion.replace(/-r[0-9]{5}$/, "")).toBe(
+      completion.replace(/-r[0-9]{5}$/, ""),
+    );
+    expect(correctedCompletion).not.toBe(completion);
+
+    const freshContextOutcome = next(correctionRepository);
+    expect(freshContextOutcome.outcome).toBe("publication-required");
+    commit(correctionRepository, "Publish corrected coherent definition context");
+    const freshReviewPacket = nextPacket(
+      correctionRepository,
+      "review-datum-in-context@3",
+    );
+    const freshContext = inputRevisions(freshReviewPacket, "review_context")[0];
+    expect(freshContext).not.toBe(failedContext);
+    const freshReview = submitReview(
+      correctionRepository,
+      freshReviewPacket,
+      correctedCompletion,
+    );
+    expect(freshReview).not.toBe(failedReview);
+    expect(mdlm(correctionRepository, "show", completion, "--json").status).toBe(0);
+    expect(mdlm(correctionRepository, "show", failedReview, "--json").status).toBe(0);
+    expect(git(correctionRepository, "status", "--porcelain").stdout).toBe("");
   } finally {
     await fs.rm(parent, { recursive: true, force: true });
   }
