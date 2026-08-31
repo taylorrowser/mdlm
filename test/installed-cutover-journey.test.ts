@@ -8,6 +8,29 @@ import { currentProcessPackageIdentity } from "./helpers/current-process-package
 
 const temporaryRoots: string[] = [];
 const preservedRoots = new Set<string>();
+const qualificationProcedureContent = [
+  "Create a fresh temporary directory for the qualification run.",
+  "Positive check: exercise every capability declared by the exact ENV and record the observed success.",
+  "Negative control: request one capability outside the declared ENV profile and record the expected refusal.",
+  "Retain the command, exit status, stdout, and stderr for both checks, then remove the temporary directory.",
+].join("\n");
+const qualificationExecutionProcedure = {
+  content: qualificationProcedureContent,
+  deadlines_ms: {
+    checkout: 300_000,
+    environment_check: 120_000,
+    product_case: 120_000,
+  },
+  deadline_scope: "infrastructure-safety-only",
+  timeout: {
+    termination: "process-group-sigterm-then-sigkill",
+    force_after_ms: 5_000,
+    reaping: "all-descendants",
+    capture_partial_raw_observation: true,
+  },
+  cleanup: "guaranteed",
+  aggregation: "continue-through-all-cases",
+};
 
 async function preserveFailureEvidence(
   root: string,
@@ -328,7 +351,9 @@ function outputPayload(
       title: "Installed environment qualification implementation",
       rationale: "Exercise the declared environment capabilities and a negative control.",
       kind: "qualification",
-      implementation_ref: `procedure:sha256:${"0".repeat(64)}`,
+      implementation_ref: `procedure:sha256:${createHash("sha256")
+        .update(qualificationProcedureContent)
+        .digest("hex")}`,
       independence_mode: "environment-capability",
       authoring_input_refs: [strategy.revision_id],
       prohibited_inputs_observed: [
@@ -342,6 +367,7 @@ function outputPayload(
         supported: ["declared environment capabilities"],
         intentionally_unsupported: ["undeclared environment capabilities"],
       },
+      execution_procedure: structuredClone(qualificationExecutionProcedure),
     };
   }
   if (scenario === "resolve-question" && output.type === "DEC") {
@@ -856,6 +882,7 @@ describe("installed v2 cutover journey", () => {
       kind: "qualification",
       implementation_ref: expect.stringMatching(/^procedure:sha256:[a-f0-9]{64}$/),
       independence_mode: "environment-capability",
+      execution_procedure: qualificationExecutionProcedure,
     });
   });
 
@@ -1017,6 +1044,8 @@ describe("installed v2 cutover journey", () => {
     });
     let rejectedReview = false;
     let correctedReview = false;
+    let rejectedQualificationWithoutProcedure = false;
+    let qualificationProcedureProjected = false;
     let phase1RunOrResult = false;
     let phase1Boundary: Record<string, any> | undefined;
     const scenarios: string[] = [];
@@ -1044,6 +1073,14 @@ describe("installed v2 cutover journey", () => {
         && outcome.phase.startsWith("phase-1-product-assurance@")
         && outputTypes.some((type: string) => type === "RUN" || type === "RES")
       ) {
+        const implementation = inputData(packet, "implementation")[0]!;
+        expect(implementation.payload).toMatchObject({
+          kind: "qualification",
+          execution_procedure: qualificationExecutionProcedure,
+        });
+        expect(implementation.payload.execution_procedure.content)
+          .toBe(qualificationProcedureContent);
+        qualificationProcedureProjected = true;
         phase1RunOrResult = true;
         phase1Boundary = outcome;
         break;
@@ -1130,6 +1167,40 @@ describe("installed v2 cutover journey", () => {
         expect(recovered.assignment).toEqual(outcome.assignment);
         rejectedReview = true;
       }
+      if (packet.scenario.reference === "realize-verification-environment@1") {
+        const missingProcedure = structuredClone(response);
+        const implementation = missingProcedure.proposal.outputs.find(
+          (output: Record<string, unknown>) => output.type === "VAI",
+        );
+        implementation.payload.implementation_ref = `procedure:sha256:${"0".repeat(64)}`;
+        delete implementation.payload.execution_procedure;
+        const rejected = trackedRun(
+          failureState,
+          process.execPath,
+          [executable, "scenario", "submit", "-", "--json"],
+          repository,
+          `${JSON.stringify(missingProcedure)}\n`,
+        );
+        expect(rejected.status).toBe(1);
+        expect(JSON.parse(rejected.stdout)).toMatchObject({
+          contract: "mdlm-submission-outcome@1",
+          outcome: "rejected",
+          assignment: { id: outcome.assignment.id },
+          retryable: true,
+          correctionConsumed: false,
+        });
+        const recovered = successful(
+          trackedRun(
+            failureState,
+            process.execPath,
+            [executable, "next", "--json"],
+            repository,
+          ),
+          "installed mdlm next after missing qualification procedure",
+        );
+        expect(recovered.assignment).toEqual(outcome.assignment);
+        rejectedQualificationWithoutProcedure = true;
+      }
       const arguments_ = [executable, "scenario", "submit", "-", "--json"];
       if (outcome.outcome === "attention-required") {
         expect(packet.authority.requirements.map(
@@ -1193,6 +1264,8 @@ describe("installed v2 cutover journey", () => {
     }
     expect(rejectedReview).toBe(true);
     expect(correctedReview, scenarios.join(" -> ")).toBe(true);
+    expect(rejectedQualificationWithoutProcedure, scenarios.join(" -> ")).toBe(true);
+    expect(qualificationProcedureProjected, scenarios.join(" -> ")).toBe(true);
     expect(phase1RunOrResult, scenarios.join(" -> ")).toBe(true);
     const successEvidence = {
       status: "success",
