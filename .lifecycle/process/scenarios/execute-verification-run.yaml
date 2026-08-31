@@ -22,7 +22,7 @@ outputs:
     cardinality: one
     required_links:
       - {link: assessed-in, target: {input: environment}}
-prompt_ref: prompts/execute-verification-run.md@3
+prompt_ref: prompts/execute-verification-run.md@4
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true

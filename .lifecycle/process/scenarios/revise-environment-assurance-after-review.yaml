@@ -52,7 +52,7 @@ outputs:
     cardinality: zero-or-one
     required_links:
       - {link: justifies, target: {output: replacement}}
-prompt_ref: prompts/revise-environment-assurance-after-review.md@1
+prompt_ref: prompts/revise-environment-assurance-after-review.md@2
 review_policy_ref: review-applicability@1
 participation:
   policy_ref: phase-1-assurance-correction-participation@1

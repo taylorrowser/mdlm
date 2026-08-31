@@ -53,7 +53,7 @@ outputs:
     cardinality: zero-or-one
     required_links:
       - {link: justifies, target: {output: replacement}}
-prompt_ref: prompts/revise-environment-after-failed-qualification.md@1
+prompt_ref: prompts/revise-environment-after-failed-qualification.md@2
 review_policy_ref: review-applicability@1
 participation:
   policy_ref: environment-qualification-correction-participation@1

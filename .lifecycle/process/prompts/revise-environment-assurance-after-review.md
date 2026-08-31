@@ -1,8 +1,8 @@
 ---
 id: revise-environment-assurance-after-review
-version: 1
+version: 2
 scenario: revise-environment-assurance-after-review
-skills: [skills/lifecycle-data.md@1, skills/verification-environments.md@1, skills/qualification-verification.md@1, skills/contextual-artifact-review.md@2, skills/reproducibility.md@1, skills/author-preflight.md@2]
+skills: [skills/lifecycle-data.md@1, skills/verification-environments.md@1, skills/qualification-verification.md@2, skills/contextual-artifact-review.md@2, skills/reproducibility.md@1, skills/author-preflight.md@2]
 ---
 
 # Correct failed environment assurance

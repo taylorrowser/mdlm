@@ -1,6 +1,6 @@
 ---
 id: execute-verification-run
-version: 3
+version: 4
 scenario: execute-verification-run
 ---
 
@@ -12,11 +12,13 @@ Read, in order:
 2. `skills/verification-run-model.md@1`
 3. `skills/reproducibility.md@1`
 
-Execute the exact VAI in the exact ENV against its exact target. Attempt all
-declared activities when setup and the target boundary permit them, and retain
-structured evidence for every attempted, refused, skipped, or not-launched case.
-A completed RUN means the bounded runner procedure completed. It does not by
-itself mean product behavior was exercised.
+Execute the exact VAI in the exact ENV against its exact target. For a
+qualification VAI, execute the exact inline instructions in
+`VAI.payload.execution_procedure.content`, including their positive capability
+check and negative control. Attempt all declared activities when setup and the
+target boundary permit them, and retain structured evidence for every attempted,
+refused, skipped, or not-launched case. A completed RUN means the bounded runner
+procedure completed. It does not by itself mean product behavior was exercised.
 
 When the target supplies inline disposable controls, invoke the exact known-good
 and known-bad argv in a fresh temporary directory. For each, retain base64 stdin,
