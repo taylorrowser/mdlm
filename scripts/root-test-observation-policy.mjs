@@ -73,6 +73,7 @@ const classification = Object.freeze({
   "test/evaluate-review-flow.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process review-flow evaluation"],
   "test/environment-review-correction-identity.test.ts": [PROCESS_REPOSITORY_KIND, "temporary Process Package, repository, and public Assignment submission"],
   "test/phase-1-review-routing.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process Phase 1 obligation and resolver evaluation"],
+  "test/pilot-art-result-correction-public.test.ts": [PROCESS_REPOSITORY_KIND, "temporary Process Package, repository, Git, and public Assignment submission"],
   "test/phase-2-system-pilot-route.test.ts": [CANONICAL_IN_PROCESS_KIND, "source Process Package compilation and representative Phase 2 pilot contract inspection"],
   "test/evaluate-shared-system-change.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process shared-change evaluation"],
   "test/evaluate-system-decomposition.test.ts": [CANONICAL_IN_PROCESS_KIND, "canonical in-process system-decomposition evaluation"],
@@ -167,8 +168,7 @@ function boundaryTitle(call, name) {
 export function verifyRootTestObservationPolicy(root = process.cwd()) {
   const manifestFiles = rootTestManifest.map((entry) => entry.file).sort();
   const policyFiles = rootTestObservationPolicy.map((entry) => entry.file).sort();
-  if (new Set(policyFiles).size !== 41
-    || policyFiles.length !== 41
+  if (new Set(policyFiles).size !== policyFiles.length
     || JSON.stringify(policyFiles) !== JSON.stringify(manifestFiles)) {
     throw new Error("Root observation policy must classify every manifest file exactly once");
   }
