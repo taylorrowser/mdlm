@@ -1,7 +1,7 @@
 kind: selector-definition
 id: complete-superseding-phase-2-candidates-for
 version: 1
-description: Same-lineage superseding Phase 2 level candidates preserving every unaffected exact member and evidence item.
+description: Same-lineage superseding level candidates preserving every unaffected exact member and evidence item.
 parameters:
   - {name: candidate, kind: baseline, types: [BSL]}
 result_kind: baseline
