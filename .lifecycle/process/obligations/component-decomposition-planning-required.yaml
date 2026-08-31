@@ -5,11 +5,15 @@ description: The exact accepted SYS slice requires one bounded component decompo
 phases: [phase-3-component-definition]
 for_each: 'select("phase-3-architecture-representative-requirements@1", {})'
 subject_as: requirement
-satisfied_when: 'exists("current-component-decomposition-plans@1", {})'
+satisfied_when: >-
+  exists("current-component-decomposition-plans@1", {})
+  || exists("current-component-decomposition-completions@1", {})
 status_rules:
   - status: ready
     priority: 100
     when: >-
+      none("current-component-decomposition-completions@1", {})
+      &&
       count("current-component-architectures-for-requirement@1", {requirement: requirement}) == 1
       && count("current-component-strategies-for-requirement@1", {requirement: requirement}) == 1
       && exists("current-component-interfaces-for-architecture@1",
