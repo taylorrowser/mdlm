@@ -29,19 +29,14 @@ outputs:
     types: [VAI]
     cardinality: zero-or-one
     required_links: []
-  - name: replacement_target
-    types: [ART]
-    cardinality: zero-or-one
-    identity_from: {input: execution_target}
-    required_links:
-      - {link: derived-from, target: {input: requirement}}
-      - {link: corrects-pilot-result, target: {input: failed_results}}
   - name: replacement
     types: [VAI]
     cardinality: one
     identity_from: {input: implementation}
     required_links:
       - {link: realizes, target: {input: activity}}
+      - {link: uses, target: {input: environment}}
+      - {link: targets, target: {input: execution_target}}
       - {link: corrects-pilot-result, target: {input: failed_results}}
   - name: authorization
     types: [DEC]
@@ -77,17 +72,8 @@ completion: >-
         replacement: replacement_environment,
         qualification_activity: qualification_activity,
         qualification_implementation: qualification_implementation})))
-  && ((replacement_target == null
-      && one("execution-targets-for-implementation@1", {implementation: replacement})
-        == execution_target)
-    || (replacement_target != null
-      && one("execution-targets-for-implementation@1", {implementation: replacement})
-        == replacement_target
-      && exists("valid-pilot-result-target-reconciliations@1", {
-        implementation: implementation,
-        target: execution_target,
-        requirement: requirement,
-        replacement: replacement_target})))
+  && one("execution-targets-for-implementation@1", {implementation: replacement})
+    == execution_target
   && authorization.payload.effective_scope == replacement.identity.revision_id
 resolves: [pilot-vai-result-correction-required]
 prohibited_inputs: [mutation or replay of accepted RUN or RES, execution of the unchanged VAI, unrelated ENV or ART, changed VER or pilot claim class, changed ART behavior scope, product source, product unit tests, private implementation details]
