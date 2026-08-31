@@ -15,6 +15,8 @@
     "mdlm": "./dist/mdlm.js"
   },
   "scripts": {
+    "prototype:lifecycle-viewer": "node prototypes/lifecycle-viewer/generate.mjs",
+    "prototype:lifecycle-viewer:smoke": "node prototypes/lifecycle-viewer/smoke.mjs",
     "build": "tsc -p tsconfig.build.json",
     "build:mdlm-pi": "npm run build --workspace=mdlm-pi",
     "test": "npm run test:fast",
