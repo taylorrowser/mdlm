@@ -1,7 +1,7 @@
 kind: obligation-definition
 id: pilot-vai-result-correction-required
 version: 1
-description: Accepted unfavorable pilot evidence requires one causal same-lineage VAI correction before fresh Review and execution.
+description: Accepted inconclusive pilot evidence requires one causal same-lineage VAI correction before fresh Review and execution.
 phases: [phase-1-product-assurance, phase-2-system-definition]
 for_each: 'select("verification-implementations-requiring-run@1", {})'
 subject_as: implementation

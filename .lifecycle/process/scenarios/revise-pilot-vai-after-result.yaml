@@ -1,7 +1,7 @@
 kind: scenario-definition
 id: revise-pilot-vai-after-result
 version: 1
-description: Correct one pilot procedure after accepted unfavorable execution evidence, optionally reconciling only its exact bound ENV or ART.
+description: Correct one pilot procedure after accepted inconclusive execution evidence, optionally reconciling only its exact bound ENV.
 phases: [phase-1-product-assurance, phase-2-system-definition]
 inputs:
   - {name: implementation, types: [VAI], cardinality: one, identity: revision}
