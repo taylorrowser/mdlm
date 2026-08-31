@@ -2,7 +2,7 @@
 
 - **Status:** Completed concept-validating profile with contracted operator interface
 - **Historical design baseline:** [`mdlm-process-overview-v0.8.md`](mdlm-process-overview-v0.8.md)
-- **Implementation package:** `mdlm-bootstrap@0.59.0`
+- **Implementation package:** `mdlm-bootstrap@0.105.0`
 - **Reviewed expansion recommendation:** `change`
 
 ## Purpose
@@ -14,7 +14,7 @@ production-complete product.
 The completed profile validates a process-neutral declarative kernel, one `mdlm`
 product surface, a Markdown-authoritative Lifecycle Data repository, atomic
 Scenario Proposal submission, and a bounded Example Process Package through
-Phases 0–2, accepted-change control, and reviewed Pilot Assessment.
+Phases 0–2 and one narrow accepted-SYS to reviewed-component-gate Phase 3 tracer.
 
 ## Conformance boundary
 
@@ -55,6 +55,7 @@ deferred by the reviewed Pilot Assessment.
 | Phase 0 wayfinding, Correction, reviewed intent, gate rejection, and same-gate return | #44, #64, #92–#95 | `test/phase-0-hardening-routes.test.ts`, `test/evaluate-bootstrap-participation.test.ts` |
 | Phase 1 assurance, exact target evidence, bounded Correction, fresh pilot evidence, and ambiguity boundaries | #45, #65–#66, #74–#76, #97 | `test/phase-1-hardening-routes.test.ts`, `test/phase-1-route-contracts.test.ts` |
 | Phase 2 decomposition, exact-set simplification, Correction, candidates, acceptance, and progression | #46, #98–#99 | `test/phase-2-hardening-routes.test.ts`, `test/phase-hardening-domain-contracts.test.ts` |
+| Narrow Phase 3 component definition, coherent-set Review, direct candidate, reviewed gate, and explicit profile boundary | #526 | `test/phase-3-component-definition-public.test.ts` |
 | Accepted STK/shared-SYS change, serial consumer replacement, selective reuse, and closure | #47, #101–#102 | `test/change-and-pilot-hardening-routes.test.ts`, `test/evaluate-shared-system-change.test.ts` |
 | Durable PAS, bounded Correction, reviewed Expansion Decision, and explicit terminal outcomes | #48, #68, #100 | `test/mdlm-pilot-assessment.test.ts`, `test/change-and-pilot-hardening-routes.test.ts`, `test/operator-outcome.test.ts` |
 | Continuous package-neutral pi operation and harness-owned authority handling | #69, #72, #104 | `test/pi-operator-instructions.test.ts`, `test/mdlm-assignment.test.ts`, `test/operator-outcome.test.ts` |
@@ -148,7 +149,7 @@ Decision therefore adopts `change`, not `proceed`.
 
 The following remain outside the completed profile:
 
-- Phase 3–6 package definitions and outputs;
+- component pilot and formal CMP verification, plus Phase 4–6 package definitions and outputs;
 - production graph indexing before repository measurements justify it;
 - broader concurrency profiles;
 - source-isolation containers;
