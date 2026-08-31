@@ -9,7 +9,7 @@ query:
   from: {relation: incoming-links, of: requirement, link: governs-revision, emit: source, types: [VSP]}
   as: strategy
   where: >-
-    ((requirement.identity.type == "STK" && strategy.payload.level == "system")
+    ((requirement.identity.type == "STK" && strategy.payload.level == "stakeholder")
       || (requirement.identity.type == "SYS" && strategy.payload.level == "component"))
     && state(strategy, "disposition") == "active"
     && state(strategy, "validity") == "valid"
