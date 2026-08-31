@@ -215,6 +215,64 @@ describe("focused v2 fault-injection gate", () => {
     await fs.rm(foundationParent, { recursive: true, force: true });
   });
 
+  it("projects enum and nested object shapes through public next", async () => {
+    const selectionPath = path.join(repository, ".lifecycle/process-selection.json");
+    const repositoryContractPath = path.join(repository, ".lifecycle/repository.json");
+    const selection = JSON.parse(await fs.readFile(selectionPath, "utf8"));
+    const packageRoot = path.join(repository, selection.package.path);
+    const mapTypePath = path.join(packageRoot, "types/MAP.yaml");
+    const mapType = await fs.readFile(mapTypePath, "utf8");
+    await fs.writeFile(
+      mapTypePath,
+      mapType
+        .replace(
+          "required: [purpose, frontier]",
+          "required: [purpose, frontier, enum_probe, object_probe]",
+        )
+        .replace(
+          "    purpose: {type: string, minLength: 1}",
+          [
+            "    purpose: {type: string, minLength: 1}",
+            "    enum_probe: {enum: [alpha, beta]}",
+            "    object_probe:",
+            "      type: object",
+            "      additionalProperties: false",
+            "      required: [kind, ref]",
+            "      properties:",
+            "        kind: {enum: [example]}",
+            "        ref: {type: string, minLength: 1}",
+          ].join("\n"),
+        ),
+    );
+    const digest = await processPackageDigest(packageRoot);
+    selection.package.digest = digest;
+    await fs.writeFile(selectionPath, `${JSON.stringify(selection, null, 2)}\n`);
+    const repositoryContract = JSON.parse(
+      await fs.readFile(repositoryContractPath, "utf8"),
+    );
+    repositoryContract.package.digest = digest;
+    await fs.writeFile(
+      repositoryContractPath,
+      `${JSON.stringify(repositoryContract, null, 2)}\n`,
+    );
+
+    const next = await command(repository, ["next", "--json"]);
+    expect(next.status, JSON.stringify(next.value)).toBe(0);
+    expect(next.value.assignment.packet.outputs.find(
+      (output: JsonObject) => output.type === "MAP",
+    ).payloadSummary.fieldShapes).toMatchObject({
+      enum_probe: { enum: ["alpha", "beta"] },
+      object_probe: {
+        type: "object",
+        required: ["kind", "ref"],
+        properties: {
+          kind: { enum: ["example"] },
+          ref: { type: "string", minLength: 1 },
+        },
+      },
+    });
+  });
+
   it("recovers the same exact Assignment and rejects a mismatched package digest", async () => {
     const first = await command(repository, ["next", "--json"]);
     const second = await command(repository, ["next", "--json"]);
