@@ -4,7 +4,7 @@ version: 1
 description: Exact members of one candidate matching one required Revision.
 parameters:
   - {name: candidate, kind: baseline, types: [BSL]}
-  - {name: required_member, kind: revision, types: [MAP, PSP, STK]}
+  - {name: required_member, kind: revision, types: [MAP, PSP, STK, SYS, CMP, ASP, ICSP, DWP, VSP]}
 result_kind: revision
 query:
   from: {relation: baseline-members, of: candidate, emit: entity}

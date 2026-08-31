@@ -4,7 +4,7 @@ version: 2
 scenario: revise-phase-2-candidate-after-review
 ---
 
-# Replace one Phase 2 candidate
+# Replace one level candidate
 
 Read `skills/lifecycle-data.md@1`, `skills/baseline-model.md@1`,
 `skills/contextual-artifact-review.md@2`, `skills/traceability.md@1`, and
