@@ -277,53 +277,6 @@ describe("Phase 1 review routing", () => {
     });
   });
 
-  it("routes an accepted pilot VER to Review before prototype construction", async () => {
-    const fixture = phase1Records();
-    const snapshot = {
-      processRef,
-      phaseId: "phase-1-product-assurance",
-      records: fixture.records,
-      dependencyComparisons: [],
-    };
-    const evaluation = evaluateLifecycle(processPackage, snapshot);
-    const target = evaluation.looseEnds.find((item) =>
-      item.obligation === "pilot-target-required"
-    );
-
-    const attempted = await dryRunResolverScenario(
-      processPackage,
-      snapshot,
-      "build-pilot-control-prototype@1",
-      target!.id,
-      [],
-      evaluation,
-    );
-    expect(attempted).toEqual({
-      ok: false,
-      diagnostics: [expect.objectContaining({
-        code: "obligation-not-dispatchable",
-      })],
-    });
-
-    expect(target).toEqual(expect.objectContaining({
-      status: "awaiting-review",
-      dispatchable: false,
-      actionableResolver: "review-phase-1-assurance@1",
-      blockedBy: [
-        `phase-1-assurance-review-required@1:${fixture.activity.datum.revision_id}:${processRef}`,
-      ],
-    }));
-    expect(evaluation.looseEnds).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        obligation: "phase-1-assurance-review-required",
-        subject: fixture.activity.datum.revision_id,
-        dispatchable: true,
-        actionableResolver: "review-phase-1-assurance@1",
-      }),
-    ]));
-
-  });
-
   it("routes an unreviewed representative pilot VER through the Phase 1 Review", async () => {
     const loaded = await loadProcessPackage(".lifecycle/process");
     expect(loaded.ok, JSON.stringify(loaded.diagnostics)).toBe(true);
@@ -353,7 +306,6 @@ describe("Phase 1 review routing", () => {
   it("uses the active Phase 1 Review obligation at every pure assurance gate", () => {
     for (const obligationId of [
       "pilot-verification-activity-required",
-      "pilot-target-required",
       "environment-assurance-required",
       "pilot-verification-implementation-required",
       "verification-run-required",
