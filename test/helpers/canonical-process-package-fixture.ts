@@ -43,7 +43,6 @@ type FixtureManifest = {
     definitionCount: number;
   };
   provenance: {
-    sourceCommit: string;
     sourceTree: string;
     captureCommand: string;
   };
@@ -81,7 +80,6 @@ function fixtureManifest(value: unknown): FixtureManifest {
     !Number.isInteger(processPackage.definitionCount) ||
     processPackage.definitionCount! < 1 ||
     typeof provenance !== "object" || provenance === null ||
-    !/^[a-f0-9]{40}$/.test(provenance.sourceCommit ?? "") ||
     !/^[a-f0-9]{40}$/.test(provenance.sourceTree ?? "") ||
     typeof provenance.captureCommand !== "string" ||
     provenance.captureCommand === ""
@@ -210,23 +208,22 @@ function canonicalizeSourcePaths(value: unknown, sourceRoot: string): unknown {
   return value;
 }
 
-async function packageAtSourceCommit(manifest: FixtureManifest): Promise<ProcessPackage> {
+async function packageAtSourceTree(manifest: FixtureManifest): Promise<ProcessPackage> {
   const repositoryRoot = gitOutput(process.cwd(), ["rev-parse", "--show-toplevel"]);
-  const sourceCommit = gitOutput(repositoryRoot, [
-    "rev-parse",
-    "--verify",
-    `${manifest.provenance.sourceCommit}^{commit}`,
-  ]);
-  if (sourceCommit !== manifest.provenance.sourceCommit) {
-    throw new Error("Source commit mismatch for canonical fixture");
-  }
   const sourceTree = gitOutput(repositoryRoot, [
     "rev-parse",
     "--verify",
-    `${sourceCommit}^{tree}`,
+    `${manifest.provenance.sourceTree}^{tree}`,
   ]);
   if (sourceTree !== manifest.provenance.sourceTree) {
-    throw new Error("Source commit tree mismatch for canonical fixture");
+    throw new Error("Source package tree does not resolve for canonical fixture");
+  }
+  const currentTree = gitOutput(repositoryRoot, [
+    "rev-parse",
+    `HEAD:${manifest.processPackage.root}`,
+  ]);
+  if (sourceTree !== currentTree) {
+    throw new Error("Source package tree mismatch for canonical fixture");
   }
 
   const temporaryRoot = await fs.mkdtemp(
@@ -236,9 +233,7 @@ async function packageAtSourceCommit(manifest: FixtureManifest): Promise<Process
     const sourceArchive = execFileSync("git", [
       "archive",
       "--format=tar",
-      manifest.provenance.sourceCommit,
-      "--",
-      manifest.processPackage.root,
+      sourceTree,
     ], {
       cwd: repositoryRoot,
       maxBuffer: COMMAND_BUFFER_LIMIT,
@@ -247,7 +242,7 @@ async function packageAtSourceCommit(manifest: FixtureManifest): Promise<Process
       input: sourceArchive,
       maxBuffer: COMMAND_BUFFER_LIMIT,
     });
-    const sourceRoot = path.join(temporaryRoot, manifest.processPackage.root);
+    const sourceRoot = temporaryRoot;
     const sourceDigest = await processPackageDigest(sourceRoot);
     if (sourceDigest !== manifest.processPackage.digest) {
       throw new Error("Provenance Process Package digest mismatch for canonical fixture");
@@ -289,7 +284,7 @@ export async function verifyCanonicalProcessPackageFixture(
   if (sourceDigest !== fixture.manifest.processPackage.digest) {
     throw new Error("Source Process Package digest mismatch for canonical fixture");
   }
-  const provenancePackage = await packageAtSourceCommit(fixture.manifest);
+  const provenancePackage = await packageAtSourceTree(fixture.manifest);
   if (JSON.stringify(provenancePackage) !== JSON.stringify(fixture.processPackage)) {
     throw new Error("Provenance and serialized canonical Process Packages differ");
   }
