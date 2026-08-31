@@ -91,6 +91,7 @@ test("refresh checkpoints package source without committing unrelated work", asy
   assert.ok(durationMs < 10_000, `Fixture refresh took ${Math.round(durationMs)}ms`);
 
   const sourceCommit = git(refreshWorktree, "rev-parse", "HEAD");
+  const sourceTree = git(refreshWorktree, "rev-parse", "HEAD:.lifecycle/process");
   assert.equal(git(refreshWorktree, "rev-parse", "HEAD^"), initialHead);
   const committedPaths = git(
     refreshWorktree,
@@ -121,9 +122,7 @@ test("refresh checkpoints package source without committing unrelated work", asy
     path.join(refreshWorktree, "test/fixtures/canonical-process-package/manifest.json"),
     "utf8",
   ));
-  if (manifest.provenance.sourceCommit !== sourceCommit) {
-    throw new Error("Fixture provenance does not name the source checkpoint");
-  }
+  assert.equal(manifest.provenance.sourceTree, sourceTree);
   if (!result.stdout.includes("PROCESS_FIXTURE_OK")) {
     throw new Error(`Refresh did not check its output: ${result.stdout}`);
   }
@@ -148,7 +147,14 @@ test("refresh checkpoints package source without committing unrelated work", asy
     "rewritten fixture history",
   ).trim();
   git(refreshWorktree, "update-ref", "HEAD", rewrittenHead);
-  const unreachable = runFixture(refreshWorktree, "check");
-  assert.notEqual(unreachable.status, 0);
-  assert.match(unreachable.stderr, /source commit is not reachable from HEAD/);
+  const rewritten = runFixture(refreshWorktree, "check");
+  assert.equal(rewritten.status, 0, `Rewritten source history failed: ${rewritten.stderr}`);
+
+  await fs.appendFile(
+    path.join(refreshWorktree, ".lifecycle/process/manifest.yaml"),
+    "\n# tampered package source\n",
+  );
+  const tampered = runFixture(refreshWorktree, "check");
+  assert.notEqual(tampered.status, 0);
+  assert.match(tampered.stderr, /source digest drift/);
 });

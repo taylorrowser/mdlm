@@ -63,18 +63,6 @@ function git(arguments_) {
   }).trim();
 }
 
-function gitSucceeds(arguments_) {
-  try {
-    execFileSync("git", arguments_, {
-      cwd: REPOSITORY_ROOT,
-      stdio: "ignore",
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 async function filePaths(root, directory = root) {
   const entries = await fs.readdir(directory, { withFileTypes: true });
   const nested = await Promise.all(entries.map(async (entry) => {
@@ -170,7 +158,6 @@ function validateManifest(value) {
     !/^sha256:[a-f0-9]{64}$/.test(manifest.processPackage?.digest ?? "") ||
     !Number.isInteger(manifest.processPackage?.definitionCount) ||
     manifest.processPackage.definitionCount < 1 ||
-    !/^[a-f0-9]{40}$/.test(manifest.provenance?.sourceCommit ?? "") ||
     !/^[a-f0-9]{40}$/.test(manifest.provenance?.sourceTree ?? "") ||
     typeof manifest.provenance?.captureCommand !== "string" ||
     manifest.provenance.captureCommand === ""
@@ -212,37 +199,33 @@ async function recoverFixturePublication() {
 }
 
 async function provenancePackage(manifest) {
-  const sourceCommit = git([
+  const sourceTree = git([
     "rev-parse",
     "--verify",
-    `${manifest.provenance.sourceCommit}^{commit}`,
+    `${manifest.provenance.sourceTree}^{tree}`,
   ]);
-  if (sourceCommit !== manifest.provenance.sourceCommit) {
-    fail("source commit does not resolve exactly");
-  }
-  if (!gitSucceeds(["merge-base", "--is-ancestor", sourceCommit, "HEAD"])) {
-    fail("source commit is not reachable from HEAD; run `npm run process-fixture:refresh`");
-  }
-  const sourceTree = git(["rev-parse", "--verify", `${sourceCommit}^{tree}`]);
   if (sourceTree !== manifest.provenance.sourceTree) {
-    fail("source tree does not belong to source commit");
+    fail("source tree does not resolve exactly");
+  }
+  const currentTree = git(["rev-parse", `HEAD:${PROCESS_ROOT}`]);
+  if (sourceTree !== currentTree) {
+    fail("source package tree differs from HEAD; run `npm run process-fixture:refresh`");
   }
 
   const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-process-fixture-"));
   try {
     const sourceArchive = execFileSync(
       "git",
-      ["archive", "--format=tar", sourceCommit, "--", PROCESS_ROOT],
+      ["archive", "--format=tar", sourceTree],
       { cwd: REPOSITORY_ROOT, maxBuffer: BUFFER_LIMIT },
     );
     execFileSync("tar", ["-x", "-C", temporaryRoot], {
       input: sourceArchive,
       maxBuffer: BUFFER_LIMIT,
     });
-    const sourceRoot = path.join(temporaryRoot, PROCESS_ROOT);
     return {
-      digest: await packageDigest(sourceRoot),
-      processPackage: await sourceProcessPackage(sourceRoot),
+      digest: await packageDigest(temporaryRoot),
+      processPackage: await sourceProcessPackage(temporaryRoot),
     };
   } finally {
     await fs.rm(temporaryRoot, { recursive: true, force: true });
@@ -277,10 +260,12 @@ function checkpointProcessPackage(processPackage) {
     { cwd: REPOSITORY_ROOT, stdio: "ignore" },
   );
   const sourceCommit = git(["rev-parse", "HEAD"]);
-  process.stdout.write(`PROCESS_FIXTURE_SOURCE_CHECKPOINT commit=${sourceCommit}\n`);
+  const sourceTree = git(["rev-parse", `${sourceCommit}:${PROCESS_ROOT}`]);
+  process.stdout.write(
+    `PROCESS_FIXTURE_SOURCE_CHECKPOINT commit=${sourceCommit} tree=${sourceTree}\n`,
+  );
   return {
-    sourceCommit,
-    sourceTree: git(["rev-parse", `${sourceCommit}^{tree}`]),
+    sourceTree,
   };
 }
 
@@ -351,29 +336,19 @@ async function checkFixture() {
 
 async function buildFixture(processPackage, previousManifest, knownProvenance) {
   const digest = await packageDigest(PROCESS_ROOT);
-  let sourceCommit;
   let sourceTree;
   if (knownProvenance) {
-    sourceCommit = knownProvenance.sourceCommit;
     sourceTree = knownProvenance.sourceTree;
   } else if (
     previousManifest.processPackage.digest === digest &&
-    gitSucceeds([
-      "merge-base",
-      "--is-ancestor",
-      previousManifest.provenance.sourceCommit,
-      "HEAD",
-    ]) &&
     (await provenancePackage(previousManifest)).digest === digest
   ) {
-    sourceCommit = previousManifest.provenance.sourceCommit;
     sourceTree = previousManifest.provenance.sourceTree;
   } else {
     execFileSync("git", ["diff", "--quiet", "HEAD", "--", PROCESS_ROOT], {
       cwd: REPOSITORY_ROOT,
     });
-    sourceCommit = git(["rev-parse", "HEAD"]);
-    sourceTree = git(["rev-parse", `${sourceCommit}^{tree}`]);
+    sourceTree = git(["rev-parse", `HEAD:${PROCESS_ROOT}`]);
   }
 
   const content = Buffer.from(JSON.stringify(processPackage));
@@ -396,7 +371,6 @@ async function buildFixture(processPackage, previousManifest, knownProvenance) {
       definitionCount: definitionCount(processPackage),
     },
     provenance: {
-      sourceCommit,
       sourceTree,
       captureCommand: "npm run process-fixture:refresh",
     },
@@ -493,7 +467,7 @@ async function refreshFixture() {
 function printHelp() {
   process.stdout.write(
     "Usage: node scripts/process-fixture.mjs <check|refresh>\n\n" +
-    "  check    Verify the canonical fixture and its reachable source commit.\n" +
+    "  check    Verify the canonical fixture and its exact package source tree.\n" +
     "  refresh  Commit only dirty .lifecycle/process files as a source checkpoint,\n" +
     "           then refresh the canonical fixture from that exact commit. Other\n" +
     "           staged and unstaged files are left unchanged. Do not amend the\n" +
