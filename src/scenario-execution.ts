@@ -19,6 +19,7 @@ import { measure, recordWork } from "./performance-diagnostics.js";
 import { authorityEvidenceContract } from "./participation.js";
 import {
   deriveLifecycleRecordStorage,
+  lifecycleDatumDiagnostics,
   provisionalLifecycleRecord,
   publishScenarioMutation,
   repositoryLifecycleSnapshot,
@@ -965,6 +966,23 @@ async function submitScenario(
   });
   if (proposalReferenceDiagnostics.length > 0) {
     return { ok: false, diagnostics: proposalReferenceDiagnostics };
+  }
+  const proposedLifecycleData = deriveLifecycleRecordStorage(processPackage, [
+    ...snapshot.records,
+    ...outputData.map(({ datum }): LifecycleRecord =>
+      provisionalLifecycleRecord(datum)
+    ),
+  ]);
+  const datumDiagnostics = outputData.flatMap(({ datum }, index) =>
+    lifecycleDatumDiagnostics(processPackage, datum, proposedLifecycleData).map(
+      (diagnostic) => ({
+        ...diagnostic,
+        path: `proposal.outputs[${index}]${diagnostic.path ? `.${diagnostic.path}` : ""}`,
+      }),
+    )
+  );
+  if (datumDiagnostics.length > 0) {
+    return { ok: false, diagnostics: datumDiagnostics };
   }
   const linkDiagnostics = requiredLinkDiagnostics(
     processPackage,

@@ -629,6 +629,20 @@ function validateDatum(
   return diagnostics;
 }
 
+/** Validate one proposed Lifecycle Datum through the repository's canonical seam. */
+export function lifecycleDatumDiagnostics(
+  processPackage: ProcessPackage,
+  datum: DatumEnvelope,
+  lifecycleData: LifecycleRecord[],
+): ProcessDiagnostic[] {
+  return validateDatum(
+    processPackage,
+    datum,
+    lifecycleData,
+    createDatumValidatorCache(),
+  );
+}
+
 function recordValue(value: unknown): Record<string, unknown> | undefined {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? value as Record<string, unknown>

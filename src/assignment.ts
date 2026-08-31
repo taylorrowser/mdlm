@@ -386,6 +386,32 @@ export interface AssignmentPayloadSummary {
   dependentRequired?: AssignmentPayloadDependentRule[];
 }
 
+/** Render fields required by the active payload-schema branch. */
+export function assignmentPayloadScaffold(
+  summary: AssignmentPayloadSummary,
+  conditionContext: Record<string, unknown> = {},
+  requiredPayload: Record<string, unknown> = {},
+): Record<string, unknown> {
+  const fields = new Set(summary.required);
+  const ajv = new Ajv2020({ allErrors: true, strict: false });
+  for (const rule of summary.conditional ?? []) {
+    if (/\/(properties|items)(\/|$)/.test(rule.path) || !rule.then) continue;
+    const validate = ajv.compile(rule.if);
+    if (!validate(conditionContext)) continue;
+    const required = Array.isArray(rule.then.required)
+      ? rule.then.required.filter((field): field is string =>
+        typeof field === "string"
+      )
+      : [];
+    required.forEach((field) => fields.add(field));
+  }
+  Object.keys(requiredPayload).forEach((field) => fields.add(field));
+  return Object.fromEntries([...fields].map((field) => [
+    field,
+    Object.hasOwn(requiredPayload, field) ? requiredPayload[field] : null,
+  ]));
+}
+
 /** Surface authored payload obligations without choosing a conditional schema branch. */
 export function assignmentPayloadSummary(
   payloadSchema: Record<string, unknown>,
@@ -2591,6 +2617,9 @@ function assignmentResponseSkeleton(
   for (const [invocationIndex, invocation] of dryRun.invocations.entries()) {
     for (const route of compiled.plan.outputs) {
       const expected = outputByName.get(route.output)!;
+      const outputDefinition = (Array.isArray(scenario.outputs)
+        ? scenario.outputs.map(object)
+        : []).find((candidate) => candidate?.name === route.output);
       const sourceType = routeType(route, invocation);
       if (!sourceType) return undefined;
 
@@ -2665,6 +2694,12 @@ function assignmentResponseSkeleton(
           ? Object.values(materialization.payloadFields)
           : [],
       );
+      const identityInput = object(outputDefinition?.identity_from)?.input;
+      const identityPayload = typeof identityInput === "string"
+        ? object(invocation.inputs.find((input) => input.name === identityInput)
+          ?.values[0]?.data.payload) ?? {}
+        : {};
+      const requiredPayload = object(outputDefinition?.required_payload) ?? {};
       outputs.push({
         handle: responseHandle(invocationIndex, route.handle),
         ...(repeated || batched ? { output: route.handle } : {}),
@@ -2672,7 +2707,11 @@ function assignmentResponseSkeleton(
         type: sourceType,
         payload: expected.cardinality.startsWith("zero-")
           ? null
-          : Object.fromEntries(payloadSummary.required.map((field) => [field, null])),
+          : assignmentPayloadScaffold(
+            payloadSummary,
+            { ...identityPayload, ...requiredPayload },
+            requiredPayload,
+          ),
         links,
         body: null,
       });
