@@ -9,7 +9,9 @@ satisfied_when: 'exists("component-outputs-for-plan@1", {plan: plan})'
 status_rules:
   - status: ready
     priority: 100
-    when: 'none("blocking-questions-for-decomposition@1", {plan: plan})'
+    when: >-
+      exists("valid-review-contexts-for@1", {subject: plan})
+      && none("blocking-questions-for-decomposition@1", {plan: plan})
     reason: The exact component decomposition plan is ready to publish its coherent CMP set.
 default_status: blocked
 resolve_with:

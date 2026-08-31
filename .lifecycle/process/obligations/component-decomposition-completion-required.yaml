@@ -11,6 +11,7 @@ status_rules:
     priority: 100
     when: >-
       exists("component-outputs-for-plan@1", {plan: plan})
+      && exists("valid-review-contexts-for@1", {subject: plan})
       && none("blocking-questions-for-decomposition@1", {plan: plan})
     reason: The exact component outputs are ready to freeze in the same DWP lineage completion.
 default_status: blocked
