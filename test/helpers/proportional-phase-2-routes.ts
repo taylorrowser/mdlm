@@ -261,9 +261,17 @@ function prepareScenarioAfterReviews(
   scenario: string,
 ): Packet {
   for (let turn = 0; turn < 12; turn += 1) {
-    const packet = prepareAny(repository);
+    const next = mdlm(repository, "next", "--json");
+    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+    const outcome = JSON.parse(next.stdout);
+    if (outcome.outcome === "publication-required") {
+      commit(repository, "Publish materialized review context");
+      continue;
+    }
+    expect(outcome.assignment, next.stdout).toBeDefined();
+    const packet = outcome.assignment.packet as Packet;
     if (packet.scenario.reference === scenario) return packet;
-    expect(packet.scenario.reference).toBe("review-datum-in-context@2");
+    expect(packet.scenario.reference).toBe("review-datum-in-context@3");
     reviewPacket(repository, packet);
   }
   throw new Error(`public route did not reach ${scenario}`);
@@ -774,6 +782,7 @@ async function phaseTwoOnlyPackage(
 async function seedPublicPhaseTwoEntry(
   repository: string,
   requirements: { statement: string; systemContext: string }[],
+  strategyLevel: "stakeholder" | "system" = "system",
 ): Promise<{
   product: { datum: { id: string; revision_id: string } };
   requirements: { datum: { id: string; revision_id: string } }[];
@@ -851,7 +860,7 @@ async function seedPublicPhaseTwoEntry(
         payload: {
           title: "Public black-box strategy",
           rationale: "Both contexts remain independently observable.",
-          level: "system",
+          level: strategyLevel,
           permitted_methods: ["test"],
           independence: {
             boundary: "black-box",
@@ -1068,6 +1077,74 @@ export async function reconstructZeroInterfacePhaseTwoRouteForCapture(): Promise
     const shown = mdlm(repository, "show", system, "--json");
     expect(shown.status, `${shown.stderr}${shown.stdout}`).toBe(0);
     expect(JSON.parse(shown.stdout).lifecycleDatum.datum.type).toBe("SYS");
+  } finally {
+    await fs.rm(parent, { recursive: true, force: true });
+  }
+}
+
+export async function runPhaseTwoPlanningWithStakeholderStrategy(): Promise<void> {
+  const parent = await fs.mkdtemp(
+    path.join(os.tmpdir(), "mdlm-public-phase2-stakeholder-strategy-"),
+  );
+  try {
+    const repository = path.join(parent, "repository");
+    await fs.mkdir(repository);
+    const processRoot = await phaseTwoOnlyPackage(parent);
+    await selectProcessPackageFixture(repository, processRoot);
+    const seeded = await seedPublicPhaseTwoEntry(repository, [{
+      statement: "Accept one client request",
+      systemContext: "client",
+    }], "stakeholder");
+    const requirement = seeded.requirements[0]!.datum.revision_id;
+
+    const architecturePacket = prepare(
+      repository,
+      "define-system-architecture@3",
+    );
+    submit(repository, architecturePacket, [{
+      localId: "architecture",
+      name: "architecture",
+      invocation: 0,
+      lifecycleDatum: {
+        type: "ASP",
+        payload: {
+          title: "Client responsibility architecture",
+          rationale: "One responsibility owns the observable behavior.",
+          level: "system",
+          elements: [{
+            id: "AEL-0C1ENT5350",
+            alias: "CLIENT",
+            title: "Client responsibility",
+            responsibilities: ["Own the client behavior"],
+          }],
+          internal_interactions: [],
+          controlled_boundaries: [],
+          constraints: ["Remain solution-independent"],
+          nominated_risks: ["The client behavior could be omitted"],
+        },
+        links: [{ type: "governs", target: requirement }],
+        body: "One responsibility with no controlled internal boundary.\n",
+      },
+    }, {
+      localId: "questions",
+      name: "questions",
+      invocation: 0,
+      lifecycleDatum: {
+        type: "QST",
+        payload: null,
+        links: [],
+        body: null,
+      },
+    }]);
+    commit(repository, "Publish client architecture");
+
+    const planningPacket = prepareScenarioAfterReviews(
+      repository,
+      "define-decomposition-work-package@4",
+    );
+    expect(exactInputs(planningPacket, "verification_strategy")).toEqual([
+      seeded.strategy.datum.revision_id,
+    ]);
   } finally {
     await fs.rm(parent, { recursive: true, force: true });
   }

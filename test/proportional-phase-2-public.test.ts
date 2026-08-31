@@ -5,7 +5,10 @@ import {
 } from "../src/index.js";
 import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
-import { runPhaseTwoAssuranceReviewRoute } from
+import {
+  runPhaseTwoAssuranceReviewRoute,
+  runPhaseTwoPlanningWithStakeholderStrategy,
+} from
   "./helpers/proportional-phase-2-routes.js";
 import { runPhaseTwoSimplificationReviewBinding } from
   "./helpers/phase-2-simplification-review-binding.js";
@@ -64,6 +67,7 @@ it("groups one coherent stakeholder context into one ASP and DWP readiness route
   const architecture = datum("ASP", "ASP-0COHERENT1", {
     title: "Shared product architecture",
     rationale: "One responsibility context owns both behaviors.",
+    level: "system",
   }, [first, second].map((item) => ({
     type: "governs",
     target: item.datum.revision_id,
@@ -79,6 +83,7 @@ it("groups one coherent stakeholder context into one ASP and DWP readiness route
   const strategy = datum("VSP", "VSP-0COHERENT1", {
     title: "Shared verification strategy",
     rationale: "One black-box strategy covers both behaviors.",
+    level: "stakeholder",
   }, [first, second].flatMap((item) => [
     { type: "governs", target: item.datum.id },
     { type: "governs-revision", target: item.datum.revision_id },
@@ -164,6 +169,12 @@ it("routes one reviewed Phase 2 completion directly to its level candidate", asy
   );
   expect(scenario.completion.source).not.toContain("group");
 });
+
+it(
+  "routes a reviewed Phase 2 architecture to planning with its stakeholder strategy",
+  runPhaseTwoPlanningWithStakeholderStrategy,
+  45_000,
+);
 
 it(
   "keeps shared assurance Review work in Phase 2 after public submit",
