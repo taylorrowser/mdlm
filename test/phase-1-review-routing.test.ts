@@ -324,6 +324,32 @@ describe("Phase 1 review routing", () => {
 
   });
 
+  it("routes an unreviewed representative pilot VER through the Phase 1 Review", async () => {
+    const loaded = await loadProcessPackage(".lifecycle/process");
+    expect(loaded.ok, JSON.stringify(loaded.diagnostics)).toBe(true);
+    if (!loaded.ok) return;
+    const fixture = phase1Records();
+    const snapshot = {
+      processRef,
+      phaseId: "phase-1-product-assurance",
+      records: fixture.records,
+      dependencyComparisons: [],
+    };
+    const evaluation = evaluateLifecycle(loaded.package, snapshot);
+    const target = evaluation.looseEnds.find((item) =>
+      item.obligation === "representative-level-pilot-target-required"
+    );
+
+    expect(target).toEqual(expect.objectContaining({
+      status: "awaiting-review",
+      dispatchable: false,
+      actionableResolver: "review-phase-1-assurance@1",
+      blockedBy: [
+        `phase-1-assurance-review-required@1:${fixture.activity.datum.revision_id}:${processRef}`,
+      ],
+    }));
+  });
+
   it("uses the active Phase 1 Review obligation at every pure assurance gate", () => {
     for (const obligationId of [
       "pilot-verification-activity-required",

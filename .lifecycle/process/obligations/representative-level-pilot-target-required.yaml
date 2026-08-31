@@ -12,9 +12,21 @@ status_rules:
     when: 'count("current-pilot-targets-for-requirement@1", {requirement: requirement}) > 1'
     reason: Multiple current control targets are ambiguous.
   - status: awaiting-review
+    priority: 250
+    when: >-
+      phase.id in ["phase-1-product-assurance", "phase-2-system-definition"]
+      && count("pilot-verification-activities-for-requirement@1", {requirement: requirement}) == 1
+      && none("passing-reviews-for@1",
+        {subject: one("pilot-verification-activities-for-requirement@1", {requirement: requirement})})
+    reason: Disposable pilot controls wait for Review of the exact activity.
+    blocked_by:
+      - obligation: phase-1-assurance-review-required@1
+        subjects: 'select("pilot-verification-activities-for-requirement@1", {requirement: requirement})'
+  - status: awaiting-review
     priority: 200
     when: >-
-      count("pilot-verification-activities-for-requirement@1", {requirement: requirement}) == 1
+      phase.id in ["phase-3-component-definition", "phase-4-design-definition"]
+      && count("pilot-verification-activities-for-requirement@1", {requirement: requirement}) == 1
       && none("passing-reviews-for@1",
         {subject: one("pilot-verification-activities-for-requirement@1", {requirement: requirement})})
     reason: Disposable pilot controls wait for Review of the exact activity.
