@@ -152,7 +152,7 @@ const html = `<!doctype html>
     .lane-labels span:nth-child(3), .lane-labels span:nth-child(5) { padding-left: 12px; }
     .lane .node { padding: 16px; }
     .lane .repeat { opacity: .72; }
-    .lane-arrow { display: grid; place-items: center; color: var(--accent); font-size: 20px; }
+    .lane-arrow { display: grid; place-items: center; color: var(--accent); font-size: 20px; pointer-events: none; }
 
     /* C — a compact requirements ledger. */
     .ledger { border-top: 2px solid var(--ink); }
@@ -247,6 +247,7 @@ const html = `<!doctype html>
     const psp = records.find(record => record.type === "PSP");
     const stks = records.filter(record => record.type === "STK");
     const sys = records.find(record => record.type === "SYS");
+    let drawerInvoker = null;
 
     document.querySelector("#sourceNote").textContent = bundle.source.name + " · " + bundle.source.revision.slice(0, 12) + " · " + bundle.process.reference;
 
@@ -328,7 +329,8 @@ const html = `<!doctype html>
       return String(value);
     }
 
-    function openDrawer(record) {
+    function openDrawer(record, invoker = document.activeElement) {
+      drawerInvoker = invoker instanceof HTMLElement ? invoker : null;
       const identities = new Set([record.id, record.revisionId]);
       const incoming = bundle.relations.filter(relation => identities.has(relation.target));
       const outgoing = bundle.relations.filter(relation => identities.has(relation.source));
@@ -350,6 +352,8 @@ const html = `<!doctype html>
       document.querySelector("#drawer").classList.remove("open");
       document.querySelector("#drawer").setAttribute("aria-hidden", "true");
       document.querySelector("#scrim").classList.remove("open");
+      if (drawerInvoker?.isConnected) drawerInvoker.focus();
+      drawerInvoker = null;
     }
 
     function cycle(delta) {
@@ -364,7 +368,7 @@ const html = `<!doctype html>
 
     document.querySelector("#canvas").addEventListener("click", event => {
       const button = event.target.closest("[data-record]");
-      if (button) openDrawer(recordByIdentity.get(button.dataset.record));
+      if (button) openDrawer(recordByIdentity.get(button.dataset.record), button);
     });
     document.querySelector("#drawer").addEventListener("click", event => { if (event.target.closest(".drawer-close")) closeDrawer(); });
     document.querySelector("#scrim").addEventListener("click", closeDrawer);

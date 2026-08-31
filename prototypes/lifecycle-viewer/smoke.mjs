@@ -22,6 +22,8 @@ const checks = [
   [html.includes("?variant=A|B|C") && html.includes("function VariantA()") && html.includes("function VariantB()") && html.includes("function VariantC()"), "variant hooks are missing"],
   [html.includes('event.key === "ArrowLeft"') && html.includes('event.key === "ArrowRight"'), "arrow-key switcher hooks are missing"],
   [html.includes('id="previous"') && html.includes('id="next"'), "click switcher hooks are missing"],
+  [/\.lane-arrow \{[^}]*pointer-events: none;/.test(html), "lane arrows can intercept record taps"],
+  [html.includes("let drawerInvoker = null;") && html.includes("drawerInvoker.focus()") && html.includes("openDrawer(recordByIdentity.get(button.dataset.record), button)"), "drawer focus restoration hooks are missing"],
   [html.includes("window.__MDLM_VIEWER__"), "browser inspection hook is missing"],
 ];
 
