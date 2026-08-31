@@ -24,7 +24,10 @@ per-strategy fanout reduction remains open in
 Phase 1 cost. It is not an extra Phase 3 admission gate. Only #222 or an
 explicit tracker decision changing #222 controls admission.
 
-The narrow Phase 3 tracer and the complete Phase 3 goal are different releases.
+The narrow Phase 3 tracer was the admission proof for #545. Package 0.107.0
+combines the remaining Phase 3 verification breadth and lean Phase 4 design
+slice in one increment, using shared level-aware formal-VER, decomposition,
+candidate, and correction routes. Phase 5 remains the next boundary.
 The tracer proves accepted SYS to reviewed CMP definition and gate behavior. A
 second increment adds the representative component pilot and formal CMP VER
 coverage required by the accepted process overview. Combining them would hide

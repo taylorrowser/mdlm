@@ -1,0 +1,26 @@
+kind: obligation-definition
+id: lower-level-verification-strategy-required
+version: 1
+description: The active exact SYS or CMP definition parent set requires one matching black-box verification strategy.
+phases: [phase-2-system-definition, phase-3-component-definition, phase-4-design-definition]
+for_each: '[phase]'
+subject_as: required_phase
+satisfied_when: >-
+  exists("lower-level-strategy-parent-requirements@1", {})
+  && every("lower-level-strategy-parent-requirements@1", {}, requirement =>
+    count("current-lower-level-strategies-for-requirement@1", {requirement: requirement}) == 1)
+status_rules:
+  - status: ready
+    priority: 100
+    when: >-
+      exists("lower-level-strategy-parent-requirements@1", {})
+      && every("lower-level-strategy-parent-requirements@1", {}, requirement =>
+        count("current-lower-level-strategies-for-requirement@1", {requirement: requirement}) == 0)
+    reason: The exact lower-level parent set needs one matching black-box verification strategy.
+default_status: blocked
+resolve_with:
+  scenario: define-lower-level-verification-strategy@1
+  inputs:
+    requirements: 'select("lower-level-strategy-parent-requirements@1", {})'
+    stable_requirements: 'select("lower-level-strategy-parent-identities@1", {})'
+waiver_policy_ref: waiver-applicability@1

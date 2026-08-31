@@ -1,0 +1,25 @@
+kind: scenario-definition
+id: promote-component-after-design-gate
+version: 1
+description: Mechanically freeze the exact Phase 3 component candidate as accepted after the reviewed Phase 4 gate without a second authority step.
+phases: [phase-4-design-definition]
+inputs:
+  - {name: design_candidate, types: [BSL], cardinality: one, identity: revision}
+  - {name: component_candidate, types: [BSL], cardinality: one, identity: revision}
+  - {name: component_members, types: [CMP, ASP, ICSP, DWP, VSP, VER], cardinality: one-or-more, identity: revision}
+  - {name: design_authority_evidence, types: [REV, DEC], cardinality: one-or-more, identity: revision}
+outputs:
+  - name: accepted
+    types: [BSL]
+    cardinality: one
+    required_links:
+      - {link: promotes, target: {input: component_candidate}}
+prompt_ref: prompts/promote-component-after-design-gate.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && exists("accepted-component-baselines-for-design-candidate@1",
+    {candidate: design_candidate})
+resolves: [component-promotion-after-design-gate-required]
+prohibited_inputs: [second authority request, inferred candidate membership, mutable latest aliases]
+batching: single

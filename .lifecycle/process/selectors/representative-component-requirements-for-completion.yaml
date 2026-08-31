@@ -1,0 +1,15 @@
+kind: selector-definition
+id: representative-component-requirements-for-completion
+version: 1
+description: One deterministic representative CMP from a definition completion's exact ancestry.
+parameters:
+  - {name: completion, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from:
+    selector: component-requirements-for-completion@1
+    arguments: {completion: completion}
+  as: requirement
+  where: 'requirement == first("component-requirements-for-completion@1", {completion: completion})'
+  distinct: true
+  order_by: [identity.revision_id]

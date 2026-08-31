@@ -249,7 +249,7 @@ outgoing_links:
   - id: derived-from
     description: Exact question, decision, product-intent, or system-requirement revision that motivated this artifact.
     targets:
-      - {kind: datum, types: [QST, DEC, PSP, STK, SYS], identity: revision}
+      - {kind: datum, types: [QST, DEC, PSP, STK, SYS, CMP], identity: revision}
     cardinality: {minimum: 0, maximum: many}
     freeze_resolution: already-exact
     inverse_label: prototype-evidence

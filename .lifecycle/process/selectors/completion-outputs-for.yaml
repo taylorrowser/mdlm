@@ -1,12 +1,12 @@
 kind: selector-definition
 id: completion-outputs-for
 version: 1
-description: Exact SYS or CMP outputs canonically accounted for by one DWP completion Revision.
+description: Exact SYS, CMP, or DES outputs canonically accounted for by one DWP completion Revision.
 parameters:
   - {name: completion, kind: revision, types: [DWP]}
 result_kind: revision
 query:
-  from: {relation: outgoing-links, of: completion, link: produces, emit: target, types: [SYS, CMP]}
+  from: {relation: outgoing-links, of: completion, link: produces, emit: target, types: [SYS, CMP, DES]}
   as: output
   where: 'output.identity.type == completion.payload.target_child_type'
   distinct: true

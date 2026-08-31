@@ -1,0 +1,14 @@
+kind: selector-definition
+id: interface-defines-subject
+version: 1
+description: Supplied interface when it defines the exact supplied architecture, requirement, or plan Revision.
+parameters:
+  - {name: interface, kind: revision, types: [ICSP]}
+  - {name: subject, kind: revision, types: [ASP, SYS, CMP, DES, DWP]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: interface, link: defines-interface-for, emit: target, types: [ASP, SYS, CMP, DES, DWP]}
+  as: defined
+  where: 'defined == subject'
+  distinct: true
+  order_by: [identity.revision_id]

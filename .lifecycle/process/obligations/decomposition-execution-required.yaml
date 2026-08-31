@@ -21,18 +21,15 @@ status_rules:
     when: >-
       none("passing-reviews-for@1", {subject: plan})
       || exists("failing-reviews-for@1", {subject: plan})
-      || !every("architectures-for-decomposition@1", {plan: plan},
-        architecture => exists("passing-reviews-for@1", {subject: architecture}))
-      || !every("interfaces-for-decomposition@1", {plan: plan},
-        interface => exists("passing-reviews-for@1", {subject: interface}))
-      || !every("strategies-for-decomposition@1", {plan: plan},
-        strategy => exists("passing-reviews-for@1", {subject: strategy}))
-      || !every("architectures-for-decomposition@1", {plan: plan},
-        architecture => none("failing-reviews-for@1", {subject: architecture}))
-      || !every("interfaces-for-decomposition@1", {plan: plan},
-        interface => none("failing-reviews-for@1", {subject: interface}))
-      || !every("strategies-for-decomposition@1", {plan: plan},
-        strategy => none("failing-reviews-for@1", {subject: strategy}))
+      || !every("architectures-for-decomposition@1", {plan: plan}, member =>
+        exists("passing-reviews-for@1", {subject: member})
+        && none("failing-reviews-for@1", {subject: member}))
+      || !every("interfaces-for-decomposition@1", {plan: plan}, member =>
+        exists("passing-reviews-for@1", {subject: member})
+        && none("failing-reviews-for@1", {subject: member}))
+      || !every("strategies-for-decomposition@1", {plan: plan}, member =>
+        exists("passing-reviews-for@1", {subject: member})
+        && none("failing-reviews-for@1", {subject: member}))
     reason: The exact DWP plan, architecture, interfaces, and strategy must pass contextual Review before execution.
     blocked_by:
       - obligation: passing-review-required@2
@@ -48,18 +45,15 @@ status_rules:
     when: >-
       exists("passing-reviews-for@1", {subject: plan})
       && none("failing-reviews-for@1", {subject: plan})
-      && every("architectures-for-decomposition@1", {plan: plan},
-        architecture => exists("passing-reviews-for@1", {subject: architecture}))
-      && every("interfaces-for-decomposition@1", {plan: plan},
-        interface => exists("passing-reviews-for@1", {subject: interface}))
-      && every("strategies-for-decomposition@1", {plan: plan},
-        strategy => exists("passing-reviews-for@1", {subject: strategy}))
-      && every("architectures-for-decomposition@1", {plan: plan},
-        architecture => none("failing-reviews-for@1", {subject: architecture}))
-      && every("interfaces-for-decomposition@1", {plan: plan},
-        interface => none("failing-reviews-for@1", {subject: interface}))
-      && every("strategies-for-decomposition@1", {plan: plan},
-        strategy => none("failing-reviews-for@1", {subject: strategy}))
+      && every("architectures-for-decomposition@1", {plan: plan}, member =>
+        exists("passing-reviews-for@1", {subject: member})
+        && none("failing-reviews-for@1", {subject: member}))
+      && every("interfaces-for-decomposition@1", {plan: plan}, member =>
+        exists("passing-reviews-for@1", {subject: member})
+        && none("failing-reviews-for@1", {subject: member}))
+      && every("strategies-for-decomposition@1", {plan: plan}, member =>
+        exists("passing-reviews-for@1", {subject: member})
+        && none("failing-reviews-for@1", {subject: member}))
       && none("blocking-questions-for-decomposition@1", {plan: plan})
     reason: The bounded reviewed decomposition plan is ready to execute.
 default_status: blocked

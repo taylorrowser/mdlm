@@ -2,7 +2,7 @@ kind: obligation-definition
 id: phase-2-candidate-correction-required
 version: 1
 description: A failed or reviewed-rejected level candidate receives one exact evidence-preserving superseding candidate and fresh Review.
-phases: [phase-2-system-definition, phase-3-component-definition]
+phases: [phase-2-system-definition, phase-3-component-definition, phase-4-design-definition]
 for_each: 'select("failed-phase-2-candidates@1", {})'
 subject_as: candidate
 satisfied_when: 'exists("complete-superseding-phase-2-candidates-for@1", {candidate: candidate})'

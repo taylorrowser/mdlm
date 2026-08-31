@@ -1,0 +1,24 @@
+kind: selector-definition
+id: complete-phase-4-level-candidates
+version: 1
+description: Current frozen design candidates backed by one exact coherent DWP completion and complete formal coverage.
+parameters: []
+result_kind: baseline
+query:
+  from:
+    selector: candidate-baselines-of-kind@1
+    arguments: {baseline_kind: '"level-candidate"'}
+  as: candidate
+  where: >-
+    exists("definition-level-candidate-members@1", {candidate: candidate})
+    && !every("definition-level-candidate-members@1", {candidate: candidate}, member =>
+      member.identity.type != "DWP"
+      || member.payload.stage != "completion"
+      || member.payload.target_child_type != "DES")
+    && every("definition-level-candidate-members@1", {candidate: candidate}, member =>
+      member.identity.type != "DWP"
+      || member.payload.stage != "completion"
+      || member.payload.target_child_type != "DES"
+      || exists("complete-definition-level-candidates-for-completion@1", {completion: member}))
+  distinct: true
+  order_by: [identity.revision_id]

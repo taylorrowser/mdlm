@@ -2,7 +2,7 @@ kind: scenario-definition
 id: revise-pilot-vai-after-review
 version: 3
 description: Correct one failed source-blind pilot procedure and, only when the Review exposes an exact upstream or boundary inconsistency, reconcile its bound VER, ART, or ENV in the same atomic transaction.
-phases: [phase-1-product-assurance, phase-2-system-definition]
+phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition]
 inputs:
   - name: implementation
     types: [VAI]
@@ -44,7 +44,7 @@ inputs:
       && execution_target == one("execution-targets-for-implementation@1",
         {implementation: implementation})
   - name: requirement
-    types: [STK, SYS]
+    types: [STK, SYS, CMP]
     cardinality: one
     identity: revision
     conditions: >-

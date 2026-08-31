@@ -1,0 +1,37 @@
+kind: obligation-definition
+id: definition-level-candidate-required
+version: 1
+description: Every coherently reviewed CMP or DES completion with complete formal coverage requires one direct level candidate.
+phases: [phase-3-component-definition, phase-4-design-definition]
+for_each: 'select("current-decomposition-completions@1", {})'
+subject_as: completion
+satisfied_when: 'exists("complete-definition-level-candidates-for-completion@1", {completion: completion})'
+status_rules:
+  - status: awaiting-review
+    priority: 200
+    when: >-
+      completion.payload.target_child_type in ["CMP", "DES"]
+      && none("valid-definition-reviews-for-completion@1", {completion: completion})
+    reason: The coherent definition set must pass one independent Review first.
+    blocked_by:
+      - obligation: passing-review-required@2
+        subjects: '[completion]'
+  - status: ready
+    priority: 100
+    when: >-
+      completion.payload.target_child_type in ["CMP", "DES"]
+      && exists("valid-definition-reviews-for-completion@1", {completion: completion})
+      && none("failing-reviews-for@1", {subject: completion})
+      && exists("complete-formal-coverage-for-completion@1", {completion: completion})
+      && (completion.payload.target_child_type == "DES"
+        || exists("suitable-component-pilot-evidence-for-completion@1",
+          {completion: completion}))
+    reason: The exact coherent reviewed definition set, formal coverage, and applicable pilot evidence are ready for one direct candidate.
+default_status: blocked
+resolve_with:
+  scenario: create-definition-level-candidate@1
+  inputs:
+    completion: completion
+    definition_members: 'select("definition-candidate-members-for-completion@1", {completion: completion})'
+    evidence: 'select("definition-candidate-evidence-for-completion@1", {completion: completion})'
+waiver_policy_ref: waiver-applicability@1

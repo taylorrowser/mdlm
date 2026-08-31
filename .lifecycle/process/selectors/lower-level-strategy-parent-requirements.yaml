@@ -1,0 +1,18 @@
+kind: selector-definition
+id: lower-level-strategy-parent-requirements
+version: 1
+description: Exact representative SYS in Phase 2, SYS parents in Phase 3, or CMP parents in Phase 4 that require one definition strategy.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [SYS, CMP]}
+  as: requirement
+  where: >-
+    (phase.id == "phase-2-system-definition"
+      && !every("phase-2-representative-system-requirements@1", {}, entry => entry != requirement))
+    || (phase.id == "phase-3-component-definition"
+      && !every("phase-3-entry-requirements@1", {}, entry => entry != requirement))
+    || (phase.id == "phase-4-design-definition"
+      && !every("phase-4-entry-component-requirements@1", {}, entry => entry != requirement))
+  distinct: true
+  order_by: [identity.revision_id]

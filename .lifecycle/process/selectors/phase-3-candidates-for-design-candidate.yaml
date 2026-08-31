@@ -1,0 +1,22 @@
+kind: selector-definition
+id: phase-3-candidates-for-design-candidate
+version: 1
+description: Exact complete Phase 3 candidate containing every CMP parent of one complete Phase 4 design candidate.
+parameters:
+  - {name: design_candidate, kind: baseline, types: [BSL]}
+result_kind: baseline
+query:
+  from:
+    selector: complete-phase-3-level-candidates@1
+    arguments: {}
+  as: component_candidate
+  where: >-
+    !every("complete-phase-4-level-candidates@1", {}, complete => complete != design_candidate)
+    && every("definition-level-candidate-members@1", {candidate: design_candidate}, member =>
+      member.identity.type != "DES"
+      || every("requirement-parents-for@1", {requirement: member}, parent =>
+        parent.identity.type != "CMP"
+        || exists("baseline-contains-definition@1",
+          {baseline: component_candidate, subject: parent})))
+  distinct: true
+  order_by: [identity.revision_id]

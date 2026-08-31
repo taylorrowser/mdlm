@@ -1,0 +1,29 @@
+kind: scenario-definition
+id: write-formal-verification-activity
+version: 1
+description: Write one source-blind formal verification specification for one exact current STK, SYS, CMP, or DES claim through a shared level-aware route.
+phases: [phase-3-component-definition, phase-4-design-definition]
+inputs:
+  - {name: requirement, types: [STK, SYS, CMP, DES], cardinality: one, identity: revision}
+  - {name: strategy, types: [VSP], cardinality: one, identity: revision}
+outputs:
+  - name: activity
+    types: [VER]
+    cardinality: one
+    required_payload: {kind: formal}
+    required_links:
+      - {link: verifies, target: {input: requirement}}
+      - {link: verifies-revision, target: {input: requirement}}
+      - {link: governed-by, target: {input: strategy}}
+prompt_ref: prompts/write-formal-verification-activity.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && activity.payload.kind == "formal"
+  && activity.payload.claim.scope == "requirement"
+  && activity.payload.claim.formal_evidence_eligible == true
+  && exists("formal-strategies-matching-requirement@1",
+    {requirement: requirement, strategy: strategy})
+resolves: [formal-verification-activity-required]
+prohibited_inputs: [product source code, product unit tests, private implementation details, prototype implementation bytes, mutable latest aliases]
+batching: single

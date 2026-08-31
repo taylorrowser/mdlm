@@ -20,6 +20,9 @@ query:
       || (phase.id == "phase-2-system-definition"
         && none("stakeholder-requirements-for-pilot-activity@1",
           {activity: activity}))
+      || (phase.id == "phase-3-component-definition"
+        && exists("component-requirements-for-pilot-activity@1",
+          {activity: activity}))
     )
     && exists("pilot-activity-matches-requirement@1",
       {activity: activity,

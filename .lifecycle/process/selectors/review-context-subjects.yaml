@@ -5,14 +5,14 @@ description: Review-required Revisions plus Phase 3 planning DWPs that need a fr
 parameters: []
 result_kind: revision
 query:
-  from: {collection: revisions, types: [MAP, PSP, STK, SYS, CMP, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS]}
+  from: {collection: revisions, types: [MAP, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS]}
   as: subject
   where: >-
     !every("review-required-revisions@1", {}, required => required != subject)
-    || (phase.id == "phase-3-component-definition"
+    || (phase.id in ["phase-3-component-definition", "phase-4-design-definition"]
       && subject.identity.type == "DWP"
       && subject.payload.stage == "planning"
-      && subject.payload.target_child_type == "CMP"
+      && subject.payload.target_child_type in ["CMP", "DES"]
       && state(subject, "disposition") == "active"
       && state(subject, "validity") == "valid"
       && none("newer-revisions-for@1", {subject: subject}))

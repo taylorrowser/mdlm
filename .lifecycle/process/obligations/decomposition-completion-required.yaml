@@ -2,7 +2,7 @@ kind: obligation-definition
 id: decomposition-completion-required
 version: 2
 description: Every current DWP plan requires a same-lineage completion after the evidence required for its child type exists.
-phases: [phase-2-system-definition, phase-3-component-definition]
+phases: [phase-2-system-definition, phase-3-component-definition, phase-4-design-definition]
 for_each: 'select("decomposition-plans@1", {})'
 subject_as: plan
 satisfied_when: 'exists("decomposition-completions-for@1", {plan: plan})'
@@ -36,7 +36,7 @@ status_rules:
           && exists("decomposition-outputs-for@1", {plan: plan})
           && none("unreviewed-decomposition-outputs-for@1", {plan: plan})
           && exists("architecture-simplification-reviews-for@1", {plan: plan}))
-        || (plan.payload.target_child_type == "CMP"
+        || (plan.payload.target_child_type in ["CMP", "DES"]
           && exists("decomposition-outputs-for@1", {plan: plan})
           && exists("valid-review-contexts-for@1", {subject: plan})))
       && none("blocking-questions-for-decomposition@1", {plan: plan})

@@ -1,10 +1,10 @@
 kind: selector-definition
 id: matching-decomposition-output
 version: 1
-description: The supplied SYS or CMP Revision only when it is an exact output of one DWP plan.
+description: The supplied SYS, CMP, or DES Revision only when it is an exact output of one DWP plan.
 parameters:
   - {name: plan, kind: revision, types: [DWP]}
-  - {name: output, kind: revision, types: [SYS, CMP]}
+  - {name: output, kind: revision, types: [SYS, CMP, DES]}
 result_kind: revision
 query:
   from:

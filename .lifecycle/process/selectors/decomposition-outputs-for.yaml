@@ -1,12 +1,12 @@
 kind: selector-definition
 id: decomposition-outputs-for
 version: 1
-description: Current valid SYS or CMP Revisions that identify the supplied DWP plan as their matching decomposition source.
+description: Current valid SYS, CMP, or DES Revisions that identify the supplied DWP plan as their matching decomposition source.
 parameters:
   - {name: plan, kind: revision, types: [DWP]}
 result_kind: revision
 query:
-  from: {relation: incoming-links, of: plan, link: decomposes, emit: source, types: [SYS, CMP]}
+  from: {relation: incoming-links, of: plan, link: decomposes, emit: source, types: [SYS, CMP, DES]}
   as: output
   where: >-
     output.identity.type == plan.payload.target_child_type

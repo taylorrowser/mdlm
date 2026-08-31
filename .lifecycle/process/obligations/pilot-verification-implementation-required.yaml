@@ -2,7 +2,7 @@ kind: obligation-definition
 id: pilot-verification-implementation-required
 version: 1
 description: Every current pilot activity requires one separately authorized source-independent implementation bound to its exact qualified environment and controlled target.
-phases: [phase-1-product-assurance, phase-2-system-definition]
+phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition]
 for_each: 'select("current-pilot-verification-activities@1", {})'
 subject_as: activity
 satisfied_when: 'exists("complete-pilot-implementations-for-activity@1", {activity: activity})'
@@ -39,7 +39,7 @@ status_rules:
     when: 'count("eligible-pilot-targets-for-activity@1", {activity: activity}) != 1'
     reason: Pilot implementation waits for one unambiguous current exact ART derived from the activity's requirement Revision.
     blocked_by:
-      - obligation: pilot-target-required@1
+      - obligation: representative-level-pilot-target-required@1
         subjects: 'select("requirements-for-pilot-activity@1", {activity: activity})'
   - status: ready
     priority: 100

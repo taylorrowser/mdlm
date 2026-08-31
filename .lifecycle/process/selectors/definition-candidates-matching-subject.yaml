@@ -1,0 +1,21 @@
+kind: selector-definition
+id: definition-candidates-matching-subject
+version: 1
+description: Exact Phase 3 or Phase 4 direct definition candidate when the supplied Review subject is that candidate.
+parameters:
+  - {name: subject, kind: revision}
+result_kind: baseline
+query:
+  from: {collection: baselines, types: [BSL]}
+  as: candidate
+  where: >-
+    candidate.payload.kind == "level-candidate"
+    && candidate.identity.revision_id == subject.identity.revision_id
+    && exists("definition-level-candidate-members@1", {candidate: candidate})
+    && exists("definition-level-candidate-members@1", {candidate: candidate})
+    && every("definition-level-candidate-members@1", {candidate: candidate}, member =>
+      member.identity.type != "DWP"
+      || member.payload.stage != "completion"
+      || member.payload.target_child_type in ["CMP", "DES"])
+  distinct: true
+  order_by: [identity.revision_id]

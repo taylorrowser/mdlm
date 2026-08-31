@@ -3,14 +3,15 @@ id: current-architectures-for-requirement
 version: 1
 description: Current valid architecture Revisions governing one exact accepted STK or SYS Revision at the matching level.
 parameters:
-  - {name: requirement, kind: revision, types: [STK, SYS]}
+  - {name: requirement, kind: revision, types: [STK, SYS, CMP]}
 result_kind: revision
 query:
-  from: {relation: incoming-links, of: requirement, link: governs, emit: source, types: [ASP]}
+  from: {collection: revisions, types: [ASP]}
   as: architecture
   where: >-
-    ((requirement.identity.type == "STK" && architecture.payload.level == "system")
-      || (requirement.identity.type == "SYS" && architecture.payload.level == "component"))
+    !every("definition-requirements-for-architecture@1", {architecture: architecture}, governed => governed != requirement)
+    && ((requirement.identity.type == "STK" && architecture.payload.level == "system")
+      || (requirement.identity.type in ["SYS", "CMP"] && architecture.payload.level == "component"))
     && state(architecture, "disposition") == "active"
     && state(architecture, "validity") == "valid"
     && none("newer-revisions-for@1", {subject: architecture})

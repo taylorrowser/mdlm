@@ -22,12 +22,12 @@ query:
     && count("candidate-definition-members@1", {candidate: accepted})
       == count("phase-2-level-candidate-definition-members@1",
         {candidate: candidate})
-    && every("system-acceptance-evidence-for-candidate@1",
+    && every("level-acceptance-evidence-for-candidate@1",
       {candidate: candidate}, evidence =>
         exists("baseline-contains-evidence@1",
           {baseline: accepted, subject: evidence}))
     && count("baseline-evidence@1", {baseline: accepted})
-      == count("system-acceptance-evidence-for-candidate@1",
+      == count("level-acceptance-evidence-for-candidate@1",
         {candidate: candidate})
   distinct: true
   order_by: [identity.revision_id]

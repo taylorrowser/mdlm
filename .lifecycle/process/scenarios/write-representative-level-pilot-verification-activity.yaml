@@ -1,0 +1,29 @@
+kind: scenario-definition
+id: write-representative-level-pilot-verification-activity
+version: 1
+description: Write one source-independent pilot activity for the exact representative SYS or CMP and its level-matching strategy.
+phases: [phase-2-system-definition, phase-3-component-definition]
+inputs:
+  - {name: requirement, types: [STK, SYS, CMP], cardinality: one, identity: revision}
+  - {name: strategy, types: [VSP], cardinality: one, identity: revision}
+outputs:
+  - name: activity
+    types: [VER]
+    cardinality: one
+    required_payload: {kind: pilot}
+    required_links:
+      - {link: verifies, target: {input: requirement}}
+      - {link: verifies-revision, target: {input: requirement}}
+      - {link: governed-by, target: {input: strategy}}
+prompt_ref: prompts/write-representative-level-pilot-verification-activity.md@1
+review_policy_ref: review-applicability@1
+completion: >-
+  execution.integrity.contract_valid == true
+  && activity.payload.kind == "pilot"
+  && activity.payload.claim.scope == "verification-design"
+  && activity.payload.claim.formal_evidence_eligible == false
+  && exists("formal-strategies-matching-requirement@1",
+    {requirement: requirement, strategy: strategy})
+resolves: [representative-level-pilot-verification-activity-required]
+prohibited_inputs: [product source code, product unit tests, private implementation details, unstated product behavior, formal acceptance conclusion]
+batching: single

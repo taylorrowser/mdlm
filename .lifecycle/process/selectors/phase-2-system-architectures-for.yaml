@@ -3,7 +3,7 @@ id: phase-2-system-architectures-for
 version: 1
 description: Exact architecture allocated by one Phase 2 system requirement Revision.
 parameters:
-  - {name: requirement, kind: revision, types: [SYS]}
+  - {name: requirement, kind: revision, types: [SYS, CMP]}
 result_kind: revision
 query:
   from: {relation: outgoing-links, of: requirement, link: allocated-to, emit: target, types: [ASP]}

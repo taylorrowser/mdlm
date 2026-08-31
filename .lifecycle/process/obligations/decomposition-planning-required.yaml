@@ -2,7 +2,7 @@ kind: obligation-definition
 id: decomposition-planning-required
 version: 2
 description: Each selected STK or SYS slice requires one bounded DWP after its architecture, interface, and verification strategy are available.
-phases: [phase-2-system-definition, phase-3-component-definition]
+phases: [phase-2-system-definition, phase-3-component-definition, phase-4-design-definition]
 for_each: 'select("decomposition-representative-requirements@1", {})'
 subject_as: requirement
 satisfied_when: 'count("current-decomposition-plans-for-requirement@1", {requirement: requirement}) >= 1'

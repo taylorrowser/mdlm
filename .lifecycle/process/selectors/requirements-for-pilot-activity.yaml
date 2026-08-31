@@ -1,12 +1,12 @@
 kind: selector-definition
 id: requirements-for-pilot-activity
 version: 1
-description: Exact stakeholder or system requirement Revision exercised by one pilot activity.
+description: Exact stakeholder, system, or component requirement Revision exercised by one pilot activity.
 parameters:
   - {name: activity, kind: revision, types: [VER]}
 result_kind: revision
 query:
-  from: {relation: outgoing-links, of: activity, link: verifies-revision, emit: target, types: [STK, SYS]}
+  from: {relation: outgoing-links, of: activity, link: verifies-revision, emit: target, types: [STK, SYS, CMP]}
   as: requirement
   distinct: true
   order_by: [identity.revision_id]

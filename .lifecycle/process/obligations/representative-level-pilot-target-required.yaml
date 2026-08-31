@@ -1,0 +1,38 @@
+kind: obligation-definition
+id: representative-level-pilot-target-required
+version: 1
+description: Every representative STK, SYS, or CMP pilot activity needs one exact disposable control target.
+phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition]
+for_each: 'select("representative-pilot-requirements@1", {})'
+subject_as: requirement
+satisfied_when: 'count("current-pilot-targets-for-requirement@1", {requirement: requirement}) == 1'
+status_rules:
+  - status: blocked
+    priority: 300
+    when: 'count("current-pilot-targets-for-requirement@1", {requirement: requirement}) > 1'
+    reason: Multiple current control targets are ambiguous.
+  - status: awaiting-review
+    priority: 200
+    when: >-
+      count("pilot-verification-activities-for-requirement@1", {requirement: requirement}) == 1
+      && none("passing-reviews-for@1",
+        {subject: one("pilot-verification-activities-for-requirement@1", {requirement: requirement})})
+    reason: Disposable pilot controls wait for Review of the exact activity.
+    blocked_by:
+      - obligation: passing-review-required@2
+        subjects: 'select("pilot-verification-activities-for-requirement@1", {requirement: requirement})'
+  - status: ready
+    priority: 100
+    when: >-
+      none("current-pilot-targets-for-requirement@1", {requirement: requirement})
+      && count("pilot-verification-activities-for-requirement@1", {requirement: requirement}) == 1
+      && exists("passing-reviews-for@1",
+        {subject: one("pilot-verification-activities-for-requirement@1", {requirement: requirement})})
+    reason: The reviewed representative activity is ready for one disposable good/bad control target.
+default_status: blocked
+resolve_with:
+  scenario: build-representative-level-pilot-control-prototype@1
+  inputs:
+    requirement: requirement
+    activity: 'one("pilot-verification-activities-for-requirement@1", {requirement: requirement})'
+waiver_policy_ref: waiver-applicability@1

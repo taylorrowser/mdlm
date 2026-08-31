@@ -1,0 +1,12 @@
+kind: selector-definition
+id: interface-subjects-for
+version: 1
+description: Exact architecture, requirements, and decomposition plans governed by one interface Revision.
+parameters:
+  - {name: interface, kind: revision, types: [ICSP]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: interface, link: defines-interface-for, emit: target, types: [ASP, SYS, CMP, DES, DWP]}
+  as: subject
+  distinct: true
+  order_by: [identity.type, identity.revision_id]

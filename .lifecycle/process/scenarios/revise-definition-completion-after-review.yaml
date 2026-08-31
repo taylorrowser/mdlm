@@ -1,0 +1,47 @@
+kind: scenario-definition
+id: revise-definition-completion-after-review
+version: 1
+description: Replace one failed coherent CMP or DES completion in the same exact DWP lineage.
+phases: [phase-3-component-definition, phase-4-design-definition]
+inputs:
+  - {name: completion, types: [DWP], cardinality: one, identity: revision}
+  - {name: plan, types: [DWP], cardinality: one, identity: revision}
+  - {name: parents, types: [SYS, CMP], cardinality: one-or-more, identity: revision}
+  - {name: outputs, types: [CMP, DES], cardinality: one-or-more, identity: revision}
+  - {name: architecture, types: [ASP], cardinality: one, identity: revision}
+  - {name: interfaces, types: [ICSP], cardinality: zero-or-more, identity: revision}
+  - {name: verification_strategy, types: [VSP], cardinality: one, identity: revision}
+  - {name: failed_reviews, types: [REV], cardinality: one-or-more, identity: revision}
+outputs:
+  - name: replacement
+    types: [DWP]
+    cardinality: one
+    identity_from: {input: completion}
+    required_payload: {stage: completion}
+    required_links:
+      - {link: corrects-review, target: {input: failed_reviews}}
+      - {link: derived-from, target: {input: plan}}
+      - {link: decomposes, target: {input: parents}}
+      - {link: produces, target: {input: outputs}}
+      - {link: allocated-to, target: {input: architecture}}
+      - {link: governed-by, target: {input: interfaces}}
+      - {link: verified-under, target: {input: verification_strategy}}
+  - name: decision
+    types: [DEC]
+    cardinality: zero-or-one
+    required_links:
+      - {link: justifies, target: {output: replacement}}
+prompt_ref: prompts/revise-definition-completion-after-review.md@1
+review_policy_ref: review-applicability@1
+participation:
+  policy_ref: phase-2-correction-participation@1
+  arguments: {subject: completion}
+authority_evidence: {output: decision, type: DEC}
+completion: >-
+  execution.integrity.contract_valid == true
+  && replacement.identity.id == completion.identity.id
+  && replacement.payload.stage == "completion"
+  && replacement.payload.target_child_type == completion.payload.target_child_type
+resolves: [definition-review-correction-required]
+prohibited_inputs: [mutation of failed evidence, unrelated definition members, scope expansion, mutable latest aliases]
+batching: single

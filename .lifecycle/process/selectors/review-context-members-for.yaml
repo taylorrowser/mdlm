@@ -6,7 +6,7 @@ parameters:
   - {name: subject, kind: revision}
 result_kind: revision
 query:
-  from: {collection: revisions, types: [MAP, QST, DEC, ART, PSP, STK, SYS, CMP, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]}
+  from: {collection: revisions, types: [MAP, QST, DEC, ART, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]}
   as: member
   where: >-
     member != subject
@@ -144,18 +144,18 @@ query:
           support != member))
       || (subject.identity.type == "DWP"
         && subject.payload.stage == "completion"
-        && subject.payload.target_child_type == "CMP"
-        && !every("component-definition-members-for-completion@1",
+        && subject.payload.target_child_type in ["CMP", "DES"]
+        && !every("definition-members-for-completion@1",
           {completion: subject}, definition => definition != member))
-      || (exists("component-candidates-matching-subject@1", {subject: subject})
+      || (exists("definition-candidates-matching-subject@1", {subject: subject})
         && (
-          !every("phase-3-level-candidate-definition-members@1",
-            {candidate: one("component-candidates-matching-subject@1", {subject: subject})}, definition => definition != member)
-          || !every("phase-3-level-candidate-definition-members@1",
-            {candidate: one("component-candidates-matching-subject@1", {subject: subject})}, definition =>
+          !every("definition-level-candidate-members@1",
+            {candidate: one("definition-candidates-matching-subject@1", {subject: subject})}, definition => definition != member)
+          || !every("definition-level-candidate-members@1",
+            {candidate: one("definition-candidates-matching-subject@1", {subject: subject})}, definition =>
               definition.identity.type != "DWP"
               || definition.payload.stage != "completion"
-              || every("structural-component-definition-reviews-for-completion@1",
+              || every("structural-definition-reviews-for-completion@1",
                 {completion: definition}, review => review != member))
         ))
       || (exists("change-level-candidates-matching-subject@1", {subject: subject})

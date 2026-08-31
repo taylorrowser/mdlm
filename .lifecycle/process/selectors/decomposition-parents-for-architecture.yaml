@@ -6,12 +6,16 @@ parameters:
   - {name: architecture, kind: revision, types: [ASP]}
 result_kind: revision
 query:
-  from: {relation: outgoing-links, of: architecture, link: governs, emit: target, types: [STK, SYS]}
+  from:
+    selector: definition-requirements-for-architecture@1
+    arguments: {architecture: architecture}
   as: requirement
   where: >-
     (requirement.identity.type == "STK"
       && exists("matching-phase-2-entry-requirement@1", {requirement: requirement}))
     || (requirement.identity.type == "SYS"
       && !every("phase-3-entry-requirements@1", {}, entry => entry != requirement))
+    || (requirement.identity.type == "CMP"
+      && !every("phase-4-entry-component-requirements@1", {}, entry => entry != requirement))
   distinct: true
   order_by: [identity.revision_id]

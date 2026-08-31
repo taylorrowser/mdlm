@@ -5,12 +5,14 @@ description: One deterministic accepted requirement representative for each curr
 parameters: []
 result_kind: revision
 query:
-  from: {collection: revisions, types: [STK, SYS]}
+  from: {collection: revisions, types: [STK, SYS, CMP]}
   as: requirement
   where: >-
     ((phase.id == "phase-2-system-definition"
         && !every("phase-2-architecture-representative-requirements@1", {}, selected => selected != requirement))
       || (phase.id == "phase-3-component-definition"
-        && !every("phase-3-architecture-representative-requirements@1", {}, selected => selected != requirement)))
+        && !every("phase-3-architecture-representative-requirements@1", {}, selected => selected != requirement))
+      || (phase.id == "phase-4-design-definition"
+        && requirement == first("phase-4-entry-component-requirements@1", {})))
   distinct: true
   order_by: [identity.revision_id]
