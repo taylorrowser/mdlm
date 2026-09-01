@@ -1,8 +1,10 @@
 import { beforeAll, describe, expect, it } from "vitest";
+import { Ajv2020 } from "ajv/dist/2020.js";
 import {
   compileAssignmentProjection,
   loadProcessPackage,
   publicAssignmentRenderer,
+  resolveType,
   type ProcessPackage,
 } from "../src/index.js";
 
@@ -21,7 +23,7 @@ describe("lean Phase 5 and Phase 6 Process Package", () => {
   });
 
   it("keeps product and source-blind formal implementation behind existing public seams", () => {
-    expect(process.manifest.version).toBe("0.119.0");
+    expect(process.manifest.version).toBe("0.120.0");
     expect(record(process.profiles.bootstrap!.enabled).phases).toContain(
       "phase-5-implementation",
     );
@@ -60,6 +62,72 @@ describe("lean Phase 5 and Phase 6 Process Package", () => {
     expect(JSON.stringify(formal.completion)).toContain(
       "implementation.payload.authoring_input_refs",
     );
+  });
+
+  it("accepts a zero-argument public interface through the implementation Assignment schema", () => {
+    const scenario = process.scenarios["implement-design-set"]!;
+    const projection = compileAssignmentProjection({
+      scenario,
+      renderer: publicAssignmentRenderer,
+      source: ".lifecycle/process/scenarios/implement-design-set.yaml",
+    });
+    expect(projection.ok).toBe(true);
+    if (!projection.ok) return;
+    expect(projection.plan.outputs[0]?.type).toEqual({
+      kind: "declared",
+      type: "ART",
+    });
+
+    const artifact = resolveType(process, "ART");
+    expect(artifact.ok).toBe(true);
+    if (!artifact.ok) return;
+    const validate = new Ajv2020({ allErrors: true, strict: false }).compile(
+      artifact.type.payloadSchema,
+    );
+    const exactBytes = { encoding: "base64", bytes: "" };
+    const valid = validate({
+      title: "Zero-argument command implementation",
+      kind: "implementation",
+      repository_ref: "git:0123456789abcdef0123456789abcdef01234567",
+      supported_behavior: ["succeed when invoked with zero arguments"],
+      unsupported_behavior: ["reject every argument-bearing invocation"],
+      design_path_mapping: [{
+        design_revision: "DES-0123456789-r00001",
+        paths: ["cli.mjs"],
+      }],
+      public_interface: {
+        repository_locator: "product-repository",
+        command: [
+          { literal: "node" },
+          { checkout_path: "cli.mjs" },
+          { extra_argument: { raw: { encoding: "utf-8", value: "unexpected" } } },
+        ],
+        argument_cases: [
+          {
+            id: "normal",
+            kind: "normal",
+            expected_observation: {
+              classification: "success",
+              exit_status: 0,
+              stdout: exactBytes,
+              stderr: exactBytes,
+            },
+          },
+          {
+            id: "argument-bearing",
+            kind: "extra-argument",
+            expected_observation: {
+              classification: "automatic-rejection",
+              exit_status: 2,
+              stdout: exactBytes,
+              stderr: exactBytes,
+            },
+          },
+        ],
+        working_directory: "fresh-temporary-directory",
+      },
+    });
+    expect(valid, JSON.stringify(validate.errors, null, 2)).toBe(true);
   });
 
   it("uses one sibling VAI context and continues exact design acceptance into Phase 6", () => {

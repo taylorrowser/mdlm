@@ -17,20 +17,25 @@ and relevant to the exact requirement. Record at least one intentionally
 unsupported behavior capable of discriminating the pilot design.
 
 Record the complete controlled public execution interface needed by a fresh
-source-blind implementer: an exact repository locator and the parameterized public
-command vector using ordered literal, checkout-path, and parameter tokens. Keep
-each parameter name and its exact public encoding together in its command token so
-no declared parameter can be disconnected from execution.
+source-blind implementer: an exact repository locator and an ordered public
+command vector. For a parameterized CLI, use literal, checkout-path, and parameter
+tokens. Keep each parameter name and its exact public encoding together in its
+command token so no declared parameter can be disconnected from execution.
 
-Record one ordered command template that deterministically instantiates the exact
-normal, raw-malformed, omitted-argument, and extra-argument vectors. Co-locate each
-parameter's name and encoding with its four case tokens: a supplied `value`, a raw
-malformed UTF-8 value where applicable, or an `omitted: true` marker. The marker
-omits that declared parameter; a raw empty UTF-8 value remains one supplied token.
-Place each extra-only raw token in the command order with `extra_argument`. Literal
-and checkout-path tokens participate in every vector, so repeated tokens cannot be
+For a parameterized CLI, record one ordered command template that deterministically
+instantiates the exact normal, raw-malformed, omitted-argument, and extra-argument
+vectors. Co-locate each parameter's name and encoding with its four case tokens: a
+supplied `value`, a raw malformed UTF-8 value where applicable, or an `omitted:
+true` marker. The marker omits that declared parameter; a raw empty UTF-8 value
+remains one supplied token.
+
+For a zero-argument CLI, omit parameter tokens. Record exactly the normal
+zero-argument case and one `extra-argument` case that represents the declared
+rejection of every argument-bearing invocation. In either form, place each
+extra-only raw token in command order with `extra_argument`. Literal and
+checkout-path tokens participate in every vector, so repeated tokens cannot be
 dropped or deduplicated by a case. For each case record the exact exit status and
-base64 stdout/stderr bytes, and classify malformed cases as automatic rejection.
+base64 stdout/stderr bytes, and classify rejection cases as automatic rejection.
 Record a fresh-temporary-directory working-directory contract.
 The command may expose public entrypoint paths but must not expose product source,
 unit tests, private functions, implementation notes, or uncontrolled shortcuts.
