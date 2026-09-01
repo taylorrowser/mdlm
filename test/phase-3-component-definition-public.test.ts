@@ -1199,7 +1199,7 @@ it("runs accepted-SYS evidence through lean Phase 5 at the public CLI", async ()
     const phaseFiveFirstRevisions = git(
       repository,
       "diff", "--name-only", `${phaseFiveStart}..HEAD`, "--", ".lifecycle/data",
-    ).stdout.trim().split("\n").filter((name) => /-r00001\.yaml$/.test(name));
+    ).stdout.trim().split("\n").filter((name) => /r00001\.md$/.test(name));
     expect(phaseFiveFirstRevisions).toHaveLength(3 * formalImplementations.length + 5);
     expect(formalImplementations).toHaveLength(6);
     expect(phaseFiveReviews).toHaveLength(formalImplementations.length + 1);
