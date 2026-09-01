@@ -100,6 +100,9 @@ outputs:
     cardinality: one
     identity_from: {input: implementation}
     required_links:
+      - {link: realizes, target: {input: activity}}
+      - {link: uses, target: {input: environment}}
+      - {link: targets, target: {input: execution_target}}
       - {link: corrects-review, target: {input: failed_reviews}}
   - name: authorization
     types: [DEC]
