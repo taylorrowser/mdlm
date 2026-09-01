@@ -17,6 +17,8 @@ outputs:
     cardinality: one
     required_links:
       - {link: justifies, target: {input: candidate}}
+    permitted_links:
+      - {link: blocks, target: {input: candidate}}
   - name: questions
     types: [QST]
     cardinality: zero-or-more

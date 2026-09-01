@@ -186,6 +186,7 @@
           "properties": {"input": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}}
         },
         "required_links": {"type": "array", "items": {"$ref": "#/$defs/requiredLink"}},
+        "permitted_links": {"type": "array", "items": {"$ref": "#/$defs/requiredLink"}},
         "required_payload": {
           "type": "object",
           "propertyNames": {"pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$"},
