@@ -2,7 +2,7 @@
 
 - **Status:** Completed concept-validating profile with contracted operator interface
 - **Historical design baseline:** [`mdlm-process-overview-v0.8.md`](mdlm-process-overview-v0.8.md)
-- **Implementation package:** `mdlm-bootstrap@0.116.0`
+- **Implementation package:** `mdlm-bootstrap@0.117.0`
 - **Reviewed expansion recommendation:** `change`
 
 ## Purpose
