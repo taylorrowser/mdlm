@@ -16,6 +16,7 @@ query:
       {plan: one("planning-revisions-for-completion@1", {completion: completion})}) == 1
     && count("strategies-for-decomposition@1",
       {plan: one("planning-revisions-for-completion@1", {completion: completion})}) == 1
+    && count("system-strategies-for-completion@1", {completion: completion}) == 1
     && candidate.payload.scope == completion.identity.revision_id
     && candidate.payload.group == "DEFAULT"
     && exists("baseline-contains-definition@1",
@@ -32,8 +33,7 @@ query:
       {plan: one("planning-revisions-for-completion@1", {completion: completion})},
       interface => exists("baseline-contains-definition@1",
         {baseline: candidate, subject: interface}))
-    && every("strategies-for-decomposition@1",
-      {plan: one("planning-revisions-for-completion@1", {completion: completion})},
+    && every("system-strategies-for-completion@1", {completion: completion},
       strategy => exists("baseline-contains-definition@1",
         {baseline: candidate, subject: strategy}))
     && exists("architecture-simplification-reviews-for@1",

@@ -22,8 +22,8 @@ query:
         && none("matching-decomposition-interface@1",
           {plan: one("planning-revisions-for-completion@1", {completion: completion}), interface: member}))
       || (member.identity.type == "VSP"
-        && member != one("strategies-for-decomposition@1",
-          {plan: one("planning-revisions-for-completion@1", {completion: completion})}))
+        && member != one("system-strategies-for-completion@1",
+          {completion: completion}))
       || !(member.identity.type in ["DWP", "SYS", "ASP", "ICSP", "VSP"]))
   distinct: true
   order_by: [identity.revision_id]

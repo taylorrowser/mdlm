@@ -1,0 +1,25 @@
+kind: selector-definition
+id: system-strategies-for-completion
+version: 1
+description: Current system-level strategies governing every exact SYS output of one Phase 2 DWP completion.
+parameters:
+  - {name: completion, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [VSP]}
+  as: strategy
+  where: >-
+    completion.payload.target_child_type == "SYS"
+    && strategy.payload.level == "system"
+    && state(strategy, "disposition") == "active"
+    && state(strategy, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: strategy})
+    && count("planning-revisions-for-completion@1", {completion: completion}) == 1
+    && exists("decomposition-outputs-for@1",
+      {plan: one("planning-revisions-for-completion@1", {completion: completion})})
+    && every("decomposition-outputs-for@1",
+      {plan: one("planning-revisions-for-completion@1", {completion: completion})},
+      requirement => exists("matching-verification-strategies-for-requirement@1",
+        {requirement: requirement, strategy: strategy}))
+  distinct: true
+  order_by: [identity.revision_id]
