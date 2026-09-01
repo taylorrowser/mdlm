@@ -41,6 +41,16 @@ async function gateCorrectionPackage(parent: string): Promise<string> {
     recursive: true,
   });
 
+  const gateScenarioPath = path.join(root, "scenarios/record-gate-signoff.yaml");
+  const gateScenario = parse(await fs.readFile(gateScenarioPath, "utf8"));
+  gateScenario.outputs.find(
+    (output: JsonObject) => output.name === "decision",
+  ).permitted_links.push({
+    link: "justifies",
+    target: { output: "decision" },
+  });
+  await fs.writeFile(gateScenarioPath, stringify(gateScenario));
+
   const profilePath = path.join(root, "profiles/bootstrap.yaml");
   const profile = parse(await fs.readFile(profilePath, "utf8"));
   profile.enabled.phases = ["phase-2-system-definition"];
@@ -205,6 +215,7 @@ function submit(
   packet: JsonObject,
   outputs: JsonObject[],
   authority?: string,
+  expectedStatus = 0,
 ): JsonObject {
   const response = structuredClone(packet.responseScaffold);
   response.proposal.outputs = response.proposal.outputs.flatMap(
@@ -232,7 +243,7 @@ function submit(
     `${JSON.stringify(response)}\n`,
     ...arguments_,
   );
-  expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
+  expect(result.status, `${result.stderr}${result.stdout}`).toBe(expectedStatus);
   return JSON.parse(result.stdout);
 }
 
@@ -313,11 +324,18 @@ export async function runPhaseTwoGateReviewCorrection(): Promise<void> {
     expect(decisionScaffold).toBeDefined();
     const justifies = [{ type: "justifies", target: { input: "candidate" } }];
     const blocks = { type: "blocks", target: { input: "candidate" } };
+    const selfJustifies = {
+      type: "justifies",
+      target: { output: "decision" },
+    };
     expect(gate.outputs.find(
       (output: JsonObject) => output.handle === "decision",
     )?.permittedLinks).toEqual([{
       link: "blocks",
       target: { input: "candidate" },
+    }, {
+      link: "justifies",
+      target: { output: "decision" },
     }]);
 
     const rejectionRepository = path.join(parent, "rejection-repository");
@@ -342,7 +360,11 @@ export async function runPhaseTwoGateReviewCorrection(): Promise<void> {
       links: [...justifies, blocks],
       body: "The stakeholder rejects this exact candidate.\n",
     }], "stakeholder");
-    expect(decisionScaffold.links).toEqual([...justifies, blocks]);
+    expect(decisionScaffold.links).toEqual([
+      ...justifies,
+      blocks,
+      selfJustifies,
+    ]);
     const rejectionDecision = rejected.receipt.publications.find(
       (publication: JsonObject) => publication.handle === "decision",
     ).revisionId;
@@ -360,7 +382,7 @@ export async function runPhaseTwoGateReviewCorrection(): Promise<void> {
         { type: "blocks", target: candidate },
       ]));
 
-    const signed = submit(repository, gate, [{
+    const approval = {
       handle: "decision",
       payload: {
         title: "Approve the exact Phase 2 system candidate",
@@ -373,7 +395,18 @@ export async function runPhaseTwoGateReviewCorrection(): Promise<void> {
       },
       links: justifies,
       body: "The stakeholder approves this exact candidate.\n",
-    }], "stakeholder");
+    };
+    const missingRequired = submit(
+      repository,
+      gate,
+      [{ ...approval, links: [] }],
+      "stakeholder",
+      1,
+    );
+    expect(missingRequired.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "assignment-response-links-invalid" }),
+    ]));
+    const signed = submit(repository, gate, [approval], "stakeholder");
     const failedDecision = signed.receipt.publications.find(
       (publication: JsonObject) => publication.handle === "decision",
     ).revisionId;
