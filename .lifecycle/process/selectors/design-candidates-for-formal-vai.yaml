@@ -13,7 +13,12 @@ query:
   where: >-
     implementation.payload.kind == "formal"
     && !every("verification-activities-for-implementation@1", {implementation: implementation}, activity =>
-      every("formal-activities-for-phase-5-candidate@1", {candidate: candidate}, required =>
-        required != activity))
+      every("definition-level-candidate-members@1", {candidate: candidate}, completion =>
+        completion.identity.type != "DWP"
+        || completion.payload.stage != "completion"
+        || completion.payload.target_child_type != "DES"
+        || every("formal-requirements-for-completion@1", {completion: completion}, required =>
+          every("requirements-for-pilot-activity@1", {activity: activity}, actual =>
+            actual != required))))
   distinct: true
   order_by: [identity.revision_id]
