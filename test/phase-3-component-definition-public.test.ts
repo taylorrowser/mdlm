@@ -1459,7 +1459,7 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
     const acceptanceDecision = publication(acceptanceDecisionResult, "decision");
     phaseSixReviews.push(review(repository, acceptanceDecision));
 
-    const lifecycleComplete = next(repository);
+    const lifecycleComplete = terminalAfterReviews(repository, phaseSixReviews);
     expect(lifecycleComplete, JSON.stringify(lifecycleComplete)).toMatchObject({
       outcome: "lifecycle-complete",
       phase: "phase-6-verification@1",
@@ -1468,8 +1468,8 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
       repository,
       "diff", "--name-only", `${phaseSixStart}..HEAD`, "--", ".lifecycle/data",
     ).stdout.trim().split("\n").filter((name) => /r00001\.md$/.test(name));
-    expect(phaseSixFirstRevisions).toHaveLength(23);
-    expect(phaseSixReviews).toHaveLength(5);
+    expect(phaseSixFirstRevisions).toHaveLength(25);
+    expect(phaseSixReviews).toHaveLength(6);
     expect(git(repository, "status", "--porcelain").stdout).toBe("");
 
     const infrastructurePacket = nextPacket(
