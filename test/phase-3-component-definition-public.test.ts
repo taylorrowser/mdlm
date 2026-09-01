@@ -58,11 +58,9 @@ function inputRevisions(packet: Json, name: string): string[] {
   );
 }
 
-function submit(
-  repository: string,
+function assignmentResponse(
   packet: Json,
   supplied: SuppliedOutput[],
-  authority?: string,
 ): Json {
   const response = structuredClone(packet.responseScaffold);
   response.proposal.outputs = supplied.map((output) => {
@@ -81,6 +79,16 @@ function submit(
   response.proposal.completionEvidence = {
     summary: `Completed ${packet.scenario.reference}.`,
   };
+  return response;
+}
+
+function submit(
+  repository: string,
+  packet: Json,
+  supplied: SuppliedOutput[],
+  authority?: string,
+): Json {
+  const response = assignmentResponse(packet, supplied);
   const arguments_ = ["scenario", "submit", "-", "--json"];
   if (authority) arguments_.splice(3, 0, "--authority", authority);
   const result = mdlmWithInput(
@@ -1103,6 +1111,46 @@ it("runs accepted-SYS evidence through lean Phase 5 at the public CLI", async ()
       ).toBe(false);
       const activity = inputRevisions(formalPacket, "activity")[0]!;
       const formalEnvironment = inputRevisions(formalPacket, "environment")[0]!;
+      if (index === 0) {
+        const invalidImplementation = formalImplementationPayload(
+          activity,
+          formalEnvironment,
+          index,
+        );
+        invalidImplementation.authoring_input_refs.push(
+          "ART-0000000000-r00001",
+        );
+        const rejectedResponse = assignmentResponse(formalPacket, [
+          {
+            output: "implementation",
+            payload: invalidImplementation,
+            body: "A prohibited product ART appears in the authoring references.\n",
+          },
+          {
+            output: "authorization",
+            payload: {
+              title: "Authorize invalid formal procedure",
+              rationale: "This proposal deliberately crosses the source-blind boundary.",
+              kind: "decision",
+              decision: "Authorize this invalid formal procedure.",
+              alternatives: ["Do not authorize."],
+              effective_scope: "$proposal.implementation.revision_id",
+            },
+            body: "This proposal must reject before publication.\n",
+          },
+        ]);
+        const rejected = mdlmWithInput(
+          repository,
+          `${JSON.stringify(rejectedResponse)}\n`,
+          "scenario",
+          "submit",
+          "-",
+          "--json",
+        );
+        expect(rejected.status).toBe(1);
+        expect(rejected.stdout).toContain("scenario-completion-failed");
+        expect(git(repository, "status", "--porcelain").stdout).toBe("");
+      }
       const formalResult = submit(repository, formalPacket, [
         {
           output: "implementation",

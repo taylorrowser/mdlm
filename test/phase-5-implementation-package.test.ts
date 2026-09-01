@@ -53,6 +53,9 @@ describe("lean Phase 5 Process Package", () => {
       record(process.obligations["formal-verification-implementation-required"])
         .resolve_with,
     ).scenario).toBe("implement-verification-activity@1");
+    expect(JSON.stringify(formal.completion)).toContain(
+      "implementation.payload.authoring_input_refs",
+    );
   });
 
   it("uses one sibling VAI context and gates the Phase 6 boundary on exact design acceptance", () => {
@@ -60,12 +63,25 @@ describe("lean Phase 5 Process Package", () => {
       record(process.selectors["review-context-subjects"]).query.where,
     );
     expect(subjects).toContain("phase-5-formal-vai-review-anchor@1");
+    expect(subjects).toContain("revise-pilot-vai-after-review@3");
+
+    const assignmentMembers = record(
+      process.selectors["review-assignment-context-members-for"],
+    );
+    expect(record(record(assignmentMembers.query).from).types).toEqual(
+      expect.arrayContaining(["CMP", "DES"]),
+    );
 
     const contextMembers = JSON.stringify(
       record(process.selectors["review-context-members-for"]).query.where,
     );
     expect(contextMembers).toContain(
       "phase-5-formal-vai-review-context-members-for@1",
+    );
+
+    const correction = process.scenarios["revise-pilot-vai-after-review"]!;
+    expect(JSON.stringify(correction.completion)).toContain(
+      "replacement.payload.authoring_input_refs",
     );
 
     const terminal = JSON.stringify(
