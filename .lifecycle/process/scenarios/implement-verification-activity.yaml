@@ -53,6 +53,8 @@ completion: >-
   && implementation.payload.independence_mode == "source-blind"
   && ((activity.payload.kind == "formal"
       && execution_target == environment
+      && implementation.payload.authoring_input_refs
+        == [activity.identity.revision_id, environment.identity.revision_id]
       && count("execution-targets-for-implementation@1", {implementation: implementation}) == 1
       && one("execution-targets-for-implementation@1", {implementation: implementation}) == environment
       && none("pilot-art-targets-for-implementation@1", {implementation: implementation}))

@@ -43,6 +43,9 @@ ENV links, and target only that exact ENV; no ART is supplied. For pilot work,
 target the supplied ART. Phase 6 will bind the reviewed formal VAI to the exact
 controlled implementation ART at RUN time.
 
+For a formal VAI, set `authoring_input_refs` to exactly the supplied VER Revision
+followed by the supplied ENV Revision. Do not add an ART or any other reference.
+
 Do not access product source, product unit tests, private functions, classes,
 implementation notes, or uncontrolled shortcuts.
 

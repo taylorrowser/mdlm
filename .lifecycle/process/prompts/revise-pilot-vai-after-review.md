@@ -19,6 +19,9 @@ qualified ENV, emit no replacement VER, ENV, qualification, or ART output, and
 retain no product ART target. Phase 6 binds the corrected independently reviewed
 formal VAI to the controlled product ART at RUN time.
 
+For a formal VAI, set `authoring_input_refs` to exactly the supplied VER Revision
+followed by the supplied ENV Revision. Do not add an ART or any other reference.
+
 Only when the Review proves the supplied VER, ART, or ENV inconsistent may you
 publish the next Revision of that exact lineage in the same transaction. A
 replacement VER must preserve the exact pilot claim class, requirement, and

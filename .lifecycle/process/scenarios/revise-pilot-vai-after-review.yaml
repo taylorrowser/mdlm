@@ -123,6 +123,8 @@ completion: >-
       && qualification_implementation == null
       && replacement_target == null
       && execution_target == environment
+      && replacement.payload.authoring_input_refs
+        == [activity.identity.revision_id, environment.identity.revision_id]
       && count("execution-targets-for-implementation@1", {implementation: replacement}) == 1
       && one("execution-targets-for-implementation@1", {implementation: replacement}) == environment
       && none("pilot-art-targets-for-implementation@1", {implementation: replacement})))
