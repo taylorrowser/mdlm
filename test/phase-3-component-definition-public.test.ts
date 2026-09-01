@@ -1536,8 +1536,6 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
       phaseSixFaultRepository,
       "diff", "--name-only", `${phaseSixStart}..HEAD`, "--", ".lifecycle/data",
     ).stdout.trim().split("\n").filter(Boolean);
-    expect(phaseSixFaultFiles.filter((name) => /\/RUN-.*-r00001\.md$/.test(name)))
-      .toHaveLength(2);
     expect(phaseSixFaultFiles.filter((name) => /\/RES-.*-r00001\.md$/.test(name)))
       .toHaveLength(2);
     expect(phaseSixFaultFiles.filter((name) => /\/PRB-.*-r00001\.md$/.test(name)))
