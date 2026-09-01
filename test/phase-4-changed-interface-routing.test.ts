@@ -1,9 +1,11 @@
 import { expect, it } from "vitest";
 import {
+  classifyOperatorOutcome,
   evaluateLifecycle,
   loadProcessPackage,
   type LifecycleRecord,
 } from "../src/index.js";
+import { operatorWorkProjection } from "../src/assignment.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 
 const processRef = `mdlm-bootstrap@0.114.0#sha256:${"a".repeat(64)}`;
@@ -52,6 +54,18 @@ it("routes Phase 4 changed-interface work through design environment assurance",
     { type: "derived-from", target: component.datum.revision_id },
     { type: "decomposes", target: plan.datum.revision_id },
   ]);
+  const planContext = record("BSL", "BSL-5730000003", {
+    title: "Review context for the changed-interface plan",
+    kind: "review-context",
+    role: "review-context",
+    scope: plan.datum.revision_id,
+    group: "DEFAULT",
+    definition_members: [
+      plan.datum.revision_id,
+      strategy.datum.revision_id,
+    ],
+    evidence: [],
+  }, "create-review-context@2");
   const reviewContext = record("BSL", "BSL-5730000001", {
     title: "Review context for the design strategy",
     kind: "review-context",
@@ -71,11 +85,66 @@ it("routes Phase 4 changed-interface work through design environment assurance",
     { type: "reviews", target: strategy.datum.revision_id },
     { type: "contextualizes", target: reviewContext.datum.revision_id },
   ]);
+  const activity = record("VER", "VER-5730000001", {
+    title: "Exercise the changed classification contract",
+    kind: "pilot",
+    claim: {
+      kind: "pilot",
+      scope: "verification-design",
+      formal_evidence_eligible: false,
+    },
+  }, "write-representative-level-pilot-verification-activity@1", [
+    { type: "verifies", target: design.datum.id },
+    { type: "verifies-revision", target: design.datum.revision_id },
+    { type: "governed-by", target: strategy.datum.revision_id },
+  ]);
+  const activityContext = record("BSL", "BSL-5730000002", {
+    title: "Review context for the pilot activity",
+    kind: "review-context",
+    role: "review-context",
+    scope: activity.datum.revision_id,
+    group: "DEFAULT",
+    definition_members: [
+      activity.datum.revision_id,
+      design.datum.revision_id,
+      strategy.datum.revision_id,
+    ],
+    evidence: [],
+  }, "create-review-context@2");
+  const activityReview = record("REV", "REV-5730000002", {
+    title: "Review the pilot activity",
+    review_kind: "contextual",
+    outcome: "pass",
+    findings: [],
+    rubric_ref: "policies/rubrics/bootstrap-review.md@3",
+  }, "review-datum-in-context@3", [
+    { type: "reviews", target: activity.datum.revision_id },
+    { type: "contextualizes", target: activityContext.datum.revision_id },
+  ]);
+  const target = record("ART", "ART-5730000001", {
+    title: "Disposable changed-interface controls",
+    kind: "prototype",
+    prototype_controls: { activity_ref: activity.datum.revision_id },
+  }, "build-representative-level-pilot-control-prototype@1", [
+    { type: "derived-from", target: design.datum.revision_id },
+  ]);
 
   const evaluation = evaluateLifecycle(loaded.package, {
     processRef,
     phaseId: "phase-4-design-definition",
-    records: [component, strategy, plan, design, reviewContext, review],
+    records: [
+      component,
+      strategy,
+      plan,
+      design,
+      planContext,
+      reviewContext,
+      review,
+      activity,
+      activityContext,
+      activityReview,
+      target,
+    ],
     dependencyComparisons: [],
   });
   const assurance = evaluation.looseEnds.find((item) =>
@@ -87,5 +156,28 @@ it("routes Phase 4 changed-interface work through design environment assurance",
     status: "ready",
     dispatchable: true,
     actionableResolver: "realize-verification-environment@1",
+  }));
+  const next = classifyOperatorOutcome(
+    operatorWorkProjection(evaluation, [
+      component,
+      strategy,
+      plan,
+      design,
+      planContext,
+      reviewContext,
+      review,
+      activity,
+      activityContext,
+      activityReview,
+      target,
+    ]),
+    evaluation.terminalOutcome,
+  );
+  expect(next).toEqual(expect.objectContaining({
+    kind: "assignment",
+    work: expect.objectContaining({
+      subject: strategy.datum.revision_id,
+      scenario: "realize-verification-environment@1",
+    }),
   }));
 });
