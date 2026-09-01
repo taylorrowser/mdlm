@@ -138,7 +138,20 @@ async function phaseThreePackage(parent: string): Promise<string> {
     "phase-3-component-definition",
     "phase-4-design-definition",
   ];
+  profile.terminal_outcomes.profile_boundary.condition = `
+    phase.id == "phase-4-design-definition"
+    && exists("complete-phase-4-level-candidates@1", {})
+    && every("complete-phase-4-level-candidates@1", {}, candidate =>
+      exists("applicable-gate-signoffs-for@1", {candidate: candidate})
+      && exists("accepted-component-baselines-for-design-candidate@1",
+        {candidate: candidate}))
+  `;
   await fs.writeFile(profilePath, stringify(profile));
+
+  const phaseFourPath = path.join(root, "phases/phase-4-design-definition.yaml");
+  const phaseFour = parse(await fs.readFile(phaseFourPath, "utf8"));
+  phaseFour.progression = null;
+  await fs.writeFile(phaseFourPath, stringify(phaseFour));
 
   const phasePath = path.join(root, "phases/phase-3-component-definition.yaml");
   const phase = parse(await fs.readFile(phasePath, "utf8"));
@@ -808,6 +821,7 @@ it("runs accepted-SYS evidence through complete Phase 3 and lean Phase 4", async
         authoring_input_refs: [strategy], prohibited_inputs_observed: ["product source code", "product unit tests", "private implementation details", "uncontrolled implementation shortcuts"],
         activity_bindings: ["positive capability", "negative capability"],
         target_behavior: { supported: ["declared capabilities"], intentionally_unsupported: ["undeclared capabilities"] },
+        execution_procedure: { content: "Run the positive and negative capability controls.", deadlines_ms: { checkout: 1000, environment_check: 1000, product_case: 1000 }, deadline_scope: "infrastructure-safety-only", timeout: { termination: "process-group-sigterm-then-sigkill", force_after_ms: 100, reaping: "all-descendants", capture_partial_raw_observation: true }, cleanup: "guaranteed", aggregation: "continue-through-all-cases" },
       }, body: "One qualification procedure.\n" },
     ]);
     commit(repository, "Realize component pilot environment");
