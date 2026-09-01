@@ -20,7 +20,7 @@ status_rules:
       || count("system-strategies-for-completion@1", {completion: completion}) != 1
       || none("architecture-simplification-reviews-for@1",
         {plan: one("planning-revisions-for-completion@1", {completion: completion})})
-    reason: Level candidate creation requires one complete exact DWP definition and simplification-evidence chain.
+    reason: Level candidate creation requires one complete exact DWP definition, its system-level strategy, and simplification-evidence chain.
   - status: awaiting-review
     priority: 200
     when: >-
