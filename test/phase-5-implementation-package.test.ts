@@ -87,6 +87,14 @@ describe("lean Phase 5 and Phase 6 Process Package", () => {
     expect(JSON.stringify(correction.completion)).toContain(
       "replacement.payload.authoring_input_refs",
     );
+    expect(record((correction.outputs as Record<string, unknown>[]).find(
+      (output) => output.name === "replacement",
+    )).required_links).toEqual([
+      { link: "realizes", target: { input: "activity" } },
+      { link: "uses", target: { input: "environment" } },
+      { link: "targets", target: { input: "execution_target" } },
+      { link: "corrects-review", target: { input: "failed_reviews" } },
+    ]);
 
     const terminal = JSON.stringify(
       record(record(process.profiles.bootstrap!.terminal_outcomes).profile_boundary)
