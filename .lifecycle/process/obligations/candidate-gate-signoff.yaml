@@ -53,9 +53,19 @@ status_rules:
       || exists("open-blocking-questions@1", {})
       || (
         candidate.payload.kind == "level-candidate"
-        && none("definition-level-candidate-members@1", {candidate: candidate})
-        && every("candidates-with-suitable-representative-pilot@1", {}, ready =>
-          ready != candidate)
+        && (
+          (
+            exists("system-requirements-for-level-candidate@1",
+              {candidate: candidate})
+            && every("candidates-with-suitable-representative-pilot@1", {}, ready =>
+              ready != candidate)
+          )
+          || (
+            none("system-requirements-for-level-candidate@1",
+              {candidate: candidate})
+            && none("definition-level-candidate-members@1", {candidate: candidate})
+          )
+        )
       )
       || (
         candidate.payload.kind == "intent-level-candidate"
@@ -84,9 +94,17 @@ status_rules:
       && none("open-blocking-questions@1", {})
       && (
         candidate.payload.kind != "level-candidate"
-        || exists("definition-level-candidate-members@1", {candidate: candidate})
-        || !every("candidates-with-suitable-representative-pilot@1", {}, ready =>
-          ready != candidate)
+        || (
+          exists("system-requirements-for-level-candidate@1",
+            {candidate: candidate})
+          && !every("candidates-with-suitable-representative-pilot@1", {}, ready =>
+            ready != candidate)
+        )
+        || (
+          none("system-requirements-for-level-candidate@1",
+            {candidate: candidate})
+          && exists("definition-level-candidate-members@1", {candidate: candidate})
+        )
       )
       && (
         candidate.payload.kind != "intent-level-candidate"

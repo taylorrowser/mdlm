@@ -307,6 +307,53 @@ it("requires the exact system strategy before a Phase 2 level candidate", async 
     .toBe(
       'one("system-strategies-for-completion@1", {completion: completion})',
     );
+
+  const levelCandidate = datum("BSL", "BSL-0SYSTEMVSP", {
+    title: "Reviewed system candidate without pilot evidence",
+    kind: "level-candidate",
+    role: "candidate",
+    scope: completion.datum.revision_id,
+    group: "DEFAULT",
+    definition_members: [
+      completion.datum.revision_id,
+      system.datum.revision_id,
+      architecture.datum.revision_id,
+      systemStrategy.datum.revision_id,
+    ],
+    evidence: [simplificationReview.datum.revision_id],
+  });
+  levelCandidate.datum.created_by.scenario = "create-system-level-candidate@2";
+  const candidateContext = datum("BSL", "BSL-0SYSTEMVS3", {
+    title: "System candidate Review Context",
+    kind: "review-context",
+    role: "review-context",
+    scope: levelCandidate.datum.revision_id,
+    group: "DEFAULT",
+    definition_members: [levelCandidate.datum.revision_id],
+    evidence: [],
+  });
+  candidateContext.datum.created_by.scenario = "create-review-context@2";
+  const candidateReview = datum("REV", "REV-0SYSTEMVS3", {
+    title: "Passing structural system candidate Review",
+    review_kind: "contextual",
+    outcome: "pass",
+  }, [
+    { type: "reviews", target: levelCandidate.datum.revision_id },
+    { type: "contextualizes", target: candidateContext.datum.revision_id },
+  ]);
+  const withoutPilot = snapshot([
+    systemStrategy,
+    levelCandidate,
+    candidateContext,
+    candidateReview,
+  ]);
+  expect(withoutPilot.obligations.find((item) =>
+    item.obligation === "candidate-gate-signoff" &&
+    item.subject === levelCandidate.datum.revision_id
+  )).toEqual(expect.objectContaining({
+    status: "blocked",
+    dispatchable: false,
+  }));
 });
 
 it(
