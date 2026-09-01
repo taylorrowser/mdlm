@@ -171,42 +171,142 @@ it("routes one reviewed Phase 2 completion directly to its level candidate", asy
 
 it("requires the exact system strategy before a Phase 2 level candidate", async () => {
   const processPackage = await canonicalProcessPackage();
-
-  const strategyParents = processPackage.selectors[
-    "lower-level-strategy-parent-requirements"
-  ] as unknown as { query: { where: { source: string } } };
-  expect(strategyParents.query.where.source).toContain(
-    'current-decomposition-completions@1',
+  const stakeholder = datum("STK", "STK-0SYSTEMVSP", {
+    title: "Observable stakeholder behavior",
+  });
+  const architecture = datum("ASP", "ASP-0SYSTEMVSP", {
+    title: "System architecture",
+    level: "system",
+  }, [{ type: "governs", target: stakeholder.datum.revision_id }]);
+  const stakeholderStrategy = datum("VSP", "VSP-0STAKEHOLD", {
+    title: "Stakeholder strategy",
+    level: "stakeholder",
+  }, [{
+    type: "governs-revision",
+    target: stakeholder.datum.revision_id,
+  }]);
+  const plan = datum("DWP", "DWP-0SYSTEMVSP", {
+    title: "System decomposition",
+    stage: "planning",
+    target_child_type: "SYS",
+  }, [
+    { type: "decomposes", target: stakeholder.datum.revision_id },
+    { type: "allocated-to", target: architecture.datum.revision_id },
+    { type: "verified-under", target: stakeholderStrategy.datum.revision_id },
+  ]);
+  const system = datum("SYS", "SYS-0SYSTEMVSP", {
+    title: "Observable system behavior",
+    statement: "The system shall report one exact result.",
+  }, [{ type: "decomposes", target: plan.datum.revision_id }]);
+  const simplificationContext = datum("BSL", "BSL-0SYSTEMVS1", {
+    title: "System definition context",
+    kind: "review-context",
+    role: "review-context",
+    scope: plan.datum.revision_id,
+    group: "DEFAULT",
+    definition_members: [
+      architecture.datum.revision_id,
+      plan.datum.revision_id,
+      system.datum.revision_id,
+    ],
+    evidence: [],
+  });
+  const simplificationReview = datum("REV", "REV-0SYSTEMVS1", {
+    title: "System simplification Review",
+    review_kind: "simplification-architecture-interfaces",
+    outcome: "pass",
+  }, [{
+    type: "contextualizes",
+    target: simplificationContext.datum.revision_id,
+  }]);
+  const completion = datum("DWP", "DWP-0SYSTEMVSC", {
+    title: "Completed system decomposition",
+    stage: "completion",
+    target_child_type: "SYS",
+  }, [
+    { type: "derived-from", target: plan.datum.revision_id },
+    { type: "decomposes", target: stakeholder.datum.revision_id },
+    { type: "produces", target: system.datum.revision_id },
+    { type: "allocated-to", target: architecture.datum.revision_id },
+    { type: "verified-under", target: stakeholderStrategy.datum.revision_id },
+    { type: "justifies", target: simplificationReview.datum.revision_id },
+  ]);
+  const completionContext = datum("BSL", "BSL-0SYSTEMVS2", {
+    title: "Completion Review context",
+    kind: "review-context",
+    role: "review-context",
+    scope: completion.datum.revision_id,
+    group: "DEFAULT",
+    definition_members: [
+      completion.datum.revision_id,
+      architecture.datum.revision_id,
+      plan.datum.revision_id,
+      simplificationReview.datum.revision_id,
+      stakeholder.datum.revision_id,
+      stakeholderStrategy.datum.revision_id,
+      system.datum.revision_id,
+    ],
+    evidence: [],
+  });
+  completionContext.datum.created_by.scenario = "create-review-context@2";
+  const completionReview = datum("REV", "REV-0SYSTEMVS2", {
+    title: "Completion Review",
+    review_kind: "contextual",
+    outcome: "pass",
+  }, [
+    { type: "reviews", target: completion.datum.revision_id },
+    { type: "contextualizes", target: completionContext.datum.revision_id },
+  ]);
+  const records = [
+    stakeholder,
+    architecture,
+    stakeholderStrategy,
+    plan,
+    system,
+    simplificationContext,
+    simplificationReview,
+    completion,
+    completionContext,
+    completionReview,
+  ];
+  const snapshot = (extra: LifecycleRecord[] = []) => evaluateLifecycle(
+    processPackage,
+    {
+      processRef,
+      phaseId: "phase-2-system-definition",
+      records: [...records, ...extra],
+      dependencyComparisons: [],
+    },
   );
-  expect(strategyParents.query.where.source).not.toContain(
-    'complete-phase-2-level-candidates@1',
-  );
+  const candidate = (extra: LifecycleRecord[] = []) => snapshot(extra)
+    .obligations.find((item) =>
+      item.obligation === "system-level-candidate-required" &&
+      item.subject === completion.datum.revision_id
+    );
 
-  const obligation = processPackage.obligations[
+  expect(snapshot().obligations).toContainEqual(expect.objectContaining({
+    obligation: "lower-level-verification-strategy-required",
+    status: "ready",
+  }));
+  expect(candidate()).toEqual(expect.objectContaining({ status: "blocked" }));
+
+  const systemStrategy = datum("VSP", "VSP-0SYSTEMVSP", {
+    title: "System strategy",
+    level: "system",
+  }, [{ type: "governs-revision", target: system.datum.revision_id }]);
+  expect(candidate([systemStrategy])).toEqual(expect.objectContaining({
+    status: "ready",
+    actionableResolver: "create-system-level-candidate@2",
+  }));
+  const candidateRequirement = processPackage.obligations[
     "system-level-candidate-required"
   ] as unknown as {
-    satisfied_when: { source: string };
-    status_rules: Array<{ when: { source: string } }>;
     resolve_with: { inputs: Record<string, { source: string }> };
   };
-  expect(obligation.satisfied_when.source).toContain(
-    'complete-level-candidates-for-completion@1',
-  );
-  expect(obligation.status_rules.map((rule) => rule.when.source).join("\n"))
-    .toContain('system-strategies-for-completion@1');
-  expect(obligation.resolve_with.inputs.verification_strategy!.source).toBe(
-    'one("system-strategies-for-completion@1", {completion: completion})',
-  );
-
-  const completeCandidate = processPackage.selectors[
-    "complete-level-candidates-for-completion"
-  ] as unknown as { query: { where: { source: string } } };
-  expect(completeCandidate.query.where.source).toContain(
-    'system-strategies-for-completion@1',
-  );
-  expect(completeCandidate.query.where.source).not.toContain(
-    'every("strategies-for-decomposition@1"',
-  );
+  expect(candidateRequirement.resolve_with.inputs.verification_strategy!.source)
+    .toBe(
+      'one("system-strategies-for-completion@1", {completion: completion})',
+    );
 });
 
 it(
