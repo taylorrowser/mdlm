@@ -7,7 +7,8 @@ description: >-
   template-composed payloads, source-owned links, relational selectors,
   machine-readable policies, computed states, obligations, Scenario routing, and
   Phase 0 intent, Phase 1 qualification/pilot, Phase 2 system decomposition,
-  complete Phase 3 verification design, and lean Phase 4 design definition.
+  complete Phase 3 verification design, lean Phase 4 design definition, and
+  independent Phase 5 product and formal-verification implementation.
 kernel_contract:
   id: mdlm-kernel-process-interface
   version: 1

@@ -14,7 +14,7 @@ query:
     && (context.payload.scope == subject.identity.revision_id
       || (subject.identity.type == "VAI"
         && subject.payload.kind == "formal"
-        && exists("phase-5-formal-vai-contexts-for@1", {subject: subject})))
+        && !every("phase-5-formal-vai-contexts-for@1", {subject: subject}, exact => exact != context)))
     && context.storage.frozen == true
     && state(context, "validity") == "valid"
     && (subject.identity.type == "VAI" && subject.payload.kind == "formal"
@@ -27,7 +27,7 @@ query:
     && none("composed-baselines-for-review-context@1", {context: context})
     && context.provenance.process_ref == process.current_ref
     && ((subject.identity.type == "VAI" && subject.payload.kind == "formal"
-        && exists("phase-5-formal-vai-contexts-for@1", {subject: subject}))
+        && !every("phase-5-formal-vai-contexts-for@1", {subject: subject}, exact => exact != context))
       || every("review-context-members-for@1", {subject: subject}, member =>
         exists("review-context-contains-required-support@1",
           {subject: subject, context: context, required_support: member})))

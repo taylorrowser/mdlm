@@ -7,7 +7,7 @@ version: 3
 
 ## Applicability
 
-Every PSP, STK, and SYS revision is reviewed individually. Every frozen candidate
+Every PSP, STK, SYS, implementation ART, and pilot or formal VAI revision is reviewed individually. Every frozen candidate
 BSL is reviewed; review-context and accepted BSLs are not. A DEC is reviewed when
 it changes scope, waives or defers work, disposes of a datum, or signs off a gate.
 REV and QST do not require their own REV.
@@ -27,6 +27,13 @@ unresolved question.
   and exact PSP derivation; no prescribed design.
 - **SYS:** one solution-independent behavior or constraint, verification intent,
   rationale, authorized STK derivation, and no coverage duplication.
+- **Implementation ART:** exact immutable Git commit, runnable controlled public
+  interface, every and only candidate DES link and path-mapping key, every mapped
+  path present at that commit, and no substantive changed path left unjustified.
+- **Formal VAI:** exact reviewed formal VER and qualified ENV, source-blind
+  authoring inputs, executable public procedure, no product ART target before
+  Phase 6, and no product source, unit tests, private details, prototype bytes, or
+  uncontrolled shortcut in the authored packet or frozen context.
 - **BSL candidate:** exact complete membership, separated evidence, valid hashes
   and resolved links, complete member reviews, coherent role/scope, and no
   blocking QST.

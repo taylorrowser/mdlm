@@ -9,6 +9,11 @@ query:
     selector: phase-5-formal-verification-implementations@1
     arguments: {}
   as: implementation
-  where: 'implementation == first("phase-5-formal-verification-implementations@1", {})'
+  where: >-
+    implementation == first("phase-5-formal-verification-implementations@1", {})
+    && exists("design-candidates-for-formal-vai@1", {implementation: implementation})
+    && every("formal-activities-for-phase-5-candidate@1",
+      {candidate: one("design-candidates-for-formal-vai@1", {implementation: implementation})}, activity =>
+        count("structural-formal-implementations-for-activity@1", {activity: activity}) == 1)
   distinct: true
   order_by: [identity.id, identity.revision]

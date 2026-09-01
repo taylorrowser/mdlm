@@ -23,6 +23,13 @@ payload_schema:
         properties: {kind: {const: pilot}, independence_mode: {const: source-blind}}
         required: [kind, independence_mode]
       then: {required: [execution_procedure]}
+    - if:
+        properties: {kind: {const: formal}, independence_mode: {const: source-blind}}
+        required: [kind, independence_mode]
+      then:
+        required: [execution_procedure]
+        properties:
+          execution_procedure: {required: [content]}
     - if: {required: [prototype_control_bindings]}
       then:
         properties: {kind: {const: pilot}}

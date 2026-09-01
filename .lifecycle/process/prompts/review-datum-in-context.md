@@ -44,6 +44,19 @@ contradicts the Decision, exceeds its effective scope, lacks exact authority, or
 keeps a current unresolved Question. Never infer an answer or authority that is
 absent from `context_members`.
 
+For an implementation ART, derive the complete substantive changed-path set from
+the exact Git commit and verify every and only candidate DES Revision is linked
+and mapped to existing traversal-free relative paths. Exercise the controlled
+public interface. Fail a missing DES mapping, nonexistent path, unjustified
+changed path, mutable build reference, or non-runnable interface.
+
+For a formal VAI, use only the exact VAI-only frozen sibling context. Verify its
+formal VER, qualified ENV, executable procedure, source-blind provenance, and
+separate authorization. Fail any product ART, product source, unit test, private
+detail, prototype byte, or uncontrolled shortcut in the Assignment or context.
+Each REV still has exactly one primary VAI subject even when sibling Reviews cite
+the same immutable context.
+
 A candidate linked through `changed-under` additionally receives
 the bounded CHG and attended disposition; a replacement STK receives the same
 change context so its judgment is scoped to the approved change.
