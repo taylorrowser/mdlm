@@ -77,5 +77,5 @@ completion: >-
   && authorization.payload.kind == "decision"
   && authorization.payload.effective_scope == implementation.identity.revision_id
 resolves: [pilot-verification-implementation-required, formal-verification-implementation-required]
-prohibited_inputs: [product source code, product unit tests, private implementation details, uncontrolled implementation shortcuts]
+prohibited_inputs: [product source code, product unit tests, private implementation details, uncontrolled implementation shortcuts, mutable aliases, prototype implementation bytes, product implementation ART during formal work]
 batching: single
