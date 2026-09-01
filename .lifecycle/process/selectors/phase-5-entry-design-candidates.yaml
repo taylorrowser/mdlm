@@ -1,0 +1,18 @@
+kind: selector-definition
+id: phase-5-entry-design-candidates
+version: 1
+description: Exact current reviewed and approved design candidates whose component predecessor is accepted.
+parameters: []
+result_kind: baseline
+query:
+  from:
+    selector: complete-phase-4-level-candidates@1
+    arguments: {}
+  as: candidate
+  where: >-
+    exists("passing-reviews-for@1", {subject: candidate})
+    && none("failing-reviews-for@1", {subject: candidate})
+    && exists("applicable-gate-signoffs-for@1", {candidate: candidate})
+    && exists("accepted-component-baselines-for-design-candidate@1", {candidate: candidate})
+  distinct: true
+  order_by: [identity.revision_id]

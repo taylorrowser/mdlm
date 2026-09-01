@@ -5,12 +5,13 @@ description: Exact current active Revisions for which the machine-readable revie
 parameters: []
 result_kind: revision
 query:
-  from: {collection: revisions, types: [MAP, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS]}
+  from: {collection: revisions, types: [MAP, ART, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS]}
   as: subject
   where: >-
     policy("review-applicability@1", {subject: subject}).required == true
-    && (!(phase.id in ["phase-3-component-definition", "phase-4-design-definition"])
+    && (!(phase.id in ["phase-3-component-definition", "phase-4-design-definition", "phase-5-implementation"])
       || subject.identity.type in ["BSL", "DEC"]
+      || (subject.identity.type == "ART" && subject.payload.kind == "implementation")
       || (subject.identity.type == "VER" && subject.payload.kind in ["pilot", "formal"])
       || (subject.identity.type in ["VSP", "ENV", "VAI"])
       || (subject.identity.type == "DWP"

@@ -114,8 +114,19 @@ component ASP and compatible ICSP. The shared decomposition, completion,
 correction, candidate, gate, and formal-VER routes preserve exact ancestry and
 reuse compatible component pilot evidence. One independently reviewed direct
 DES candidate and reviewed attended gate mechanically promote the exact CMP
-candidate to an accepted baseline. The profile then returns `Profile Boundary
-Reached` because Phase 5 is absent.
+candidate to an accepted baseline and progress into Phase 5.
+
+### Phase 5 — implementation and formal verification implementation
+
+Two independent routes consume the exact reviewed and gate-approved DES
+candidate. The product route publishes one controlled exact-commit ART with
+complete DES links and bounded relative-path mappings. The source-blind route
+publishes one separately authorized formal VAI for every exact formal VER without
+receiving product source, product unit tests, private implementation details, or
+the product ART. One ART Review Context remains separate from one exact VAI-only
+sibling context. Every ART and VAI receives its own independent Review. Complete
+passing coverage mechanically accepts the DES candidate and returns `Profile
+Boundary Reached` because Phase 6 is absent. Phase 5 publishes no RUN or RES.
 
 ### Phase 7 — bounded accepted change
 
@@ -154,8 +165,8 @@ not itself a stop; the next Operator Outcome controls continuation.
 
 ## Scope boundary
 
-Phases 0–4 through one lean reviewed design-definition slice are the
-implemented fresh bootstrap subset. Phase 5–6 breadth, production indexing,
+Phases 0–5 through one lean reviewed implementation slice are the implemented
+fresh bootstrap subset. Phase 6 breadth, production indexing,
 source-isolation containers, brownfield onboarding, formal compliance, and broader
 concurrency remain outside this profile. This package demonstrates one lifecycle
 structure; it does not define universal MDLM semantics.

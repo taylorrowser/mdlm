@@ -1,0 +1,16 @@
+kind: selector-definition
+id: verification-implementation-correction-targets
+version: 1
+description: Exact pilot ART target for one failed VAI correction, or an empty typed set for formal VAI correction before Phase 6.
+parameters:
+  - {name: implementation, kind: revision, types: [VAI]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [ART]}
+  as: target
+  where: >-
+    implementation.payload.kind == "pilot"
+    && !every("verification-activities-for-implementation@1", {implementation: implementation}, activity =>
+      every("eligible-pilot-targets-for-activity@1", {activity: activity}, eligible => eligible != target))
+  distinct: true
+  order_by: [identity.revision_id]

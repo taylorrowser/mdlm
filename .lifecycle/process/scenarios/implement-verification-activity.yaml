@@ -1,15 +1,15 @@
 kind: scenario-definition
 id: implement-verification-activity
 version: 1
-description: Implement one reviewed pilot activity against a qualified environment and bounded exact target without product-source access.
-phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition]
+description: Implement one reviewed pilot or formal activity against a qualified environment without product-source access.
+phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition, phase-5-implementation]
 inputs:
   - name: activity
     types: [VER]
     cardinality: one
     identity: revision
     conditions: >-
-      activity.payload.kind == "pilot"
+      activity.payload.kind in ["pilot", "formal"]
       && exists("passing-reviews-for@1", {subject: activity})
   - name: environment
     types: [ENV]
@@ -20,7 +20,7 @@ inputs:
       && exists("passing-reviews-for@1", {subject: environment})
   - name: execution_target
     types: [ART]
-    cardinality: one
+    cardinality: zero-or-one
     identity: revision
 outputs:
   - name: implementation
@@ -29,7 +29,6 @@ outputs:
     required_links:
       - {link: realizes, target: {input: activity}}
       - {link: uses, target: {input: environment}}
-      - {link: targets, target: {input: execution_target}}
   - name: authorization
     types: [DEC]
     cardinality: one
@@ -42,25 +41,31 @@ participation:
   arguments:
     activity: activity
     environment: environment
-    execution_target: execution_target
 authority_evidence: {output: authorization, type: DEC}
 completion: >-
   execution.integrity.contract_valid == true
-  && implementation.payload.kind == "pilot"
+  && implementation.payload.kind == activity.payload.kind
   && implementation.payload.independence_mode == "source-blind"
-  && implementation.payload.target_behavior.supported == execution_target.payload.supported_behavior
-  && implementation.payload.target_behavior.intentionally_unsupported == execution_target.payload.unsupported_behavior
-  && (!present(execution_target.payload.prototype_controls)
-    || (implementation.payload.prototype_control_bindings.activity_ref
-      == execution_target.payload.prototype_controls.activity_ref
-    && implementation.payload.prototype_control_bindings.known_good.argv
-      == execution_target.payload.prototype_controls.known_good.argv
-    && implementation.payload.prototype_control_bindings.known_good.expected_verification_outcome == "pass"
-    && implementation.payload.prototype_control_bindings.known_bad.argv
-      == execution_target.payload.prototype_controls.known_bad.argv
-    && implementation.payload.prototype_control_bindings.known_bad.expected_verification_outcome == "fail"))
+  && ((activity.payload.kind == "formal"
+      && !present(execution_target)
+      && none("execution-targets-for-implementation@1", {implementation: implementation}))
+    || (activity.payload.kind == "pilot"
+      && present(execution_target)
+      && count("execution-targets-for-implementation@1", {implementation: implementation}) == 1
+      && one("execution-targets-for-implementation@1", {implementation: implementation}) == execution_target
+      && implementation.payload.target_behavior.supported == execution_target.payload.supported_behavior
+      && implementation.payload.target_behavior.intentionally_unsupported == execution_target.payload.unsupported_behavior
+      && (!present(execution_target.payload.prototype_controls)
+        || (implementation.payload.prototype_control_bindings.activity_ref
+          == execution_target.payload.prototype_controls.activity_ref
+        && implementation.payload.prototype_control_bindings.known_good.argv
+          == execution_target.payload.prototype_controls.known_good.argv
+        && implementation.payload.prototype_control_bindings.known_good.expected_verification_outcome == "pass"
+        && implementation.payload.prototype_control_bindings.known_bad.argv
+          == execution_target.payload.prototype_controls.known_bad.argv
+        && implementation.payload.prototype_control_bindings.known_bad.expected_verification_outcome == "fail"))))
   && authorization.payload.kind == "decision"
   && authorization.payload.effective_scope == implementation.identity.revision_id
-resolves: [pilot-verification-implementation-required]
+resolves: [pilot-verification-implementation-required, formal-verification-implementation-required]
 prohibited_inputs: [product source code, product unit tests, private implementation details, uncontrolled implementation shortcuts]
 batching: single

@@ -1,0 +1,31 @@
+kind: obligation-definition
+id: formal-verification-implementation-required
+version: 1
+description: Every exact formal VER in the admitted design candidate requires one separately authorized source-blind VAI and passing independent Review.
+phases: [phase-5-implementation]
+for_each: 'select("formal-activities-for-phase-5-candidate@1", {candidate: one("phase-5-entry-design-candidates@1", {})})'
+subject_as: activity
+satisfied_when: >-
+  exists("passing-reviewed-formal-implementations-for-activity@1", {activity: activity})
+status_rules:
+  - status: awaiting-review
+    priority: 200
+    when: 'exists("complete-formal-implementations-for-activity@1", {activity: activity})'
+    reason: The exact source-blind formal VAI awaits independent Review.
+    blocked_by:
+      - obligation: passing-review-required@2
+        subjects: 'select("complete-formal-implementations-for-activity@1", {activity: activity})'
+  - status: ready
+    priority: 100
+    when: >-
+      none("complete-formal-implementations-for-activity@1", {activity: activity})
+      && count("formal-environments-for-activity@1", {activity: activity}) == 1
+    reason: The exact reviewed formal VER and qualified environment are ready for source-blind implementation.
+default_status: blocked
+resolve_with:
+  scenario: implement-verification-activity@1
+  inputs:
+    activity: activity
+    environment: 'one("formal-environments-for-activity@1", {activity: activity})'
+    execution_target: 'first("formal-preimplementation-targets@1", {activity: activity})'
+waiver_policy_ref: waiver-applicability@1

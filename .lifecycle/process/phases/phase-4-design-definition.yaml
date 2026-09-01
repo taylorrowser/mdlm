@@ -25,7 +25,26 @@ routing:
   status_order: [ready, awaiting-review, failed, stale, blocked]
   tie_breakers: [subject, obligation]
 outputs: [DES, ICSP, DWP, VSP, VER, REV, BSL, QST, DEC]
-progression: null
+progression:
+  next_phase: phase-5-implementation
+  readiness: >-
+    exists("complete-phase-4-level-candidates@1", {})
+    && every("complete-phase-4-level-candidates@1", {}, candidate =>
+      exists("passing-reviews-for@1", {subject: candidate})
+      && none("failing-reviews-for@1", {subject: candidate})
+      && exists("applicable-gate-signoffs-for@1", {candidate: candidate})
+      && exists("accepted-component-baselines-for-design-candidate@1",
+        {candidate: candidate}))
+  authorization:
+    condition: >-
+      exists("complete-phase-4-level-candidates@1", {})
+      && every("complete-phase-4-level-candidates@1", {}, candidate =>
+        exists("applicable-gate-signoffs-for@1", {candidate: candidate}))
+    policy_ref: phase-progression-participation@1
+    arguments: {phase: phase}
+    scenario: record-gate-signoff@3
+    subjects: 'select("complete-phase-4-level-candidates@1", {})'
+    evidence_selector: applicable-gate-signoffs-for@1
 gate:
   required: true
   candidate_selector: 'select("complete-phase-4-level-candidates@1", {})'

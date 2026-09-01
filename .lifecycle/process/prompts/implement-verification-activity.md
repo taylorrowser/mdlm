@@ -4,7 +4,7 @@ version: 1
 scenario: implement-verification-activity
 ---
 
-# Implement a source-independent pilot activity
+# Implement a source-independent verification activity
 
 Read, in order:
 
@@ -13,15 +13,17 @@ Read, in order:
 3. `skills/verification-independence.md@1`
 4. `skills/reproducibility.md@1`
 
-Implement only the reviewed exact VER Revision against the controlled public
-boundary of the package-resolved ART Revision and qualified ENV Revision. Record the activity
+Implement only the reviewed exact VER Revision against the qualified ENV
+Revision. For pilot work, use the controlled public boundary of the
+package-resolved ART Revision. Formal work must remain source-blind and must not
+receive or bind a product ART yet. Record the activity
 bindings, exact implementation reference, authoring inputs, and distinct supported
 and intentionally unsupported target behavior. For a repository-backed ART,
 bind every exact normal, raw-malformed, omitted-argument, and extra-argument case,
 instantiating its ordered command matrix without collapsing an omitted marker
 into a supplied empty token or dropping repeated command tokens.
 
-When the ART supplies `prototype_controls`, bind the exact known-good and
+For pilot work, when the ART supplies `prototype_controls`, bind the exact known-good and
 known-bad argv without rewriting either command. Apply the same reviewed VER to
 both. The known-good control must be expected to pass, and the one-fault
 known-bad control must be expected to fail. Record both exact bindings in
@@ -36,6 +38,10 @@ through every remaining case before aggregation.
 
 In the same atomic response, record the exact authorization DEC with
 `effective_scope` equal to the VAI Revision and a `justifies` link to that Revision.
+For a formal VAI, set `kind: formal`, retain the exact formal VER and qualified
+ENV links, and publish no `targets` link. Phase 6 will bind the reviewed VAI to
+the exact controlled implementation ART at RUN time.
+
 Do not access product source, product unit tests, private functions, classes,
 implementation notes, or uncontrolled shortcuts.
 

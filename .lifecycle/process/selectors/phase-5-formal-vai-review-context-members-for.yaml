@@ -1,0 +1,26 @@
+kind: selector-definition
+id: phase-5-formal-vai-review-context-members-for
+version: 1
+description: Exact source-blind sibling VAI set and definition, authority, strategy, activity, and environment support frozen in one Phase 5 Review Context.
+parameters:
+  - {name: subject, kind: revision, types: [VAI]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [DEC, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, ENV, VER, VAI, REV, BSL]}
+  as: member
+  where: >-
+    subject.payload.kind == "formal"
+    && member != subject
+    && (
+      !every("design-candidates-for-formal-vai@1", {implementation: subject}, candidate => candidate != member)
+      || !every("design-candidates-for-formal-vai@1", {implementation: subject}, candidate =>
+        every("definition-level-candidate-members@1", {candidate: candidate}, definition => definition != member))
+      || !every("phase-5-formal-verification-implementations@1", {}, implementation =>
+        implementation != member
+        && every("direct-review-support-for@1", {subject: implementation}, support => support != member)
+        && every("structural-verification-implementation-authorizations-for@1", {implementation: implementation}, authority => authority != member)
+        && every("verification-activities-for-implementation@1", {implementation: implementation}, activity =>
+          every("direct-review-support-for@1", {subject: activity}, support => support != member)))
+    )
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

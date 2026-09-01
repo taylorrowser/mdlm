@@ -1,0 +1,14 @@
+kind: selector-definition
+id: accepted-design-baselines
+version: 1
+description: Exact frozen design baselines promoted from an admitted Phase 5 design candidate.
+parameters: []
+result_kind: baseline
+query:
+  from: {collection: baselines, types: [BSL]}
+  as: accepted
+  where: >-
+    !every("phase-5-entry-design-candidates@1", {}, candidate =>
+      every("accepted-design-baselines-for-candidate@1", {candidate: candidate}, exact => exact != accepted))
+  distinct: true
+  order_by: [identity.revision_id]

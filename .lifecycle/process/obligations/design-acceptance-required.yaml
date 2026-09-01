@@ -1,0 +1,40 @@
+kind: obligation-definition
+id: design-acceptance-required
+version: 1
+description: Every admitted design candidate requires one mechanical accepted baseline after exact product and source-blind formal-verification implementation coverage passes Review.
+phases: [phase-5-implementation]
+for_each: 'select("phase-5-entry-design-candidates@1", {})'
+subject_as: candidate
+satisfied_when: 'exists("accepted-design-baselines-for-candidate@1", {candidate: candidate})'
+status_rules:
+  - status: blocked
+    priority: 300
+    when: 'none("passing-reviewed-implementation-artifacts-for-design-candidate@1", {candidate: candidate})'
+    reason: Design acceptance waits for one exact controlled implementation ART and passing traceability Review.
+    blocked_by:
+      - obligation: product-implementation-required@1
+        subjects: '[candidate]'
+  - status: blocked
+    priority: 200
+    when: >-
+      !every("formal-activities-for-phase-5-candidate@1", {candidate: candidate}, activity =>
+        count("passing-reviewed-formal-implementations-for-activity@1", {activity: activity}) == 1)
+    reason: Design acceptance waits for exactly one passing-reviewed source-blind formal VAI per exact formal VER.
+    blocked_by:
+      - obligation: formal-verification-implementation-required@1
+        subjects: 'select("formal-activities-for-phase-5-candidate@1", {candidate: candidate})'
+  - status: ready
+    priority: 100
+    when: >-
+      count("passing-reviewed-implementation-artifacts-for-design-candidate@1", {candidate: candidate}) == 1
+      && every("formal-activities-for-phase-5-candidate@1", {candidate: candidate}, activity =>
+        count("passing-reviewed-formal-implementations-for-activity@1", {activity: activity}) == 1)
+    reason: The exact design definition and every required implementation Review are ready for mechanical acceptance.
+default_status: blocked
+resolve_with:
+  scenario: accept-phase-2-system@1
+  inputs:
+    candidate: candidate
+    definition_members: 'select("definition-level-candidate-members@1", {candidate: candidate})'
+    evidence: 'select("design-acceptance-evidence-for-candidate@1", {candidate: candidate})'
+waiver_policy_ref: waiver-applicability@1

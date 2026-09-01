@@ -1,0 +1,21 @@
+kind: selector-definition
+id: implementation-artifacts-for-design-candidate
+version: 1
+description: Current exact controlled implementation artifacts covering every and only DES member of one design candidate.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: candidate, link: realizes-candidate, emit: source, types: [ART]}
+  as: implementation
+  where: >-
+    implementation.payload.kind == "implementation"
+    && state(implementation, "disposition") == "active"
+    && state(implementation, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: implementation})
+    && every("design-requirements-for-phase-5-candidate@1", {candidate: candidate}, requirement =>
+      !every("design-requirements-implemented-by@1", {implementation: implementation}, linked => linked != requirement))
+    && every("design-requirements-implemented-by@1", {implementation: implementation}, requirement =>
+      !every("design-requirements-for-phase-5-candidate@1", {candidate: candidate}, member => member != requirement))
+  distinct: true
+  order_by: [identity.revision_id]

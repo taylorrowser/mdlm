@@ -1,0 +1,17 @@
+kind: selector-definition
+id: passing-reviewed-implementation-artifacts-for-design-candidate
+version: 1
+description: Complete current implementation artifacts for one design candidate with passing independent Review.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from:
+    selector: implementation-artifacts-for-design-candidate@1
+    arguments: {candidate: candidate}
+  as: implementation
+  where: >-
+    exists("passing-reviews-for@1", {subject: implementation})
+    && none("failing-reviews-for@1", {subject: implementation})
+  distinct: true
+  order_by: [identity.revision_id]

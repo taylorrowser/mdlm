@@ -1,0 +1,14 @@
+kind: selector-definition
+id: phase-5-formal-vai-review-anchor
+version: 1
+description: Deterministic first current formal VAI used only to scope one exact sibling Review Context.
+parameters: []
+result_kind: revision
+query:
+  from:
+    selector: phase-5-formal-verification-implementations@1
+    arguments: {}
+  as: implementation
+  where: 'implementation == first("phase-5-formal-verification-implementations@1", {})'
+  distinct: true
+  order_by: [identity.id, identity.revision]

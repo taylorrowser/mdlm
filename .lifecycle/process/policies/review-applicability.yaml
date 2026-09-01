@@ -16,6 +16,11 @@ default:
   required: false
   rubric_ref: null
 rules:
+  - priority: 375
+    when: 'subject.identity.type == "ART" && subject.payload.kind == "implementation"'
+    result:
+      required: true
+      rubric_ref: policies/rubrics/bootstrap-review.md@3
   - priority: 500
     when: 'subject.identity.type == "CMP"'
     result:

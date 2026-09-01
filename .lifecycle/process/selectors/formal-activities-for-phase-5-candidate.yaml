@@ -1,0 +1,18 @@
+kind: selector-definition
+id: formal-activities-for-phase-5-candidate
+version: 1
+description: Every exact current passing-reviewed formal VER held by one admitted design candidate.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [VER]}
+  as: activity
+  where: >-
+    activity.payload.kind == "formal"
+    && exists("baseline-contains-definition@1", {baseline: candidate, subject: activity})
+    && exists("passing-reviews-for@1", {subject: activity})
+    && none("failing-reviews-for@1", {subject: activity})
+    && none("newer-revisions-for@1", {subject: activity})
+  distinct: true
+  order_by: [identity.revision_id]

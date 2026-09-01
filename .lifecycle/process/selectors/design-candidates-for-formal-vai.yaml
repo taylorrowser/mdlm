@@ -1,0 +1,18 @@
+kind: selector-definition
+id: design-candidates-for-formal-vai
+version: 1
+description: Exact frozen design candidate containing the formal VER realized by one formal VAI.
+parameters:
+  - {name: implementation, kind: revision, types: [VAI]}
+result_kind: baseline
+query:
+  from:
+    selector: candidate-baselines-of-kind@1
+    arguments: {baseline_kind: '"level-candidate"'}
+  as: candidate
+  where: >-
+    implementation.payload.kind == "formal"
+    && !every("verification-activities-for-implementation@1", {implementation: implementation}, activity =>
+      !exists("baseline-contains-definition@1", {baseline: candidate, subject: activity}))
+  distinct: true
+  order_by: [identity.revision_id]

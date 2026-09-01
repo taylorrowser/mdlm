@@ -6,11 +6,11 @@ parameters:
   - {name: subject, kind: revision}
 result_kind: revision
 query:
-  from: {relation: outgoing-links, of: subject, emit: target, types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]}
+  from: {relation: outgoing-links, of: subject, emit: target, types: [MAP, QST, DEC, ART, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]}
   as: support
   where: >-
     support != subject
-    && (subject.identity.type in ["PSP", "STK", "ASP", "ICSP", "DWP", "SYS", "VSP", "VAI", "PAS"]
+    && (subject.identity.type in ["ART", "PSP", "STK", "ASP", "ICSP", "DWP", "SYS", "VSP", "VER", "VAI", "PAS"]
       || (subject.identity.type == "DEC"
         && (
           subject.payload.kind == "pilot-expansion"

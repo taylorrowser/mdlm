@@ -1,0 +1,18 @@
+kind: selector-definition
+id: phase-5-implementation-reviews-for-candidate
+version: 1
+description: Exact passing ART and formal-VAI Reviews required before one design candidate can be mechanically accepted.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [REV]}
+  as: review
+  where: >-
+    !every("passing-reviewed-implementation-artifacts-for-design-candidate@1", {candidate: candidate}, implementation =>
+      !exists("matching-passing-review-for@1", {subject: implementation, review: review}))
+    || !every("formal-activities-for-phase-5-candidate@1", {candidate: candidate}, activity =>
+      every("passing-reviewed-formal-implementations-for-activity@1", {activity: activity}, implementation =>
+        !exists("matching-passing-review-for@1", {subject: implementation, review: review})))
+  distinct: true
+  order_by: [identity.revision_id]
