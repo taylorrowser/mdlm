@@ -1052,13 +1052,15 @@ no thin historical Review Context compatibility.
 The presence of current pilot activity work also derives exact ART registration when
 its requirement has no target. That Resolver records one immutable Git commit,
 bounded supported/unsupported behavior, and a controlled public execution interface
-containing the repository locator, an ordered typed command matrix with every
-parameter co-located with its exact encoding and four case tokens, an isolated
-working-directory contract, exact normal/raw-malformed/omitted/extra argument
-cases, and case-specific exit status plus base64 stdout/stderr bytes. The matrix
-instantiates full vectors by construction: omitted markers can occur only on
-declared parameters, raw empty tokens remain supplied, extra-only tokens retain
-their position, and ordered duplicate common tokens are preserved. It makes no verification,
+containing the repository locator, an ordered typed command matrix, an isolated
+working-directory contract, and case-specific exit status plus base64 stdout/stderr
+bytes. Parameterized interfaces co-locate every parameter with its exact encoding
+and four case tokens for normal, raw-malformed, omitted, and extra arguments.
+Zero-argument interfaces record a successful normal invocation and an
+extra-argument automatic rejection representing every argument-bearing invocation.
+The matrix instantiates full vectors by construction: omitted markers can occur
+only on declared parameters, raw empty tokens remain supplied, extra-only tokens
+retain their position, and ordered duplicate common tokens are preserved. It makes no verification,
 acceptance, or scope-authorization claim; an existing singular boundary-complete
 target satisfies the work while multiple current targets remain ambiguous. A passing
 VER Review plus one qualified

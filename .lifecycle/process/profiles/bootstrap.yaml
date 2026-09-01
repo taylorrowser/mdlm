@@ -1,6 +1,6 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 47
+version: 48
 status: experimental
 description: Fresh bootstrap profile through bottom-up formal verification and reviewed final product acceptance.
 enabled:
@@ -107,7 +107,7 @@ success_criteria:
   - exact accepted-baseline membership, not Review alone, protects STK and shared SYS through bounded impact, reviewed attended approve/reject/defer/cancel disposition, same-lineage changed-under replacement, selective candidate/evidence reuse, and exact closure; two exact shared-SYS consumers rebind serially with separate fresh coverage while draft replacement remains ordinary
   - one exact pilot evidence context records reviewed burden, reuse, queue, ceremony, discrimination, and scope measurements before an exact proceed, change, or stop Decision
   - one exact reviewed and gate-approved design candidate independently dispatches product implementation and source-blind formal-VAI work without either waiting for the other
-  - one controlled implementation ART names an immutable Git commit, runnable public interface, every exact candidate DES Revision, and a bounded traversal-free DES-to-path mapping whose completeness is independently reviewed
+  - one controlled implementation ART names an immutable Git commit, a parameterized or zero-argument runnable public interface with exact success and rejection observations, every exact candidate DES Revision, and a bounded traversal-free DES-to-path mapping whose completeness is independently reviewed
   - every exact current formal VER in the design candidate receives one separately authorized source-blind formal VAI and its own independent Review while the complete compatible sibling set shares one immutable VAI-only Review Context that contains no product evidence
   - complete passing implementation ART and formal-VAI Review coverage mechanically accepts the exact DES candidate without a second authority gate before Phase 6
   - every accepted formal verification implementation executes once per exact attempt against its reviewed activity, qualified environment, controlled implementation ART, and accepted requirement Revision, bottom-up from DES through CMP and SYS to STK

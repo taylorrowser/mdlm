@@ -19,9 +19,12 @@ package-resolved ART Revision. Formal work must remain source-blind and must not
 receive or bind a product ART yet. Record the activity
 bindings, exact implementation reference, authoring inputs, and distinct supported
 and intentionally unsupported target behavior. For a repository-backed ART,
-bind every exact normal, raw-malformed, omitted-argument, and extra-argument case,
-instantiating its ordered command matrix without collapsing an omitted marker
-into a supplied empty token or dropping repeated command tokens.
+bind every exact declared argument case. A parameterized interface declares
+normal, raw-malformed, omitted-argument, and extra-argument cases. A zero-argument
+interface declares a successful normal invocation and an extra-argument rejection
+representing every argument-bearing invocation. Instantiate the ordered command
+matrix without collapsing an omitted marker into a supplied empty token or
+dropping repeated command tokens.
 
 For pilot work, when the ART supplies `prototype_controls`, bind the exact known-good and
 known-bad argv without rewriting either command. Apply the same reviewed VER to

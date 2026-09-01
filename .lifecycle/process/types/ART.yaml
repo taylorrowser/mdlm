@@ -1,6 +1,6 @@
 kind: type-definition
 id: ART
-version: 2
+version: 3
 name: Code Pointer or Prototype Artifact
 description: Exact repository pointer or inline disposable pilot-control pair with its declared behavioral boundary.
 extends: titled-datum@1
@@ -115,6 +115,68 @@ payload_schema:
       type: object
       additionalProperties: false
       required: [repository_locator, command, argument_cases, working_directory]
+      allOf:
+        - if:
+            properties:
+              command:
+                contains: {type: object, required: [parameter]}
+            required: [command]
+          then:
+            properties:
+              command:
+                allOf:
+                  - contains:
+                      type: object
+                      required: [parameter]
+                      properties:
+                        parameter:
+                          type: object
+                          required: [case_tokens]
+                          properties:
+                            case_tokens:
+                              type: object
+                              required: [raw-malformed]
+                              properties:
+                                raw-malformed: {$ref: '#/properties/public_interface/$defs/raw_value'}
+                    minContains: 1
+                  - contains:
+                      type: object
+                      required: [parameter]
+                      properties:
+                        parameter:
+                          type: object
+                          required: [case_tokens]
+                          properties:
+                            case_tokens:
+                              type: object
+                              required: [omitted-argument]
+                              properties:
+                                omitted-argument:
+                                  type: object
+                                  required: [omitted]
+                                  properties: {omitted: {const: true}}
+                    minContains: 1
+                  - contains: {type: object, required: [extra_argument]}
+                    minContains: 1
+              argument_cases:
+                minItems: 4
+                maxItems: 4
+                allOf:
+                  - {contains: {type: object, properties: {kind: {const: normal}}, required: [kind]}, minContains: 1, maxContains: 1}
+                  - {contains: {type: object, properties: {kind: {const: raw-malformed}}, required: [kind]}, minContains: 1, maxContains: 1}
+                  - {contains: {type: object, properties: {kind: {const: omitted-argument}}, required: [kind]}, minContains: 1, maxContains: 1}
+                  - {contains: {type: object, properties: {kind: {const: extra-argument}}, required: [kind]}, minContains: 1, maxContains: 1}
+          else:
+            properties:
+              command:
+                contains: {type: object, required: [extra_argument]}
+                minContains: 1
+              argument_cases:
+                minItems: 2
+                maxItems: 2
+                allOf:
+                  - {contains: {type: object, properties: {kind: {const: normal}}, required: [kind]}, minContains: 1, maxContains: 1}
+                  - {contains: {type: object, properties: {kind: {const: extra-argument}}, required: [kind]}, minContains: 1, maxContains: 1}
       $defs:
         exact_bytes:
           type: object
@@ -199,49 +261,8 @@ payload_schema:
           type: array
           minItems: 2
           items: {$ref: '#/properties/public_interface/$defs/command_token'}
-          allOf:
-            - contains:
-                type: object
-                required: [parameter]
-                properties:
-                  parameter:
-                    type: object
-                    required: [case_tokens]
-                    properties:
-                      case_tokens:
-                        type: object
-                        required: [raw-malformed]
-                        properties:
-                          raw-malformed: {$ref: '#/properties/public_interface/$defs/raw_value'}
-              minContains: 1
-            - contains:
-                type: object
-                required: [parameter]
-                properties:
-                  parameter:
-                    type: object
-                    required: [case_tokens]
-                    properties:
-                      case_tokens:
-                        type: object
-                        required: [omitted-argument]
-                        properties:
-                          omitted-argument:
-                            type: object
-                            required: [omitted]
-                            properties: {omitted: {const: true}}
-              minContains: 1
-            - contains: {type: object, required: [extra_argument]}
-              minContains: 1
         argument_cases:
           type: array
-          minItems: 4
-          maxItems: 4
-          allOf:
-            - {contains: {type: object, properties: {kind: {const: normal}}, required: [kind]}, minContains: 1, maxContains: 1}
-            - {contains: {type: object, properties: {kind: {const: raw-malformed}}, required: [kind]}, minContains: 1, maxContains: 1}
-            - {contains: {type: object, properties: {kind: {const: omitted-argument}}, required: [kind]}, minContains: 1, maxContains: 1}
-            - {contains: {type: object, properties: {kind: {const: extra-argument}}, required: [kind]}, minContains: 1, maxContains: 1}
           items:
             type: object
             additionalProperties: false
