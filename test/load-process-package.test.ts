@@ -149,6 +149,21 @@ describe("loadProcessPackage", () => {
     return value.map(record);
   }
 
+  it("keeps the lower-level strategy prompt aligned with each definition phase", async () => {
+    const prompt = await fs.readFile(
+      path.join(
+        process.cwd(),
+        ".lifecycle/process/prompts/define-lower-level-verification-strategy.md",
+      ),
+      "utf8",
+    );
+    const normalized = prompt.replace(/\s+/g, " ");
+
+    expect(normalized).toContain("`system` in Phase 2 system definition");
+    expect(normalized).toContain("`component` in Phase 3 component definition");
+    expect(normalized).toContain("`design` in Phase 4 design definition");
+  });
+
   it("binds scalar continuation outputs to their exact input lineages", () => {
     const bindings = [
       ["reevaluate-shared-system-consumer", "replacement_consumer", "consumer"],
