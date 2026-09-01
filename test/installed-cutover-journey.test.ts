@@ -453,6 +453,12 @@ function completedResponse(packet: Record<string, any>) {
           ? output
           : {
               ...output,
+              links: packet.scenario.reference === "record-gate-signoff@3"
+                && output.type === "DEC"
+                ? (output.links as Record<string, unknown>[]).filter(
+                    (link) => link.type !== "blocks",
+                  )
+                : output.links,
               payload: outputPayload(packet, output),
               body: `# ${String(output.handle)}\n`,
             };
