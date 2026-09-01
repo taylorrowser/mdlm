@@ -35,13 +35,16 @@ inputs:
       environment == one("environments-for-implementation@1",
         {implementation: implementation})
   - name: execution_target
-    types: [ART]
-    cardinality: zero-or-one
+    types: [ENV, ART]
+    cardinality: one
     identity: revision
     conditions: >-
-      implementation.payload.kind == "pilot"
-      && execution_target == one("eligible-pilot-targets-for-activity@1",
-        {activity: activity})
+      ((implementation.payload.kind == "pilot"
+        && execution_target.identity.type == "ART"
+        && execution_target == one("eligible-pilot-targets-for-activity@1",
+          {activity: activity}))
+      || (implementation.payload.kind == "formal"
+        && execution_target == environment))
       && execution_target == one("execution-targets-for-implementation@1",
         {implementation: implementation})
   - name: requirement
@@ -119,8 +122,10 @@ completion: >-
       && qualification_activity == null
       && qualification_implementation == null
       && replacement_target == null
-      && execution_target == null
-      && none("execution-targets-for-implementation@1", {implementation: replacement})))
+      && execution_target == environment
+      && count("execution-targets-for-implementation@1", {implementation: replacement}) == 1
+      && one("execution-targets-for-implementation@1", {implementation: replacement}) == environment
+      && none("pilot-art-targets-for-implementation@1", {implementation: replacement})))
   && (
     (replacement_activity == null
       && one("verification-activities-for-implementation@1",
