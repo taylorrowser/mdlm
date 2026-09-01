@@ -169,6 +169,46 @@ it("routes one reviewed Phase 2 completion directly to its level candidate", asy
   expect(scenario.completion.source).not.toContain("group");
 });
 
+it("requires the exact system strategy before a Phase 2 level candidate", async () => {
+  const processPackage = await canonicalProcessPackage();
+
+  const strategyParents = processPackage.selectors[
+    "lower-level-strategy-parent-requirements"
+  ] as unknown as { query: { where: { source: string } } };
+  expect(strategyParents.query.where.source).toContain(
+    'current-decomposition-completions@1',
+  );
+  expect(strategyParents.query.where.source).not.toContain(
+    'complete-phase-2-level-candidates@1',
+  );
+
+  const obligation = processPackage.obligations[
+    "system-level-candidate-required"
+  ] as unknown as {
+    satisfied_when: { source: string };
+    status_rules: Array<{ when: { source: string } }>;
+    resolve_with: { inputs: Record<string, { source: string }> };
+  };
+  expect(obligation.satisfied_when.source).toContain(
+    'complete-level-candidates-for-completion@1',
+  );
+  expect(obligation.status_rules.map((rule) => rule.when.source).join("\n"))
+    .toContain('system-strategies-for-completion@1');
+  expect(obligation.resolve_with.inputs.verification_strategy!.source).toBe(
+    'one("system-strategies-for-completion@1", {completion: completion})',
+  );
+
+  const completeCandidate = processPackage.selectors[
+    "complete-level-candidates-for-completion"
+  ] as unknown as { query: { where: { source: string } } };
+  expect(completeCandidate.query.where.source).toContain(
+    'system-strategies-for-completion@1',
+  );
+  expect(completeCandidate.query.where.source).not.toContain(
+    'every("strategies-for-decomposition@1"',
+  );
+});
+
 it(
   "routes a reviewed Phase 2 architecture to planning with its stakeholder strategy",
   runPhaseTwoPlanningWithStakeholderStrategy,
