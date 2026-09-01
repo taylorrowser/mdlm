@@ -25,7 +25,6 @@ completion: >-
   && decision.payload.decision == "approve"
   && decision.payload.effective_scope == subject.identity.revision_id
   && evidence == select("product-acceptance-evidence-for@1", {subject: subject})
-  && !every("recorded-product-acceptance-decisions-for@1", {subject: subject}, exact => exact != decision)
 resolves: [product-acceptance-required]
 prohibited_inputs: [mutable latest aliases, pilot or readiness evidence as formal evidence, missing or extra evidence, unreviewed judgment, implied stakeholder authority]
 batching: single
