@@ -164,7 +164,7 @@ function response(
       if (output.handle === "replacement") {
         output.payload = {
           ...subject.data.payload,
-          frontier: ["Corrected product intent"],
+          frontier: [],
         };
         output.body = "The attended correction removes the stale frontier.\n";
       } else if (output.handle === "decision") {
@@ -316,7 +316,7 @@ it("omits or publishes an optional MAP correction in the bound input lineage", a
   throw new Error("The public operator seam did not claim the MAP correction");
 }, 30_000);
 
-it("restores MAP authority links after an attended correction dropped them", async () => {
+it("accepts an empty MAP frontier and advances after the attended correction", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-map-lineage-correction-"));
   temporaryRoots.push(root);
   const repository = path.join(root, "repository");
@@ -344,6 +344,7 @@ it("restores MAP authority links after an attended correction dropped them", asy
       packet.scenario.reference === "revise-wayfinding-map-after-review@1" &&
       input(packet, "subject").values[0]!.identity.revision === 2
     ) {
+      expect(input(packet, "subject").values[0]!.data.payload.frontier).toEqual([]);
       expect(input(packet, "indexed_product_questions").values.map(
         (value) => value.identity.revision_id,
       )).toContain(answeredQuestion);

@@ -15,7 +15,6 @@ payload_schema:
     purpose: {type: string, minLength: 1}
     frontier:
       type: array
-      minItems: 1
       uniqueItems: true
       items: {type: string, minLength: 1}
 outgoing_links:
