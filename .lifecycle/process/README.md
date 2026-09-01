@@ -1,4 +1,4 @@
-# MDLM bootstrap Example Process Package v0.107
+# MDLM bootstrap Example Process Package v0.119
 
 This package is the bounded Example Process Package shipped with the
 concept-validating MDLM profile. It defines `MAP`, `QST`, `DEC`, `ART`, `PSP`,
@@ -125,8 +125,23 @@ publishes one separately authorized formal VAI for every exact formal VER withou
 receiving product source, product unit tests, private implementation details, or
 the product ART. One ART Review Context remains separate from one exact VAI-only
 sibling context. Every ART and VAI receives its own independent Review. Complete
-passing coverage mechanically accepts the DES candidate and returns `Profile
-Boundary Reached` because Phase 6 is absent. Phase 5 publishes no RUN or RES.
+passing coverage mechanically accepts the DES candidate and progresses into
+Phase 6 without publishing RUN or RES.
+
+### Phase 6 — formal verification and final acceptance
+
+The shared execution route runs each exact reviewed formal VAI against its
+accepted STK, SYS, CMP, or DES Revision, qualified ENV, and one controlled
+implementation ART. Applicable passing evidence unlocks its direct requirement
+parent, so execution derives bottom-up without a queue. Automatic results need
+no Review. A judgment-required passing result uses the generic frozen Review
+Context and independent Review route. Aborted, infrastructure-error, and
+inconclusive attempts remain immutable and leave a fresh execution transaction
+ready without replay. A completed formal failure blocks ancestor execution,
+uses the existing PRB route, and stops at the profile's explicit fault boundary.
+Once every exact formal claim applies, one attended
+product-acceptance DEC receives an independent Review and returns `Lifecycle
+Complete`. Phase 6 adds no accepted-baseline copy, summary, or completion datum.
 
 ### Phase 7 — bounded accepted change
 
@@ -165,8 +180,8 @@ not itself a stop; the next Operator Outcome controls continuation.
 
 ## Scope boundary
 
-Phases 0–5 through one lean reviewed implementation slice are the implemented
-fresh bootstrap subset. Phase 6 breadth, production indexing,
-source-isolation containers, brownfield onboarding, formal compliance, and broader
-concurrency remain outside this profile. This package demonstrates one lifecycle
-structure; it does not define universal MDLM semantics.
+Phases 0–6 through one lean reviewed implementation and formal-verification
+slice are the implemented fresh bootstrap subset. Phase 7 change execution,
+production indexing, source-isolation containers, brownfield onboarding, formal
+compliance, and broader concurrency remain outside this profile. This package
+demonstrates one lifecycle structure; it does not define universal MDLM semantics.

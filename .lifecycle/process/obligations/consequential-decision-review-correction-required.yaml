@@ -1,0 +1,31 @@
+kind: obligation-definition
+id: consequential-decision-review-correction-required
+version: 1
+description: A failed Review of a current consequential Decision requires renewed stakeholder authority over the unchanged exact evidence.
+phases: [phase-2-pilot-assessment, phase-6-verification]
+for_each: 'select("failed-reviewed-consequential-decisions@1", {})'
+subject_as: decision
+satisfied_when: >-
+  exists("valid-reviewed-consequential-decision-replacements-for@1",
+    {decision: decision})
+status_rules:
+  - status: ready
+    priority: 100
+    when: 'true'
+    reason: The exact failed Decision findings are ready for renewed stakeholder judgment over unchanged evidence.
+default_status: ready
+resolve_with:
+  scenario: revise-consequential-decision-after-review@1
+  inputs:
+    decision: decision
+    subject: >-
+      one("consequential-decision-correction-subjects-for@1",
+        {decision: decision})
+    justifications: >-
+      select("consequential-decision-correction-justifications-for@1",
+        {decision: decision})
+    review_support: >-
+      select("consequential-decision-correction-review-support-for@1",
+        {decision: decision})
+    failed_reviews: 'select("failing-reviews-for@1", {subject: decision})'
+waiver_policy_ref: waiver-applicability@1

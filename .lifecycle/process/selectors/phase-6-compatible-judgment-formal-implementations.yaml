@@ -1,0 +1,33 @@
+kind: selector-definition
+id: phase-6-compatible-judgment-formal-implementations
+version: 1
+description: Current judgment-required formal implementations in the same admitted product with the exact direct lower-level dependency set.
+parameters:
+  - {name: implementation, kind: revision, types: [VAI]}
+result_kind: revision
+query:
+  from:
+    selector: phase-5-formal-verification-implementations@1
+    arguments: {}
+  as: compatible
+  where: >-
+    count("verification-activities-for-implementation@1",
+      {implementation: implementation}) == 1
+    && every("verification-activities-for-implementation@1",
+      {implementation: implementation}, activity =>
+        activity.payload.assessment_mode != "automatic")
+    && count("verification-activities-for-implementation@1",
+      {implementation: compatible}) == 1
+    && every("verification-activities-for-implementation@1",
+      {implementation: compatible}, activity =>
+        activity.payload.assessment_mode != "automatic")
+    && every("structural-lower-level-requirements-for-formal-implementation@1",
+      {implementation: compatible}, dependency =>
+        !every("structural-lower-level-requirements-for-formal-implementation@1",
+          {implementation: implementation}, exact => exact != dependency))
+    && every("structural-lower-level-requirements-for-formal-implementation@1",
+      {implementation: implementation}, dependency =>
+        !every("structural-lower-level-requirements-for-formal-implementation@1",
+          {implementation: compatible}, exact => exact != dependency))
+  distinct: true
+  order_by: [identity.revision_id]

@@ -25,7 +25,8 @@ default:
   consolidation_group: null
 rules:
   - priority: 100
-    when: 'phase.id == "phase-1-product-assurance"'
+    when: >-
+      phase.id in ["phase-1-product-assurance", "phase-5-implementation"]
     result:
       authority_mode: autonomous
       authority: package-evidence

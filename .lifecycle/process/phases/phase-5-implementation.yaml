@@ -16,7 +16,22 @@ routing:
   status_order: [ready, awaiting-review, failed, stale, blocked]
   tie_breakers: [subject, obligation]
 outputs: [ART, VAI, REV, BSL, DEC]
-progression: null
+progression:
+  next_phase: phase-6-verification
+  readiness: >-
+    exists("phase-5-entry-design-candidates@1", {})
+    && every("phase-5-entry-design-candidates@1", {}, candidate =>
+      count("accepted-design-baselines-for-candidate@1", {candidate: candidate}) == 1)
+  authorization:
+    condition: >-
+      exists("phase-5-entry-design-candidates@1", {})
+      && every("phase-5-entry-design-candidates@1", {}, candidate =>
+        count("accepted-design-baselines-for-candidate@1", {candidate: candidate}) == 1)
+    policy_ref: phase-progression-participation@1
+    arguments: {phase: phase}
+    scenario: accept-phase-2-system@1
+    subjects: 'select("phase-5-entry-design-candidates@1", {})'
+    evidence_selector: accepted-design-baselines-for-candidate@1
 gate:
   required: false
   candidate_selector: 'select("phase-5-entry-design-candidates@1", {})'

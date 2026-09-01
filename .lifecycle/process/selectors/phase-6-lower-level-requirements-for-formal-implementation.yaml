@@ -1,0 +1,22 @@
+kind: selector-definition
+id: phase-6-lower-level-requirements-for-formal-implementation
+version: 1
+description: Exact accepted direct child requirements that must have applicable formal evidence before one formal implementation runs.
+parameters:
+  - {name: implementation, kind: revision, types: [VAI]}
+result_kind: revision
+query:
+  from:
+    relation: incoming-links
+    of: 'one("phase-6-accepted-requirements-for-formal-implementation@1", {implementation: implementation})'
+    link: derived-from
+    emit: source
+    types: [SYS, CMP, DES]
+  as: requirement
+  where: >-
+    !every("phase-6-design-candidates-for-formal-implementation@1",
+      {implementation: implementation}, candidate =>
+        every("phase-6-accepted-requirements-for-design-candidate@1",
+          {candidate: candidate}, accepted => accepted != requirement))
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

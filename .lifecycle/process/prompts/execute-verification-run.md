@@ -4,7 +4,7 @@ version: 4
 scenario: execute-verification-run
 ---
 
-# Execute one qualification or pilot run
+# Execute one exact verification run
 
 Read, in order:
 
@@ -29,6 +29,13 @@ and `activities_invoked`; link the RES pass/fail judgments to those observations
 Missing, truncated, timed-out, or mismatched observations remain durable only as
 an inconclusive or unsuitable result, never a suitable pilot result.
 
+For a formal VAI, execute it only against the supplied exact accepted STK, SYS,
+CMP, or DES Revision and the supplied controlled implementation ART. Publish one
+immutable formal RUN and one formal RES in the same transaction. Link the RES to
+the exact requirement with `verifies-revision`. A deterministic result uses
+`assessment_state: recorded`; an analysis, inspection, or witnessed result uses
+`assessment_state: assessment-required` and awaits independent Review.
+
 Distinguish execution failure from infrastructure error. If mandatory setup fails,
 the target safely refuses execution, or every product case is not launched, retain
 the RUN and RES as durable evidence. Report the pilot result as `inconclusive` or
@@ -36,7 +43,15 @@ the RUN and RES as durable evidence. Report the pilot result as `inconclusive` o
 actually observed both the expected successful behavior and the expected
 discrimination behavior.
 
+For formal execution, an aborted or infrastructure-error RUN publishes an
+`inconclusive` RES whose observations make no product conclusion. A later
+attempt is a fresh Assignment with fresh RUN and RES identities. Never resubmit,
+revise, or replay the earlier transaction. A completed formal fail is product
+evidence and must remain distinct from infrastructure failure.
+
 Qualification results claim only environment capability. Pilot results report both
 expected success and expected discrimination and claim only verification-design
-suitability. Never translate a pilot outcome into requirement acceptance or formal
-evidence.
+suitability. Never translate a pilot outcome into requirement acceptance or
+formal evidence. Formal evidence applies only through the exact accepted
+requirement, reviewed VER and VAI, qualified ENV, controlled ART, and declared
+assessment route supplied by the Assignment.

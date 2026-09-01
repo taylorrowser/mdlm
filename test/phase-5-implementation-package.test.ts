@@ -9,23 +9,27 @@ import {
 const record = (value: unknown): Record<string, any> =>
   value as Record<string, any>;
 
-describe("lean Phase 5 Process Package", () => {
+describe("lean Phase 5 and Phase 6 Process Package", () => {
   let process: ProcessPackage;
 
   beforeAll(async () => {
     const loaded = await loadProcessPackage(".lifecycle/process");
-    expect(loaded.ok, loaded.diagnostics.map((item) => item.message).join("\n"))
+    expect(loaded.ok, JSON.stringify(loaded.diagnostics, null, 2))
       .toBe(true);
     if (!loaded.ok) throw new Error("Process Package did not load");
     process = loaded.package;
   });
 
   it("keeps product and source-blind formal implementation behind existing public seams", () => {
-    expect(process.manifest.version).toBe("0.118.0");
+    expect(process.manifest.version).toBe("0.119.0");
     expect(record(process.profiles.bootstrap!.enabled).phases).toContain(
       "phase-5-implementation",
     );
     expect(process.phases["phase-5-implementation"]).toBeDefined();
+    expect(record(process.profiles.bootstrap!.enabled).phases).toContain(
+      "phase-6-verification",
+    );
+    expect(process.phases["phase-6-verification"]).toBeDefined();
 
     const product = process.scenarios["implement-design-set"]!;
     const productProjection = compileAssignmentProjection({
@@ -58,7 +62,7 @@ describe("lean Phase 5 Process Package", () => {
     );
   });
 
-  it("uses one sibling VAI context and gates the Phase 6 boundary on exact design acceptance", () => {
+  it("uses one sibling VAI context and continues exact design acceptance into Phase 6", () => {
     const subjects = JSON.stringify(
       record(process.selectors["review-context-subjects"]).query.where,
     );
@@ -83,14 +87,34 @@ describe("lean Phase 5 Process Package", () => {
     expect(JSON.stringify(correction.completion)).toContain(
       "replacement.payload.authoring_input_refs",
     );
+    expect((correction.outputs as Record<string, unknown>[]).map(
+      (output) => output.name,
+    )).toEqual(["replacement", "authorization"]);
+    expect(record((correction.outputs as Record<string, unknown>[]).find(
+      (output) => output.name === "replacement",
+    )).required_links).toEqual([
+      { link: "realizes", target: { input: "activity" } },
+      { link: "uses", target: { input: "environment" } },
+      { link: "targets", target: { input: "execution_target" } },
+      { link: "corrects-review", target: { input: "failed_reviews" } },
+    ]);
 
     const terminal = JSON.stringify(
       record(record(process.profiles.bootstrap!.terminal_outcomes).profile_boundary)
         .condition,
     );
-    expect(terminal).toContain("accepted-design-baselines@1");
+    expect(terminal).not.toContain("accepted-design-baselines@1");
+    const lifecycleComplete = JSON.stringify(
+      record(record(process.profiles.bootstrap!.terminal_outcomes).lifecycle_complete)
+        .condition,
+    );
+    expect(lifecycleComplete).toContain(
+      "applicable-product-acceptance-decisions-for@1",
+    );
     expect(process.obligations["design-acceptance-required"]).toBeDefined();
     expect(process.selectors["accepted-design-baselines-for-candidate"])
       .toBeDefined();
+    expect(process.obligations["verification-run-required"]).toBeDefined();
+    expect(process.obligations["product-acceptance-required"]).toBeDefined();
   });
 });

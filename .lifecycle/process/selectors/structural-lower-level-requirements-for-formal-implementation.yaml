@@ -1,0 +1,17 @@
+kind: selector-definition
+id: structural-lower-level-requirements-for-formal-implementation
+version: 1
+description: Exact direct child requirements structurally governed by one formal implementation without Review-derived applicability.
+parameters:
+  - {name: implementation, kind: revision, types: [VAI]}
+result_kind: revision
+query:
+  from:
+    relation: incoming-links
+    of: 'one("requirements-for-pilot-activity@1", {activity: one("verification-activities-for-implementation@1", {implementation: implementation})})'
+    link: derived-from
+    emit: source
+    types: [SYS, CMP, DES]
+  as: requirement
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

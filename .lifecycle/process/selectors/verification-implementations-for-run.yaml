@@ -1,0 +1,12 @@
+kind: selector-definition
+id: verification-implementations-for-run
+version: 1
+description: Exact verification implementation executed by one immutable run.
+parameters:
+  - {name: run, kind: revision, types: [RUN]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: run, link: executes, emit: target, types: [VAI]}
+  as: implementation
+  distinct: true
+  order_by: [identity.revision_id]

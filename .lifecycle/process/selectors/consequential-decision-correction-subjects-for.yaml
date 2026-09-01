@@ -1,0 +1,19 @@
+kind: selector-definition
+id: consequential-decision-correction-subjects-for
+version: 1
+description: Exact pilot assessment or accepted product scope governed by one correctable consequential Decision.
+parameters:
+  - {name: decision, kind: revision, types: [DEC]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: decision, link: justifies, emit: target, types: [PAS, BSL]}
+  as: subject
+  where: >-
+    (decision.payload.kind == "pilot-expansion"
+      && subject.identity.type == "PAS")
+    || (decision.payload.kind == "product-acceptance"
+      && subject.identity.type == "BSL"
+      && subject.payload.role == "accepted"
+      && decision.payload.effective_scope == subject.identity.revision_id)
+  distinct: true
+  order_by: [identity.revision_id]

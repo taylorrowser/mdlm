@@ -1,22 +1,16 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 46
+version: 47
 status: experimental
-description: Fresh bootstrap profile through one lean implementation and source-blind formal-verification implementation slice.
+description: Fresh bootstrap profile through bottom-up formal verification and reviewed final product acceptance.
 enabled:
   types: [MAP, QST, DEC, ART, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]
-  phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition, phase-5-implementation]
+  phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition, phase-5-implementation, phase-6-verification]
   obligation_statuses: [ready, blocked, awaiting-review, stale, failed]
-disabled_capabilities:
-  - formal verification execution
+disabled_capabilities: []
 terminal_outcomes:
   profile_boundary:
     condition: >-
-      (
-        phase.id == "phase-5-implementation"
-        && exists("accepted-design-baselines@1", {})
-      )
-      ||
       (
         phase.id == "phase-1-product-assurance"
         && (
@@ -46,16 +40,26 @@ terminal_outcomes:
           && every("pilot-expansion-decisions-for@1", {assessment: assessment}, decision =>
             decision.payload.decision == "change"))
       )
-    explanation: The selected profile stops successfully at an explicit Phase 1 breadth boundary or after reviewed product and formal-verification implementation mechanically accept the design candidate; Phase 6 remains intentionally omitted.
+      || (
+        phase.id == "phase-6-verification"
+        && exists("problem-reportable-results@1", {})
+        && every("problem-reportable-results@1", {}, result =>
+          count("problem-reports-for-result@1", {result: result}) == 1)
+      )
+    explanation: The selected profile stops at an explicit retained breadth, change-control boundary, or exact Phase 6 Problem Report; the passing full-V route continues through final acceptance.
   lifecycle_complete:
     condition: >-
-      phase.id == "phase-2-pilot-assessment"
-      && exists("all-pilot-assessments@1", {})
-      && every("all-pilot-assessments@1", {}, assessment =>
-        count("pilot-expansion-decisions-for@1", {assessment: assessment}) == 1
-        && every("pilot-expansion-decisions-for@1", {assessment: assessment}, decision =>
-          decision.payload.decision == "stop"))
-    explanation: Every current exact reviewed Pilot Assessment has an applicable stakeholder stop Decision, so the selected package declares the lifecycle intentionally complete without fabricating Phase 3–6 work.
+      (phase.id == "phase-2-pilot-assessment"
+        && exists("all-pilot-assessments@1", {})
+        && every("all-pilot-assessments@1", {}, assessment =>
+          count("pilot-expansion-decisions-for@1", {assessment: assessment}) == 1
+          && every("pilot-expansion-decisions-for@1", {assessment: assessment}, decision =>
+            decision.payload.decision == "stop")))
+      || (phase.id == "phase-6-verification"
+        && exists("phase-6-product-scope-baselines@1", {})
+        && every("phase-6-product-scope-baselines@1", {}, subject =>
+          count("applicable-product-acceptance-decisions-for@1", {subject: subject}) == 1))
+    explanation: The lifecycle completes after an explicit early stop or after one independently reviewed attended product-acceptance Decision covers the exact complete Phase 6 evidence set.
 success_criteria:
   - every definition conforms to its versioned meta-schema
   - the kernel envelope cannot be weakened by templates or types
@@ -105,4 +109,8 @@ success_criteria:
   - one exact reviewed and gate-approved design candidate independently dispatches product implementation and source-blind formal-VAI work without either waiting for the other
   - one controlled implementation ART names an immutable Git commit, runnable public interface, every exact candidate DES Revision, and a bounded traversal-free DES-to-path mapping whose completeness is independently reviewed
   - every exact current formal VER in the design candidate receives one separately authorized source-blind formal VAI and its own independent Review while the complete compatible sibling set shares one immutable VAI-only Review Context that contains no product evidence
-  - complete passing implementation ART and formal-VAI Review coverage mechanically accepts the exact DES candidate without a second authority gate, formal RUN or RES, and returns the Phase 6 Profile Boundary
+  - complete passing implementation ART and formal-VAI Review coverage mechanically accepts the exact DES candidate without a second authority gate before Phase 6
+  - every accepted formal verification implementation executes once per exact attempt against its reviewed activity, qualified environment, controlled implementation ART, and accepted requirement Revision, bottom-up from DES through CMP and SYS to STK
+  - aborted, infrastructure-error, and inconclusive formal attempts preserve immutable RUN and RES evidence, establish no product conclusion or PRB, and leave a fresh non-replay execution transaction dispatchable
+  - deterministic passing formal evidence applies without Review, judgment-required evidence applies only after independent Review, and completed formal failure blocks ancestors while routing one ordinary PRB
+  - one independently reviewed attended product-acceptance Decision over every and only exact current formal result, required assessment, stakeholder claim, and controlled ART returns Lifecycle Complete without a duplicate accepted baseline or summary datum

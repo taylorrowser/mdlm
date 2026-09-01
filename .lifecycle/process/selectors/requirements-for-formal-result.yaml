@@ -1,0 +1,12 @@
+kind: selector-definition
+id: requirements-for-formal-result
+version: 1
+description: Exact accepted requirement Revision verified by one formal result.
+parameters:
+  - {name: result, kind: revision, types: [RES]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: result, link: verifies-revision, emit: target, types: [STK, SYS, CMP, DES]}
+  as: requirement
+  distinct: true
+  order_by: [identity.revision_id]

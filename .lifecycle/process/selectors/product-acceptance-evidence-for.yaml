@@ -1,0 +1,28 @@
+kind: selector-definition
+id: product-acceptance-evidence-for
+version: 1
+description: Every and only exact controlled product, stakeholder claim, formal result, and required assessment supporting final acceptance.
+parameters:
+  - {name: subject, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [ART, STK, RES, REV]}
+  as: evidence
+  where: >-
+    count("phase-6-design-candidates-for-product-scope@1", {subject: subject}) == 1
+    && (
+      !every("passing-reviewed-implementation-artifacts-for-design-candidate@1",
+        {candidate: one("phase-6-design-candidates-for-product-scope@1", {subject: subject})},
+        implementation => implementation != evidence)
+      || !every("stakeholder-requirements-for-product-scope@1", {subject: subject},
+        requirement => requirement != evidence)
+      || !every("phase-6-accepted-requirements-for-design-candidate@1",
+        {candidate: one("phase-6-design-candidates-for-product-scope@1", {subject: subject})}, requirement =>
+          every("phase-6-applicable-formal-results-for-requirement@1",
+            {requirement: requirement}, result =>
+              result != evidence
+              && (result.payload.assessment_state != "assessment-required"
+                || every("passing-reviews-for@1", {subject: result}, review => review != evidence))))
+    )
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

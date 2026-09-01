@@ -1,0 +1,23 @@
+kind: selector-definition
+id: problem-reportable-results
+version: 1
+description: Exact immutable result claims that represent a product failure in the current Phase.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [RES]}
+  as: result
+  where: >-
+    state(result, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: result})
+    && ((phase.id == "phase-6-verification"
+      && result.payload.claim.kind == "formal"
+      && result.payload.claim.outcome == "fail"
+      && (result.payload.assessment_state != "assessment-required"
+        || exists("passing-reviews-for@1", {subject: result}))
+      && exists("completed-formal-runs-producing-result@1", {result: result}))
+    || (phase.id == "phase-7-change-control"
+      && result.payload.claim.kind == "pilot"
+      && result.payload.claim.outcome == "unsuitable"))
+  distinct: true
+  order_by: [identity.revision_id]

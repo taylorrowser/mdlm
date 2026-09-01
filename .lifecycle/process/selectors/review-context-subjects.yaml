@@ -5,7 +5,7 @@ description: Review-required Revisions plus Phase 3 planning DWPs that need a fr
 parameters: []
 result_kind: revision
 query:
-  from: {collection: revisions, types: [MAP, ART, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS]}
+  from: {collection: revisions, types: [MAP, ART, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, BSL, DEC, PRB, CHG, PAS]}
   as: subject
   where: >-
     (!every("review-required-revisions@1", {}, required => required != subject)

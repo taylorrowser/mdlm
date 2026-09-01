@@ -1,0 +1,26 @@
+kind: selector-definition
+id: phase-6-raw-judgment-results-for-implementation
+version: 1
+description: Current completed formal pass or fail results ready for independent judgment, without depending on Review state.
+parameters:
+  - {name: implementation, kind: revision, types: [VAI]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [RES]}
+  as: result
+  where: >-
+    result.payload.claim.kind == "formal"
+    && result.payload.claim.scope == "requirement"
+    && result.payload.claim.outcome in ["pass", "fail"]
+    && result.payload.claim.formal_evidence_eligible == true
+    && result.payload.assessment_state == "assessment-required"
+    && result.integrity.scenario_execution_valid == true
+    && count("formal-runs-producing-result@1", {result: result}) == 1
+    && every("formal-runs-producing-result@1", {result: result}, run =>
+      run.payload.execution_state == "completed"
+      && count("verification-implementations-for-run@1", {run: run}) == 1
+      && every("verification-implementations-for-run@1", {run: run}, exact =>
+        exact == implementation))
+    && none("newer-revisions-for@1", {subject: result})
+  distinct: true
+  order_by: [identity.revision_id]

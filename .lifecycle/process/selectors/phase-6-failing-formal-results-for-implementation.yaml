@@ -1,0 +1,26 @@
+kind: selector-definition
+id: phase-6-failing-formal-results-for-implementation
+version: 1
+description: Exact completed formal product failures whose automatic or independently assessed judgment applies.
+parameters:
+  - {name: implementation, kind: revision, types: [VAI]}
+result_kind: revision
+query:
+  from:
+    selector: phase-6-formal-results-for-implementation@1
+    arguments: {implementation: implementation}
+  as: result
+  where: >-
+    result.payload.claim.outcome == "fail"
+    && every("formal-runs-producing-result@1", {result: result}, run =>
+      run.payload.execution_state == "completed")
+    && ((exists("automatic-formal-activities-for-implementation@1",
+      {implementation: implementation})
+      && result.payload.assessment_state == "recorded")
+    || (none("automatic-formal-activities-for-implementation@1",
+      {implementation: implementation})
+      && result.payload.assessment_state == "assessment-required"
+      && exists("passing-reviews-for@1", {subject: result})
+      && none("failing-reviews-for@1", {subject: result})))
+  distinct: true
+  order_by: [identity.revision_id]

@@ -1,0 +1,12 @@
+kind: selector-definition
+id: environments-for-run
+version: 1
+description: Exact verification environment used by one immutable run.
+parameters:
+  - {name: run, kind: revision, types: [RUN]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: run, link: uses, emit: target, types: [ENV]}
+  as: environment
+  distinct: true
+  order_by: [identity.revision_id]

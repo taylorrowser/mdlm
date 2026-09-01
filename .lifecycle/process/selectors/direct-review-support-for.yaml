@@ -13,6 +13,8 @@ query:
     && (subject.identity.type in ["ART", "PSP", "STK", "ASP", "ICSP", "DWP", "SYS", "VSP", "VER", "VAI", "PAS"]
       || (subject.identity.type == "DEC"
         && (
+          subject.payload.kind == "product-acceptance"
+          ||
           subject.payload.kind == "pilot-expansion"
           || exists("foundation-correction-replacements-for-decision@1",
             {decision: subject})

@@ -16,6 +16,14 @@ query:
         && !every("phase-5-formal-vai-review-context-members-for@1",
           {subject: subject}, support => support != member))
       ||
+      (subject.identity.type == "RES"
+        && subject.payload.claim.kind == "formal"
+        && !every("formal-results-in-review-context-class@1",
+          {subject: subject}, compatible =>
+            compatible != member
+            && every("formal-result-review-context-members-for@1",
+              {result: compatible}, support => support != member)))
+      ||
       !every("direct-review-support-for@1", {subject: subject}, support =>
         support != member)
       || (exists("intent-candidates-matching-subject@1", {subject: subject})

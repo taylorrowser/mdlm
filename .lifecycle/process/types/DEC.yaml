@@ -12,7 +12,7 @@ payload_schema:
   type: object
   required: [kind, decision, alternatives, effective_scope]
   properties:
-    kind: {enum: [decision, assumption, scope, waiver, deferral, authority-delegation, gate-signoff, change-approval, change-closure, pilot-observation, pilot-expansion, retirement, cancellation]}
+    kind: {enum: [decision, assumption, scope, waiver, deferral, authority-delegation, gate-signoff, change-approval, change-closure, product-acceptance, pilot-observation, pilot-expansion, retirement, cancellation]}
     change_disposition: {enum: [approve, reject, defer, cancel]}
     change_reactivation_condition: {type: string, minLength: 1}
     decision: {type: string, minLength: 1}
