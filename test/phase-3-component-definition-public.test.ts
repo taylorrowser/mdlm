@@ -1468,7 +1468,8 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
       repository,
       "diff", "--name-only", `${phaseSixStart}..HEAD`, "--", ".lifecycle/data",
     ).stdout.trim().split("\n").filter((name) => /r00001\.md$/.test(name));
-    expect(phaseSixFirstRevisions).toHaveLength(25);
+    // The late VSP Review Context predates phaseSixStart; only its REV lands here.
+    expect(phaseSixFirstRevisions).toHaveLength(24);
     expect(phaseSixReviews).toHaveLength(6);
     expect(git(repository, "status", "--porcelain").stdout).toBe("");
 
