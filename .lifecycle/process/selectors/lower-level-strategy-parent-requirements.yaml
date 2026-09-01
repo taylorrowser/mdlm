@@ -11,6 +11,8 @@ query:
     (phase.id == "phase-2-system-definition"
       && !every("current-decomposition-completions@1", {}, completion =>
         count("planning-revisions-for-completion@1", {completion: completion}) != 1
+        || exists("complete-level-candidates-for-completion@1",
+          {completion: completion})
         || every("decomposition-outputs-for@1",
           {plan: one("planning-revisions-for-completion@1", {completion: completion})},
           output => output != requirement)))
