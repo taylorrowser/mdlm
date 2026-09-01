@@ -87,6 +87,9 @@ describe("lean Phase 5 and Phase 6 Process Package", () => {
     expect(JSON.stringify(correction.completion)).toContain(
       "replacement.payload.authoring_input_refs",
     );
+    expect((correction.outputs as Record<string, unknown>[]).map(
+      (output) => output.name,
+    )).toEqual(["replacement", "authorization"]);
     expect(record((correction.outputs as Record<string, unknown>[]).find(
       (output) => output.name === "replacement",
     )).required_links).toEqual([
