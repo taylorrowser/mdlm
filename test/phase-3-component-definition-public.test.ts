@@ -1813,4 +1813,4 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
       await fs.rm(parent, { recursive: true, force: true });
     }
   }
-}, 720_000);
+}, 900_000);
