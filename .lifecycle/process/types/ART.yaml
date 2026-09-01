@@ -264,6 +264,13 @@ payload_schema:
                         exit_status: {type: integer, not: {const: 0}}
         working_directory: {const: fresh-temporary-directory}
 outgoing_links:
+  - id: corrects-review
+    description: Exact failed implementation-artifact Review addressed by this same-lineage replacement.
+    targets:
+      - {kind: datum, types: [REV], identity: revision}
+    cardinality: {minimum: 0, maximum: many}
+    freeze_resolution: already-exact
+    inverse_label: corrected-by-implementation-artifact
   - id: implements
     description: Exact design requirement Revisions implemented by this controlled product artifact.
     targets:

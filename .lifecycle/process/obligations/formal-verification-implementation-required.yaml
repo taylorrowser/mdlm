@@ -1,31 +1,32 @@
 kind: obligation-definition
 id: formal-verification-implementation-required
 version: 1
-description: Every exact formal VER in the admitted design candidate requires one separately authorized source-blind VAI and passing independent Review.
+description: One candidate-scoped coverage obligation publishes one separately authorized source-blind VAI per exact formal VER and requires each to pass independent Review.
 phases: [phase-5-implementation]
-for_each: 'select("formal-activities-for-phase-5-candidate@1", {candidate: one("phase-5-entry-design-candidates@1", {})})'
-subject_as: activity
+for_each: 'select("phase-5-entry-design-candidates@1", {})'
+subject_as: candidate
 satisfied_when: >-
-  exists("passing-reviewed-formal-implementations-for-activity@1", {activity: activity})
+  every("formal-activities-for-phase-5-candidate@1", {candidate: candidate}, activity =>
+    count("passing-reviewed-formal-implementations-for-activity@1", {activity: activity}) == 1)
 status_rules:
+  - status: ready
+    priority: 300
+    when: 'exists("pending-formal-activities-for-phase-5-candidate@1", {candidate: candidate})'
+    reason: Publish one source-blind formal implementation for the next exact uncovered formal VER.
   - status: awaiting-review
     priority: 200
-    when: 'exists("complete-formal-implementations-for-activity@1", {activity: activity})'
-    reason: The exact source-blind formal VAI awaits independent Review.
+    when: >-
+      every("formal-activities-for-phase-5-candidate@1", {candidate: candidate}, activity =>
+        count("complete-formal-implementations-for-activity@1", {activity: activity}) == 1)
+    reason: The complete source-blind formal VAI set awaits independent Review.
     blocked_by:
       - obligation: passing-review-required@2
-        subjects: 'select("complete-formal-implementations-for-activity@1", {activity: activity})'
-  - status: ready
-    priority: 100
-    when: >-
-      none("complete-formal-implementations-for-activity@1", {activity: activity})
-      && count("formal-environments-for-activity@1", {activity: activity}) == 1
-    reason: The exact reviewed formal VER and qualified environment are ready for source-blind implementation.
+        subjects: 'select("phase-5-formal-verification-implementations@1", {})'
 default_status: blocked
 resolve_with:
   scenario: implement-verification-activity@1
   inputs:
-    activity: activity
-    environment: 'one("formal-environments-for-activity@1", {activity: activity})'
-    execution_target: 'first("formal-preimplementation-targets@1", {activity: activity})'
+    activity: 'first("pending-formal-activities-for-phase-5-candidate@1", {candidate: candidate})'
+    environment: 'one("formal-environments-for-activity@1", {activity: first("pending-formal-activities-for-phase-5-candidate@1", {candidate: candidate})})'
+    execution_target: 'one("formal-environments-for-activity@1", {activity: first("pending-formal-activities-for-phase-5-candidate@1", {candidate: candidate})})'
 waiver_policy_ref: waiver-applicability@1

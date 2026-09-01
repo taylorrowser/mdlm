@@ -1,7 +1,7 @@
 kind: selector-definition
 id: formal-environments-for-activity
 version: 1
-description: The singular qualified and independently reviewed environment governed by one formal activity's exact strategy.
+description: The singular qualified and independently reviewed environment compatible with one formal activity's exact governing strategy profile.
 parameters:
   - {name: activity, kind: revision, types: [VER]}
 result_kind: revision
@@ -10,10 +10,8 @@ query:
   as: environment
   where: >-
     count("strategies-for-verification-activity@1", {activity: activity}) == 1
-    && count("complete-environment-assurance-for-strategy@1",
-      {strategy: one("strategies-for-verification-activity@1", {activity: activity})}) == 1
-    && one("complete-environment-assurance-for-strategy@1",
-      {strategy: one("strategies-for-verification-activity@1", {activity: activity})}) == environment
+    && every("strategies-for-verification-activity@1", {activity: activity}, strategy =>
+      environment.payload.capabilities == strategy.payload.environment_profile.capabilities)
     && exists("passing-qualification-results-for@1", {environment: environment})
     && exists("passing-reviews-for@1", {subject: environment})
   distinct: true

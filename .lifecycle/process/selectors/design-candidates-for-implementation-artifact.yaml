@@ -1,0 +1,14 @@
+kind: selector-definition
+id: design-candidates-for-implementation-artifact
+version: 1
+description: Exact Phase 5 design candidate realized by one implementation artifact.
+parameters:
+  - {name: implementation, kind: revision, types: [ART]}
+result_kind: baseline
+query:
+  from: {relation: outgoing-links, of: implementation, link: realizes-candidate, emit: target, types: [BSL]}
+  as: candidate
+  where: >-
+    !every("phase-5-entry-design-candidates@1", {}, current => current != candidate)
+  distinct: true
+  order_by: [identity.revision_id]

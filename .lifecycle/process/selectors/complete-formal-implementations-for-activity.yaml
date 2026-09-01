@@ -1,7 +1,7 @@
 kind: selector-definition
 id: complete-formal-implementations-for-activity
 version: 1
-description: Current source-blind formal VAI Revisions bound to one exact formal activity and its qualified environment without a product target.
+description: Current source-blind formal VAI Revisions bound to one exact formal activity and qualified environment without a product ART target.
 parameters:
   - {name: activity, kind: revision, types: [VER]}
 result_kind: revision
@@ -16,7 +16,10 @@ query:
     && none("newer-revisions-for@1", {subject: implementation})
     && count("verification-activities-for-implementation@1", {implementation: implementation}) == 1
     && count("environments-for-implementation@1", {implementation: implementation}) == 1
-    && none("execution-targets-for-implementation@1", {implementation: implementation})
+    && count("execution-targets-for-implementation@1", {implementation: implementation}) == 1
+    && one("execution-targets-for-implementation@1", {implementation: implementation})
+      == one("environments-for-implementation@1", {implementation: implementation})
+    && none("pilot-art-targets-for-implementation@1", {implementation: implementation})
     && count("formal-environments-for-activity@1", {activity: activity}) == 1
     && one("environments-for-implementation@1", {implementation: implementation})
       == one("formal-environments-for-activity@1", {activity: activity})

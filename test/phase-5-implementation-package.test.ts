@@ -45,7 +45,7 @@ describe("lean Phase 5 Process Package", () => {
     const target = (formal.inputs as Record<string, any>[]).find(
       (input: Record<string, any>) => input.name === "execution_target",
     );
-    expect(target.cardinality).toBe("zero-or-one");
+    expect(target.cardinality).toBe("one");
     expect(record(record(formal.participation).arguments)).not.toHaveProperty(
       "execution_target",
     );

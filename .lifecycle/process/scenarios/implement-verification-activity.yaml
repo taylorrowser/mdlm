@@ -19,9 +19,13 @@ inputs:
       exists("passing-qualification-results-for@1", {environment: environment})
       && exists("passing-reviews-for@1", {subject: environment})
   - name: execution_target
-    types: [ART]
-    cardinality: zero-or-one
+    types: [ENV, ART]
+    cardinality: one
     identity: revision
+    conditions: >-
+      (activity.payload.kind == "pilot" && execution_target.identity.type == "ART")
+      || (activity.payload.kind == "formal"
+        && execution_target == environment)
 outputs:
   - name: implementation
     types: [VAI]
@@ -48,23 +52,26 @@ completion: >-
   && implementation.payload.kind == activity.payload.kind
   && implementation.payload.independence_mode == "source-blind"
   && ((activity.payload.kind == "formal"
-      && !present(execution_target)
-      && none("execution-targets-for-implementation@1", {implementation: implementation}))
-    || (activity.payload.kind == "pilot"
-      && present(execution_target)
+      && execution_target == environment
       && count("execution-targets-for-implementation@1", {implementation: implementation}) == 1
-      && one("execution-targets-for-implementation@1", {implementation: implementation}) == execution_target
-      && implementation.payload.target_behavior.supported == execution_target.payload.supported_behavior
-      && implementation.payload.target_behavior.intentionally_unsupported == execution_target.payload.unsupported_behavior
-      && (!present(execution_target.payload.prototype_controls)
-        || (implementation.payload.prototype_control_bindings.activity_ref
-          == execution_target.payload.prototype_controls.activity_ref
-        && implementation.payload.prototype_control_bindings.known_good.argv
-          == execution_target.payload.prototype_controls.known_good.argv
-        && implementation.payload.prototype_control_bindings.known_good.expected_verification_outcome == "pass"
-        && implementation.payload.prototype_control_bindings.known_bad.argv
-          == execution_target.payload.prototype_controls.known_bad.argv
-        && implementation.payload.prototype_control_bindings.known_bad.expected_verification_outcome == "fail"))))
+      && one("execution-targets-for-implementation@1", {implementation: implementation}) == environment
+      && none("pilot-art-targets-for-implementation@1", {implementation: implementation}))
+    || (activity.payload.kind == "pilot"
+      && execution_target.identity.type == "ART"
+      && count("pilot-art-targets-for-implementation@1", {implementation: implementation}) == 1
+      && every("pilot-art-targets-for-implementation@1", {implementation: implementation}, target =>
+        target == execution_target
+        && implementation.payload.target_behavior.supported == target.payload.supported_behavior
+        && implementation.payload.target_behavior.intentionally_unsupported == target.payload.unsupported_behavior
+        && (!present(target.payload.prototype_controls)
+          || (implementation.payload.prototype_control_bindings.activity_ref
+            == target.payload.prototype_controls.activity_ref
+          && implementation.payload.prototype_control_bindings.known_good.argv
+            == target.payload.prototype_controls.known_good.argv
+          && implementation.payload.prototype_control_bindings.known_good.expected_verification_outcome == "pass"
+          && implementation.payload.prototype_control_bindings.known_bad.argv
+            == target.payload.prototype_controls.known_bad.argv
+          && implementation.payload.prototype_control_bindings.known_bad.expected_verification_outcome == "fail")))))
   && authorization.payload.kind == "decision"
   && authorization.payload.effective_scope == implementation.identity.revision_id
 resolves: [pilot-verification-implementation-required, formal-verification-implementation-required]

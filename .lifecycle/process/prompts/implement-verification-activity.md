@@ -39,8 +39,9 @@ through every remaining case before aggregation.
 In the same atomic response, record the exact authorization DEC with
 `effective_scope` equal to the VAI Revision and a `justifies` link to that Revision.
 For a formal VAI, set `kind: formal`, retain the exact formal VER and qualified
-ENV links, and publish no `targets` link. Phase 6 will bind the reviewed VAI to
-the exact controlled implementation ART at RUN time.
+ENV links, and target only that exact ENV; no ART is supplied. For pilot work,
+target the supplied ART. Phase 6 will bind the reviewed formal VAI to the exact
+controlled implementation ART at RUN time.
 
 Do not access product source, product unit tests, private functions, classes,
 implementation notes, or uncontrolled shortcuts.
