@@ -15,6 +15,14 @@ satisfied_when: >-
       {implementation: implementation}))
 status_rules:
   - status: blocked
+    priority: 850
+    when: >-
+      implementation.payload.kind == "formal"
+      && exists("problem-reportable-results@1", {})
+      && every("problem-reportable-results@1", {}, result =>
+        count("problem-reports-for-result@1", {result: result}) == 1)
+    reason: The reported formal product failure reaches this profile's explicit Phase 6 boundary before any sibling execution can start.
+  - status: blocked
     priority: 800
     when: >-
       implementation.payload.kind == "formal"

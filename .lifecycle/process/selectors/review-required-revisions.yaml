@@ -9,6 +9,12 @@ query:
   as: subject
   where: >-
     policy("review-applicability@1", {subject: subject}).required == true
+    && !(
+      phase.id == "phase-6-verification"
+      && exists("problem-reportable-results@1", {})
+      && every("problem-reportable-results@1", {}, result =>
+        count("problem-reports-for-result@1", {result: result}) == 1)
+    )
     && (subject.identity.type != "RES"
       || !every("current-formal-results-requiring-assessment@1", {}, current => current != subject))
     && (!(phase.id in ["phase-3-component-definition", "phase-4-design-definition", "phase-5-implementation"])
