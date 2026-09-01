@@ -186,7 +186,10 @@ export function validateScenarioContracts(
       const requiredLinks = Array.isArray(output?.required_links)
         ? output.required_links
         : [];
-      requiredLinks.forEach((linkValue, linkIndex) => {
+      const permittedLinks = Array.isArray(output?.permitted_links)
+        ? output.permitted_links
+        : [];
+      [...requiredLinks, ...permittedLinks].forEach((linkValue, linkIndex) => {
         const link = record(linkValue);
         const linkId = link?.link;
         const outputTypes = Array.isArray(output?.types) ? output.types : [];

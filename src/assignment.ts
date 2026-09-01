@@ -2985,10 +2985,35 @@ function scenarioProposalFromResponse(
     const declaredLinkTypes = new Set(
       expected.get(responseKey(output))!.links.map((link) => link.type),
     );
+    const invocationInputs = exact.dryRun.invocations[invocation]?.inputs ?? [];
+    const requiredLinkCount = (Array.isArray(definition?.required_links)
+      ? definition.required_links
+      : []).reduce((count, value) => {
+        const target = object(object(value)?.target);
+        if (typeof target?.input !== "string") return count + 1;
+        return count + (invocationInputs.find((input) =>
+          input.name === target.input
+        )?.values.length ?? 0);
+      }, 0);
+    const requiredExpected = fixedLinks(activeLinks(
+      expectedOutput.links.slice(0, requiredLinkCount),
+    ));
+    const permittedExpected = new Set(
+      activeLinks(expectedOutput.links.slice(requiredLinkCount))
+        .map((link) => JSON.stringify(link)),
+    );
+    const activeActual = activeLinks(output.links);
+    const permittedActual = activeActual
+      .map((link) => JSON.stringify(link))
+      .filter((link) => permittedExpected.has(link));
+    const requiredActual = fixedLinks(activeActual.filter((link) =>
+      !permittedExpected.has(JSON.stringify(link))
+    ));
     if (
       output.links.some((link) => !declaredLinkTypes.has(link.type)) ||
-      JSON.stringify(fixedLinks(activeLinks(output.links))) !==
-        JSON.stringify(fixedLinks(activeLinks(expectedOutput.links)))
+      JSON.stringify(requiredActual) !== JSON.stringify(requiredExpected) ||
+      new Set(permittedActual).size !== permittedActual.length ||
+      permittedActual.some((link) => !permittedExpected.has(link))
     ) {
       return failure(
         "assignment-response-links-invalid",

@@ -119,9 +119,10 @@ export function compileAssignmentProjection(input: {
       return;
     }
 
-    const links = (Array.isArray(output.required_links)
-      ? output.required_links
-      : []).flatMap<AssignmentLinkRoute>((value, linkIndex) => {
+    const links = [
+      ...(Array.isArray(output.required_links) ? output.required_links : []),
+      ...(Array.isArray(output.permitted_links) ? output.permitted_links : []),
+    ].flatMap<AssignmentLinkRoute>((value, linkIndex) => {
         const required = record(value);
         const link = typeof required?.link === "string" ? required.link : undefined;
         const target = record(required?.target);

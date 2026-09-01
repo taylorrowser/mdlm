@@ -86,6 +86,10 @@ export interface ScenarioOutputExplanation {
     link: string;
     target: { input: string } | { output: string };
   }[];
+  permittedLinks?: {
+    link: string;
+    target: { input: string } | { output: string };
+  }[];
 }
 
 export interface ResolverScenarioExplanation {
@@ -119,7 +123,27 @@ export function scenarioOutputExplanations(
         ? [{ link: linkId, target: { output: targetOutput } }]
         : [];
     });
-    return [{ name, types, cardinality, requiredLinks }];
+    const permittedLinks = array(output?.permitted_links).flatMap<
+      ScenarioOutputExplanation["requiredLinks"][number]
+    >((linkValue) => {
+      const link = object(linkValue);
+      const linkId = string(link?.link);
+      const target = object(link?.target);
+      const input = string(target?.input);
+      const targetOutput = string(target?.output);
+      if (!linkId) return [];
+      if (input) return [{ link: linkId, target: { input } }];
+      return targetOutput
+        ? [{ link: linkId, target: { output: targetOutput } }]
+        : [];
+    });
+    return [{
+      name,
+      types,
+      cardinality,
+      requiredLinks,
+      ...(permittedLinks.length > 0 ? { permittedLinks } : {}),
+    }];
   });
 }
 

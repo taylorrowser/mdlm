@@ -41,6 +41,16 @@ async function gateCorrectionPackage(parent: string): Promise<string> {
     recursive: true,
   });
 
+  const gateScenarioPath = path.join(root, "scenarios/record-gate-signoff.yaml");
+  const gateScenario = parse(await fs.readFile(gateScenarioPath, "utf8"));
+  gateScenario.outputs.find(
+    (output: JsonObject) => output.name === "decision",
+  ).permitted_links.push({
+    link: "justifies",
+    target: { output: "decision" },
+  });
+  await fs.writeFile(gateScenarioPath, stringify(gateScenario));
+
   const profilePath = path.join(root, "profiles/bootstrap.yaml");
   const profile = parse(await fs.readFile(profilePath, "utf8"));
   profile.enabled.phases = ["phase-2-system-definition"];
@@ -205,6 +215,7 @@ function submit(
   packet: JsonObject,
   outputs: JsonObject[],
   authority?: string,
+  expectedStatus = 0,
 ): JsonObject {
   const response = structuredClone(packet.responseScaffold);
   response.proposal.outputs = response.proposal.outputs.flatMap(
@@ -213,7 +224,12 @@ function submit(
         (candidate) => candidate.handle === expected.handle,
       );
       return supplied
-        ? [{ ...expected, payload: supplied.payload, body: supplied.body }]
+        ? [{
+            ...expected,
+            payload: supplied.payload,
+            ...(supplied.links ? { links: supplied.links } : {}),
+            body: supplied.body,
+          }]
         : [];
     },
   );
@@ -227,7 +243,7 @@ function submit(
     `${JSON.stringify(response)}\n`,
     ...arguments_,
   );
-  expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
+  expect(result.status, `${result.stderr}${result.stdout}`).toBe(expectedStatus);
   return JSON.parse(result.stdout);
 }
 
@@ -302,7 +318,71 @@ export async function runPhaseTwoGateReviewCorrection(): Promise<void> {
 
     const gate = nextPacket(repository, "record-gate-signoff@3");
     expect(firstInput(gate, "candidate").identity.revision_id).toBe(candidate);
-    const signed = submit(repository, gate, [{
+    const decisionScaffold = gate.responseScaffold.proposal.outputs.find(
+      (output: JsonObject) => output.handle === "decision",
+    );
+    expect(decisionScaffold).toBeDefined();
+    const justifies = [{ type: "justifies", target: { input: "candidate" } }];
+    const blocks = { type: "blocks", target: { input: "candidate" } };
+    const selfJustifies = {
+      type: "justifies",
+      target: { output: "decision" },
+    };
+    expect(gate.outputs.find(
+      (output: JsonObject) => output.handle === "decision",
+    )?.permittedLinks).toEqual([{
+      link: "blocks",
+      target: { input: "candidate" },
+    }, {
+      link: "justifies",
+      target: { output: "decision" },
+    }]);
+
+    const rejectionRepository = path.join(parent, "rejection-repository");
+    await fs.cp(repository, rejectionRepository, { recursive: true });
+    const rejected = submit(rejectionRepository, gate, [{
+      handle: "decision",
+      payload: {
+        title: "Reject the exact Phase 2 system candidate",
+        kind: "gate-signoff",
+        decision: "Reject the exact candidate.",
+        rationale: "The candidate requires one exact correction.",
+        alternatives: ["Approve the malformed candidate."],
+        gate_outcome: "reject",
+        gate_rejection: {
+          findings: [{
+            id: "G-001",
+            summary: "The candidate contains one malformed definition.",
+          }],
+        },
+        effective_scope: candidate,
+      },
+      links: [...justifies, blocks],
+      body: "The stakeholder rejects this exact candidate.\n",
+    }], "stakeholder");
+    expect(decisionScaffold.links).toEqual([
+      ...justifies,
+      blocks,
+      selfJustifies,
+    ]);
+    const rejectionDecision = rejected.receipt.publications.find(
+      (publication: JsonObject) => publication.handle === "decision",
+    ).revisionId;
+    const shownRejection = mdlm(
+      rejectionRepository,
+      "show",
+      rejectionDecision,
+      "--json",
+    );
+    expect(shownRejection.status, `${shownRejection.stderr}${shownRejection.stdout}`)
+      .toBe(0);
+    expect(JSON.parse(shownRejection.stdout).lifecycleDatum.datum.links)
+      .toEqual(expect.arrayContaining([
+        { type: "justifies", target: candidate },
+        { type: "blocks", target: candidate },
+      ]));
+
+    const approval = {
       handle: "decision",
       payload: {
         title: "Approve the exact Phase 2 system candidate",
@@ -313,8 +393,20 @@ export async function runPhaseTwoGateReviewCorrection(): Promise<void> {
         gate_outcome: "approve",
         effective_scope: candidate,
       },
+      links: justifies,
       body: "The stakeholder approves this exact candidate.\n",
-    }], "stakeholder");
+    };
+    const missingRequired = submit(
+      repository,
+      gate,
+      [{ ...approval, links: [] }],
+      "stakeholder",
+      1,
+    );
+    expect(missingRequired.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "assignment-response-links-invalid" }),
+    ]));
+    const signed = submit(repository, gate, [approval], "stakeholder");
     const failedDecision = signed.receipt.publications.find(
       (publication: JsonObject) => publication.handle === "decision",
     ).revisionId;
