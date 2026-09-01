@@ -17,9 +17,10 @@ status_rules:
         {plan: one("planning-revisions-for-completion@1", {completion: completion})}) != 1
       || count("strategies-for-decomposition@1",
         {plan: one("planning-revisions-for-completion@1", {completion: completion})}) != 1
+      || count("system-strategies-for-completion@1", {completion: completion}) != 1
       || none("architecture-simplification-reviews-for@1",
         {plan: one("planning-revisions-for-completion@1", {completion: completion})})
-    reason: Level candidate creation requires one complete exact DWP definition and simplification-evidence chain.
+    reason: Level candidate creation requires one complete exact DWP definition, its system-level strategy, and simplification-evidence chain.
   - status: awaiting-review
     priority: 200
     when: >-
@@ -41,6 +42,7 @@ status_rules:
         {plan: one("planning-revisions-for-completion@1", {completion: completion})}) == 1
       && count("strategies-for-decomposition@1",
         {plan: one("planning-revisions-for-completion@1", {completion: completion})}) == 1
+      && count("system-strategies-for-completion@1", {completion: completion}) == 1
       && exists("architecture-simplification-reviews-for@1",
         {plan: one("planning-revisions-for-completion@1", {completion: completion})})
     reason: The exact reviewed DWP completion is ready to freeze directly as its system-level candidate.
@@ -51,5 +53,5 @@ resolve_with:
     completion: completion
     architecture: 'one("architectures-for-decomposition@1", {plan: one("planning-revisions-for-completion@1", {completion: completion})})'
     interfaces: 'select("interfaces-for-decomposition@1", {plan: one("planning-revisions-for-completion@1", {completion: completion})})'
-    verification_strategy: 'one("strategies-for-decomposition@1", {plan: one("planning-revisions-for-completion@1", {completion: completion})})'
+    verification_strategy: 'one("system-strategies-for-completion@1", {completion: completion})'
 waiver_policy_ref: waiver-applicability@1

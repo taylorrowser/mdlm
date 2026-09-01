@@ -169,6 +169,146 @@ it("routes one reviewed Phase 2 completion directly to its level candidate", asy
   expect(scenario.completion.source).not.toContain("group");
 });
 
+it("requires the exact system strategy before a Phase 2 level candidate", async () => {
+  const processPackage = await canonicalProcessPackage();
+  const stakeholder = datum("STK", "STK-0SYSTEMVSP", {
+    title: "Observable stakeholder behavior",
+  });
+  const architecture = datum("ASP", "ASP-0SYSTEMVSP", {
+    title: "System architecture",
+    level: "system",
+  }, [{ type: "governs", target: stakeholder.datum.revision_id }]);
+  const stakeholderStrategy = datum("VSP", "VSP-0STAKEHOLD", {
+    title: "Stakeholder strategy",
+    level: "stakeholder",
+  }, [{
+    type: "governs-revision",
+    target: stakeholder.datum.revision_id,
+  }]);
+  const plan = datum("DWP", "DWP-0SYSTEMVSP", {
+    title: "System decomposition",
+    stage: "planning",
+    target_child_type: "SYS",
+  }, [
+    { type: "decomposes", target: stakeholder.datum.revision_id },
+    { type: "allocated-to", target: architecture.datum.revision_id },
+    { type: "verified-under", target: stakeholderStrategy.datum.revision_id },
+  ]);
+  const system = datum("SYS", "SYS-0SYSTEMVSP", {
+    title: "Observable system behavior",
+    statement: "The system shall report one exact result.",
+  }, [{ type: "decomposes", target: plan.datum.revision_id }]);
+  const simplificationContext = datum("BSL", "BSL-0SYSTEMVS1", {
+    title: "System definition context",
+    kind: "review-context",
+    role: "review-context",
+    scope: plan.datum.revision_id,
+    group: "DEFAULT",
+    definition_members: [
+      architecture.datum.revision_id,
+      plan.datum.revision_id,
+      system.datum.revision_id,
+    ],
+    evidence: [],
+  });
+  const simplificationReview = datum("REV", "REV-0SYSTEMVS1", {
+    title: "System simplification Review",
+    review_kind: "simplification-architecture-interfaces",
+    outcome: "pass",
+  }, [{
+    type: "contextualizes",
+    target: simplificationContext.datum.revision_id,
+  }]);
+  const completion = datum("DWP", "DWP-0SYSTEMVSC", {
+    title: "Completed system decomposition",
+    stage: "completion",
+    target_child_type: "SYS",
+  }, [
+    { type: "derived-from", target: plan.datum.revision_id },
+    { type: "decomposes", target: stakeholder.datum.revision_id },
+    { type: "produces", target: system.datum.revision_id },
+    { type: "allocated-to", target: architecture.datum.revision_id },
+    { type: "verified-under", target: stakeholderStrategy.datum.revision_id },
+    { type: "justifies", target: simplificationReview.datum.revision_id },
+  ]);
+  const completionContext = datum("BSL", "BSL-0SYSTEMVS2", {
+    title: "Completion Review context",
+    kind: "review-context",
+    role: "review-context",
+    scope: completion.datum.revision_id,
+    group: "DEFAULT",
+    definition_members: [
+      completion.datum.revision_id,
+      architecture.datum.revision_id,
+      plan.datum.revision_id,
+      simplificationReview.datum.revision_id,
+      stakeholder.datum.revision_id,
+      stakeholderStrategy.datum.revision_id,
+      system.datum.revision_id,
+    ],
+    evidence: [],
+  });
+  completionContext.datum.created_by.scenario = "create-review-context@2";
+  const completionReview = datum("REV", "REV-0SYSTEMVS2", {
+    title: "Completion Review",
+    review_kind: "contextual",
+    outcome: "pass",
+  }, [
+    { type: "reviews", target: completion.datum.revision_id },
+    { type: "contextualizes", target: completionContext.datum.revision_id },
+  ]);
+  const records = [
+    stakeholder,
+    architecture,
+    stakeholderStrategy,
+    plan,
+    system,
+    simplificationContext,
+    simplificationReview,
+    completion,
+    completionContext,
+    completionReview,
+  ];
+  const snapshot = (extra: LifecycleRecord[] = []) => evaluateLifecycle(
+    processPackage,
+    {
+      processRef,
+      phaseId: "phase-2-system-definition",
+      records: [...records, ...extra],
+      dependencyComparisons: [],
+    },
+  );
+  const candidate = (extra: LifecycleRecord[] = []) => snapshot(extra)
+    .obligations.find((item) =>
+      item.obligation === "system-level-candidate-required" &&
+      item.subject === completion.datum.revision_id
+    );
+
+  expect(snapshot().obligations).toContainEqual(expect.objectContaining({
+    obligation: "lower-level-verification-strategy-required",
+    status: "ready",
+  }));
+  expect(candidate()).toEqual(expect.objectContaining({ status: "blocked" }));
+
+  const systemStrategy = datum("VSP", "VSP-0SYSTEMVSP", {
+    title: "System strategy",
+    level: "system",
+  }, [{ type: "governs-revision", target: system.datum.revision_id }]);
+  expect(candidate([systemStrategy])).toEqual(expect.objectContaining({
+    status: "ready",
+    actionableResolver: "create-system-level-candidate@2",
+  }));
+  const candidateRequirement = processPackage.obligations[
+    "system-level-candidate-required"
+  ] as unknown as {
+    resolve_with: { inputs: Record<string, { source: string }> };
+  };
+  expect(candidateRequirement.resolve_with.inputs.verification_strategy!.source)
+    .toBe(
+      'one("system-strategies-for-completion@1", {completion: completion})',
+    );
+});
+
 it(
   "routes a reviewed Phase 2 architecture to planning with its stakeholder strategy",
   runPhaseTwoPlanningWithStakeholderStrategy,
