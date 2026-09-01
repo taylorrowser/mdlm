@@ -173,6 +173,17 @@ async function phaseThreePackage(parent: string): Promise<string> {
     await fs.writeFile(otherPath, stringify(other));
   }
 
+  const reviewRequiredPath = path.join(
+    root,
+    "selectors/review-required-revisions.yaml",
+  );
+  const reviewRequired = parse(await fs.readFile(reviewRequiredPath, "utf8"));
+  reviewRequired.query.where = reviewRequired.query.where.replace(
+    'subject.identity.type in ["BSL", "DEC"]',
+    'subject.identity.type in ["BSL", "DEC", "STK", "SYS"]',
+  );
+  await fs.writeFile(reviewRequiredPath, stringify(reviewRequired));
+
   const seedScenario = {
     kind: "scenario-definition",
     id: "seed-system-definitions",
@@ -292,8 +303,13 @@ async function phaseThreePackage(parent: string): Promise<string> {
       {
         status: "ready",
         priority: 100,
-        when: 'exists("phase-3-test-systems@1", {}) && none("phase-3-test-accepted-baselines@1", {})',
-        reason: "Freeze the exact system ancestry as accepted evidence.",
+        when: [
+          'exists("phase-3-test-systems@1", {})',
+          '&& exists("passing-reviews-for@1", {subject: one("phase-3-test-stakeholder-requirements@1", {})})',
+          '&& exists("passing-reviews-for@1", {subject: one("phase-3-test-systems@1", {})})',
+          '&& none("phase-3-test-accepted-baselines@1", {})',
+        ].join(" "),
+        reason: "Freeze the reviewed exact system ancestry as accepted evidence.",
       },
     ],
     default_status: "blocked",
@@ -765,6 +781,11 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
       publication(seeded, "stakeholder_strategy"),
       publication(seeded, "system_strategy"),
     ];
+    const upstreamDefinitionReviews = [
+      review(repository, stakeholder),
+      review(repository, system),
+    ];
+    expect(upstreamDefinitionReviews).toHaveLength(2);
     const acceptancePacket = nextPacket(
       repository,
       "seed-accepted-system-slice@1",
@@ -1405,8 +1426,6 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
         phaseSixReviews.push(review(repository, product));
         witnessedReview = review(repository, result);
         phaseSixReviews.push(witnessedReview);
-        phaseSixReviews.push(review(repository, stakeholder));
-        phaseSixReviews.push(review(repository, system));
       }
     }
     expect(executionLevels).toEqual(["DES", "DES", "CMP", "CMP", "SYS", "STK"]);
@@ -1449,8 +1468,8 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
       repository,
       "diff", "--name-only", `${phaseSixStart}..HEAD`, "--", ".lifecycle/data",
     ).stdout.trim().split("\n").filter((name) => /r00001\.md$/.test(name));
-    expect(phaseSixFirstRevisions).toHaveLength(27);
-    expect(phaseSixReviews).toHaveLength(7);
+    expect(phaseSixFirstRevisions).toHaveLength(23);
+    expect(phaseSixReviews).toHaveLength(5);
     expect(git(repository, "status", "--porcelain").stdout).toBe("");
 
     const infrastructurePacket = nextPacket(
