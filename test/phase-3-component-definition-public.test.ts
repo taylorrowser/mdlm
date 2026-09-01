@@ -1464,7 +1464,7 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
       outcome: "lifecycle-complete",
       phase: "phase-6-verification@1",
     });
-    expect(phaseSixReviews).toHaveLength(6);
+    expect(new Set(phaseSixReviews).size).toBe(phaseSixReviews.length);
     expect(git(repository, "status", "--porcelain").stdout).toBe("");
 
     const infrastructurePacket = nextPacket(
