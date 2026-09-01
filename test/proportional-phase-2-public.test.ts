@@ -356,6 +356,234 @@ it("requires the exact system strategy before a Phase 2 level candidate", async 
   }));
 });
 
+it("routes the remaining system strategy after one Phase 2 acceptance", async () => {
+  const processPackage = await canonicalProcessPackage();
+  const stakeholder = datum("STK", "STK-0POSTACCEPT", {
+    title: "Two-part stakeholder behavior",
+  });
+  const architecture = datum("ASP", "ASP-0POSTACCEPT", {
+    title: "Shared system architecture",
+    level: "system",
+  }, [{ type: "governs", target: stakeholder.datum.revision_id }]);
+  const stakeholderStrategy = datum("VSP", "VSP-0POSTACCEPT", {
+    title: "Stakeholder strategy",
+    level: "stakeholder",
+  }, [{
+    type: "governs-revision",
+    target: stakeholder.datum.revision_id,
+  }]);
+
+  const completedDefinition = (
+    suffix: string,
+    completionId: string,
+    definitionArchitecture: LifecycleRecord,
+    completionRevision = 1,
+  ) => {
+    const plan = datum("DWP", `DWP-${suffix}PLAN`, {
+      title: `${suffix} system decomposition`,
+      stage: "planning",
+      target_child_type: "SYS",
+    }, [
+      { type: "decomposes", target: stakeholder.datum.revision_id },
+      {
+        type: "allocated-to",
+        target: definitionArchitecture.datum.revision_id,
+      },
+      { type: "verified-under", target: stakeholderStrategy.datum.revision_id },
+    ]);
+    const system = datum("SYS", `SYS-${suffix}REQ1`, {
+      title: `${suffix} system requirement`,
+      statement: `The ${suffix} system behavior shall be observable.`,
+    }, [{ type: "decomposes", target: plan.datum.revision_id }]);
+    const simplificationContext = datum("BSL", `BSL-${suffix}SIMP`, {
+      title: `${suffix} simplification context`,
+      kind: "review-context",
+      role: "review-context",
+      scope: plan.datum.revision_id,
+      group: "DEFAULT",
+      definition_members: [
+        definitionArchitecture.datum.revision_id,
+        plan.datum.revision_id,
+        system.datum.revision_id,
+      ],
+      evidence: [],
+    });
+    const simplificationReview = datum("REV", `REV-${suffix}SIMP`, {
+      title: `${suffix} simplification Review`,
+      review_kind: "simplification-architecture-interfaces",
+      outcome: "pass",
+    }, [{
+      type: "contextualizes",
+      target: simplificationContext.datum.revision_id,
+    }]);
+    const completion = datum("DWP", completionId, {
+      title: `${suffix} completed system decomposition`,
+      stage: "completion",
+      target_child_type: "SYS",
+    }, [
+      { type: "derived-from", target: plan.datum.revision_id },
+      { type: "decomposes", target: stakeholder.datum.revision_id },
+      { type: "produces", target: system.datum.revision_id },
+      {
+        type: "allocated-to",
+        target: definitionArchitecture.datum.revision_id,
+      },
+      { type: "verified-under", target: stakeholderStrategy.datum.revision_id },
+      { type: "justifies", target: simplificationReview.datum.revision_id },
+    ]);
+    completion.datum.revision = completionRevision;
+    completion.datum.revision_id = `${completionId}-r${
+      String(completionRevision).padStart(5, "0")
+    }`;
+    const completionContext = datum("BSL", `BSL-${suffix}COMP`, {
+      title: `${suffix} completion Review context`,
+      kind: "review-context",
+      role: "review-context",
+      scope: completion.datum.revision_id,
+      group: "DEFAULT",
+      definition_members: [
+        completion.datum.revision_id,
+        definitionArchitecture.datum.revision_id,
+        plan.datum.revision_id,
+        simplificationReview.datum.revision_id,
+        stakeholder.datum.revision_id,
+        stakeholderStrategy.datum.revision_id,
+        system.datum.revision_id,
+      ],
+      evidence: [],
+    });
+    completionContext.datum.created_by.scenario = "create-review-context@2";
+    const completionReview = datum("REV", `REV-${suffix}COMP`, {
+      title: `${suffix} completion Review`,
+      review_kind: "contextual",
+      outcome: "pass",
+    }, [
+      { type: "reviews", target: completion.datum.revision_id },
+      { type: "contextualizes", target: completionContext.datum.revision_id },
+    ]);
+    return {
+      plan,
+      system,
+      simplificationContext,
+      simplificationReview,
+      completion,
+      completionContext,
+      completionReview,
+      records: [
+        plan,
+        system,
+        simplificationContext,
+        simplificationReview,
+        completion,
+        completionContext,
+        completionReview,
+      ],
+    };
+  };
+
+  const acceptedDefinition = completedDefinition(
+    "FIRSTDEF01",
+    "DWP-FIRSTDEF01",
+    architecture,
+  );
+  const acceptedStrategy = datum("VSP", "VSP-FIRSTDEF01", {
+    title: "Accepted system strategy",
+    level: "system",
+  }, [{
+    type: "governs-revision",
+    target: acceptedDefinition.system.datum.revision_id,
+  }]);
+  const candidate = datum("BSL", "BSL-FIRSTDEF01", {
+    title: "First system candidate",
+    kind: "level-candidate",
+    role: "candidate",
+    scope: acceptedDefinition.completion.datum.revision_id,
+    group: "DEFAULT",
+    definition_members: [
+      acceptedDefinition.completion.datum.revision_id,
+      acceptedDefinition.system.datum.revision_id,
+      architecture.datum.revision_id,
+      acceptedStrategy.datum.revision_id,
+    ],
+    evidence: [acceptedDefinition.simplificationReview.datum.revision_id],
+  });
+  candidate.datum.created_by.scenario = "create-system-level-candidate@2";
+  const accepted = datum("BSL", "BSL-FIRSTACPT1", {
+    title: "Accepted first system definition",
+    kind: "level-accepted",
+    role: "accepted",
+    scope: acceptedDefinition.completion.datum.revision_id,
+    group: "DEFAULT",
+    definition_members: candidate.datum.payload.definition_members,
+    evidence: [],
+  }, [{ type: "promotes", target: candidate.datum.revision_id }]);
+  accepted.datum.created_by.scenario = "accept-phase-2-system@1";
+
+  const remainingArchitecture = datum("ASP", "ASP-VVYYA1BX3A", {
+    title: "Remaining system architecture",
+    level: "system",
+  }, [{ type: "governs", target: stakeholder.datum.revision_id }]);
+  const remainingDefinition = completedDefinition(
+    "VVYYA1BX3A",
+    "DWP-VVYYA1BX3A",
+    remainingArchitecture,
+    2,
+  );
+  const records = [
+    stakeholder,
+    architecture,
+    stakeholderStrategy,
+    ...acceptedDefinition.records,
+    acceptedStrategy,
+    candidate,
+    accepted,
+    remainingArchitecture,
+    ...remainingDefinition.records,
+  ];
+  const evaluate = (extra: LifecycleRecord[] = []) => evaluateLifecycle(
+    processPackage,
+    {
+      processRef,
+      phaseId: "phase-2-system-definition",
+      records: [...records, ...extra],
+      dependencyComparisons: [],
+    },
+  );
+  const postAcceptance = evaluate();
+  expect(postAcceptance.looseEnds).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      obligation: "lower-level-verification-strategy-required",
+      status: "ready",
+      actionableResolver: "define-lower-level-verification-strategy@1",
+      dispatchable: true,
+      unresolvedBindings: [],
+    }),
+    expect.objectContaining({
+      obligation: "system-level-candidate-required",
+      subject: remainingDefinition.completion.datum.revision_id,
+      status: "blocked",
+      unresolvedBindings: ["verification_strategy"],
+    }),
+  ]));
+
+  const remainingStrategy = datum("VSP", "VSP-VVYYA1BX3A", {
+    title: "Remaining system strategy",
+    level: "system",
+  }, [{
+    type: "governs-revision",
+    target: remainingDefinition.system.datum.revision_id,
+  }]);
+  expect(evaluate([remainingStrategy]).obligations.find((item) =>
+    item.obligation === "system-level-candidate-required" &&
+    item.subject === remainingDefinition.completion.datum.revision_id
+  )).toEqual(expect.objectContaining({
+    status: "ready",
+    actionableResolver: "create-system-level-candidate@2",
+    dispatchable: true,
+    unresolvedBindings: [],
+  }));
+});
+
 it(
   "routes a reviewed Phase 2 architecture to planning with its stakeholder strategy",
   runPhaseTwoPlanningWithStakeholderStrategy,
