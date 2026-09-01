@@ -22,7 +22,7 @@ describe("lean Phase 5 Process Package", () => {
 
   it("keeps product and source-blind formal implementation behind existing public seams", () => {
     expect(process.manifest.version).toBe("0.118.0");
-    expect(record(process.profiles.bootstrap.enabled).phases).toContain(
+    expect(record(process.profiles.bootstrap!.enabled).phases).toContain(
       "phase-5-implementation",
     );
     expect(process.phases["phase-5-implementation"]).toBeDefined();
@@ -45,7 +45,7 @@ describe("lean Phase 5 Process Package", () => {
     const target = (formal.inputs as Record<string, any>[]).find(
       (input: Record<string, any>) => input.name === "execution_target",
     );
-    expect(target.cardinality).toBe("one");
+    expect(target!.cardinality).toBe("one");
     expect(record(record(formal.participation).arguments)).not.toHaveProperty(
       "execution_target",
     );
@@ -85,7 +85,7 @@ describe("lean Phase 5 Process Package", () => {
     );
 
     const terminal = JSON.stringify(
-      record(record(process.profiles.bootstrap.terminal_outcomes).profile_boundary)
+      record(record(process.profiles.bootstrap!.terminal_outcomes).profile_boundary)
         .condition,
     );
     expect(terminal).toContain("accepted-design-baselines@1");
