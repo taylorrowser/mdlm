@@ -2979,16 +2979,36 @@ function scenarioProposalFromResponse(
         )
         .map((required) => String(required!.link)),
     );
+    const permittedLinkTypes = new Set(
+      (Array.isArray(definition?.permitted_links)
+        ? definition.permitted_links
+        : [])
+        .map(object)
+        .map((permitted) => String(permitted?.link)),
+    );
     const fixedLinks = (links: SymbolicProposalLink[]) => links.filter((link) =>
       !distributedLinkTypes.has(link.type)
     );
     const declaredLinkTypes = new Set(
       expected.get(responseKey(output))!.links.map((link) => link.type),
     );
+    const requiredExpected = fixedLinks(activeLinks(expectedOutput.links))
+      .filter((link) => !permittedLinkTypes.has(link.type));
+    const requiredActual = fixedLinks(activeLinks(output.links))
+      .filter((link) => !permittedLinkTypes.has(link.type));
+    const permittedExpected = new Set(
+      activeLinks(expectedOutput.links)
+        .filter((link) => permittedLinkTypes.has(link.type))
+        .map((link) => JSON.stringify(link)),
+    );
+    const permittedActual = activeLinks(output.links)
+      .filter((link) => permittedLinkTypes.has(link.type))
+      .map((link) => JSON.stringify(link));
     if (
       output.links.some((link) => !declaredLinkTypes.has(link.type)) ||
-      JSON.stringify(fixedLinks(activeLinks(output.links))) !==
-        JSON.stringify(fixedLinks(activeLinks(expectedOutput.links)))
+      JSON.stringify(requiredActual) !== JSON.stringify(requiredExpected) ||
+      new Set(permittedActual).size !== permittedActual.length ||
+      permittedActual.some((link) => !permittedExpected.has(link))
     ) {
       return failure(
         "assignment-response-links-invalid",
