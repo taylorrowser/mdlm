@@ -181,3 +181,86 @@ it("routes Phase 4 changed-interface work through design environment assurance",
     }),
   }));
 });
+
+it("runs Phase 4 ENV qualification before materializing its Review Context", async () => {
+  const loaded = await loadProcessPackage(".lifecycle/process");
+  expect(loaded.ok, JSON.stringify(loaded.diagnostics)).toBe(true);
+  if (!loaded.ok) return;
+
+  const environmentProfile = {
+    id: "posix-stdin-pipe",
+    capabilities: {
+      controllability: ["chosen stdin bytes"],
+      observability: ["complete stdout bytes", "exit status"],
+      external_services: [],
+      timing: "not assessed",
+    },
+  };
+  const strategy = record("VSP", "VSP-1F1ARN14C0", {
+    title: "Design verification strategy",
+    level: "design",
+    environment_profile: environmentProfile,
+  }, "define-lower-level-verification-strategy@1");
+  const environment = record("ENV", "ENV-CKPFBENDJT", {
+    title: "posix-stdin-pipe design verification environment",
+    strategy_revision: strategy.datum.revision_id,
+    profile_id: "posix-stdin-pipe",
+    capabilities: environmentProfile.capabilities,
+  }, "realize-verification-environment@1", [
+    { type: "realizes", target: strategy.datum.revision_id },
+  ]);
+  const qualificationActivity = record("VER", "VER-YKEH18CKR7", {
+    title: "Qualification of the design environment capabilities",
+    kind: "qualification",
+    method: "test",
+    assessment_mode: "automatic",
+    claim: {
+      kind: "qualification",
+      scope: "environment-capability",
+      formal_evidence_eligible: false,
+    },
+  }, "realize-verification-environment@1", [
+    { type: "governed-by", target: strategy.datum.revision_id },
+    { type: "qualifies", target: environment.datum.revision_id },
+  ]);
+  const qualificationImplementation = record("VAI", "VAI-J64DFD22ZM", {
+    title: "Qualification implementation for the design environment",
+    kind: "qualification",
+    implementation_ref: `procedure:sha256:${"1".repeat(64)}`,
+    independence_mode: "environment-capability",
+  }, "realize-verification-environment@1", [
+    { type: "realizes", target: qualificationActivity.datum.revision_id },
+    { type: "uses", target: environment.datum.revision_id },
+    { type: "targets", target: environment.datum.revision_id },
+  ]);
+  const postEnvironmentRecords = [
+    strategy,
+    environment,
+    qualificationActivity,
+    qualificationImplementation,
+  ];
+  const postEnvironment = evaluateLifecycle(loaded.package, {
+    processRef,
+    phaseId: "phase-4-design-definition",
+    records: postEnvironmentRecords,
+    dependencyComparisons: [],
+  });
+  const environmentContext = postEnvironment.looseEnds.find((item) =>
+    item.obligation === "review-context-required" &&
+    item.subject === environment.datum.revision_id
+  );
+  const qualificationRun = postEnvironment.looseEnds.find((item) =>
+    item.obligation === "verification-run-required" &&
+    item.subject === qualificationImplementation.datum.revision_id
+  );
+
+  expect(environmentContext).toEqual(expect.objectContaining({
+    status: "blocked",
+    dispatchable: false,
+  }));
+  expect(qualificationRun).toEqual(expect.objectContaining({
+    status: "ready",
+    dispatchable: true,
+    actionableResolver: "execute-verification-run@2",
+  }));
+});
