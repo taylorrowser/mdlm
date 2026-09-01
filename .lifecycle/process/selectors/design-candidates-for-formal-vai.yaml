@@ -13,6 +13,7 @@ query:
   where: >-
     implementation.payload.kind == "formal"
     && !every("verification-activities-for-implementation@1", {implementation: implementation}, activity =>
-      !exists("baseline-contains-definition@1", {baseline: candidate, subject: activity}))
+      every("formal-activities-for-phase-5-candidate@1", {candidate: candidate}, required =>
+        required != activity))
   distinct: true
   order_by: [identity.revision_id]
