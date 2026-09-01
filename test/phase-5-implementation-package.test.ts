@@ -23,7 +23,7 @@ describe("lean Phase 5 and Phase 6 Process Package", () => {
   });
 
   it("keeps product and source-blind formal implementation behind existing public seams", () => {
-    expect(process.manifest.version).toBe("0.120.0");
+    expect(process.manifest.version).toBe("0.121.0");
     expect(record(process.profiles.bootstrap!.enabled).phases).toContain(
       "phase-5-implementation",
     );

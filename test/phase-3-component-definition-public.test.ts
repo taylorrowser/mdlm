@@ -1806,4 +1806,5 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
       await fs.rm(parent, { recursive: true, force: true });
     }
   }
-}, 900_000);
+// External one-shot guards for this cumulative tracer must allow 1,200 seconds.
+}, 1_080_000);

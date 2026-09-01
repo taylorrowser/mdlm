@@ -591,7 +591,7 @@ it(
 );
 
 it(
-  "keeps shared assurance Review work in Phase 2 after public submit",
+  "publishes an ordinary Phase 2 Review Context and REV in one public Assignment",
   runPhaseTwoAssuranceReviewRoute,
   120_000,
 );

@@ -38,7 +38,7 @@ status_rules:
         subjects: '[plan]'
       - obligation: phase-2-definition-review-context-required@1
         subjects: '[plan]'
-      - obligation: review-context-required@2
+      - obligation: phase-2-atomic-review-required@1
         subjects: 'select("unreviewed-phase-2-definition-members-for-plan@1", {plan: plan})'
       - obligation: passing-review-required@2
         subjects: 'select("unreviewed-phase-2-definition-members-for-plan@1", {plan: plan})'

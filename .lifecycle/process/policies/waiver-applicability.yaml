@@ -27,6 +27,7 @@ rules:
     when: >-
       obligation in [
         "review-context-required@2",
+        "phase-2-atomic-review-required@1",
         "passing-review-required@2",
         "open-question-resolution@3",
         "candidate-members-reviewed@2",
