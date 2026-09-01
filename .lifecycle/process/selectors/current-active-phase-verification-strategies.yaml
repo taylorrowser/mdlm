@@ -18,6 +18,8 @@ query:
         && strategy.payload.level == "system")
       || (phase.id == "phase-3-component-definition"
         && strategy.payload.level == "component")
+      || (phase.id == "phase-4-design-definition"
+        && strategy.payload.level == "design")
     )
   distinct: true
   order_by: [identity.id, identity.revision]
