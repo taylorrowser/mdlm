@@ -1,0 +1,31 @@
+kind: scenario-definition
+id: record-product-acceptance
+version: 1
+description: Record one attended final product-acceptance Decision over the exact verified product and every required evidence Revision.
+phases: [phase-6-verification]
+inputs:
+  - {name: subject, types: [BSL], cardinality: one, identity: revision}
+  - {name: evidence, types: [ART, STK, RES, REV], cardinality: one-or-more, identity: revision}
+outputs:
+  - name: decision
+    types: [DEC]
+    cardinality: one
+    required_links:
+      - {link: justifies, target: {input: subject}}
+      - {link: justifies, target: {input: evidence}}
+prompt_ref: prompts/record-product-acceptance.md@1
+review_policy_ref: review-applicability@1
+participation:
+  policy_ref: consequential-decision-participation@1
+  arguments: {subject: subject}
+authority_evidence: {output: decision, type: DEC}
+completion: >-
+  execution.integrity.contract_valid == true
+  && decision.payload.kind == "product-acceptance"
+  && decision.payload.decision == "approve"
+  && decision.payload.effective_scope == subject.identity.revision_id
+  && evidence == select("product-acceptance-evidence-for@1", {subject: subject})
+  && !every("recorded-product-acceptance-decisions-for@1", {subject: subject}, exact => exact != decision)
+resolves: [product-acceptance-required]
+prohibited_inputs: [mutable latest aliases, pilot or readiness evidence as formal evidence, missing or extra evidence, unreviewed judgment, implied stakeholder authority]
+batching: single

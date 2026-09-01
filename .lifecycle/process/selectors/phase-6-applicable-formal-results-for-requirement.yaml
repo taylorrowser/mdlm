@@ -1,0 +1,18 @@
+kind: selector-definition
+id: phase-6-applicable-formal-results-for-requirement
+version: 1
+description: Applicable formal results exactly bound to one accepted requirement Revision.
+parameters:
+  - {name: requirement, kind: revision, types: [STK, SYS, CMP, DES]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: requirement, link: verifies-revision, emit: source, types: [RES]}
+  as: result
+  where: >-
+    count("formal-runs-producing-result@1", {result: result}) == 1
+    && !every("formal-runs-producing-result@1", {result: result}, run =>
+      every("verification-implementations-for-run@1", {run: run}, implementation =>
+        every("phase-6-applicable-formal-results-for-implementation@1",
+          {implementation: implementation}, applicable => applicable != result)))
+  distinct: true
+  order_by: [identity.revision_id]

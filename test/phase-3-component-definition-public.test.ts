@@ -15,6 +15,7 @@ type Json = Record<string, any>;
 interface SuppliedOutput {
   output: string;
   handle?: string;
+  links?: Json[];
   payload: Json;
   body: string;
 }
@@ -72,6 +73,9 @@ function assignmentResponse(
     return {
       ...structuredClone(template),
       ...(output.handle ? { handle: output.handle } : {}),
+      ...(output.links === undefined
+        ? {}
+        : { links: structuredClone(output.links) }),
       payload: output.payload,
       body: output.body,
     };
@@ -146,6 +150,7 @@ async function phaseThreePackage(parent: string): Promise<string> {
     "phase-3-component-definition",
     "phase-4-design-definition",
     "phase-5-implementation",
+    "phase-6-verification",
   ];
   await fs.writeFile(profilePath, stringify(profile));
 
@@ -251,6 +256,7 @@ async function phaseThreePackage(parent: string): Promise<string> {
     ],
     outputs: [
       { name: "accepted", types: ["BSL"], cardinality: "one", required_links: [] },
+      { name: "accepted_intent", types: ["BSL"], cardinality: "one", required_links: [] },
     ],
     prompt_ref: "prompts/seed-accepted-system-slice.md@1",
     review_policy_ref: "review-applicability@1",
@@ -259,6 +265,9 @@ async function phaseThreePackage(parent: string): Promise<string> {
       '&& accepted.payload.kind == "level-accepted"',
       '&& accepted.payload.role == "accepted"',
       "&& accepted.storage.frozen == true",
+      '&& accepted_intent.payload.kind == "intent-approved"',
+      '&& accepted_intent.payload.role == "accepted"',
+      "&& accepted_intent.storage.frozen == true",
     ].join(" "),
     resolves: ["accepted-system-slice-required"],
     prohibited_inputs: [],
@@ -475,14 +484,15 @@ function submitFailedReview(
 function publishFormalActivity(repository: string): string {
   const packet = nextPacket(repository, "write-formal-verification-activity@1");
   const requirement = exactInputs(packet, "requirement")[0];
+  const stakeholderClaim = requirement!.identity.type === "STK";
   const result = submit(repository, packet, [{
     output: "activity",
     payload: {
       title: `Formal verification for ${requirement!.identity.revision_id}`,
       rationale: "Specify a source-blind judgment of the exact requirement claim.",
       kind: "formal",
-      method: "analysis",
-      assessment_mode: "authored",
+      method: stakeholderClaim ? "demonstration" : "test",
+      assessment_mode: stakeholderClaim ? "witnessed" : "automatic",
       claim: { kind: "formal", scope: "requirement", formal_evidence_eligible: true },
       acceptance_criteria: ["The exact observable claim is satisfied."],
       evidence_requirements: ["Retain the authored claim judgment."],
@@ -583,7 +593,100 @@ function implementationArtifactPayload(
   };
 }
 
-it("runs accepted-SYS evidence through lean Phase 5 at the public CLI", async () => {
+function formalExecutionOutputs(
+  packet: Json,
+  productArtifact: string,
+  index: number,
+  executionState: "completed" | "aborted" | "infrastructure-error",
+  outcome: "pass" | "fail" | "inconclusive",
+): SuppliedOutput[] {
+  const implementation = inputRevisions(packet, "implementation")[0]!;
+  const activity = exactInputs(packet, "activity")[0]!;
+  const environment = inputRevisions(packet, "environment")[0]!;
+  const requirement = inputRevisions(packet, "requirement")[0]!;
+  const completed = executionState === "completed";
+  const assessmentRequired = activity.data.payload.assessment_mode !== "automatic";
+  const second = String(index).padStart(2, "0");
+  return [
+    {
+      output: "run",
+      payload: {
+        title: `Formal run for ${requirement}`,
+        kind: "formal",
+        started_at: `2026-09-01T01:00:${second}Z`,
+        completed_at: `2026-09-01T01:01:${second}Z`,
+        execution_state: executionState,
+        execution_target: { kind: "product-build", ref: productArtifact },
+        runner_ref: "fixture-formal-runner@1",
+        configuration_refs: [implementation, activity.identity.revision_id, environment, requirement],
+        activities_expected: [activity.identity.revision_id],
+        activities_invoked: completed ? [activity.identity.revision_id] : [],
+        evidence_locations: [`inline:formal-${index}`],
+      },
+      body: "One immutable exact formal execution manifest.\n",
+    },
+    {
+      output: "result",
+      payload: {
+        title: `Formal result for ${requirement}`,
+        claim: {
+          kind: "formal",
+          scope: "requirement",
+          outcome,
+          formal_evidence_eligible: true,
+        },
+        assessment_state: completed
+          ? assessmentRequired ? "assessment-required" : "recorded"
+          : "inconclusive",
+        observations: {
+          expected_success_observed: completed && outcome === "pass",
+          expected_discrimination_observed: completed && outcome !== "inconclusive",
+          details: completed
+            ? `The exact controlled execution produced ${outcome}.`
+            : "Infrastructure prevented a product conclusion.",
+        },
+        evidence_refs: [`inline:formal-${index}`],
+        assessor_ref: completed && assessmentRequired
+          ? "witnessed-formal-assessor"
+          : "fixture-formal-runner@1",
+      },
+      body: "One immutable exact requirement-scoped formal result.\n",
+    },
+  ];
+}
+
+it("lets explicit supplied links replace optional scaffold links", () => {
+  const justifies = { type: "justifies", target: { input: "candidate" } };
+  const packet = {
+    scenario: { reference: "record-gate-signoff@3" },
+    responseScaffold: {
+      proposal: {
+        outputs: [{
+          handle: "decision",
+          type: "DEC",
+          payload: null,
+          links: [
+            justifies,
+            { type: "blocks", target: { input: "candidate" } },
+          ],
+          body: null,
+        }],
+        completionEvidence: null,
+      },
+    },
+  };
+
+  const response = assignmentResponse(packet, [{
+    output: "decision",
+    links: [justifies],
+    payload: { kind: "gate-signoff", gate_outcome: "approve" },
+    body: "Approve the exact candidate.\n",
+  }]);
+
+  expect(response.proposal.outputs[0].links).toEqual([justifies]);
+});
+
+it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async () => {
   const parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-phase3-public-"));
   try {
     const repository = path.join(parent, "repository");
@@ -634,7 +737,7 @@ it("runs accepted-SYS evidence through lean Phase 5 at the public CLI", async ()
           title: `${level} black-box strategy`,
           rationale: "Preserve the accepted source-blind upstream verification boundary.",
           level,
-          permitted_methods: ["analysis"],
+          permitted_methods: [level === "stakeholder" ? "demonstration" : "test"],
           independence: {
             boundary: "black-box",
             prohibited_inputs: [
@@ -666,20 +769,37 @@ it("runs accepted-SYS evidence through lean Phase 5 at the public CLI", async ()
       repository,
       "seed-accepted-system-slice@1",
     );
-    const accepted = submit(repository, acceptancePacket, [{
-      output: "accepted",
-      payload: {
-        title: "Accepted system slice",
-        kind: "level-accepted",
-        role: "accepted",
-        scope: "phase-3-public-test",
-        group: "DEFAULT",
-        definition_members: [product, stakeholder, system, ...upstreamStrategies],
-        evidence: [],
+    const accepted = submit(repository, acceptancePacket, [
+      {
+        output: "accepted",
+        payload: {
+          title: "Accepted system slice",
+          kind: "level-accepted",
+          role: "accepted",
+          scope: "phase-3-public-test",
+          group: "DEFAULT",
+          definition_members: [product, stakeholder, system, ...upstreamStrategies],
+          evidence: [],
+        },
+        body: "The exact system slice is accepted test evidence.\n",
       },
-      body: "The exact system slice is accepted test evidence.\n",
-    }]);
+      {
+        output: "accepted_intent",
+        payload: {
+          title: "Accepted stakeholder intent",
+          kind: "intent-approved",
+          role: "accepted",
+          scope: "phase-3-public-test",
+          group: "DEFAULT",
+          definition_members: [product, stakeholder, upstreamStrategies[0]],
+          evidence: [],
+        },
+        body: "The exact stakeholder scope is accepted test evidence.\n",
+      },
+    ]);
     expect(publication(accepted, "accepted")).toMatch(/^BSL-/);
+    const acceptedIntent = publication(accepted, "accepted_intent");
+    expect(acceptedIntent).toMatch(/^BSL-/);
     commit(repository, "Publish exact accepted system slice");
 
     const strategyPacket = nextPacket(
@@ -1032,6 +1152,7 @@ it("runs accepted-SYS evidence through lean Phase 5 at the public CLI", async ()
     expect(inputRevisions(gatePacket, "candidate")).toEqual([candidate]);
     const gateResult = submit(repository, gatePacket, [{
       output: "decision",
+      links: [{ type: "justifies", target: { input: "candidate" } }],
       payload: {
         title: "Approve the component definition",
         rationale: "The exact candidate and independent Review support progression.",
@@ -1049,7 +1170,7 @@ it("runs accepted-SYS evidence through lean Phase 5 at the public CLI", async ()
 
     const designStrategyPacket = nextAfterReviews(repository, "define-lower-level-verification-strategy@1", reviews);
     const designStrategyResult = submit(repository, designStrategyPacket, [{ output: "strategy", payload: {
-      title: "Design black-box strategy", rationale: "Judge exact design claims without implementation knowledge.", level: "design", permitted_methods: ["analysis"],
+      title: "Design black-box strategy", rationale: "Judge exact design claims without implementation knowledge.", level: "design", permitted_methods: ["test"],
       independence: { boundary: "black-box", prohibited_inputs: ["product source code", "product unit tests", "private implementation details", "uncontrolled implementation shortcuts"] },
       evidence_policy: "Retain exact authored verification evidence.", assessment_policy: "Judge each exact design claim.",
       environment_profile: { id: "design-formal", purpose: "Author design verification specifications.", capabilities: { controllability: ["literal value"], observability: ["reported class", "exit status"], external_services: [], timing: "bounded" } },
@@ -1089,7 +1210,7 @@ it("runs accepted-SYS evidence through lean Phase 5 at the public CLI", async ()
     reviews.push(review(repository, designCandidate));
 
     const designGatePacket = nextAfterReviews(repository, "record-gate-signoff@3", reviews);
-    const designGateResult = submit(repository, designGatePacket, [{ output: "decision", payload: { title: "Approve the design definition", rationale: "The exact reviewed design preserves ancestry and isolation.", kind: "gate-signoff", decision: "Approve this exact design candidate.", alternatives: ["Reject and correct."], effective_scope: designCandidate, gate_outcome: "approve" }, body: "The stakeholder approves this design candidate.\n" }], "stakeholder");
+    const designGateResult = submit(repository, designGatePacket, [{ output: "decision", links: [{ type: "justifies", target: { input: "candidate" } }], payload: { title: "Approve the design definition", rationale: "The exact reviewed design preserves ancestry and isolation.", kind: "gate-signoff", decision: "Approve this exact design candidate.", alternatives: ["Reject and correct."], effective_scope: designCandidate, gate_outcome: "approve" }, body: "The stakeholder approves this design candidate.\n" }], "stakeholder");
     commit(repository, "Approve design candidate");
     reviews.push(review(repository, publication(designGateResult, "decision")));
 
@@ -1237,13 +1358,9 @@ it("runs accepted-SYS evidence through lean Phase 5 at the public CLI", async ()
       body: "Mechanically accept the exact reviewed implementation evidence.\n",
     }]);
     commit(repository, "Accept exact design implementation evidence");
-    expect(publication(designAcceptanceResult, "accepted")).toMatch(/^BSL-/);
+    const acceptedDesign = publication(designAcceptanceResult, "accepted");
+    expect(acceptedDesign).toMatch(/^BSL-/);
 
-    const terminal = terminalAfterReviews(repository, phaseFiveReviews);
-    expect(terminal, JSON.stringify(terminal)).toMatchObject({
-      outcome: "profile-boundary-reached",
-      phase: "phase-5-implementation@1",
-    });
     const phaseFiveFirstRevisions = git(
       repository,
       "diff", "--name-only", `${phaseFiveStart}..HEAD`, "--", ".lifecycle/data",
@@ -1254,6 +1371,169 @@ it("runs accepted-SYS evidence through lean Phase 5 at the public CLI", async ()
     expect(reviewContexts.get(productArtifact)).not.toBe(sharedFormalContext);
     expect(new Set(reviews).size).toBe(reviews.length);
     expect(git(repository, "status", "--porcelain").stdout).toBe("");
+
+    const phaseSixStart = git(repository, "rev-parse", "HEAD").stdout.trim();
+    const phaseSixFaultRepository = path.join(parent, "phase-six-fault-repository");
+    await fs.cp(repository, phaseSixFaultRepository, { recursive: true });
+
+    const phaseSixRuns: string[] = [];
+    const phaseSixResults: string[] = [];
+    const phaseSixReviews: string[] = [];
+    const executionLevels: string[] = [];
+    let witnessedResult: string | undefined;
+    let witnessedReview: string | undefined;
+    for (let index = 0; index < formalImplementations.length; index += 1) {
+      const executionPacket = nextPacket(repository, "execute-verification-run@2");
+      const requirement = exactInputs(executionPacket, "requirement")[0]!;
+      executionLevels.push(requirement.identity.type);
+      expect(inputRevisions(executionPacket, "execution_target")).toEqual([productArtifact]);
+      expect(formalImplementations)
+        .toContain(inputRevisions(executionPacket, "implementation")[0]);
+      const executionResult = submit(
+        repository,
+        executionPacket,
+        formalExecutionOutputs(executionPacket, productArtifact, index, "completed", "pass"),
+      );
+      commit(repository, `Execute formal ${requirement.identity.type} claim ${index + 1}`);
+      phaseSixRuns.push(publication(executionResult, "run"));
+      const result = publication(executionResult, "result");
+      phaseSixResults.push(result);
+      if (requirement.identity.type === "STK") {
+        witnessedResult = result;
+        phaseSixReviews.push(review(repository, architecture));
+        phaseSixReviews.push(review(repository, interfaceRevision));
+        phaseSixReviews.push(review(repository, product));
+        witnessedReview = review(repository, result);
+        phaseSixReviews.push(witnessedReview);
+        phaseSixReviews.push(review(repository, stakeholder));
+        phaseSixReviews.push(review(repository, system));
+      }
+    }
+    expect(executionLevels).toEqual(["DES", "DES", "CMP", "CMP", "SYS", "STK"]);
+    expect(phaseSixRuns).toHaveLength(6);
+    expect(phaseSixResults).toHaveLength(6);
+    expect(witnessedResult).toMatch(/^RES-/);
+    expect(witnessedReview).toMatch(/^REV-/);
+
+    const acceptanceDecisionPacket = nextPacket(repository, "record-product-acceptance@1");
+    expect(inputRevisions(acceptanceDecisionPacket, "subject")).toEqual([acceptedIntent]);
+    const acceptanceEvidence = inputRevisions(acceptanceDecisionPacket, "evidence");
+    expect(new Set(acceptanceEvidence)).toEqual(new Set([
+      productArtifact,
+      stakeholder,
+      ...phaseSixResults,
+      witnessedReview!,
+    ]));
+    const acceptanceDecisionResult = submit(repository, acceptanceDecisionPacket, [{
+      output: "decision",
+      payload: {
+        title: "Accept the verified bounded value checker",
+        rationale: "Every exact accepted claim has applicable formal evidence against the controlled product.",
+        kind: "product-acceptance",
+        decision: "approve",
+        alternatives: ["Reject the product."],
+        effective_scope: acceptedIntent,
+      },
+      body: "The stakeholder accepts this exact controlled product and evidence set.\n",
+    }], "stakeholder");
+    commit(repository, "Record attended final product acceptance");
+    const acceptanceDecision = publication(acceptanceDecisionResult, "decision");
+    phaseSixReviews.push(review(repository, acceptanceDecision));
+
+    const lifecycleComplete = next(repository);
+    expect(lifecycleComplete, JSON.stringify(lifecycleComplete)).toMatchObject({
+      outcome: "lifecycle-complete",
+      phase: "phase-6-verification@1",
+    });
+    const phaseSixFirstRevisions = git(
+      repository,
+      "diff", "--name-only", `${phaseSixStart}..HEAD`, "--", ".lifecycle/data",
+    ).stdout.trim().split("\n").filter((name) => /r00001\.md$/.test(name));
+    expect(phaseSixFirstRevisions).toHaveLength(27);
+    expect(phaseSixReviews).toHaveLength(7);
+    expect(git(repository, "status", "--porcelain").stdout).toBe("");
+
+    const infrastructurePacket = nextPacket(
+      phaseSixFaultRepository,
+      "execute-verification-run@2",
+    );
+    expect(exactInputs(infrastructurePacket, "requirement")[0]!.identity.type)
+      .toBe("DES");
+    const infrastructureAttempt = infrastructurePacket.responseScaffold.assignment;
+    const infrastructureResult = submit(
+      phaseSixFaultRepository,
+      infrastructurePacket,
+      formalExecutionOutputs(
+        infrastructurePacket,
+        productArtifact,
+        20,
+        "infrastructure-error",
+        "inconclusive",
+      ),
+    );
+    commit(phaseSixFaultRepository, "Preserve inconclusive infrastructure attempt");
+    const infrastructureRun = publication(infrastructureResult, "run");
+    const infrastructureEvidence = publication(infrastructureResult, "result");
+    expect(git(
+      phaseSixFaultRepository,
+      "grep", "-l", "kind: problem-report", "--", ".lifecycle/data",
+    ).status).toBe(1);
+
+    const failingPacket = nextPacket(
+      phaseSixFaultRepository,
+      "execute-verification-run@2",
+    );
+    expect(failingPacket.responseScaffold.assignment).not.toBe(infrastructureAttempt);
+    expect(inputRevisions(failingPacket, "implementation"))
+      .toEqual(inputRevisions(infrastructurePacket, "implementation"));
+    expect(inputRevisions(failingPacket, "requirement"))
+      .toEqual(inputRevisions(infrastructurePacket, "requirement"));
+    expect(exactInputs(failingPacket, "activity")[0]!.data.payload.assessment_mode)
+      .toBe("automatic");
+    const failingResult = submit(
+      phaseSixFaultRepository,
+      failingPacket,
+      formalExecutionOutputs(failingPacket, productArtifact, 21, "completed", "fail"),
+    );
+    commit(phaseSixFaultRepository, "Preserve completed formal product failure");
+    const failingRun = publication(failingResult, "run");
+    const failingEvidence = publication(failingResult, "result");
+    expect(failingRun).not.toBe(infrastructureRun);
+    expect(failingEvidence).not.toBe(infrastructureEvidence);
+
+    const problemPacket = nextPacket(phaseSixFaultRepository, "report-problem@1");
+    expect(inputRevisions(problemPacket, "result")).toEqual([failingEvidence]);
+    const problemResult = submit(phaseSixFaultRepository, problemPacket, [{
+      output: "problem",
+      payload: {
+        title: "Controlled product fails one exact design claim",
+        rationale: "The immutable completed formal result establishes a product failure.",
+        condition: "The controlled product did not satisfy the exact design requirement.",
+        severity: "major",
+        disposition: "open",
+        evidence_refs: [failingEvidence],
+      },
+      body: "One exact ordinary Problem Report preserves the formal failure.\n",
+    }]);
+    commit(phaseSixFaultRepository, "Report exact formal product failure");
+    const problem = publication(problemResult, "problem");
+    expect(problem).toMatch(/^PRB-/);
+    const phaseSixFaultFiles = git(
+      phaseSixFaultRepository,
+      "diff", "--name-only", `${phaseSixStart}..HEAD`, "--", ".lifecycle/data",
+    ).stdout.trim().split("\n").filter(Boolean);
+    expect(phaseSixFaultFiles.filter((name) => /\/RUN-.*-r00001\.md$/.test(name)))
+      .toHaveLength(2);
+    expect(phaseSixFaultFiles.filter((name) => /\/RES-.*-r00001\.md$/.test(name)))
+      .toHaveLength(2);
+    expect(phaseSixFaultFiles.filter((name) => /\/PRB-.*-r00001\.md$/.test(name)))
+      .toHaveLength(1);
+    expect(phaseSixFaultFiles.some((name) => /\/DEC-/.test(name))).toBe(false);
+    expect(git(phaseSixFaultRepository, "status", "--porcelain").stdout).toBe("");
+    expect(next(phaseSixFaultRepository)).toMatchObject({
+      outcome: "profile-boundary-reached",
+      phase: "phase-6-verification@1",
+    });
 
     const faultProductPacket = nextPacket(
       phaseFiveFaultRepository,

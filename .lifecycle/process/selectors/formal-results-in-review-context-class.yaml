@@ -1,0 +1,42 @@
+kind: selector-definition
+id: formal-results-in-review-context-class
+version: 1
+description: Judgment-required formal results in one complete exact product-and-dependency support class.
+parameters:
+  - {name: subject, kind: revision, types: [RES]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [RES]}
+  as: result
+  where: >-
+    count("formal-runs-producing-result@1", {result: subject}) == 1
+    && every("formal-runs-producing-result@1", {result: subject}, subject_run =>
+      count("verification-implementations-for-run@1", {run: subject_run}) == 1
+      && count("execution-targets-for-run@1", {run: subject_run}) == 1
+      && every("verification-implementations-for-run@1", {run: subject_run}, implementation =>
+        !every("phase-6-raw-judgment-results-for-implementation@1",
+          {implementation: implementation}, exact => exact != subject)
+        && every("phase-6-compatible-judgment-formal-implementations@1",
+          {implementation: implementation}, expected =>
+            exists("phase-6-raw-judgment-results-for-implementation@1",
+              {implementation: expected}))
+        && count("formal-runs-producing-result@1", {result: result}) == 1
+        && every("formal-runs-producing-result@1", {result: result}, result_run =>
+          count("verification-implementations-for-run@1", {run: result_run}) == 1
+          && count("execution-targets-for-run@1", {run: result_run}) == 1
+          && one("execution-targets-for-run@1", {run: result_run})
+            == one("execution-targets-for-run@1", {run: subject_run})
+          && every("verification-implementations-for-run@1", {run: result_run}, candidate =>
+            !every("phase-6-compatible-judgment-formal-implementations@1",
+              {implementation: implementation}, compatible => compatible != candidate)
+            && !every("phase-6-raw-judgment-results-for-implementation@1",
+              {implementation: candidate}, exact => exact != result)))))
+    && count("formal-runs-producing-result@1", {result: result}) == 1
+    && ((none("phase-6-formal-result-contexts-for@1", {subject: subject})
+        && none("phase-6-formal-result-contexts-for@1", {subject: result}))
+      || (exists("phase-6-formal-result-contexts-for@1", {subject: subject})
+        && every("phase-6-formal-result-contexts-for@1", {subject: subject}, context =>
+          exists("review-context-contains-member@1",
+            {context: context, required_member: result}))))
+  distinct: true
+  order_by: [identity.revision_id]

@@ -8,7 +8,10 @@ import {
   type LifecycleRecord,
   type ProcessPackage,
 } from "../src/index.js";
-import { evaluateProcessDefinition } from "../src/evaluator.js";
+import {
+  evaluateProcessDefinition,
+  evaluateProcessExpressionResult,
+} from "../src/evaluator.js";
 import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { runPilotControlEmptyArgvPublic } from
@@ -314,6 +317,60 @@ describe("Phase 1 review routing", () => {
       expect(declaration).toContain("phase-1-assurance-review-required@1");
       expect(declaration).not.toContain("passing-review-required@2");
     }
+  });
+
+  it("dispatches qualification work without a formal requirement binding", async () => {
+    const loaded = await loadProcessPackage(".lifecycle/process");
+    expect(loaded.ok, JSON.stringify(loaded.diagnostics)).toBe(true);
+    if (!loaded.ok) return;
+    const environment = record("ENV", "ENV-0PT10NA1RE", {
+      title: "Qualification environment",
+    }, "realize-verification-environment@1");
+    const activity = record("VER", "VER-0PT10NA1RE", {
+      title: "Qualification activity",
+      kind: "qualification",
+    }, "write-qualification-activity@1");
+    const implementation = record("VAI", "VAI-0PT10NA1RE", {
+      title: "Qualification implementation",
+      kind: "qualification",
+      independence_mode: "source-blind",
+    }, "implement-verification-activity@1", [
+      { type: "realizes", target: activity.datum.revision_id },
+      { type: "uses", target: environment.datum.revision_id },
+      { type: "targets", target: environment.datum.revision_id },
+    ]);
+    const snapshot = {
+      processRef,
+      phaseId: "phase-1-product-assurance",
+      records: [environment, activity, implementation],
+      dependencyComparisons: [],
+    };
+    const evaluation = evaluateLifecycle(loaded.package, snapshot);
+    const obligation = evaluation.obligations.find((item) =>
+      item.obligation === "verification-run-required" &&
+      item.subject === implementation.datum.revision_id
+    );
+    expect(obligation).toEqual(expect.objectContaining({
+      status: "ready",
+      dispatchable: true,
+      actionableResolver: "execute-verification-run@2",
+    }));
+    expect(obligation).toBeDefined();
+
+    const prepared = await dryRunResolverScenario(
+      loaded.package,
+      snapshot,
+      "execute-verification-run@2",
+      obligation!.id,
+      [],
+      evaluation,
+    );
+
+    expect(prepared.ok, JSON.stringify(prepared.diagnostics)).toBe(true);
+    if (!prepared.ok) return;
+    expect(prepared.value.invocations[0]!.inputs.find(
+      (input) => input.name === "requirement",
+    )?.values).toEqual([]);
   });
 
   it("routes a failed pilot VAI Review to an exact upstream VER revision", async () => {
@@ -648,5 +705,217 @@ describe("Phase 1 review routing", () => {
       ok: false,
       diagnostics: [expect.objectContaining({ code: "scenario-completion-failed" })],
     });
+  });
+
+  it("keeps formal result review-context members stable after materialization", () => {
+    const requirement = record("STK", "STK-R6CTX00001", {
+      title: "Witness the product requirement",
+    }, "draft-stakeholder-requirements@2");
+    const plan = record("DWP", "DWP-R6CTX00001", {
+      title: "Design decomposition plan",
+      stage: "planning",
+      target_child_type: "DES",
+    }, "plan-design-decomposition@1");
+    const design = record("DES", "DES-R6CTX00001", {
+      title: "Requirement design",
+    }, "define-design-requirement@1", [
+      { type: "decomposes", target: plan.datum.revision_id },
+      { type: "derived-from", target: requirement.datum.revision_id },
+    ]);
+    const completion = record("DWP", "DWP-R6CTX00002", {
+      title: "Completed design definition",
+      stage: "completion",
+      target_child_type: "DES",
+    }, "complete-design-decomposition@1", [
+      { type: "derived-from", target: plan.datum.revision_id },
+    ]);
+    const candidate = record("BSL", "BSL-R6CTX00001", {
+      title: "Accepted design candidate",
+      kind: "level-candidate",
+      role: "candidate",
+      scope: "design",
+      group: "DEFAULT",
+      definition_members: [completion.datum.revision_id],
+      evidence: [],
+    }, "assemble-definition-candidate@1");
+    const activity = record("VER", "VER-R6CTX00001", {
+      title: "Witnessed stakeholder verification",
+      kind: "formal",
+      method: "test",
+      assessment_mode: "witnessed",
+    }, "write-formal-verification-activity@1", [
+      { type: "verifies-revision", target: requirement.datum.revision_id },
+    ]);
+    const implementation = record("VAI", "VAI-R6CTX00001", {
+      title: "Source-blind stakeholder verification procedure",
+      kind: "formal",
+      independence_mode: "source-blind",
+    }, "implement-formal-verification-activity@1", [
+      { type: "realizes", target: activity.datum.revision_id },
+    ]);
+    const environment = record("ENV", "ENV-R6CTX00001", {
+      title: "Qualified verification environment",
+    }, "qualify-verification-environment@1");
+    const target = record("ART", "ART-R6CTX00001", {
+      title: "Controlled product build",
+      kind: "product-build",
+    }, "register-controlled-product-build@1");
+    const priorResult = record("RES", "RES-R6CTX00001", {
+      title: "Prior witnessed passing result",
+      claim: {
+        kind: "formal",
+        scope: "requirement",
+        outcome: "pass",
+        formal_evidence_eligible: true,
+      },
+      assessment_state: "assessment-required",
+    }, "execute-verification-run@2", [
+      { type: "verifies-revision", target: requirement.datum.revision_id },
+      { type: "assessed-in", target: environment.datum.revision_id },
+    ]);
+    const priorRun = record("RUN", "RUN-R6CTX00001", {
+      title: "Prior completed witnessed run",
+      kind: "formal",
+      execution_state: "completed",
+    }, "execute-verification-run@2", [
+      { type: "executes", target: implementation.datum.revision_id },
+      { type: "uses", target: environment.datum.revision_id },
+      { type: "targets", target: target.datum.revision_id },
+      { type: "produces", target: priorResult.datum.revision_id },
+    ]);
+    const priorContext = record("BSL", "BSL-R6CTX00002", {
+      title: `Review context for ${priorResult.datum.revision_id}`,
+      kind: "review-context",
+      role: "review-context",
+      scope: priorResult.datum.revision_id,
+      group: "DEFAULT",
+      definition_members: [
+        priorResult.datum.revision_id,
+        target.datum.revision_id,
+        environment.datum.revision_id,
+        priorRun.datum.revision_id,
+        requirement.datum.revision_id,
+        implementation.datum.revision_id,
+        activity.datum.revision_id,
+      ].sort(),
+      evidence: [],
+    }, "create-review-context@2");
+    const result = record("RES", "RES-R6CTX00002", {
+      title: "Fresh witnessed passing result",
+      claim: {
+        kind: "formal",
+        scope: "requirement",
+        outcome: "pass",
+        formal_evidence_eligible: true,
+      },
+      assessment_state: "assessment-required",
+    }, "execute-verification-run@2", [
+      { type: "verifies-revision", target: requirement.datum.revision_id },
+      { type: "assessed-in", target: environment.datum.revision_id },
+    ]);
+    const run = record("RUN", "RUN-R6CTX00002", {
+      title: "Fresh completed witnessed run",
+      kind: "formal",
+      execution_state: "completed",
+    }, "execute-verification-run@2", [
+      { type: "executes", target: implementation.datum.revision_id },
+      { type: "uses", target: environment.datum.revision_id },
+      { type: "targets", target: target.datum.revision_id },
+      { type: "produces", target: result.datum.revision_id },
+    ]);
+    const records = [
+      requirement,
+      plan,
+      design,
+      completion,
+      candidate,
+      activity,
+      implementation,
+      environment,
+      target,
+      priorRun,
+      priorResult,
+      priorContext,
+      run,
+      result,
+    ];
+    const snapshot = {
+      processRef,
+      phaseId: "phase-6-verification",
+      records,
+      dependencyComparisons: [],
+    };
+    expect((evaluateProcessDefinition(
+      processPackage,
+      snapshot,
+      "selector",
+      "phase-6-formal-result-contexts-for@1",
+      { subject: priorResult.datum.revision_id },
+    ).result as unknown[]).length).toBe(1);
+    const members = evaluateProcessDefinition(
+      processPackage,
+      snapshot,
+      "selector",
+      "review-context-members-for@1",
+      { subject: result.datum.revision_id },
+    ).result as Array<{ identity: { revision_id: string; type: string } }>;
+    expect(members.map((member) => member.identity.type)).toEqual([
+      "ART",
+      "ENV",
+      "RUN",
+      "STK",
+      "VAI",
+      "VER",
+    ]);
+    expect(members.map((member) => member.identity.revision_id)).not.toContain(
+      priorRun.datum.revision_id,
+    );
+    expect(members.map((member) => member.identity.revision_id)).not.toContain(
+      priorResult.datum.revision_id,
+    );
+    const context = record("BSL", "BSL-R6CTX00003", {
+      title: `Review context for ${result.datum.revision_id}`,
+      kind: "review-context",
+      role: "review-context",
+      scope: result.datum.revision_id,
+      group: "DEFAULT",
+      definition_members: [
+        result.datum.revision_id,
+        ...members.map((member) => member.identity.revision_id),
+      ].sort(),
+      evidence: [],
+    }, "create-review-context@2");
+    const resultingSnapshot = {
+      ...snapshot,
+      records: [...records, context],
+      execution: { integrity: { contract_valid: true } },
+    };
+    expect((evaluateProcessDefinition(
+      processPackage,
+      resultingSnapshot,
+      "selector",
+      "review-context-members-for@1",
+      { subject: result.datum.revision_id },
+    ).result as Array<{ identity: { type: string } }>).map((member) =>
+      member.identity.type
+    )).toEqual(["ART", "ENV", "RUN", "STK", "VAI", "VER"]);
+    expect((evaluateProcessDefinition(
+      processPackage,
+      resultingSnapshot,
+      "selector",
+      "valid-review-contexts-for@1",
+      { subject: result.datum.revision_id },
+    ).result as unknown[]).length).toBe(1);
+
+    expect(evaluateProcessExpressionResult(
+      processPackage,
+      resultingSnapshot,
+      "create-review-context@2#completion",
+      {
+        subject: result.datum.revision_id,
+        context_members: members.map((member) => member.identity.revision_id),
+        context: context.datum.revision_id,
+      },
+    )).toBe(true);
   });
 });

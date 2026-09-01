@@ -1,0 +1,41 @@
+kind: scenario-definition
+id: revise-consequential-decision-after-review
+version: 1
+description: Replace one failed consequential Decision under renewed stakeholder authority without changing its exact scope or evidence.
+phases: [phase-2-pilot-assessment, phase-6-verification]
+inputs:
+  - {name: decision, types: [DEC], cardinality: one, identity: revision}
+  - {name: subject, types: [PAS, BSL], cardinality: one, identity: revision}
+  - {name: justifications, types: [PAS, BSL, ART, STK, RES, REV], cardinality: one-or-more, identity: revision}
+  - {name: review_support, types: [REV], cardinality: zero-or-more, identity: revision}
+  - {name: failed_reviews, types: [REV], cardinality: one-or-more, identity: revision}
+outputs:
+  - name: replacement
+    types: [DEC]
+    cardinality: one
+    identity_from: {input: decision}
+    required_links:
+      - {link: justifies, target: {input: justifications}}
+      - {link: relies-on-review, target: {input: review_support}}
+      - {link: corrects-review, target: {input: failed_reviews}}
+prompt_ref: prompts/revise-consequential-decision-after-review.md@1
+review_policy_ref: review-applicability@1
+participation:
+  policy_ref: consequential-decision-participation@1
+  arguments: {subject: subject}
+authority_evidence: {output: replacement, type: DEC}
+completion: >-
+  execution.integrity.contract_valid == true
+  && replacement.identity.id == decision.identity.id
+  && replacement.payload.kind == decision.payload.kind
+  && replacement.payload.decision == decision.payload.decision
+  && replacement.payload.effective_scope == decision.payload.effective_scope
+  && justifications == select("consequential-decision-correction-justifications-for@1",
+    {decision: decision})
+  && review_support == select("consequential-decision-correction-review-support-for@1",
+    {decision: decision})
+  && exists("valid-reviewed-consequential-decision-replacements-for@1",
+    {decision: decision})
+resolves: [consequential-decision-review-correction-required]
+prohibited_inputs: [changed subject, changed evidence, suppression of failed Reviews, mutation of immutable history, implied stakeholder authority]
+batching: single

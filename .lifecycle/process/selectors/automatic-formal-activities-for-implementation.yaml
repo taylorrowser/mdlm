@@ -1,0 +1,17 @@
+kind: selector-definition
+id: automatic-formal-activities-for-implementation
+version: 1
+description: Exact formal verification activity for one implementation when its declared result assessment is automatic.
+parameters:
+  - {name: implementation, kind: revision, types: [VAI]}
+result_kind: revision
+query:
+  from:
+    selector: verification-activities-for-implementation@1
+    arguments: {implementation: implementation}
+  as: activity
+  where: >-
+    activity.payload.kind == "formal"
+    && activity.payload.assessment_mode == "automatic"
+  distinct: true
+  order_by: [identity.revision_id]

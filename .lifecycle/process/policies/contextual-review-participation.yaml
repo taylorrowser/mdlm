@@ -3,7 +3,7 @@ id: contextual-review-participation
 version: 1
 description: Require an explicitly delegated independent reviewer for contextual Review of exact inputs.
 parameters:
-  - {name: subject, kind: revision, types: [MAP, ART, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS]}
+  - {name: subject, kind: revision, types: [MAP, ART, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, BSL, DEC, PRB, CHG, PAS]}
   - {name: review_context, kind: revision, types: [BSL]}
 result_schema:
   $schema: https://json-schema.org/draft/2020-12/schema

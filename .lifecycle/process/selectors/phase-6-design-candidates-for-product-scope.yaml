@@ -1,0 +1,22 @@
+kind: selector-definition
+id: phase-6-design-candidates-for-product-scope
+version: 1
+description: Exact accepted design candidate whose complete formal ancestry belongs to one accepted stakeholder product scope.
+parameters:
+  - {name: subject, kind: baseline, types: [BSL]}
+result_kind: baseline
+query:
+  from:
+    selector: phase-5-entry-design-candidates@1
+    arguments: {}
+  as: candidate
+  where: >-
+    count("accepted-design-baselines-for-candidate@1", {candidate: candidate}) == 1
+    && exists("stakeholder-requirements-for-product-scope@1", {subject: subject})
+    && every("phase-6-accepted-requirements-for-design-candidate@1", {candidate: candidate}, requirement =>
+      requirement.identity.type != "STK"
+      || exists("baseline-contains-definition@1", {baseline: subject, subject: requirement}))
+    && every("stakeholder-requirements-for-product-scope@1", {subject: subject}, requirement =>
+      !every("phase-6-accepted-requirements-for-design-candidate@1", {candidate: candidate}, formal => formal != requirement))
+  distinct: true
+  order_by: [identity.revision_id]

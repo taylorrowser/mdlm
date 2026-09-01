@@ -1,0 +1,19 @@
+kind: selector-definition
+id: execution-targets-for-required-run
+version: 1
+description: Existing qualification or pilot target, or the controlled implementation ART selected for a Phase 6 formal run.
+parameters:
+  - {name: implementation, kind: revision, types: [VAI]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [ENV, ART]}
+  as: target
+  where: >-
+    (implementation.payload.kind in ["qualification", "pilot"]
+      && !every("execution-targets-for-implementation@1",
+        {implementation: implementation}, exact => exact != target))
+    || (implementation.payload.kind == "formal"
+      && !every("phase-6-controlled-artifacts-for-formal-implementation@1",
+        {implementation: implementation}, exact => exact != target))
+  distinct: true
+  order_by: [identity.type, identity.revision_id]

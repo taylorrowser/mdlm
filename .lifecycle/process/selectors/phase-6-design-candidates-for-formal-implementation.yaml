@@ -1,0 +1,19 @@
+kind: selector-definition
+id: phase-6-design-candidates-for-formal-implementation
+version: 1
+description: Exact admitted design candidate for one current reviewed formal implementation after mechanical design acceptance.
+parameters:
+  - {name: implementation, kind: revision, types: [VAI]}
+result_kind: baseline
+query:
+  from:
+    selector: design-candidates-for-formal-vai@1
+    arguments: {implementation: implementation}
+  as: candidate
+  where: >-
+    implementation.payload.kind == "formal"
+    && exists("passing-reviews-for@1", {subject: implementation})
+    && none("failing-reviews-for@1", {subject: implementation})
+    && count("accepted-design-baselines-for-candidate@1", {candidate: candidate}) == 1
+  distinct: true
+  order_by: [identity.revision_id]

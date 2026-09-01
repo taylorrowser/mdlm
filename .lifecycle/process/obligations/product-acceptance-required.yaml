@@ -1,0 +1,46 @@
+kind: obligation-definition
+id: product-acceptance-required
+version: 1
+description: Every exact verified product scope requires one independently reviewed attended stakeholder acceptance Decision.
+phases: [phase-6-verification]
+for_each: 'select("phase-6-product-scope-baselines@1", {})'
+subject_as: subject
+satisfied_when: 'exists("applicable-product-acceptance-decisions-for@1", {subject: subject})'
+status_rules:
+  - status: blocked
+    priority: 400
+    when: >-
+      exists("recorded-product-acceptance-decisions-for@1", {subject: subject})
+      && exists("failing-reviews-for@1",
+        {subject: one("recorded-product-acceptance-decisions-for@1", {subject: subject})})
+    reason: The failed final Decision Review requires same-lineage stakeholder correction over unchanged exact evidence.
+    blocked_by:
+      - obligation: consequential-decision-review-correction-required@1
+        subjects: 'select("recorded-product-acceptance-decisions-for@1", {subject: subject})'
+  - status: awaiting-review
+    priority: 300
+    when: >-
+      exists("recorded-product-acceptance-decisions-for@1", {subject: subject})
+      && none("applicable-product-acceptance-decisions-for@1", {subject: subject})
+    reason: The exact attended product-acceptance Decision awaits one independent Review.
+    blocked_by:
+      - obligation: passing-review-required@2
+        subjects: 'select("recorded-product-acceptance-decisions-for@1", {subject: subject})'
+  - status: ready
+    priority: 100
+    when: >-
+      count("phase-6-design-candidates-for-product-scope@1", {subject: subject}) == 1
+      && count("passing-reviewed-implementation-artifacts-for-design-candidate@1",
+        {candidate: one("phase-6-design-candidates-for-product-scope@1", {subject: subject})}) == 1
+      && every("phase-6-accepted-requirements-for-design-candidate@1",
+        {candidate: one("phase-6-design-candidates-for-product-scope@1", {subject: subject})}, requirement =>
+          count("phase-6-applicable-formal-results-for-requirement@1",
+            {requirement: requirement}) == 1)
+    reason: One exact controlled product and the complete applicable bottom-up formal evidence set are ready for stakeholder acceptance.
+default_status: blocked
+resolve_with:
+  scenario: record-product-acceptance@1
+  inputs:
+    subject: subject
+    evidence: 'select("product-acceptance-evidence-for@1", {subject: subject})'
+waiver_policy_ref: waiver-applicability@1

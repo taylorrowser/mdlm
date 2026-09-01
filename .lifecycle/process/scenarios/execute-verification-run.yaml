@@ -1,13 +1,17 @@
 kind: scenario-definition
 id: execute-verification-run
 version: 2
-description: Execute one exact qualification or pilot implementation and atomically record its immutable run and scoped result.
-phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition]
+description: Execute one exact qualification, pilot, or formal implementation and atomically record its immutable run and scoped result.
+phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition, phase-6-verification]
 inputs:
   - {name: implementation, types: [VAI], cardinality: one, identity: revision}
   - {name: activity, types: [VER], cardinality: one, identity: revision}
   - {name: environment, types: [ENV], cardinality: one, identity: revision}
   - {name: execution_target, types: [ENV, ART], cardinality: one, identity: revision}
+  - name: requirement
+    types: [STK, SYS, CMP, DES]
+    cardinality: zero-or-one
+    identity: revision
 outputs:
   - name: run
     types: [RUN]
@@ -22,23 +26,60 @@ outputs:
     cardinality: one
     required_links:
       - {link: assessed-in, target: {input: environment}}
+    permitted_links:
+      - {link: verifies-revision, target: {input: requirement}}
 prompt_ref: prompts/execute-verification-run.md@4
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true
   && implementation.payload.kind == activity.payload.kind
   && run.payload.kind == implementation.payload.kind
-  && run.payload.execution_state == "completed"
   && ((implementation.payload.kind == "qualification"
+    && run.payload.execution_state == "completed"
     && execution_target.identity.type == "ENV"
     && result.payload.claim.kind == "qualification"
     && result.payload.claim.scope == "environment-capability"
     && result.payload.claim.outcome in ["pass", "fail"])
   || (implementation.payload.kind == "pilot"
+    && run.payload.execution_state == "completed"
     && execution_target.identity.type == "ART"
     && result.payload.claim.kind == "pilot"
     && result.payload.claim.scope == "verification-design"
-    && result.payload.claim.outcome in ["suitable", "unsuitable", "inconclusive"]))
+    && result.payload.claim.outcome in ["suitable", "unsuitable", "inconclusive"])
+  || (implementation.payload.kind == "formal"
+    && activity.payload.kind == "formal"
+    && requirement != null
+    && count("phase-6-accepted-requirements-for-formal-implementation@1",
+      {implementation: implementation}) == 1
+    && requirement == one("phase-6-accepted-requirements-for-formal-implementation@1",
+      {implementation: implementation})
+    && execution_target.identity.type == "ART"
+    && run.payload.execution_target.kind == "product-build"
+    && run.payload.execution_target.ref == execution_target.identity.revision_id
+    && count("phase-6-qualified-environments-for-formal-implementation@1",
+      {implementation: implementation}) == 1
+    && environment == one("phase-6-qualified-environments-for-formal-implementation@1",
+      {implementation: implementation})
+    && count("phase-6-controlled-artifacts-for-formal-implementation@1",
+      {implementation: implementation}) == 1
+    && execution_target == one("phase-6-controlled-artifacts-for-formal-implementation@1",
+      {implementation: implementation})
+    && result.payload.claim.kind == "formal"
+    && result.payload.claim.scope == "requirement"
+    && result.payload.claim.formal_evidence_eligible == true
+    && count("requirements-for-formal-result@1", {result: result}) == 1
+    && one("requirements-for-formal-result@1", {result: result}) == requirement
+    && ((run.payload.execution_state == "completed"
+      && result.payload.claim.outcome in ["pass", "fail", "inconclusive"]
+      && ((activity.payload.assessment_mode == "automatic"
+        && result.payload.assessment_state == "recorded")
+      || (activity.payload.assessment_mode != "automatic"
+        && result.payload.assessment_state == "assessment-required")))
+    || (run.payload.execution_state in ["aborted", "infrastructure-error"]
+      && result.payload.claim.outcome == "inconclusive"
+      && result.payload.assessment_state == "inconclusive"
+      && result.payload.observations.expected_success_observed == false
+      && result.payload.observations.expected_discrimination_observed == false))))
   && (!present(implementation.payload.prototype_control_bindings)
     || ((run.payload.activities_expected == ["known_good", "known_bad"]
     && run.payload.activities_invoked == ["known_good", "known_bad"]

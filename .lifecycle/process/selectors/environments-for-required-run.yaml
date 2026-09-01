@@ -1,0 +1,19 @@
+kind: selector-definition
+id: environments-for-required-run
+version: 1
+description: Existing qualification or pilot environment, or the still-qualified reviewed environment selected for a Phase 6 formal run.
+parameters:
+  - {name: implementation, kind: revision, types: [VAI]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [ENV]}
+  as: environment
+  where: >-
+    (implementation.payload.kind in ["qualification", "pilot"]
+      && !every("environments-for-implementation@1",
+        {implementation: implementation}, exact => exact != environment))
+    || (implementation.payload.kind == "formal"
+      && !every("phase-6-qualified-environments-for-formal-implementation@1",
+        {implementation: implementation}, exact => exact != environment))
+  distinct: true
+  order_by: [identity.revision_id]

@@ -1,0 +1,13 @@
+kind: selector-definition
+id: consequential-decision-correction-review-support-for
+version: 1
+description: Exact unchanged prior Review support relied on by one correctable consequential Decision.
+parameters:
+  - {name: decision, kind: revision, types: [DEC]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: decision, link: relies-on-review, emit: target, types: [REV]}
+  as: review
+  where: 'true'
+  distinct: true
+  order_by: [identity.revision_id]

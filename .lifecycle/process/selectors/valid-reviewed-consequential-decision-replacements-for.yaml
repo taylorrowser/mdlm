@@ -1,0 +1,42 @@
+kind: selector-definition
+id: valid-reviewed-consequential-decision-replacements-for
+version: 1
+description: Current same-lineage replacement preserving one failed consequential Decision's exact scope and evidence.
+parameters:
+  - {name: decision, kind: revision, types: [DEC]}
+result_kind: revision
+query:
+  from:
+    selector: newer-revisions-for@1
+    arguments: {subject: decision}
+  as: replacement
+  where: >-
+    replacement.identity.id == decision.identity.id
+    && replacement.payload.kind == decision.payload.kind
+    && replacement.payload.decision == decision.payload.decision
+    && replacement.payload.effective_scope == decision.payload.effective_scope
+    && replacement.provenance.scenario == "revise-consequential-decision-after-review@1"
+    && state(replacement, "disposition") == "active"
+    && state(replacement, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: replacement})
+    && every("consequential-decision-correction-justifications-for@1",
+      {decision: decision}, expected =>
+        !every("consequential-decision-correction-justifications-for@1",
+          {decision: replacement}, actual => actual != expected))
+    && every("consequential-decision-correction-justifications-for@1",
+      {decision: replacement}, actual =>
+        !every("consequential-decision-correction-justifications-for@1",
+          {decision: decision}, expected => expected != actual))
+    && every("consequential-decision-correction-review-support-for@1",
+      {decision: decision}, expected =>
+        !every("consequential-decision-correction-review-support-for@1",
+          {decision: replacement}, actual => actual != expected))
+    && every("consequential-decision-correction-review-support-for@1",
+      {decision: replacement}, actual =>
+        !every("consequential-decision-correction-review-support-for@1",
+          {decision: decision}, expected => expected != actual))
+    && every("failing-reviews-for@1", {subject: decision}, failed =>
+      !every("cited-failing-reviews-by-correction@1",
+        {replacement: replacement}, cited => cited != failed))
+  distinct: true
+  order_by: [identity.revision]

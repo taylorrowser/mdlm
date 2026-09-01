@@ -1,16 +1,16 @@
 kind: obligation-definition
 id: problem-report-required
 version: 1
-description: Every unsuitable exact pilot result requires one traceable Problem Report.
-phases: [phase-7-change-control]
-for_each: 'select("failing-pilot-results@1", {})'
+description: Every completed formal product failure or unsuitable pilot result requires one traceable Problem Report.
+phases: [phase-6-verification, phase-7-change-control]
+for_each: 'select("problem-reportable-results@1", {})'
 subject_as: result
 satisfied_when: 'exists("problem-reports-for-result@1", {result: result})'
 status_rules:
   - status: ready
     priority: 100
-    when: 'result.payload.claim.outcome == "unsuitable"'
-    reason: The immutable pilot result can now be reported without changing its historical evidence.
+    when: 'result.payload.claim.outcome in ["fail", "unsuitable"]'
+    reason: The immutable product-failure result can now be reported without changing its historical evidence.
 default_status: blocked
 resolve_with:
   scenario: report-problem@1

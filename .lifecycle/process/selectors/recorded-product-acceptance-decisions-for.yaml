@@ -1,0 +1,28 @@
+kind: selector-definition
+id: recorded-product-acceptance-decisions-for
+version: 1
+description: Exact Scenario-valid product-acceptance Decisions with every and only required final evidence link.
+parameters:
+  - {name: subject, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: subject, link: justifies, emit: source, types: [DEC]}
+  as: decision
+  where: >-
+    decision.payload.kind == "product-acceptance"
+    && decision.payload.decision == "approve"
+    && decision.payload.effective_scope == subject.identity.revision_id
+    && decision.integrity.scenario_execution_valid == true
+    && decision.provenance.scenario in [
+      "record-product-acceptance@1",
+      "revise-consequential-decision-after-review@1"
+    ]
+    && state(decision, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: decision})
+    && every("product-acceptance-evidence-for@1", {subject: subject}, evidence =>
+      !every("product-acceptance-justifications-for@1", {decision: decision}, linked => linked != evidence))
+    && every("product-acceptance-justifications-for@1", {decision: decision}, linked =>
+      linked == subject
+      || !every("product-acceptance-evidence-for@1", {subject: subject}, evidence => evidence != linked))
+  distinct: true
+  order_by: [identity.revision_id]

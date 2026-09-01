@@ -14,7 +14,10 @@ query:
     && (context.payload.scope == subject.identity.revision_id
       || (subject.identity.type == "VAI"
         && subject.payload.kind == "formal"
-        && !every("phase-5-formal-vai-contexts-for@1", {subject: subject}, exact => exact != context)))
+        && !every("phase-5-formal-vai-contexts-for@1", {subject: subject}, exact => exact != context))
+      || (subject.identity.type == "RES"
+        && subject.payload.claim.kind == "formal"
+        && !every("phase-6-formal-result-contexts-for@1", {subject: subject}, exact => exact != context)))
     && context.storage.frozen == true
     && context.provenance.scenario in [
       "create-review-context@2",

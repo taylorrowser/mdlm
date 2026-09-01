@@ -1,0 +1,18 @@
+kind: selector-definition
+id: phase-6-product-scope-baselines
+version: 1
+description: Exact accepted stakeholder baselines with one complete accepted Phase 6 design lineage.
+parameters: []
+result_kind: baseline
+query:
+  from: {collection: baselines, types: [BSL]}
+  as: subject
+  where: >-
+    subject.payload.kind == "intent-approved"
+    && subject.payload.role == "accepted"
+    && subject.storage.frozen == true
+    && state(subject, "validity") != "invalid"
+    && none("superseding-baselines-for@1", {baseline: subject})
+    && count("phase-6-design-candidates-for-product-scope@1", {subject: subject}) == 1
+  distinct: true
+  order_by: [identity.revision_id]
