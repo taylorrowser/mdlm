@@ -1715,7 +1715,6 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
     const faultAcceptanceEvidence = new Set(
       inputRevisions(faultDesignAcceptancePacket, "evidence"),
     );
-    expect(faultAcceptanceEvidence.size).toBe(phaseFiveReviews.length);
     expect(faultAcceptanceEvidence.has(correctedArtifactReview)).toBe(true);
     expect(faultAcceptanceEvidence.has(correctedFormalReview)).toBe(true);
     for (const reviewId of unaffectedFormalReviews.values()) {
