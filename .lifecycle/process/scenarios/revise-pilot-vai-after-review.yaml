@@ -1,7 +1,7 @@
 kind: scenario-definition
 id: revise-pilot-vai-after-review
 version: 3
-description: Correct one failed source-blind pilot or formal VAI while preserving immutable Review history and exact bound inputs.
+description: Correct one failed source-blind pilot or formal VAI procedure while preserving immutable Review history and exact bound inputs.
 phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition, phase-5-implementation]
 inputs:
   - name: implementation
@@ -64,37 +64,6 @@ inputs:
       && strategy == one("strategies-for-verification-activity@1",
         {activity: activity})
 outputs:
-  - name: replacement_activity
-    types: [VER]
-    cardinality: zero-or-one
-    identity_from: {input: activity}
-    required_links:
-      - {link: verifies, target: {input: requirement}}
-      - {link: verifies-revision, target: {input: requirement}}
-      - {link: governed-by, target: {input: strategy}}
-      - {link: corrects-review, target: {input: failed_reviews}}
-  - name: replacement_environment
-    types: [ENV]
-    cardinality: zero-or-one
-    identity_from: {input: environment}
-    required_links:
-      - {link: realizes, target: {input: strategy}}
-      - {link: corrects-review, target: {input: failed_reviews}}
-  - name: qualification_activity
-    types: [VER]
-    cardinality: zero-or-one
-    required_links:
-      - {link: governed-by, target: {input: strategy}}
-      - {link: qualifies, target: {output: replacement_environment}}
-  - name: qualification_implementation
-    types: [VAI]
-    cardinality: zero-or-one
-    required_links: []
-  - name: replacement_target
-    types: [ART]
-    cardinality: zero-or-one
-    required_links:
-      - {link: derived-from, target: {input: requirement}}
   - name: replacement
     types: [VAI]
     cardinality: one
@@ -119,64 +88,19 @@ completion: >-
   execution.integrity.contract_valid == true
   && replacement.identity.id == implementation.identity.id
   && replacement.identity.type == implementation.identity.type
+  && one("verification-activities-for-implementation@1",
+    {implementation: replacement}) == activity
+  && one("environments-for-implementation@1", {implementation: replacement})
+    == environment
+  && one("execution-targets-for-implementation@1", {implementation: replacement})
+    == execution_target
   && (implementation.payload.kind != "formal"
-    || (replacement_activity == null
-      && replacement_environment == null
-      && qualification_activity == null
-      && qualification_implementation == null
-      && replacement_target == null
-      && execution_target == environment
+    || (execution_target == environment
       && replacement.payload.authoring_input_refs
         == [activity.identity.revision_id, environment.identity.revision_id]
       && count("execution-targets-for-implementation@1", {implementation: replacement}) == 1
       && one("execution-targets-for-implementation@1", {implementation: replacement}) == environment
       && none("pilot-art-targets-for-implementation@1", {implementation: replacement})))
-  && (
-    (replacement_activity == null
-      && one("verification-activities-for-implementation@1",
-        {implementation: replacement}) == activity)
-    || (replacement_activity != null
-      && exists("valid-pilot-vai-activity-reconciliations@1", {
-        implementation: implementation,
-        activity: activity,
-        requirement: requirement,
-        strategy: strategy,
-        replacement: replacement_activity})
-      && one("verification-activities-for-implementation@1",
-        {implementation: replacement}) == replacement_activity)
-  )
-  && (
-    (replacement_environment == null
-      && qualification_activity == null
-      && qualification_implementation == null
-      && one("environments-for-implementation@1", {implementation: replacement})
-        == environment)
-    || (replacement_environment != null
-      && qualification_activity != null
-      && qualification_implementation != null
-      && exists("valid-pilot-vai-environment-reconciliations@1", {
-        implementation: implementation,
-        environment: environment,
-        strategy: strategy,
-        replacement: replacement_environment,
-        qualification_activity: qualification_activity,
-        qualification_implementation: qualification_implementation})
-      && one("environments-for-implementation@1", {implementation: replacement})
-        == replacement_environment)
-  )
-  && (
-    (replacement_target == null
-      && one("execution-targets-for-implementation@1", {implementation: replacement})
-        == execution_target)
-    || (replacement_target != null
-      && exists("valid-pilot-vai-target-reconciliations@1", {
-        implementation: implementation,
-        target: execution_target,
-        requirement: requirement,
-        replacement: replacement_target})
-      && one("execution-targets-for-implementation@1", {implementation: replacement})
-        == replacement_target)
-  )
   && exists("corrected-pilot-verification-implementation-revisions-for@1",
     {implementation: implementation})
   && authorization.payload.effective_scope == replacement.identity.revision_id
