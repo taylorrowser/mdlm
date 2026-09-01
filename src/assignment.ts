@@ -2979,31 +2979,36 @@ function scenarioProposalFromResponse(
         )
         .map((required) => String(required!.link)),
     );
-    const permittedLinkTypes = new Set(
-      (Array.isArray(definition?.permitted_links)
-        ? definition.permitted_links
-        : [])
-        .map(object)
-        .map((permitted) => String(permitted?.link)),
-    );
     const fixedLinks = (links: SymbolicProposalLink[]) => links.filter((link) =>
       !distributedLinkTypes.has(link.type)
     );
     const declaredLinkTypes = new Set(
       expected.get(responseKey(output))!.links.map((link) => link.type),
     );
-    const requiredExpected = fixedLinks(activeLinks(expectedOutput.links))
-      .filter((link) => !permittedLinkTypes.has(link.type));
-    const requiredActual = fixedLinks(activeLinks(output.links))
-      .filter((link) => !permittedLinkTypes.has(link.type));
+    const invocationInputs = exact.dryRun.invocations[invocation]?.inputs ?? [];
+    const requiredLinkCount = (Array.isArray(definition?.required_links)
+      ? definition.required_links
+      : []).reduce((count, value) => {
+        const target = object(object(value)?.target);
+        if (typeof target?.input !== "string") return count + 1;
+        return count + (invocationInputs.find((input) =>
+          input.name === target.input
+        )?.values.length ?? 0);
+      }, 0);
+    const requiredExpected = fixedLinks(activeLinks(
+      expectedOutput.links.slice(0, requiredLinkCount),
+    ));
     const permittedExpected = new Set(
-      activeLinks(expectedOutput.links)
-        .filter((link) => permittedLinkTypes.has(link.type))
+      activeLinks(expectedOutput.links.slice(requiredLinkCount))
         .map((link) => JSON.stringify(link)),
     );
-    const permittedActual = activeLinks(output.links)
-      .filter((link) => permittedLinkTypes.has(link.type))
-      .map((link) => JSON.stringify(link));
+    const activeActual = activeLinks(output.links);
+    const permittedActual = activeActual
+      .map((link) => JSON.stringify(link))
+      .filter((link) => permittedExpected.has(link));
+    const requiredActual = fixedLinks(activeActual.filter((link) =>
+      !permittedExpected.has(JSON.stringify(link))
+    ));
     if (
       output.links.some((link) => !declaredLinkTypes.has(link.type)) ||
       JSON.stringify(requiredActual) !== JSON.stringify(requiredExpected) ||
