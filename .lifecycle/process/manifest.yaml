@@ -1,13 +1,14 @@
 kind: process-package-manifest
 id: mdlm-bootstrap
-version: 0.116.0
+version: 0.117.0
 status: experimental
 description: >-
   Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
   template-composed payloads, source-owned links, relational selectors,
   machine-readable policies, computed states, obligations, Scenario routing, and
   Phase 0 intent, Phase 1 qualification/pilot, Phase 2 system decomposition,
-  complete Phase 3 verification design, and lean Phase 4 design definition.
+  complete Phase 3 verification design, lean Phase 4 design definition, and
+  independent Phase 5 product and formal-verification implementation.
 kernel_contract:
   id: mdlm-kernel-process-interface
   version: 1
@@ -41,9 +42,9 @@ compatibility:
   template_inheritance: single-parent-additive
   repository_migration: fresh-only
 profiles:
-  default: bootstrap@45
+  default: bootstrap@46
   available:
-    - profiles/bootstrap.yaml@45
+    - profiles/bootstrap.yaml@46
 provenance:
   source_document: mdlm-process-overview-v0.7.md
   companion_reference: docs/mdlm-process-package-reference-v0.2.md

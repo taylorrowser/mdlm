@@ -210,7 +210,7 @@ outgoing_links:
   - id: reviews
     description: The one exact primary artifact revision judged by this review.
     targets:
-      - {kind: datum, types: [MAP, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS], identity: revision}
+      - {kind: datum, types: [MAP, ART, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS], identity: revision}
     cardinality: {minimum: 1, maximum: 1}
     freeze_resolution: already-exact
     inverse_label: reviewed-by

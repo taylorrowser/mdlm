@@ -1,15 +1,15 @@
 kind: scenario-definition
 id: revise-pilot-vai-after-review
 version: 3
-description: Correct one failed source-blind pilot procedure and, only when the Review exposes an exact upstream or boundary inconsistency, reconcile its bound VER, ART, or ENV in the same atomic transaction.
-phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition]
+description: Correct one failed source-blind pilot or formal VAI while preserving immutable Review history and exact bound inputs.
+phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition, phase-5-implementation]
 inputs:
   - name: implementation
     types: [VAI]
     cardinality: one
     identity: revision
     conditions: >-
-      implementation.payload.kind == "pilot"
+      implementation.payload.kind in ["pilot", "formal"]
       && implementation.payload.independence_mode == "source-blind"
       && exists("failing-reviews-for@1", {subject: implementation})
       && none("newer-revisions-for@1", {subject: implementation})
@@ -35,12 +35,16 @@ inputs:
       environment == one("environments-for-implementation@1",
         {implementation: implementation})
   - name: execution_target
-    types: [ART]
+    types: [ENV, ART]
     cardinality: one
     identity: revision
     conditions: >-
-      execution_target == one("eligible-pilot-targets-for-activity@1",
-        {activity: activity})
+      ((implementation.payload.kind == "pilot"
+        && execution_target.identity.type == "ART"
+        && execution_target == one("eligible-pilot-targets-for-activity@1",
+          {activity: activity}))
+      || (implementation.payload.kind == "formal"
+        && execution_target == environment))
       && execution_target == one("execution-targets-for-implementation@1",
         {implementation: implementation})
   - name: requirement
@@ -89,7 +93,6 @@ outputs:
   - name: replacement_target
     types: [ART]
     cardinality: zero-or-one
-    identity_from: {input: execution_target}
     required_links:
       - {link: derived-from, target: {input: requirement}}
   - name: replacement
@@ -113,6 +116,18 @@ completion: >-
   execution.integrity.contract_valid == true
   && replacement.identity.id == implementation.identity.id
   && replacement.identity.type == implementation.identity.type
+  && (implementation.payload.kind != "formal"
+    || (replacement_activity == null
+      && replacement_environment == null
+      && qualification_activity == null
+      && qualification_implementation == null
+      && replacement_target == null
+      && execution_target == environment
+      && replacement.payload.authoring_input_refs
+        == [activity.identity.revision_id, environment.identity.revision_id]
+      && count("execution-targets-for-implementation@1", {implementation: replacement}) == 1
+      && one("execution-targets-for-implementation@1", {implementation: replacement}) == environment
+      && none("pilot-art-targets-for-implementation@1", {implementation: replacement})))
   && (
     (replacement_activity == null
       && one("verification-activities-for-implementation@1",
@@ -171,5 +186,5 @@ completion: >-
       && authorization.payload.kind == "scope")
   )
 resolves: [pilot-vai-review-correction-required]
-prohibited_inputs: [mutation of failed VAI history, mutation of supplied VER history, mutation of prior RUN or RES evidence, mutation of failed Review history, mutation of supplied ENV history, mutation of supplied ART history, changed pilot claim class, VER requirement change, VER strategy change, ART behavior-scope change, ENV capability change outside the exact VSP profile, unrelated VER, unrelated ENV, unrelated ART, borrowed qualification evidence, product source, product unit tests, private implementation details]
+prohibited_inputs: [mutation of failed VAI history, mutation of supplied VER history, mutation of prior RUN or RES evidence, mutation of failed Review history, mutation of supplied ENV history, mutation of supplied ART history, changed pilot claim class, VER requirement change, VER strategy change, ART behavior-scope change, ENV capability change outside the exact VSP profile, unrelated VER, unrelated ENV, unrelated ART, borrowed qualification evidence, product source, product unit tests, private implementation details, mutable aliases, prototype implementation bytes, product implementation ART during formal work]
 batching: single

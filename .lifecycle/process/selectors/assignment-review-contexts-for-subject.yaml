@@ -11,7 +11,10 @@ query:
   where: >-
     context.payload.kind == "review-context"
     && context.payload.role == "review-context"
-    && context.payload.scope == subject.identity.revision_id
+    && (context.payload.scope == subject.identity.revision_id
+      || (subject.identity.type == "VAI"
+        && subject.payload.kind == "formal"
+        && !every("phase-5-formal-vai-contexts-for@1", {subject: subject}, exact => exact != context)))
     && context.storage.frozen == true
     && context.provenance.scenario in [
       "create-review-context@2",

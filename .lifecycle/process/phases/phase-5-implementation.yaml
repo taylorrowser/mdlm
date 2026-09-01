@@ -1,0 +1,25 @@
+kind: phase-definition
+id: phase-5-implementation
+version: 1
+order: 5
+name: Implementation and formal verification implementation
+purpose: Independently implement the exact design candidate and each source-blind formal verification activity, review both coverage sets, and mechanically accept the design candidate.
+coverage: bootstrap-subset
+omitted_capabilities:
+  - formal verification execution
+entry: >-
+  process.integrity.package_valid == true
+  && exists("phase-5-entry-design-candidates@1", {})
+attention_checkpoints: []
+routing:
+  eligible_when: dispatchable
+  status_order: [ready, awaiting-review, failed, stale, blocked]
+  tie_breakers: [subject, obligation]
+outputs: [ART, VAI, REV, BSL, DEC]
+progression: null
+gate:
+  required: false
+  candidate_selector: 'select("phase-5-entry-design-candidates@1", {})'
+  candidate_as: candidate
+  obligation: candidate-gate-signoff@3
+  completion: 'false'

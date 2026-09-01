@@ -6,7 +6,7 @@ parameters:
   - {name: subject, kind: revision}
 result_kind: revision
 query:
-  from: {collection: revisions, types: [MAP, QST, DEC, ART, PSP, STK, SYS, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]}
+  from: {collection: revisions, types: [MAP, QST, DEC, ART, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]}
   as: member
   where: >-
     !every("assignment-review-context-members-for-subject@1", {subject: subject}, support =>

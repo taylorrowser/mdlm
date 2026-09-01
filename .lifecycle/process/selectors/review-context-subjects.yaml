@@ -5,10 +5,14 @@ description: Review-required Revisions plus Phase 3 planning DWPs that need a fr
 parameters: []
 result_kind: revision
 query:
-  from: {collection: revisions, types: [MAP, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS]}
+  from: {collection: revisions, types: [MAP, ART, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS]}
   as: subject
   where: >-
-    !every("review-required-revisions@1", {}, required => required != subject)
+    (!every("review-required-revisions@1", {}, required => required != subject)
+      && (subject.identity.type != "VAI"
+        || subject.payload.kind != "formal"
+        || !every("phase-5-formal-vai-review-anchor@1", {}, anchor => anchor != subject)
+        || subject.provenance.scenario == "revise-pilot-vai-after-review@3"))
     || (phase.id in ["phase-3-component-definition", "phase-4-design-definition"]
       && subject.identity.type == "DWP"
       && subject.payload.stage == "planning"

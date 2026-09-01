@@ -1,8 +1,8 @@
 kind: obligation-definition
 id: pilot-vai-review-correction-required
 version: 3
-description: A current source-blind pilot VAI with failed Review evidence receives one exact same-lineage correction, with only the bound VER, ART, or ENV lineage available for optional reconciliation before fresh Review and execution.
-phases: [phase-1-product-assurance, phase-2-system-definition]
+description: A current source-blind pilot or formal VAI with failed Review evidence receives one exact same-lineage correction without replay.
+phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition, phase-5-implementation]
 for_each: 'select("failed-current-pilot-verification-implementations@1", {})'
 subject_as: implementation
 satisfied_when: 'exists("corrected-pilot-verification-implementation-revisions-for@1", {implementation: implementation})'
@@ -19,10 +19,7 @@ resolve_with:
     failed_reviews: 'select("failing-reviews-for@1", {subject: implementation})'
     activity: 'one("verification-activities-for-implementation@1", {implementation: implementation})'
     environment: 'one("environments-for-implementation@1", {implementation: implementation})'
-    execution_target: >-
-      one("eligible-pilot-targets-for-activity@1",
-        {activity: one("verification-activities-for-implementation@1",
-          {implementation: implementation})})
+    execution_target: 'one("execution-targets-for-implementation@1", {implementation: implementation})'
     requirement: >-
       one("requirements-for-pilot-activity@1",
         {activity: one("verification-activities-for-implementation@1",

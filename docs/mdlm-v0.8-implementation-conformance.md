@@ -2,7 +2,7 @@
 
 - **Status:** Completed concept-validating profile with contracted operator interface
 - **Historical design baseline:** [`mdlm-process-overview-v0.8.md`](mdlm-process-overview-v0.8.md)
-- **Implementation package:** `mdlm-bootstrap@0.113.0`
+- **Implementation package:** `mdlm-bootstrap@0.117.0`
 - **Reviewed expansion recommendation:** `change`
 
 ## Purpose
@@ -14,7 +14,7 @@ production-complete product.
 The completed profile validates a process-neutral declarative kernel, one `mdlm`
 product surface, a Markdown-authoritative Lifecycle Data repository, atomic
 Scenario Proposal submission, and a bounded Example Process Package through
-Phases 0–4 through one reviewed design-definition slice and the explicit Phase 5 boundary.
+Phases 0–5 through one reviewed implementation and formal-verification implementation slice and the explicit Phase 6 boundary.
 
 ## Conformance boundary
 
@@ -56,6 +56,7 @@ deferred by the reviewed Pilot Assessment.
 | Phase 1 assurance, exact target evidence, bounded Correction, fresh pilot evidence, and ambiguity boundaries | #45, #65–#66, #74–#76, #97 | `test/phase-1-hardening-routes.test.ts`, `test/phase-1-route-contracts.test.ts` |
 | Phase 2 decomposition, exact-set simplification, Correction, candidates, acceptance, and progression | #46, #98–#99 | `test/phase-2-hardening-routes.test.ts`, `test/phase-hardening-domain-contracts.test.ts` |
 | Narrow Phase 3 component tracer; complete all-level formal coverage and component pilot; lean Phase 4 design definition, reviewed gate, CMP promotion, and explicit Phase 5 boundary | #526, #545 | `test/phase-3-component-definition-public.test.ts` |
+| Lean Phase 5 product implementation and source-blind formal-VAI tracks, independent Reviews, DES acceptance, and explicit Phase 6 boundary | #549 | `test/phase-5-implementation-package.test.ts` |
 | Accepted STK/shared-SYS change, serial consumer replacement, selective reuse, and closure | #47, #101–#102 | `test/change-and-pilot-hardening-routes.test.ts`, `test/evaluate-shared-system-change.test.ts` |
 | Durable PAS, bounded Correction, reviewed Expansion Decision, and explicit terminal outcomes | #48, #68, #100 | `test/mdlm-pilot-assessment.test.ts`, `test/change-and-pilot-hardening-routes.test.ts`, `test/operator-outcome.test.ts` |
 | Continuous package-neutral pi operation and harness-owned authority handling | #69, #72, #104 | `test/pi-operator-instructions.test.ts`, `test/mdlm-assignment.test.ts`, `test/operator-outcome.test.ts` |
@@ -149,7 +150,7 @@ Decision therefore adopts `change`, not `proceed`.
 
 The following remain outside the completed profile:
 
-- component pilot and formal CMP verification, plus Phase 4–6 package definitions and outputs;
+- formal verification execution and final acceptance in Phase 6;
 - production graph indexing before repository measurements justify it;
 - broader concurrency profiles;
 - source-isolation containers;

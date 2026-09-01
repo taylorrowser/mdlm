@@ -1,25 +1,20 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 45
+version: 46
 status: experimental
-description: Fresh bootstrap profile through complete component verification design and one lean reviewed design-definition slice.
+description: Fresh bootstrap profile through one lean implementation and source-blind formal-verification implementation slice.
 enabled:
   types: [MAP, QST, DEC, ART, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS]
-  phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition]
+  phases: [phase-0-wayfinding, phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition, phase-5-implementation]
   obligation_statuses: [ready, blocked, awaiting-review, stale, failed]
 disabled_capabilities:
   - formal verification execution
-  - product and formal-verification implementation
 terminal_outcomes:
   profile_boundary:
     condition: >-
       (
-        phase.id == "phase-4-design-definition"
-        && exists("complete-phase-4-level-candidates@1", {})
-        && every("complete-phase-4-level-candidates@1", {}, candidate =>
-          exists("applicable-gate-signoffs-for@1", {candidate: candidate})
-          && exists("accepted-component-baselines-for-design-candidate@1",
-            {candidate: candidate}))
+        phase.id == "phase-5-implementation"
+        && exists("accepted-design-baselines@1", {})
       )
       ||
       (
@@ -51,7 +46,7 @@ terminal_outcomes:
           && every("pilot-expansion-decisions-for@1", {assessment: assessment}, decision =>
             decision.payload.decision == "change"))
       )
-    explanation: The selected profile stops successfully at an explicit Phase 1 breadth boundary or after one reviewed Phase 4 design gate and mechanical component acceptance; Phase 5 remains intentionally omitted.
+    explanation: The selected profile stops successfully at an explicit Phase 1 breadth boundary or after reviewed product and formal-verification implementation mechanically accept the design candidate; Phase 6 remains intentionally omitted.
   lifecycle_complete:
     condition: >-
       phase.id == "phase-2-pilot-assessment"
@@ -107,3 +102,7 @@ success_criteria:
   - reviewed proceed reaches the omitted Phase 3–6 Profile Boundary, reviewed change enters the declared change-control route, and reviewed stop declares Lifecycle Complete
   - exact accepted-baseline membership, not Review alone, protects STK and shared SYS through bounded impact, reviewed attended approve/reject/defer/cancel disposition, same-lineage changed-under replacement, selective candidate/evidence reuse, and exact closure; two exact shared-SYS consumers rebind serially with separate fresh coverage while draft replacement remains ordinary
   - one exact pilot evidence context records reviewed burden, reuse, queue, ceremony, discrimination, and scope measurements before an exact proceed, change, or stop Decision
+  - one exact reviewed and gate-approved design candidate independently dispatches product implementation and source-blind formal-VAI work without either waiting for the other
+  - one controlled implementation ART names an immutable Git commit, runnable public interface, every exact candidate DES Revision, and a bounded traversal-free DES-to-path mapping whose completeness is independently reviewed
+  - every exact current formal VER in the design candidate receives one separately authorized source-blind formal VAI and its own independent Review while the complete compatible sibling set shares one immutable VAI-only Review Context that contains no product evidence
+  - complete passing implementation ART and formal-VAI Review coverage mechanically accepts the exact DES candidate without a second authority gate, formal RUN or RES, and returns the Phase 6 Profile Boundary

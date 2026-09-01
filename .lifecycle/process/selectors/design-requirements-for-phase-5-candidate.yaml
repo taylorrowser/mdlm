@@ -1,0 +1,13 @@
+kind: selector-definition
+id: design-requirements-for-phase-5-candidate
+version: 1
+description: Every exact DES Revision held by one admitted Phase 5 design candidate.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [DES]}
+  as: requirement
+  where: 'exists("baseline-contains-definition@1", {baseline: candidate, subject: requirement})'
+  distinct: true
+  order_by: [identity.id, identity.revision]

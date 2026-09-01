@@ -23,6 +23,13 @@ payload_schema:
         properties: {kind: {const: pilot}, independence_mode: {const: source-blind}}
         required: [kind, independence_mode]
       then: {required: [execution_procedure]}
+    - if:
+        properties: {kind: {const: formal}, independence_mode: {const: source-blind}}
+        required: [kind, independence_mode]
+      then:
+        required: [execution_procedure]
+        properties:
+          execution_procedure: {required: [content]}
     - if: {required: [prototype_control_bindings]}
       then:
         properties: {kind: {const: pilot}}
@@ -132,10 +139,10 @@ outgoing_links:
     freeze_resolution: already-exact
     inverse_label: used-by
   - id: targets
-    description: Exact environment or bounded artifact execution target.
+    description: Exact environment or bounded artifact execution target when the implementation binds one before formal execution.
     targets:
       - {kind: datum, types: [ENV, ART], identity: revision}
-    cardinality: {minimum: 1, maximum: 1}
+    cardinality: {minimum: 0, maximum: 1}
     freeze_resolution: already-exact
     inverse_label: targeted-by
 kernel_managed_payload_paths: []

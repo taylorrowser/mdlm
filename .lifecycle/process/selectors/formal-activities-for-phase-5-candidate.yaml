@@ -1,0 +1,23 @@
+kind: selector-definition
+id: formal-activities-for-phase-5-candidate
+version: 1
+description: Every exact current passing-reviewed formal VER across the admitted design completion's STK, SYS, CMP, and DES ancestry.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [VER]}
+  as: activity
+  where: >-
+    activity.payload.kind == "formal"
+    && exists("passing-reviews-for@1", {subject: activity})
+    && none("failing-reviews-for@1", {subject: activity})
+    && none("newer-revisions-for@1", {subject: activity})
+    && !every("definition-level-candidate-members@1", {candidate: candidate}, member =>
+      member.identity.type != "DWP"
+      || member.payload.stage != "completion"
+      || member.payload.target_child_type != "DES"
+      || every("formal-verification-activities-for-completion@1",
+        {completion: member}, required => required != activity))
+  distinct: true
+  order_by: [identity.revision_id]

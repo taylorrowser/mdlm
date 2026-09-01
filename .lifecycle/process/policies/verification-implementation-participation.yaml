@@ -1,11 +1,10 @@
 kind: policy-definition
 id: verification-implementation-participation
 version: 1
-description: Require a separately authorized source-independent implementer for the exact pilot activity, qualified environment, and controlled target.
+description: Require a separately authorized source-independent implementer for one exact pilot or formal activity and qualified environment.
 parameters:
   - {name: activity, kind: revision, types: [VER]}
   - {name: environment, kind: revision, types: [ENV]}
-  - {name: execution_target, kind: revision, types: [ART]}
 result_schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object

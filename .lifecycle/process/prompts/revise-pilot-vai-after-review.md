@@ -5,13 +5,22 @@ scenario: revise-pilot-vai-after-review
 skills: [skills/lifecycle-data.md@1, skills/verification-activity-implementation.md@1, skills/verification-independence.md@1, skills/reproducibility.md@1, skills/verification-run-model.md@1, skills/author-preflight.md@2]
 ---
 
-# Correct one failed source-blind pilot procedure
+# Correct one failed source-blind verification implementation
 
 Create the next Revision in the supplied VAI lineage. Cite and address every
-supplied failed Review, preserving the exact pilot claim class, declared cases,
+supplied failed Review, preserving the exact claim class, declared cases,
 requirement, strategy, supported behavior, and intentionally unsupported
 behavior. When procedure text alone addresses the Finding, omit every optional
-upstream or boundary output and keep the exact supplied VER, ENV, and ART links.
+upstream or boundary output and keep the exact supplied VER and ENV links. A
+pilot VAI also keeps its exact ART link.
+
+For a formal VAI, correct only the VAI procedure. Keep the exact formal VER and
+qualified ENV, emit no replacement VER, ENV, qualification, or ART output, and
+retain no product ART target. Phase 6 binds the corrected independently reviewed
+formal VAI to the controlled product ART at RUN time.
+
+For a formal VAI, set `authoring_input_refs` to exactly the supplied VER Revision
+followed by the supplied ENV Revision. Do not add an ART or any other reference.
 
 Only when the Review proves the supplied VER, ART, or ENV inconsistent may you
 publish the next Revision of that exact lineage in the same transaction. A

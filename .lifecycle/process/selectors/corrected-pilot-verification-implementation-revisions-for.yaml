@@ -1,7 +1,7 @@
 kind: selector-definition
 id: corrected-pilot-verification-implementation-revisions-for
 version: 1
-description: Valid newer pilot VAI Revisions binding either the reviewed VER/ENV/ART Revisions or their single exact same-transaction successors while citing every and only failed Review.
+description: Valid newer pilot or formal VAI Revisions preserving exact inputs or allowed pilot reconciliations while citing every and only failed Review.
 parameters:
   - {name: implementation, kind: revision, types: [VAI]}
 result_kind: revision

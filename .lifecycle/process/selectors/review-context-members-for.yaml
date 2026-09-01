@@ -11,6 +11,11 @@ query:
   where: >-
     member != subject
     && (
+      (subject.identity.type == "VAI"
+        && subject.payload.kind == "formal"
+        && !every("phase-5-formal-vai-review-context-members-for@1",
+          {subject: subject}, support => support != member))
+      ||
       !every("direct-review-support-for@1", {subject: subject}, support =>
         support != member)
       || (exists("intent-candidates-matching-subject@1", {subject: subject})
