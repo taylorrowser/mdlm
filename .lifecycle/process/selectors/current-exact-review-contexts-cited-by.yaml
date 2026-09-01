@@ -27,7 +27,8 @@ query:
       "create-review-context@2",
       "review-phase-0-foundation@1",
       "review-phase-0-candidate@1",
-      "review-phase-1-assurance@1"
+      "review-phase-1-assurance@1",
+      "review-phase-2-datum@1"
     ]
     && none("newer-revisions-for@1", {subject: context})
   distinct: true

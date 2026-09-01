@@ -345,11 +345,26 @@ async function phaseTwoOnlyPackage(
   );
   const reviewSelector = parse(await fs.readFile(reviewSelectorPath, "utf8"));
   reviewSelector.query.where += assuranceReview
-    ? ' && subject.provenance.scenario != "seed-public-phase-2-definitions@1"'
+    ? ""
     : ' && (subject.provenance.scenario != "seed-public-phase-2-definitions@1" || subject.identity.type == "VSP")';
   await fs.writeFile(reviewSelectorPath, stringify(reviewSelector));
 
   if (assuranceReview) {
+    const atomicReviewSelectorPath = path.join(
+      root,
+      "selectors/phase-2-atomic-review-required-revisions.yaml",
+    );
+    const atomicReviewSelector = parse(
+      await fs.readFile(atomicReviewSelectorPath, "utf8"),
+    );
+    atomicReviewSelector.query.where +=
+      ' && subject.identity.type == "SYS"' +
+      ' && exists("pilot-verification-activities-for-requirement@1", {requirement: subject})';
+    await fs.writeFile(
+      atomicReviewSelectorPath,
+      stringify(atomicReviewSelector),
+    );
+
     const activeStrategiesPath = path.join(
       root,
       "selectors/current-phase-2-verification-strategies.yaml",
@@ -1319,20 +1334,93 @@ export async function runPhaseTwoAssuranceReviewRoute(): Promise<void> {
     }]);
     const activity = submittedRevision(activityExecution, "activity");
     commit(repository, "Publish representative system pilot activity");
-    reviewAssurance(activity);
+
+    const packet = prepare(repository, "review-phase-2-datum@1");
+    const [subject] = exactInputs(packet, "subject");
+    expect(subject).toBe(seeded.system!.datum.revision_id);
+    const members = exactInputs(packet, "review_context_members");
+    const execution = submit(repository, packet, [{
+      localId: "context",
+      name: "review_context",
+      invocation: 0,
+      lifecycleDatum: {
+        type: "BSL",
+        payload: {
+          title: `Review context for ${subject}`,
+          kind: "review-context",
+          role: "review-context",
+          scope: subject,
+          group: "DEFAULT",
+          definition_members: [subject, ...members].sort(),
+          evidence: [],
+        },
+        links: [],
+        body: "The exact Phase 2 system datum and selected support.\n",
+      },
+    }, {
+      localId: "review",
+      name: "review",
+      invocation: 0,
+      lifecycleDatum: {
+        type: "REV",
+        payload: {
+          title: "Independent Phase 2 system Review",
+          review_kind: "contextual",
+          reviewer: "independent-reviewer",
+          summary: "The exact system datum is traceable and observable.",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@3",
+          findings: [],
+          outcome: "pass",
+        },
+        links: [
+          { type: "reviews", target: subject },
+          { type: "contextualizes", target: "$proposal.context.revision_id" },
+        ],
+        body: "The exact Phase 2 system datum passes independent Review.\n",
+      },
+    }]);
+    commit(repository, `Review ${subject} with its atomic context`);
+
+    const contextRevision = submittedRevision(execution, "context");
+    const reviewRevision = submittedRevision(execution, "review");
+    const shownContext = mdlm(repository, "show", contextRevision, "--json");
+    expect(shownContext.status, `${shownContext.stderr}${shownContext.stdout}`)
+      .toBe(0);
+    const context = JSON.parse(shownContext.stdout).lifecycleDatum;
+    expect(context).toMatchObject({
+      storage: { frozen: true },
+      datum: {
+        type: "BSL",
+        created_by: { scenario: "review-phase-2-datum@1" },
+        payload: {
+          kind: "review-context",
+          role: "review-context",
+          scope: subject,
+          definition_members: [subject, ...members].sort(),
+        },
+      },
+    });
+    const shownReview = mdlm(repository, "show", reviewRevision, "--json");
+    expect(shownReview.status, `${shownReview.stderr}${shownReview.stdout}`)
+      .toBe(0);
+    expect(JSON.parse(shownReview.stdout).lifecycleDatum.datum).toMatchObject({
+      type: "REV",
+      created_by: { scenario: "review-phase-2-datum@1" },
+      links: [
+        { type: "reviews", target: subject },
+        { type: "contextualizes", target: contextRevision },
+      ],
+    });
 
     const next = mdlm(repository, "next", "--json");
     expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
     const outcome = JSON.parse(next.stdout);
     expect(outcome.phase).toBe("phase-2-system-definition@10");
-    expect(outcome.outcome).toBe("publication-required");
-    expect(outcome.materializedExecutions).toEqual([
-      expect.objectContaining({
-        scenario: "create-review-context@2",
-        status: "completed",
-      }),
-    ]);
-    expect(outcome.assignment).toBeUndefined();
+    expect(outcome.outcome).toBe("assignment");
+    const nextPacket = outcome.assignment.packet as Packet;
+    expect(nextPacket.scenario.reference).toBe("review-phase-1-assurance@1");
+    expect(exactInputs(nextPacket, "subject")).toEqual([activity]);
+    expect(outcome.materializedExecutions).toBeUndefined();
   } finally {
     await fs.rm(parent, { recursive: true, force: true });
   }

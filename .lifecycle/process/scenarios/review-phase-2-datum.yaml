@@ -1,0 +1,74 @@
+kind: scenario-definition
+id: review-phase-2-datum
+version: 1
+description: Independently review one ordinary exact Phase 2 Revision and publish its deterministic Review Context with the REV.
+kernel_materialization:
+  kind: exact-baseline@1
+  output: review_context
+  subject_input: subject
+  support_input: review_context_members
+  payload_fields: {title: title, kind: kind, role: role, scope: scope, group: group, members: definition_members, evidence: evidence}
+  title_prefix: 'Review context for '
+  baseline_kind: review-context
+  baseline_role: review-context
+  baseline_group: DEFAULT
+  evidence_subject_types: [ENV]
+  evidence_types: [RES, RUN, VAI, VER]
+phases: [phase-2-system-definition]
+inputs:
+  - {name: subject, types: [MAP, ART, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, ENV, VER, VAI, BSL, DEC, PRB, CHG, PAS], cardinality: one, identity: revision}
+  - {name: review_context_members, types: [MAP, QST, DEC, ART, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, PRB, CHG, PAS], cardinality: zero-or-more, identity: revision}
+outputs:
+  - {name: review_context, handle: context, types: [BSL], cardinality: one, required_links: []}
+  - name: review
+    handle: review
+    types: [REV]
+    cardinality: one
+    required_links:
+      - {link: reviews, target: {input: subject}}
+      - {link: contextualizes, target: {output: review_context}}
+prompt_ref: prompts/review-phase-2-datum.md@1
+skills:
+  - reference: skills/contextual-artifact-review.md@2
+    summary: Judge one exact Phase 2 Revision against its package-selected definition, evidence, and correction context.
+input_summaries:
+  subject: The exact ordinary Phase 2 Revision under independent judgment.
+  review_context_members: Every exact package-selected support Revision required for this subject.
+review_contract:
+  required_evidence: [review_context_members]
+  allowed_findings: [scope, traceability, observability, consistency, evidence, independence]
+  summary_rule: State whether the exact subject is necessary, traceable, consistent, and supported by its complete context.
+  correction_authorities: [author, stakeholder, package-evidence]
+review_policy_ref: review-applicability@1
+review_policy_arguments: {subject: subject}
+participation:
+  policy_ref: atomic-contextual-review-participation@1
+  arguments: {subject: subject}
+authority_evidence: {output: review, type: REV}
+standing_delegation: {selector_ref: applicable-authority-delegations-for@1, target_input: subject, authority: stakeholder, delegate: independent-reviewer}
+completion_summary: Publish exactly one deterministic Review Context and its exact REV in one transaction.
+completion: >-
+  execution.integrity.contract_valid == true
+  && review_context.payload.kind == "review-context"
+  && review_context.payload.scope == subject.identity.revision_id
+  && review_context.storage.frozen == true
+  && exists("valid-review-contexts-for@1", {subject: subject})
+  && review.payload.outcome in ["pass", "fail", "cancelled"]
+  && (
+    review.payload.outcome != "fail"
+    || review.payload.correction_authority in ["stakeholder", "package-evidence"]
+  )
+  && review.payload.rubric_ref
+    == policy("review-applicability@1", {subject: subject}).rubric_ref
+  && (
+    (exists("intent-candidates-matching-subject@1", {subject: subject})
+      && exists("valid-product-simplification-reviews@1", {review: review}))
+    || (exists("planning-dwp-matching-subject@1", {subject: subject})
+      && exists("valid-dwp-product-simplification-reviews@1", {review: review}))
+    || (none("intent-candidates-matching-subject@1", {subject: subject})
+      && none("planning-dwp-matching-subject@1", {subject: subject})
+      && review.payload.review_kind != "simplification-product-definition")
+  )
+resolves: [phase-2-atomic-review-required]
+prohibited_inputs: [unfrozen context, mutable latest aliases, prior review outcome as authority]
+batching: coherent-batch

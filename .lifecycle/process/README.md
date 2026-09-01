@@ -1,4 +1,4 @@
-# MDLM bootstrap Example Process Package v0.120
+# MDLM bootstrap Example Process Package v0.121
 
 This package is the bounded Example Process Package shipped with the
 concept-validating MDLM profile. It defines `MAP`, `QST`, `DEC`, `ART`, `PSP`,
@@ -91,7 +91,8 @@ reaches the declared Profile Boundary rather than arbitrary selection.
 ### Phase 2 — system definition and decomposition
 
 The package derives ASP, ICSP, planning and completion DWP Revisions, allocated
-SYS outputs, exact-set simplification, independent Review, evidence-preserving
+SYS outputs, exact-set simplification, atomic ordinary Phase 2 Review Context
+and independent Review publication, evidence-preserving
 level candidates without an intermediate singleton group, attended gate
 judgment, and flattened acceptance. Canonical links
 carry architecture, interface, decomposition, allocation, strategy, and coverage

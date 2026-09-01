@@ -2,7 +2,7 @@
 
 - **Status:** Completed concept-validating profile with contracted operator interface
 - **Historical design baseline:** [`mdlm-process-overview-v0.8.md`](mdlm-process-overview-v0.8.md)
-- **Implementation package:** `mdlm-bootstrap@0.120.0`
+- **Implementation package:** `mdlm-bootstrap@0.121.0`
 - **Reviewed expansion recommendation:** `change`
 
 ## Purpose
@@ -56,7 +56,7 @@ deferred by the reviewed Pilot Assessment.
 | Operator Outcome classification and explicit stop behavior | #89–#90, #100 | `test/operator-outcome.test.ts`, `test/mdlm-clean-onboarding-transaction.test.ts` |
 | Phase 0 wayfinding, Correction, reviewed intent, gate rejection, and same-gate return | #44, #64, #92–#95 | `test/phase-0-hardening-routes.test.ts`, `test/evaluate-bootstrap-participation.test.ts` |
 | Phase 1 assurance, exact target evidence, bounded Correction, fresh pilot evidence, and ambiguity boundaries | #45, #65–#66, #74–#76, #97 | `test/phase-1-hardening-routes.test.ts`, `test/phase-1-route-contracts.test.ts` |
-| Phase 2 decomposition, exact-set simplification, Correction, candidates, acceptance, and progression | #46, #98–#99 | `test/phase-2-hardening-routes.test.ts`, `test/phase-hardening-domain-contracts.test.ts` |
+| Phase 2 decomposition, atomic ordinary Review Context and REV publication, exact-set simplification, Correction, candidates, acceptance, and progression | #46, #98–#99, #591 | `test/proportional-phase-2-public.test.ts`, `test/phase-2-hardening-routes.test.ts`, `test/phase-hardening-domain-contracts.test.ts` |
 | Narrow Phase 3 component tracer; complete all-level formal coverage and component pilot; lean Phase 4 design definition, reviewed gate, CMP promotion, and explicit Phase 5 boundary | #526, #545 | `test/phase-3-component-definition-public.test.ts` |
 | Lean Phase 5 product implementation and source-blind formal-VAI tracks, independent Reviews, DES acceptance, and explicit Phase 6 boundary | #549 | `test/phase-5-implementation-package.test.ts` |
 | Lean Phase 6 bottom-up formal RUN/RES, judgment-only Review, completed-failure PRB, reviewed final product acceptance, and Lifecycle Complete | #550 | `test/phase-3-component-definition-public.test.ts` |
