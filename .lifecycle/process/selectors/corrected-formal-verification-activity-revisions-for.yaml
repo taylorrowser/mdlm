@@ -1,0 +1,29 @@
+kind: selector-definition
+id: corrected-formal-verification-activity-revisions-for
+version: 1
+description: Valid newer formal VER Revisions preserving the exact claim, requirement, and strategy while citing every and only failed Review.
+parameters:
+  - {name: activity, kind: revision, types: [VER]}
+result_kind: revision
+query:
+  from: {relation: revisions, of: activity, emit: entity, types: [VER]}
+  as: replacement
+  where: >-
+    replacement.identity.revision > activity.identity.revision
+    && state(replacement, "validity") == "valid"
+    && activity.payload.kind == "formal"
+    && replacement.payload.kind == activity.payload.kind
+    && replacement.payload.claim == activity.payload.claim
+    && every("failing-reviews-for@1", {subject: activity}, review =>
+      exists("matching-corrected-phase-1-assurance-review@1",
+        {subject: activity, replacement: replacement, review: review}))
+    && none("unexpected-corrected-phase-1-assurance-reviews@1",
+      {subject: activity, replacement: replacement})
+    && select("requirements-for-pilot-activity@1", {activity: replacement})
+      == select("requirements-for-pilot-activity@1", {activity: activity})
+    && count("strategies-for-verification-activity@1", {activity: activity}) == 1
+    && count("strategies-for-verification-activity@1", {activity: replacement}) == 1
+    && one("strategies-for-verification-activity@1", {activity: replacement})
+      == one("strategies-for-verification-activity@1", {activity: activity})
+  distinct: true
+  order_by: [identity.revision]
