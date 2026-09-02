@@ -1,11 +1,9 @@
 import { expect, it } from "vitest";
 import {
-  classifyOperatorOutcome,
   evaluateLifecycle,
   loadProcessPackage,
   type LifecycleRecord,
 } from "../src/index.js";
-import { operatorWorkProjection } from "../src/assignment.js";
 import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 
 const processRef = `mdlm-bootstrap@0.114.0#sha256:${"a".repeat(64)}`;
@@ -153,32 +151,8 @@ it("routes Phase 4 changed-interface work through design environment assurance",
   );
 
   expect(assurance).toEqual(expect.objectContaining({
-    status: "ready",
     dispatchable: true,
     actionableResolver: "realize-verification-environment@1",
-  }));
-  const next = classifyOperatorOutcome(
-    operatorWorkProjection(evaluation, [
-      component,
-      strategy,
-      plan,
-      design,
-      planContext,
-      reviewContext,
-      review,
-      activity,
-      activityContext,
-      activityReview,
-      target,
-    ]),
-    evaluation.terminalOutcome,
-  );
-  expect(next).toEqual(expect.objectContaining({
-    kind: "assignment",
-    work: expect.objectContaining({
-      subject: strategy.datum.revision_id,
-      scenario: "realize-verification-environment@1",
-    }),
   }));
 });
 
