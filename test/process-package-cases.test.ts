@@ -1,152 +1,343 @@
-import { promises as fs } from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { parse, stringify } from "yaml";
+import { performance } from "node:perf_hooks";
 import { describe, expect, it } from "vitest";
-import { testProcessPackage } from "../src/process-package-fixtures.js";
+import {
+  compileProcessConstraints,
+  publicAssignmentRenderer,
+  type ProcessConstraintCatalogs,
+  type VersionedDefinition,
+} from "../src/index.js";
+import { mdlm } from "./helpers/mdlm.js";
 
-async function copyPackage(): Promise<{ temporaryRoot: string; root: string }> {
-  const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-cases-"));
-  const root = path.join(temporaryRoot, "process");
-  await fs.cp(path.join(process.cwd(), ".lifecycle/process"), root, {
-    recursive: true,
+type Node = Record<string, unknown>;
+
+const position = { offset: 0, line: 1, column: 1 };
+const span = { start: position, end: position };
+const base = { valueType: "boolean", span };
+
+function path(binding: string, ...segments: string[]): Node {
+  return { kind: "path", binding, variable: binding, segments, valueType: "string", span };
+}
+
+function variable(binding: string): Node {
+  return { kind: "variable", variable: binding, valueType: "entity", span };
+}
+
+function literal(value: unknown): Node {
+  return {
+    kind: "literal",
+    value,
+    valueType: typeof value === "boolean" ? "boolean" : "string",
+    span,
+  };
+}
+
+function object(properties: Record<string, Node> = {}): Node {
+  return { kind: "object", properties, valueType: "object", span };
+}
+
+function selector(
+  operation: "exists" | "select",
+  reference: string,
+): Node {
+  return {
+    kind: "selector",
+    operation,
+    reference,
+    arguments: object(),
+    ...base,
+  };
+}
+
+function every(reference: string, binding: string, predicate: Node): Node {
+  return {
+    kind: "every",
+    reference,
+    arguments: object(),
+    binding,
+    predicate,
+    ...base,
+  };
+}
+
+function expression(root: Node, source: string): Node {
+  return { kind: "mdlm-expression", source, root, span };
+}
+
+function equality(left: Node, right: Node): Node {
+  return { kind: "comparison", operator: "eq", left, right, ...base };
+}
+
+function policy(reference: string): Node {
+  return { kind: "policy", reference, arguments: object(), ...base };
+}
+
+function inequality(left: Node, right: Node): Node {
+  return { kind: "comparison", operator: "ne", left, right, ...base };
+}
+
+function finiteMembership(binding: string, field: string): Node {
+  return {
+    kind: "comparison",
+    operator: "in",
+    left: path(binding, "payload", field),
+    right: {
+      kind: "array",
+      elements: [literal("RED"), literal("BLUE")],
+      valueType: "array",
+      span,
+    },
+    ...base,
+  };
+}
+
+function definition(
+  kind: string,
+  id: string,
+  value: Record<string, unknown> = {},
+): VersionedDefinition {
+  return { kind, id, version: 1, ...value };
+}
+
+function packageNeutralCatalogs(): ProcessConstraintCatalogs {
+  const sourceCandidates = "candidates@1";
+  const admittedCandidates = "admitted@1";
+  return {
+    templates: {},
+    types: Object.fromEntries(["PLAN", "RED", "BLUE"].map((id) => [
+      id,
+      definition("type-definition", id),
+    ])),
+    scenarios: {
+      route: definition("scenario-definition", "route", {
+        inputs: [{ name: "plan", types: ["PLAN"], cardinality: "one" }],
+        outputs: [{
+          name: "results",
+          types: ["RED", "BLUE"],
+          cardinality: "one-or-more",
+          type_from: { input: "plan", path: "hue" },
+          required_links: [],
+        }],
+        completion: expression(
+          equality(
+            path("result", "identity", "type"),
+            path("plan", "payload", "hue"),
+          ),
+          "result identity type equals plan hue",
+        ),
+        resolves: ["work"],
+        batching: "single",
+      }),
+    },
+    obligations: {
+      work: definition("obligation-definition", "work", {
+        resolve_with: { scenario: "route@1", inputs: {} },
+        status_rules: [{
+          status: "ready",
+          when: expression(
+            finiteMembership("plan", "hue"),
+            "plan hue is one of the finite values",
+          ),
+        }],
+      }),
+    },
+    selectors: {
+      candidates: definition("selector-definition", "candidates", {
+        query: { from: { collection: "baselines" } },
+      }),
+      admitted: definition("selector-definition", "admitted", {
+        query: { from: { selector: sourceCandidates, arguments: {} } },
+      }),
+    },
+    phases: {
+      source: definition("phase-definition", "source", {
+        gate: {
+          candidate_selector: expression(
+            selector("select", sourceCandidates),
+            "select source candidates",
+          ),
+        },
+        progression: {
+          next_phase: "next",
+          readiness: expression(
+            every(
+              sourceCandidates,
+              "candidate",
+              {
+                kind: "not",
+                operand: every(
+                  admittedCandidates,
+                  "admitted",
+                  inequality(variable("admitted"), variable("candidate")),
+                ),
+                ...base,
+              },
+            ),
+            "every source candidate is admitted",
+          ),
+        },
+      }),
+      next: definition("phase-definition", "next", {
+        entry: expression(
+          selector("exists", admittedCandidates),
+          "an admitted candidate exists",
+        ),
+      }),
+    },
+  };
+}
+
+function compile(catalogs: ProcessConstraintCatalogs) {
+  return compileProcessConstraints({
+    catalogs,
+    renderer: publicAssignmentRenderer,
   });
-  return { temporaryRoot, root };
 }
 
-async function rewriteYaml(
-  filePath: string,
-  mutate: (value: Record<string, unknown>) => void,
-): Promise<void> {
-  const value = parse(await fs.readFile(filePath, "utf8")) as Record<string, unknown>;
-  mutate(value);
-  await fs.writeFile(filePath, stringify(value));
-}
-
-describe("Process Package semantic cases", () => {
-  it("passes the two bundled cases in deterministic name order", async () => {
-    const result = await testProcessPackage(".lifecycle/process");
-    expect(result).toMatchObject({
+describe("compiled Process Package constraints", () => {
+  it.each([
+    {
+      name: "proves both supported declaration relationships",
+      mutate: (_catalogs: ProcessConstraintCatalogs) => undefined,
+      status: "proved",
       ok: true,
-      value: {
+      codes: [],
+    },
+    {
+      name: "rejects a split output that loses the finite route",
+      mutate: (catalogs: ProcessConstraintCatalogs) => {
+        catalogs.scenarios.route!.outputs = [
+          { name: "red", types: ["RED"], cardinality: "one", required_links: [] },
+          { name: "blue", types: ["BLUE"], cardinality: "one", required_links: [] },
+        ];
+      },
+      status: "contradictory",
+      ok: false,
+      codes: ["process-constraint-discriminated-output"],
+    },
+    {
+      name: "rejects progression that no longer admits its source candidate",
+      mutate: (catalogs: ProcessConstraintCatalogs) => {
+        const progression = catalogs.phases.source!.progression as Record<string, unknown>;
+        progression.readiness = expression(
+          every("candidates@1", "candidate", literal(true)),
+          "source candidates have no admission proof",
+        );
+      },
+      status: "contradictory",
+      ok: false,
+      codes: ["process-constraint-phase-admission"],
+    },
+    {
+      name: "reports opaque supported relationships as inconclusive",
+      mutate: (catalogs: ProcessConstraintCatalogs) => {
+        catalogs.scenarios.route!.completion = expression(
+          selector("exists", "opaque-proof@1"),
+          "opaque proof",
+        );
+        const progression = catalogs.phases.source!.progression as Record<string, unknown>;
+        progression.readiness = expression(
+          policy("opaque-admission@1"),
+          "opaque candidate admission",
+        );
+      },
+      status: "inconclusive",
+      ok: true,
+      codes: [],
+    },
+  ])("$name", ({ mutate, status, ok, codes }) => {
+    const catalogs = packageNeutralCatalogs();
+    mutate(catalogs);
+    const first = compile(catalogs);
+    const second = compile(structuredClone(catalogs));
+    expect(first.ok).toBe(ok);
+    expect(first.contract.status).toBe(status);
+    expect(first.diagnostics.map((item) => item.code)).toEqual(codes);
+    expect(JSON.stringify(first)).toBe(JSON.stringify(second));
+    if (status === "inconclusive") {
+      expect(first.contract.checks).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          kind: "discriminated-output",
+          status: "inconclusive",
+          diagnostics: [expect.objectContaining({
+            code: "process-constraint-inconclusive",
+          })],
+        }),
+        expect.objectContaining({
+          kind: "phase-admission",
+          status: "inconclusive",
+          diagnostics: [expect.objectContaining({
+            code: "process-constraint-inconclusive",
+          })],
+        }),
+      ]));
+    }
+    if (status === "contradictory") {
+      const contradiction = first.contract.checks.find((check) =>
+        check.status === "contradictory"
+      );
+      const expected = {
+        "process-constraint-discriminated-output": {
+          paths: [
+            "scenarios.route.completion",
+            "obligations.work.status_rules[0].when",
+            "scenarios.route.outputs",
+          ],
+          fact:
+            "plan.payload.hue in [BLUE, RED]; output.identity.type == plan.payload.hue; routes=0",
+          path: "scenarios.route.outputs",
+          message:
+            "Contradictory finite output discriminator across scenarios.route.completion, obligations.work.status_rules[0].when, and scenarios.route.outputs: plan.payload.hue in [BLUE, RED]; output.identity.type == plan.payload.hue; routes=0",
+        },
+        "process-constraint-phase-admission": {
+          paths: [
+            "phases.source.progression.readiness",
+            "phases.next.entry",
+            "selectors.admitted.query.from.selector",
+          ],
+          fact:
+            "candidates@1 candidate has no direct admission to admitted@1; adjacent entry requires exists(admitted@1)",
+          path: "phases.source.progression.readiness",
+          message:
+            "Contradictory adjacent Phase admission across phases.source.progression.readiness and phases.next.entry: candidates@1 candidate has no direct admission to admitted@1; adjacent entry requires exists(admitted@1)",
+        },
+      }[codes[0]!];
+      expect(expected).toBeDefined();
+      if (!expected) throw new Error(`Missing expectation for ${codes[0]}`);
+      expect(contradiction).toEqual(expect.objectContaining({
+        paths: expected.paths,
+        fact: expected.fact,
+        diagnostics: [{
+          code: codes[0],
+          path: expected.path,
+          message: expected.message,
+        }],
+      }));
+    }
+  });
+
+  it("passes the public command with two declaration proofs", () => {
+    const started = performance.now();
+    const result = mdlm(
+      process.cwd(),
+      "process",
+      "test",
+      "--ref",
+      ".lifecycle/process",
+      "--json",
+    );
+    const durationMilliseconds = performance.now() - started;
+    expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
+    expect(durationMilliseconds).toBeLessThan(5_000);
+    expect(JSON.parse(result.stdout)).toEqual(expect.objectContaining({
+      ok: true,
+      tests: expect.objectContaining({
         passed: 2,
         failed: 0,
         cases: [
-          { name: "phase-4-admission", kind: "phase-admission", passed: true },
-          {
-            name: "scenario-output-discriminator",
-            kind: "discriminated-output",
-            passed: true,
-          },
+          expect.objectContaining({ kind: "discriminated-output", status: "proved" }),
+          expect.objectContaining({ kind: "phase-admission", status: "proved" }),
         ],
-      },
-    });
-  });
-
-  it("rejects a behavior-bearing package with no cases", async () => {
-    const copied = await copyPackage();
-    try {
-      await fs.rm(path.join(copied.root, "cases"), { recursive: true });
-      const result = await testProcessPackage(copied.root);
-      expect(result).toMatchObject({
-        ok: false,
-        diagnostics: [{ code: "process-cases-empty" }],
-      });
-    } finally {
-      await fs.rm(copied.temporaryRoot, { recursive: true, force: true });
-    }
-  });
-
-  it("reports a mismatched case fact", async () => {
-    const copied = await copyPackage();
-    try {
-      await rewriteYaml(
-        path.join(copied.root, "cases/phase-4-admission/case.yaml"),
-        (testCase) => {
-          testCase.selector = "complete-phase-4-level-candidates@1";
-        },
-      );
-      const result = await testProcessPackage(copied.root);
-      expect(result).toMatchObject({
-        ok: true,
-        value: {
-          passed: 1,
-          failed: 1,
-          cases: [
-            {
-              name: "phase-4-admission",
-              diagnostics: [{ code: "process-case-phase-admission-mismatch" }],
-            },
-            { name: "scenario-output-discriminator", diagnostics: [] },
-          ],
-        },
-      });
-    } finally {
-      await fs.rm(copied.temporaryRoot, { recursive: true, force: true });
-    }
-  });
-
-  it("reports the two observed declaration mismatches deterministically", async () => {
-    const copied = await copyPackage();
-    try {
-      await rewriteYaml(
-        path.join(copied.root, "phases/phase-4-design-definition.yaml"),
-        (phase) => {
-          const progression = phase.progression as Record<string, unknown>;
-          progression.readiness = String(progression.readiness).replace(
-            /\n\s*&& !every\("phase-5-entry-design-candidates@1"[\s\S]*?admitted != candidate\)\)/,
-            ")",
-          );
-        },
-      );
-      await rewriteYaml(
-        path.join(
-          copied.root,
-          "scenarios/execute-lower-level-decomposition-work-package.yaml",
-        ),
-        (scenario) => {
-          const outputs = scenario.outputs as Record<string, unknown>[];
-          const requirement = outputs[0]!;
-          scenario.outputs = [
-            {
-              ...requirement,
-              name: "component_requirements",
-              types: ["CMP"],
-              cardinality: "zero-or-more",
-              type_from: undefined,
-            },
-            {
-              ...requirement,
-              name: "design_requirements",
-              types: ["DES"],
-              cardinality: "zero-or-more",
-              type_from: undefined,
-            },
-            ...outputs.slice(1),
-          ];
-        },
-      );
-
-      const result = await testProcessPackage(copied.root);
-      expect(result).toMatchObject({
-        ok: true,
-        value: {
-          passed: 0,
-          failed: 2,
-          cases: [
-            {
-              name: "phase-4-admission",
-              diagnostics: [{ code: "process-case-phase-admission-mismatch" }],
-            },
-            {
-              name: "scenario-output-discriminator",
-              diagnostics: [{ code: "process-case-discriminated-output-mismatch" }],
-            },
-          ],
-        },
-      });
-    } finally {
-      await fs.rm(copied.temporaryRoot, { recursive: true, force: true });
-    }
+      }),
+    }));
   });
 });

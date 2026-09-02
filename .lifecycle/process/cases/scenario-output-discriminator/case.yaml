@@ -1,5 +1,0 @@
-kind: discriminated-output
-scenario: execute-lower-level-decomposition-work-package@1
-output: requirements
-types: [CMP, DES]
-type_from: {input: plan, path: target_child_type}

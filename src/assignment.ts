@@ -4,11 +4,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual, promisify } from "node:util";
 import { Ajv2020, type ErrorObject } from "ajv/dist/2020.js";
-import {
-  compileAssignmentProjection,
-  publicAssignmentRenderer,
-  type AssignmentOutputRoute,
-} from "./assignment-projection-compiler.js";
+import type { AssignmentOutputRoute } from "./assignment-projection-compiler.js";
 import { repositoryGitEnvironment } from "./git-environment.js";
 import type {
   LifecycleEvaluation,
@@ -2660,22 +2656,18 @@ function assignmentResponseSkeleton(
   const { dryRun, processPackage, scenario } = exact;
   const materialization = exactBaselineMaterializationContract(scenario);
   if (dryRun.invocations.length === 0) return undefined;
-  const compiled = compileAssignmentProjection({
-    scenario,
-    renderer: publicAssignmentRenderer,
-    source: `scenarios.${scenario.id}`,
-  });
-  if (!compiled.ok) return undefined;
+  const plan = processPackage.constraintContract?.assignmentPlans[scenario.id];
+  if (!plan) return undefined;
   const outputByName = new Map(dryRun.expectedOutputs.map((output) => [
     output.name,
     output,
   ]));
   if (
     outputByName.size !== dryRun.expectedOutputs.length ||
-    compiled.plan.outputs.length !== dryRun.expectedOutputs.length ||
-    compiled.plan.outputs.some((route) => !outputByName.has(route.output))
+    plan.outputs.length !== dryRun.expectedOutputs.length ||
+    plan.outputs.some((route) => !outputByName.has(route.output))
   ) return undefined;
-  const routesByName = new Map(compiled.plan.outputs.map((route) => [
+  const routesByName = new Map(plan.outputs.map((route) => [
     route.output,
     route,
   ]));
@@ -2710,7 +2702,7 @@ function assignmentResponseSkeleton(
     return bound && typeRoute.types.includes(bound) ? bound : undefined;
   };
   for (const [invocationIndex, invocation] of dryRun.invocations.entries()) {
-    for (const route of compiled.plan.outputs) {
+    for (const route of plan.outputs) {
       const expected = outputByName.get(route.output)!;
       const outputDefinition = (Array.isArray(scenario.outputs)
         ? scenario.outputs.map(object)
