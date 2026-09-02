@@ -11,7 +11,7 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 
-const CONTRACT = "mdlm-release-candidate-preparation@1";
+const CONTRACT = "mdlm-release-candidate-preparation@2";
 const usage = `Usage:
   node scripts/release-candidate-gate.mjs prepare --worktree PATH --commit SHA --tree SHA --evidence PATH
   node scripts/release-candidate-gate.mjs start --worktree PATH --commit SHA --tree SHA --evidence PATH --attempt-dir PATH
@@ -99,19 +99,19 @@ function authenticateIdentity(worktree, commit, tree) {
 }
 
 function proveImports(worktree) {
-  const entrypoint = "src/index.ts";
+  const build = { command: "npm", arguments: ["run", "build"] };
+  run(build.command, build.arguments, { cwd: worktree });
+  const entrypoint = "dist/index.js";
   const proof = [
     'import { pathToFileURL } from "node:url";',
     `await import(pathToFileURL(${JSON.stringify(join(worktree, entrypoint))}).href);`,
   ].join("\n");
   run(process.execPath, [
-    "--disable-warning=ExperimentalWarning",
-    "--experimental-transform-types",
     "--input-type=module",
     "--eval",
     proof,
   ], { cwd: worktree });
-  return { entrypoint, result: "pass" };
+  return { build, entrypoint, result: "pass" };
 }
 
 function proveDependencyTree(worktree) {
@@ -181,7 +181,10 @@ function verifyPreparation({ worktree, commit, tree, evidence }) {
   if (record.install?.command !== "npm" || JSON.stringify(record.install.arguments) !== '["ci"]') {
     fail("Preparation evidence does not prove exact lockfile installation");
   }
-  if (record.importProof?.entrypoint !== "src/index.ts" || record.importProof.result !== "pass") {
+  if (record.importProof?.build?.command !== "npm"
+    || JSON.stringify(record.importProof.build.arguments) !== '["run","build"]'
+    || record.importProof.entrypoint !== "dist/index.js"
+    || record.importProof.result !== "pass") {
     fail("Preparation evidence does not prove MDLM import resolution");
   }
   if (record.dependencyTreeProof?.command !== "npm"
@@ -191,6 +194,7 @@ function verifyPreparation({ worktree, commit, tree, evidence }) {
   }
   proveDependencyTree(exactWorktree);
   proveImports(exactWorktree);
+  authenticateIdentity(exactWorktree, commit, tree);
   return exactWorktree;
 }
 
