@@ -276,11 +276,12 @@ function phaseAdmissionChecks(
     if (!next) continue;
     const entryFacts = compiledExpressionFacts(next.entry);
     const entrySelectors = entryFacts?.selectorCalls.filter((call) =>
-      call.operation === "exists"
+      call.operation === "exists" && call.emptyArguments
     ).map((call) => call.reference) ?? [];
     const gateFacts = compiledExpressionFacts(record(source.gate)?.candidate_selector);
     const gateSelectors = new Set(
       gateFacts?.selectorCalls.filter((call) => call.operation === "select")
+        .filter((call) => call.emptyArguments)
         .map((call) => call.reference) ?? [],
     );
     for (const targetReference of entrySelectors) {
@@ -302,10 +303,24 @@ function phaseAdmissionChecks(
       const admitted = readinessFacts?.selectorAdmissions.some((fact) =>
         fact.source === sourceReference && fact.target === targetReference
       ) ?? false;
-      if (!hasSourceQuantifier) continue;
-      const fact = `${sourceReference} candidate admitted to ${targetReference}; adjacent entry requires exists(${targetReference})`;
       const name = `phase-admission:${source.id}:${next.id}`;
-      if (!admitted) {
+      const fact = admitted
+        ? `${sourceReference} candidate admitted to ${targetReference}; adjacent entry requires exists(${targetReference})`
+        : `${sourceReference} candidate has no direct admission to ${targetReference}; adjacent entry requires exists(${targetReference})`;
+      if (!hasSourceQuantifier || (!admitted && readinessFacts?.opaque)) {
+        checks.push({
+          name,
+          kind: "phase-admission",
+          status: "inconclusive",
+          paths,
+          fact,
+          diagnostics: [{
+            code: "process-constraint-inconclusive",
+            path: readinessPath,
+            message: `Cannot prove adjacent Phase admission across ${readinessPath} and ${entryPath}: ${fact}`,
+          }],
+        });
+      } else if (!admitted) {
         checks.push({
           name,
           kind: "phase-admission",

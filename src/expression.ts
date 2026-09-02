@@ -2587,6 +2587,7 @@ export interface CompiledFinitePathMembership {
 export interface CompiledSelectorCall {
   operation: SelectorOperation | "every";
   reference: string;
+  emptyArguments: boolean;
 }
 
 export interface CompiledSelectorAdmission {
@@ -2599,6 +2600,7 @@ export interface CompiledExpressionFacts {
   finitePathMemberships: CompiledFinitePathMembership[];
   selectorCalls: CompiledSelectorCall[];
   selectorAdmissions: CompiledSelectorAdmission[];
+  opaque: boolean;
 }
 
 /**
@@ -2614,6 +2616,7 @@ export function compiledExpressionFacts(
   const finitePathMemberships: CompiledFinitePathMembership[] = [];
   const selectorCalls: CompiledSelectorCall[] = [];
   const selectorAdmissions: CompiledSelectorAdmission[] = [];
+  let opaque = false;
   const asPath = (node: ExpressionNode): CompiledExpressionPath | undefined =>
     node.kind === "path"
       ? { binding: node.variable, segments: [...node.segments] }
@@ -2694,12 +2697,19 @@ export function compiledExpressionFacts(
       selectorCalls.push({
         operation: node.operation,
         reference: node.reference,
+        emptyArguments: node.arguments.kind === "object" &&
+          Object.keys(node.arguments.properties).length === 0,
       });
       visit(node.arguments);
       return;
     }
     if (node.kind === "every") {
-      selectorCalls.push({ operation: "every", reference: node.reference });
+      selectorCalls.push({
+        operation: "every",
+        reference: node.reference,
+        emptyArguments: node.arguments.kind === "object" &&
+          Object.keys(node.arguments.properties).length === 0,
+      });
       const target = hasAdmission(node.predicate, node.binding);
       if (target) selectorAdmissions.push({ source: node.reference, target });
       visit(node.arguments);
@@ -2707,6 +2717,7 @@ export function compiledExpressionFacts(
       return;
     }
     if (node.kind === "policy") {
+      opaque = true;
       visit(node.arguments);
       return;
     }
@@ -2718,6 +2729,7 @@ export function compiledExpressionFacts(
     finitePathMemberships,
     selectorCalls,
     selectorAdmissions,
+    opaque,
   };
 }
 

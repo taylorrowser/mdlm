@@ -67,6 +67,10 @@ function equality(left: Node, right: Node): Node {
   return { kind: "comparison", operator: "eq", left, right, ...base };
 }
 
+function policy(reference: string): Node {
+  return { kind: "policy", reference, arguments: object(), ...base };
+}
+
 function inequality(left: Node, right: Node): Node {
   return { kind: "comparison", operator: "ne", left, right, ...base };
 }
@@ -224,11 +228,16 @@ describe("compiled Process Package constraints", () => {
       codes: ["process-constraint-phase-admission"],
     },
     {
-      name: "reports an opaque discriminator relationship as inconclusive",
+      name: "reports opaque supported relationships as inconclusive",
       mutate: (catalogs: ProcessConstraintCatalogs) => {
         catalogs.scenarios.route!.completion = expression(
           selector("exists", "opaque-proof@1"),
           "opaque proof",
+        );
+        const progression = catalogs.phases.source!.progression as Record<string, unknown>;
+        progression.readiness = expression(
+          policy("opaque-admission@1"),
+          "opaque candidate admission",
         );
       },
       status: "inconclusive",
@@ -253,14 +262,56 @@ describe("compiled Process Package constraints", () => {
             code: "process-constraint-inconclusive",
           })],
         }),
+        expect.objectContaining({
+          kind: "phase-admission",
+          status: "inconclusive",
+          diagnostics: [expect.objectContaining({
+            code: "process-constraint-inconclusive",
+          })],
+        }),
       ]));
     }
     if (status === "contradictory") {
       const contradiction = first.contract.checks.find((check) =>
         check.status === "contradictory"
       );
-      expect(contradiction?.paths.length).toBeGreaterThanOrEqual(2);
-      expect(contradiction?.fact).toBeTruthy();
+      const expected = {
+        "process-constraint-discriminated-output": {
+          paths: [
+            "scenarios.route.completion",
+            "obligations.work.status_rules[0].when",
+            "scenarios.route.outputs",
+          ],
+          fact:
+            "plan.payload.hue in [BLUE, RED]; output.identity.type == plan.payload.hue; routes=0",
+          path: "scenarios.route.outputs",
+          message:
+            "Contradictory finite output discriminator across scenarios.route.completion, obligations.work.status_rules[0].when, and scenarios.route.outputs: plan.payload.hue in [BLUE, RED]; output.identity.type == plan.payload.hue; routes=0",
+        },
+        "process-constraint-phase-admission": {
+          paths: [
+            "phases.source.progression.readiness",
+            "phases.next.entry",
+            "selectors.admitted.query.from.selector",
+          ],
+          fact:
+            "candidates@1 candidate has no direct admission to admitted@1; adjacent entry requires exists(admitted@1)",
+          path: "phases.source.progression.readiness",
+          message:
+            "Contradictory adjacent Phase admission across phases.source.progression.readiness and phases.next.entry: candidates@1 candidate has no direct admission to admitted@1; adjacent entry requires exists(admitted@1)",
+        },
+      }[codes[0]!];
+      expect(expected).toBeDefined();
+      if (!expected) throw new Error(`Missing expectation for ${codes[0]}`);
+      expect(contradiction).toEqual(expect.objectContaining({
+        paths: expected.paths,
+        fact: expected.fact,
+        diagnostics: [{
+          code: codes[0],
+          path: expected.path,
+          message: expected.message,
+        }],
+      }));
     }
   });
 
