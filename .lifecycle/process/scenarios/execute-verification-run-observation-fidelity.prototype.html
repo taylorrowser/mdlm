@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Throwaway prototype: verification observation fidelity</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #202522;
+      --muted: #68716b;
+      --paper: #f6f3ec;
+      --panel: #fffdf8;
+      --line: #d9d2c3;
+      --accent: #246b56;
+      --accent-soft: #e2eee8;
+      --bad: #963d32;
+      --bad-soft: #f7e7e3;
+      --warn: #815f14;
+      --warn-soft: #f8efd5;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      line-height: 1.5;
+    }
+
+    main {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 44px 0 72px;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { max-width: 850px; font-size: clamp(2rem, 5vw, 3.7rem); line-height: 1.02; letter-spacing: -0.045em; }
+    h2 { margin-bottom: 14px; font-size: 1.25rem; }
+    h3 { margin-bottom: 8px; font-size: 1rem; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em; }
+
+    .eyebrow {
+      margin-bottom: 12px;
+      color: var(--accent);
+      font-size: .78rem;
+      font-weight: 750;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .question {
+      max-width: 900px;
+      margin-bottom: 28px;
+      font-size: 1.12rem;
+    }
+
+    .notice, .panel {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+      box-shadow: 0 8px 24px rgba(43, 38, 29, .05);
+    }
+
+    .notice {
+      margin-bottom: 26px;
+      padding: 16px 18px;
+      border-left: 5px solid var(--warn);
+      background: var(--warn-soft);
+    }
+
+    .model-grid, .state-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .model-card, .state-card { padding: 18px; }
+    .model-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+    .model-card p:last-child, .state-card p:last-child { margin-bottom: 0; }
+    .model-card ul { margin-bottom: 0; padding-left: 20px; }
+
+    section { margin-top: 34px; }
+
+    .verdict {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      margin-bottom: 16px;
+      padding: 18px;
+      border-left: 5px solid var(--bad);
+      background: var(--bad-soft);
+    }
+
+    .verdict.accept { border-left-color: var(--accent); background: var(--accent-soft); }
+    .verdict.nonpass { border-left-color: var(--warn); background: var(--warn-soft); }
+    .verdict strong { display: block; margin-bottom: 3px; }
+
+    dl { display: grid; grid-template-columns: 150px 1fr; gap: 8px 14px; margin: 0; }
+    dt { color: var(--muted); }
+    dd { margin: 0; overflow-wrap: anywhere; }
+
+    .checks { margin: 14px 0 0; padding: 0; list-style: none; }
+    .checks li { padding: 7px 0; border-top: 1px solid var(--line); }
+    .checks .pass { color: var(--accent); }
+    .checks .fail { color: var(--bad); }
+
+    .actions { display: flex; flex-wrap: wrap; gap: 9px; }
+
+    button {
+      appearance: none;
+      border: 1px solid #bdb5a7;
+      border-radius: 7px;
+      padding: 9px 12px;
+      color: var(--ink);
+      background: var(--panel);
+      font: inherit;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    button:hover { border-color: var(--accent); color: var(--accent); }
+    button.primary { border-color: var(--accent); color: white; background: var(--accent); }
+    button:disabled { cursor: default; opacity: .45; }
+
+    .tabs { display: flex; gap: 5px; overflow-x: auto; border-bottom: 1px solid var(--line); }
+    .tab { border: 0; border-radius: 7px 7px 0 0; white-space: nowrap; background: transparent; }
+    .tab.active { color: white; background: var(--accent); }
+    .walkthrough { padding: 20px; border: 1px solid var(--line); border-top: 0; background: var(--panel); }
+    .walkthrough-copy { max-width: 790px; }
+    .steps { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 15px; }
+    .step-done { text-decoration: line-through; opacity: .55; }
+
+    .full-state {
+      margin-top: 16px;
+      padding: 16px;
+      overflow: auto;
+      border-radius: 8px;
+      color: #dff7e9;
+      background: #17231e;
+      font: .78rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+      white-space: pre-wrap;
+    }
+
+    .last-change { color: var(--muted); font-size: .92rem; }
+
+    @media (max-width: 760px) {
+      main { width: min(100% - 22px, 1120px); padding-top: 26px; }
+      .model-grid, .state-grid { grid-template-columns: 1fr; }
+      dl { grid-template-columns: 1fr; gap: 2px; }
+      dd { margin-bottom: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">Throwaway logic prototype</p>
+    <h1>Can a formal result prove it observed the activities reviewers approved?</h1>
+    <p class="question">What is the smallest data and constraint model that stops a formal RUN and RES from claiming success when their observations do not correspond to the reviewed VER activities, while keeping the kernel process-neutral and adding no lifecycle artifacts?</p>
+
+    <div class="notice">
+      <strong>Hard limit.</strong> Package constraints can prove that submitted observation values match reviewed machine-readable expectations. They cannot prove that a process really produced those values. That stronger claim needs an executable oracle or a trusted execution boundary.
+    </div>
+
+    <section aria-labelledby="models-title">
+      <h2 id="models-title">Two package-only models</h2>
+      <div id="models" class="model-grid"></div>
+    </section>
+
+    <section class="panel model-card" aria-labelledby="answer-title">
+      <h2 id="answer-title">Prototype verdict</h2>
+      <p>The smallest useful change is one machine-readable expectation map in the existing VER payload and one observation map with the same keys in the existing RUN payload. The package completion rule permits an existing RES <code>pass</code> only when both key sets are exact and every captured value equals the reviewed value. Missing expected data cannot support pass. No new Lifecycle Datum type or revision is needed.</p>
+      <p>Merely copying activity names into <code>RUN.activities_expected</code> and <code>RUN.activities_invoked</code> does not work. Pi227 shows why: labels can agree while the actual cases and values drift.</p>
+    </section>
+
+    <section aria-labelledby="state-title">
+      <h2 id="state-title">Current state</h2>
+      <div id="verdict"></div>
+      <div id="state" class="state-grid"></div>
+      <p id="last-change" class="last-change"></p>
+      <details>
+        <summary>Show the complete in-memory state</summary>
+        <pre id="full-state" class="full-state"></pre>
+      </details>
+    </section>
+
+    <section aria-labelledby="free-title">
+      <h2 id="free-title">Free play</h2>
+      <div id="actions" class="actions"></div>
+    </section>
+
+    <section aria-labelledby="walkthrough-title">
+      <h2 id="walkthrough-title">Guided scenarios</h2>
+      <div id="tabs" class="tabs" role="tablist"></div>
+      <div id="walkthrough" class="walkthrough"></div>
+    </section>
+  </main>
+
+  <script>
+    // Portable pure logic module. It has no DOM or browser dependencies.
+    const FidelityModel = (() => {
+      const exactRunner = "procedure:sha256:74df...8098";
+      const otherRunner = "procedure:sha256:155c...128c7";
+
+      const reviewedCases = [
+        {
+          id: "success-four-tabs",
+          expected: {stdin_base64: "CQkJCQ==", stdout_base64: "NAo=", exit_status: 0}
+        },
+        {
+          id: "discrimination-two-tabs-vs-five",
+          expected: {stdin_base64: "CQk=", stdout_base64: "Mgo=", exit_status: 0}
+        }
+      ];
+
+      const matchingObservations = reviewedCases.map(item => ({
+        id: item.id,
+        observed: {...item.expected},
+        evidence_ref: `inline:sha256:${item.id}`
+      }));
+
+      const pi227Observations = [
+        matchingObservations[0],
+        {
+          id: "discrimination-nine-instead-of-five",
+          observed: {stdin_base64: "CQ==", stdout_base64: "MQo=", exit_status: 0},
+          evidence_ref: "inline:sha256:unreviewed-case"
+        }
+      ];
+
+      const clone = value => JSON.parse(JSON.stringify(value));
+      const equal = (left, right) => JSON.stringify(left) === JSON.stringify(right);
+      const ids = items => items.map(item => item.id);
+
+      function initialState() {
+        return {
+          selectedModel: "identity-only",
+          implementationRef: exactRunner,
+          runnerRef: exactRunner,
+          reviewedExpected: clone(reviewedCases),
+          activitiesExpected: ids(reviewedCases),
+          activitiesInvoked: ids(pi227Observations),
+          observations: clone(pi227Observations),
+          resultOutcome: "pass",
+          lastChange: "Loaded the representative Pi227 mismatch with the #655 runner identity already corrected."
+        };
+      }
+
+      function correspondence(state) {
+        const expectedIds = ids(state.reviewedExpected);
+        const observedIds = ids(state.observations);
+        const observationsById = new Map(state.observations.map(item => [item.id, item]));
+        const valuesMatch = state.reviewedExpected.length > 0 && state.reviewedExpected.every(item => {
+          const observation = observationsById.get(item.id);
+          return observation && equal(observation.observed, item.expected) && Boolean(observation.evidence_ref);
+        });
+
+        return {
+          identityMatches: state.runnerRef === state.implementationRef,
+          expectedDataPresent: state.reviewedExpected.length > 0,
+          expectedActivitiesMatch: equal(state.activitiesExpected, expectedIds),
+          invokedActivitiesMatch: equal(state.activitiesInvoked, expectedIds),
+          observationKeysMatch: equal(observedIds, expectedIds),
+          observationValuesMatch: valuesMatch
+        };
+      }
+
+      function evaluate(state) {
+        const checks = correspondence(state);
+        const passClaim = state.resultOutcome === "pass";
+        const required = state.selectedModel === "identity-only"
+          ? ["identityMatches"]
+          : Object.keys(checks);
+        const constraintsPass = required.every(name => checks[name]);
+
+        let disposition;
+        if (!passClaim) disposition = "accepted-non-pass";
+        else disposition = constraintsPass ? "accepted-pass" : "rejected-pass";
+
+        return {
+          disposition,
+          checks,
+          required,
+          proofLimit: "Cannot prove execution without an executable oracle or trusted execution boundary."
+        };
+      }
+
+      function reduce(state, action) {
+        const next = clone(state);
+        switch (action.type) {
+          case "reset": return initialState();
+          case "select-model":
+            next.selectedModel = action.model;
+            next.lastChange = action.model === "identity-only"
+              ? "Selected the current #655 identity-only package rule."
+              : "Selected reviewed expectations plus keyed RUN observations."
+            break;
+          case "runner-exact":
+            next.runnerRef = exactRunner;
+            next.lastChange = "RUN.runner_ref now equals VAI.implementation_ref.";
+            break;
+          case "runner-other":
+            next.runnerRef = otherRunner;
+            next.lastChange = "RUN.runner_ref now names a different runner.";
+            break;
+          case "remove-expectations":
+            next.reviewedExpected = [];
+            next.lastChange = "Removed machine-readable expected data from VER.";
+            break;
+          case "restore-expectations":
+            next.reviewedExpected = clone(reviewedCases);
+            next.lastChange = "Restored the two reviewed machine-readable expectations in VER.";
+            break;
+          case "observations-match":
+            next.observations = clone(matchingObservations);
+            next.activitiesInvoked = ids(reviewedCases);
+            next.lastChange = "RUN observations now match both reviewed activity keys and expected values.";
+            break;
+          case "observations-mismatch":
+            next.observations = clone(pi227Observations);
+            next.activitiesInvoked = ids(pi227Observations);
+            next.lastChange = "Loaded the Pi227-style case drift into RUN observations.";
+            break;
+          case "activity-labels-only":
+            next.activitiesExpected = ids(reviewedCases);
+            next.activitiesInvoked = ids(reviewedCases);
+            next.lastChange = "Copied reviewed activity labels into RUN without changing the mismatched observations.";
+            break;
+          case "claim-pass":
+            next.resultOutcome = "pass";
+            next.lastChange = "RES now claims pass.";
+            break;
+          case "claim-inconclusive":
+            next.resultOutcome = "inconclusive";
+            next.lastChange = "RES now reports inconclusive, so it makes no success claim.";
+            break;
+          default: return state;
+        }
+        return next;
+      }
+
+      return {initialState, reduce, evaluate};
+    })();
+
+    const actionCatalog = {
+      reset: {label: "Reset Pi227 example", action: {type: "reset"}},
+      identity: {label: "Use #655 identity-only rule", action: {type: "select-model", model: "identity-only"}},
+      proposed: {label: "Use reviewed-observation rule", action: {type: "select-model", model: "reviewed-observation"}},
+      exactRunner: {label: "Use exact VAI runner", action: {type: "runner-exact"}},
+      otherRunner: {label: "Use different runner", action: {type: "runner-other"}},
+      removeExpected: {label: "Remove expected data", action: {type: "remove-expectations"}},
+      restoreExpected: {label: "Restore expected data", action: {type: "restore-expectations"}},
+      match: {label: "Record matching observations", action: {type: "observations-match"}},
+      mismatch: {label: "Record mismatched observations", action: {type: "observations-mismatch"}},
+      labelsOnly: {label: "Copy activity labels only", action: {type: "activity-labels-only"}},
+      pass: {label: "Claim pass", action: {type: "claim-pass"}},
+      inconclusive: {label: "Report inconclusive", action: {type: "claim-inconclusive"}}
+    };
+
+    const scenarios = [
+      {
+        title: "Current #655 check",
+        description: "Start with a different runner and Pi227-style case drift. Correcting only the runner satisfies #655, so the pass claim is accepted even though one observation does not match the reviewed activity.",
+        setup: [{type: "reset"}, {type: "runner-other"}, {type: "select-model", model: "identity-only"}],
+        steps: ["exactRunner"]
+      },
+      {
+        title: "Activity mismatch",
+        description: "Use the proposed package rule with an exact runner. The Pi227-style activity and observation mismatch blocks the pass before RUN and RES publication.",
+        setup: [{type: "reset"}, {type: "select-model", model: "reviewed-observation"}],
+        steps: ["labelsOnly"]
+      },
+      {
+        title: "Matching observation",
+        description: "Record both reviewed cases with their exact machine-readable values. The package can accept the pass claim, subject to the explicit execution-proof limit.",
+        setup: [{type: "reset"}, {type: "select-model", model: "reviewed-observation"}],
+        steps: ["match"]
+      },
+      {
+        title: "Expected data missing",
+        description: "Even apparently matching RUN data cannot support pass when VER contains no machine-readable expectation. The safe result is inconclusive.",
+        setup: [{type: "reset"}, {type: "select-model", model: "reviewed-observation"}, {type: "observations-match"}],
+        steps: ["removeExpected", "inconclusive"]
+      },
+      {
+        title: "Correction",
+        description: "Keep the same VER and identities. Replace the mismatched RUN proposal with observations keyed to both reviewed cases. No extra lifecycle artifact is needed.",
+        setup: [{type: "reset"}, {type: "select-model", model: "reviewed-observation"}, {type: "claim-inconclusive"}],
+        steps: ["match", "pass"]
+      }
+    ];
+
+    let state = FidelityModel.initialState();
+    let activeScenario = 0;
+    let completedSteps = 0;
+
+    function dispatch(action) {
+      state = FidelityModel.reduce(state, action);
+      render();
+    }
+
+    function beginScenario(index) {
+      activeScenario = index;
+      completedSteps = 0;
+      state = FidelityModel.initialState();
+      scenarios[index].setup.forEach(action => { state = FidelityModel.reduce(state, action); });
+      state.lastChange = `Started guided scenario: ${scenarios[index].title}.`;
+      render();
+    }
+
+    function runStep(index) {
+      if (index !== completedSteps) return;
+      dispatch(actionCatalog[scenarios[activeScenario].steps[index]].action);
+      completedSteps += 1;
+      render();
+    }
+
+    function textList(items) {
+      return items.length ? items.join(", ") : "None";
+    }
+
+    function renderModels() {
+      const models = [
+        {
+          id: "identity-only",
+          title: "1. Current #655 identity binding",
+          copy: "Require RUN.runner_ref to equal VAI.implementation_ref.",
+          facts: ["No new data fields", "Rejects runner substitution", "Does not compare VER activities with observations"]
+        },
+        {
+          id: "reviewed-observation",
+          title: "2. Reviewed observation binding",
+          copy: "Add machine-readable expected cases inside VER and keyed captured observations inside RUN. Gate an existing RES pass on exact case and value equality.",
+          facts: ["No new lifecycle artifacts", "Generic package completion expressions", "Rejects missing, extra, renamed, or value-mismatched observations"]
+        }
+      ];
+      document.querySelector("#models").innerHTML = models.map(model => `
+        <article class="panel model-card ${state.selectedModel === model.id ? "selected" : ""}">
+          <h3>${model.title}</h3>
+          <p>${model.copy}</p>
+          <ul>${model.facts.map(fact => `<li>${fact}</li>`).join("")}</ul>
+        </article>
+      `).join("");
+    }
+
+    function renderVerdict(evaluation) {
+      const labels = {
+        "accepted-pass": ["accept", "PASS CLAIM ACCEPTED", "The selected package constraints permit publication."],
+        "rejected-pass": ["", "PASS CLAIM REJECTED", "The selected package constraints block publication."],
+        "accepted-non-pass": ["nonpass", "NON-PASS RESULT ACCEPTED", "The result makes no success claim and may remain as durable evidence."]
+      };
+      const [className, title, copy] = labels[evaluation.disposition];
+      document.querySelector("#verdict").innerHTML = `
+        <div class="notice verdict ${className}">
+          <div><strong>${title}</strong>${copy}</div>
+        </div>
+      `;
+    }
+
+    function renderState(evaluation) {
+      const checkLabels = {
+        identityMatches: "RUN runner equals VAI implementation",
+        expectedDataPresent: "VER has machine-readable expected data",
+        expectedActivitiesMatch: "RUN expected activity keys equal VER case keys",
+        invokedActivitiesMatch: "RUN invoked activity keys equal VER case keys",
+        observationKeysMatch: "RUN observation keys equal VER case keys",
+        observationValuesMatch: "Every observed value equals its reviewed expectation"
+      };
+      const checks = Object.entries(evaluation.checks).map(([name, passed]) => {
+        const required = evaluation.required.includes(name);
+        return `<li class="${passed ? "pass" : "fail"}">${passed ? "Pass" : "Fail"}: ${checkLabels[name]}${required ? " (required)" : " (not checked by this model)"}</li>`;
+      }).join("");
+
+      document.querySelector("#state").innerHTML = `
+        <article class="panel state-card">
+          <h3>VER and VAI</h3>
+          <dl>
+            <dt>VAI runner</dt><dd><code>${state.implementationRef}</code></dd>
+            <dt>Reviewed cases</dt><dd>${textList(state.reviewedExpected.map(item => item.id))}</dd>
+            <dt>Expected values</dt><dd>${state.reviewedExpected.length ? `${state.reviewedExpected.length} machine-readable transcripts` : "Missing"}</dd>
+          </dl>
+        </article>
+        <article class="panel state-card">
+          <h3>RUN and RES proposal</h3>
+          <dl>
+            <dt>RUN runner</dt><dd><code>${state.runnerRef}</code></dd>
+            <dt>Activities invoked</dt><dd>${textList(state.activitiesInvoked)}</dd>
+            <dt>Observation keys</dt><dd>${textList(state.observations.map(item => item.id))}</dd>
+            <dt>RES outcome</dt><dd><code>${state.resultOutcome}</code></dd>
+          </dl>
+        </article>
+        <article class="panel state-card" style="grid-column: 1 / -1">
+          <h3>Constraint evaluation</h3>
+          <ul class="checks">${checks}</ul>
+          <p><strong>Proof boundary:</strong> ${evaluation.proofLimit}</p>
+        </article>
+      `;
+      document.querySelector("#last-change").textContent = `Last change: ${state.lastChange}`;
+      document.querySelector("#full-state").textContent = JSON.stringify({...state, evaluation}, null, 2);
+    }
+
+    function renderActions() {
+      document.querySelector("#actions").innerHTML = Object.values(actionCatalog).map(item =>
+        `<button type="button" data-action='${JSON.stringify(item.action)}'>${item.label}</button>`
+      ).join("");
+      document.querySelectorAll("#actions [data-action]").forEach(button => {
+        button.addEventListener("click", () => dispatch(JSON.parse(button.dataset.action)));
+      });
+    }
+
+    function renderWalkthrough() {
+      document.querySelector("#tabs").innerHTML = scenarios.map((scenario, index) =>
+        `<button type="button" class="tab ${index === activeScenario ? "active" : ""}" role="tab" aria-selected="${index === activeScenario}" data-tab="${index}">${scenario.title}</button>`
+      ).join("");
+      document.querySelectorAll("[data-tab]").forEach(button => {
+        button.addEventListener("click", () => beginScenario(Number(button.dataset.tab)));
+      });
+
+      const scenario = scenarios[activeScenario];
+      document.querySelector("#walkthrough").innerHTML = `
+        <div class="walkthrough-copy">
+          <h3>${scenario.title}</h3>
+          <p>${scenario.description}</p>
+        </div>
+        <div class="steps">
+          <button type="button" class="primary" data-restart>Restart scenario</button>
+          ${scenario.steps.map((key, index) => `<button type="button" data-step="${index}" class="${index < completedSteps ? "step-done" : ""}" ${index > completedSteps ? "disabled" : ""}>${index + 1}. ${actionCatalog[key].label}</button>`).join("")}
+        </div>
+      `;
+      document.querySelector("[data-restart]").addEventListener("click", () => beginScenario(activeScenario));
+      document.querySelectorAll("[data-step]").forEach(button => {
+        button.addEventListener("click", () => runStep(Number(button.dataset.step)));
+      });
+    }
+
+    function render() {
+      const evaluation = FidelityModel.evaluate(state);
+      renderModels();
+      renderVerdict(evaluation);
+      renderState(evaluation);
+      renderActions();
+      renderWalkthrough();
+    }
+
+    beginScenario(0);
+  </script>
+</body>
+</html>
