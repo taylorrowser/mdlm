@@ -30,7 +30,10 @@ status_rules:
 default_status: awaiting-review
 resolve_with:
   scenario: review-phase-0-foundation@1
+  dispatch:
+    for_each: 'select("phase-0-foundation-review-cohort-for@1", {subject: subject})'
+    as: review_subject
   inputs:
-    subject: subject
-    review_context_members: 'select("review-context-members-for@1", {subject: subject})'
+    subject: review_subject
+    review_context_members: 'select("review-context-members-for@1", {subject: review_subject})'
 waiver_policy_ref: waiver-applicability@1
