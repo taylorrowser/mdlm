@@ -23,15 +23,15 @@ prompt_ref: prompts/define-decomposition-work-package.md@4
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true
-  && every("planning-decomposition-plans-for-architecture@1",
-    {architecture: architecture}, plan =>
+  && every("proposed-planning-decomposition-plans-for-architecture@1",
+    {architecture: architecture}, proposed_plan =>
       ((phase.id == "phase-2-system-definition"
-          && plan.payload.target_child_type == "SYS")
+          && proposed_plan.payload.target_child_type == "SYS")
         || (phase.id == "phase-3-component-definition"
-          && plan.payload.target_child_type == "CMP")
+          && proposed_plan.payload.target_child_type == "CMP")
         || (phase.id == "phase-4-design-definition"
-          && plan.payload.target_child_type == "DES"))
-      && every("linked-decomposition-parents-for@1", {plan: plan}, parent =>
+          && proposed_plan.payload.target_child_type == "DES"))
+      && every("linked-decomposition-parents-for@1", {plan: proposed_plan}, parent =>
         (phase.id == "phase-2-system-definition" && parent.identity.type == "STK")
         || (phase.id == "phase-3-component-definition" && parent.identity.type == "SYS")
         || (phase.id == "phase-4-design-definition" && parent.identity.type == "CMP")))
