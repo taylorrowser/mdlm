@@ -62,6 +62,7 @@ export const rootTestQualificationManifest = Object.freeze([
   { file: "test/cutover-corpus.test.ts", qualificationGate: "pr" },
   { file: "test/pi-operator-instructions.test.ts", qualificationGate: "pr" },
   { file: "test/resolve-type.test.ts", qualificationGate: "pr" },
+  { file: "test/release-candidate-gate.test.ts", qualificationGate: "pr" },
   { file: "test/selector-memoization.test.ts", qualificationGate: "pr" },
   { file: "test/textual-expression.test.ts", qualificationGate: "pr" },
 ].map((entry) => Object.freeze(entry)));
@@ -122,6 +123,7 @@ const rootTestRuntimeManifest = [
   { file: "test/cutover-corpus.test.ts", runtimeClass: "cheap-in-process", weight: 1, measuredDurationMs: 168 },
   { file: "test/pi-operator-instructions.test.ts", runtimeClass: "cheap-in-process", weight: 1, measuredDurationMs: 978 },
   { file: "test/resolve-type.test.ts", runtimeClass: "cheap-in-process", weight: 1, measuredDurationMs: 6_242 },
+  { file: "test/release-candidate-gate.test.ts", runtimeClass: "cheap-in-process", weight: 1, measuredDurationMs: 2_000 },
   { file: "test/selector-memoization.test.ts", runtimeClass: "cheap-in-process", weight: 1, measuredDurationMs: 2_427 },
   { file: "test/textual-expression.test.ts", runtimeClass: "cheap-in-process", weight: 1, measuredDurationMs: 2_441 },
 ];
