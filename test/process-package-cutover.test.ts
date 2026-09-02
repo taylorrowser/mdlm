@@ -66,7 +66,7 @@ describe("simplified Process Package contract", () => {
     const expected = {
       "review-phase-0-foundation": ["MAP", "PSP", "STK", "DEC"],
       "review-phase-0-candidate": ["BSL"],
-      "review-phase-1-assurance": ["VSP", "ENV", "VER", "VAI"],
+      "review-phase-1-assurance": ["VSP", "ENV", "VER", "VAI", "RES"],
     };
     for (const [id, subjectTypes] of Object.entries(expected)) {
       const scenario = loaded.package.scenarios[id];
