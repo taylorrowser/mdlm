@@ -14,6 +14,16 @@ satisfied_when: >-
     && exists("phase-6-applicable-formal-results-for-implementation@1",
       {implementation: implementation}))
 status_rules:
+  - status: awaiting-review
+    priority: 900
+    when: >-
+      implementation.payload.kind == "pilot"
+      && exists("pilot-results-awaiting-assessment-for-implementation@1",
+        {implementation: implementation})
+    reason: The accepted immutable pilot execution awaits its declared independent result assessment and must not be replayed.
+    blocked_by:
+      - obligation: pilot-result-assessment-required@1
+        subjects: '[implementation]'
   - status: blocked
     priority: 850
     when: >-

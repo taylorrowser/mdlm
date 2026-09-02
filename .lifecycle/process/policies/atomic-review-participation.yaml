@@ -3,7 +3,7 @@ id: atomic-review-participation
 version: 1
 description: Delegate one exact atomic context-and-Review transaction to an independent reviewer without scheduled attention.
 parameters:
-  - {name: subject, kind: revision, types: [MAP, PSP, STK, DEC, VSP, ENV, VER, VAI, BSL]}
+  - {name: subject, kind: revision, types: [MAP, PSP, STK, DEC, VSP, ENV, VER, VAI, RES, BSL]}
 result_schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object

@@ -1,0 +1,23 @@
+kind: selector-definition
+id: pilot-result-review-context-members-for
+version: 1
+description: Exact RUN, VAI, VER, ENV, and ART evidence required to assess one witnessed pilot result.
+parameters:
+  - {name: subject, kind: revision, types: [RES]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [ART, ENV, VER, VAI, RUN]}
+  as: member
+  where: >-
+    !every("pilot-runs-producing-result@1", {result: subject}, run =>
+      member != run
+      && every("verification-implementations-for-run@1", {run: run}, implementation =>
+        member != implementation
+        && every("verification-activities-for-implementation@1",
+          {implementation: implementation}, activity => member != activity)
+        && every("environments-for-implementation@1",
+          {implementation: implementation}, environment => member != environment)
+        && every("execution-targets-for-implementation@1",
+          {implementation: implementation}, target => member != target)))
+  distinct: true
+  order_by: [identity.type, identity.revision_id]
