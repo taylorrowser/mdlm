@@ -1176,7 +1176,9 @@ export async function reconstructZeroInterfacePhaseTwoRouteForCapture(): Promise
   }
 }
 
-export async function runPhaseTwoSiblingSystemReviewBatch(): Promise<void> {
+async function runPhaseTwoSiblingSystemReviewRoute(
+  definitionConsistencyFailure: boolean,
+): Promise<void> {
   const parent = await fs.mkdtemp(
     path.join(os.tmpdir(), "mdlm-public-phase2-stakeholder-strategy-"),
   );
@@ -1510,28 +1512,132 @@ export async function runPhaseTwoSiblingSystemReviewBatch(): Promise<void> {
       simplificationPacket,
       "subject_context",
     )[0]!;
-    const simplification = submit(repository, simplificationPacket, [{
-      localId: "review",
-      name: "review",
-      invocation: 0,
-      lifecycleDatum: {
-        type: "REV",
-        payload: {
-          title: "Simplification review of client system definition",
-          review_kind: "simplification-architecture-interfaces",
-          rubric_ref: "policies/rubrics/bootstrap-review.md@3",
-          outcome: "pass",
-          reviewer: "independent-reviewer",
-          summary: "The one-element system definition is minimal and complete.",
+    const simplificationResponse = structuredClone(
+      simplificationPacket.responseScaffold,
+    );
+    const simplificationOutput = simplificationResponse.proposal.outputs[0]!;
+    const simplificationLinks = simplificationOutput.links as Array<{
+      type: string;
+      target: { datum?: string };
+    }>;
+    if (definitionConsistencyFailure) {
+      const definitionMembers = exactInputs(
+        simplificationPacket,
+        "definition_members",
+      );
+      expect(definitionMembers).toEqual([
+        architecture,
+        plan,
+        ...systems.filter((candidate) => candidate !== failedSubject),
+        replacement,
+      ].sort());
+      const blockTargets = simplificationLinks
+        .filter((link) => link.type === "blocks")
+        .map((link) => link.target.datum)
+        .filter((target): target is string => target !== undefined)
+        .sort();
+      expect(blockTargets).toEqual(definitionMembers);
+      simplificationOutput.payload = {
+        title: "Failed simplification Review of the exact definition",
+        review_kind: "simplification-architecture-interfaces",
+        reviewer: "independent-reviewer",
+        summary: "The exact definition needs one consistent correction.",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
+        definition_simplification: {
+          primary_target: replacement,
+          correction_set: "definition-consistency",
+          primary_findings: [{
+            id: "F-001",
+            severity: "blocking",
+            summary: "The definition members disagree about one behavior.",
+            criterion: "The complete definition must describe one consistent behavior.",
+            evidence: "The replacement SYS conflicts with its exact ASP and planning DWP context.",
+            material_consequence: "The definition cannot advance as a coherent set.",
+          }],
         },
-        links: [
-          { type: "reviews", target: simplificationContext },
-          { type: "contextualizes", target: simplificationContext },
-        ],
-        body: "No behavior or controlled boundary can be removed.\n",
-      },
-    }]);
-    const simplificationReview = submittedRevision(simplification, "review");
+        correction_authority: "package-evidence",
+        outcome: "fail",
+      };
+      simplificationOutput.body =
+        "Correct every exact definition member as one consistent set.\n";
+      simplificationResponse.proposal.completionEvidence = {
+        summary: "Recorded one exact definition-consistency failure.",
+      };
+
+      simplificationOutput.links = simplificationLinks.filter((link) =>
+        link.type !== "blocks" ||
+        link.target.datum !== architecture
+      );
+      const incomplete = mdlmWithInput(
+        repository,
+        `${JSON.stringify(simplificationResponse)}\n`,
+        "scenario",
+        "submit",
+        "-",
+        "--json",
+      );
+      expect(incomplete.status).toBe(1);
+      expect(JSON.parse(incomplete.stdout)).toEqual(expect.objectContaining({
+        outcome: "rejected",
+        correctionConsumed: false,
+        diagnostics: expect.arrayContaining([
+          expect.objectContaining({ code: "scenario-completion-failed" }),
+        ]),
+      }));
+
+      simplificationOutput.links = structuredClone(
+        simplificationPacket.responseScaffold.proposal.outputs[0]!.links,
+      );
+      const accepted = mdlmWithInput(
+        repository,
+        `${JSON.stringify(simplificationResponse)}\n`,
+        "scenario",
+        "submit",
+        "-",
+        "--json",
+      );
+      expect(accepted.status, `${accepted.stderr}${accepted.stdout}`).toBe(0);
+      expect(JSON.parse(accepted.stdout)).toEqual(expect.objectContaining({
+        outcome: "accepted",
+        receipt: expect.objectContaining({
+          publications: [expect.objectContaining({ handle: "review" })],
+        }),
+      }));
+      return;
+    }
+
+    simplificationOutput.payload = {
+      title: "Simplification review of client system definition",
+      review_kind: "simplification-architecture-interfaces",
+      rubric_ref: "policies/rubrics/bootstrap-review.md@3",
+      outcome: "pass",
+      reviewer: "independent-reviewer",
+      summary: "The one-element system definition is minimal and complete.",
+    };
+    simplificationOutput.links = simplificationLinks.filter(
+      (link) => link.type !== "blocks",
+    );
+    simplificationOutput.body =
+      "No behavior or controlled boundary can be removed.\n";
+    simplificationResponse.proposal.completionEvidence = {
+      summary: "Completed simplify-architecture-and-interfaces@2.",
+    };
+    const simplificationSubmit = mdlmWithInput(
+      repository,
+      `${JSON.stringify(simplificationResponse)}\n`,
+      "scenario",
+      "submit",
+      "-",
+      "--json",
+    );
+    expect(
+      simplificationSubmit.status,
+      `${simplificationSubmit.stderr}${simplificationSubmit.stdout}`,
+    ).toBe(0);
+    const simplificationReview = JSON.parse(simplificationSubmit.stdout)
+      .receipt.publications.find(
+        (publication: { handle: string }) => publication.handle === "review",
+      ).revisionId as string;
     commit(repository, "Review system definition simplification");
 
     const completionPacket = prepareScenarioAfterReviews(
@@ -1594,6 +1700,14 @@ export async function runPhaseTwoSiblingSystemReviewBatch(): Promise<void> {
   } finally {
     await fs.rm(parent, { recursive: true, force: true });
   }
+}
+
+export async function runPhaseTwoSiblingSystemReviewBatch(): Promise<void> {
+  await runPhaseTwoSiblingSystemReviewRoute(false);
+}
+
+export async function runPhaseTwoDefinitionConsistencyFailureSubmission(): Promise<void> {
+  await runPhaseTwoSiblingSystemReviewRoute(true);
 }
 
 export async function runZeroInterfacePhaseTwoRoute(): Promise<void> {

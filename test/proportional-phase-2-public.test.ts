@@ -7,6 +7,7 @@ import { canonicalProcessPackage } from "./helpers/canonical-process-package-fix
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 import {
   runPhaseTwoAssuranceReviewRoute,
+  runPhaseTwoDefinitionConsistencyFailureSubmission,
   runPhaseTwoSiblingSystemReviewBatch,
 } from
   "./helpers/proportional-phase-2-routes.js";
@@ -587,6 +588,12 @@ it("routes the remaining system strategy after one Phase 2 acceptance", async ()
 it(
   "reviews four sibling Phase 2 SYS in one subject-local public Assignment",
   runPhaseTwoSiblingSystemReviewBatch,
+  120_000,
+);
+
+it(
+  "accepts a complete definition-consistency failure at the public Assignment seam",
+  runPhaseTwoDefinitionConsistencyFailureSubmission,
   120_000,
 );
 

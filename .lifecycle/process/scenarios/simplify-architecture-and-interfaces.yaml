@@ -23,7 +23,9 @@ outputs:
     required_links:
       - {link: reviews, target: {input: subject_context}}
       - {link: contextualizes, target: {input: subject_context}}
-prompt_ref: prompts/simplify-architecture-and-interfaces.md@1
+    permitted_links:
+      - {link: blocks, target: {input: definition_members}}
+prompt_ref: prompts/simplify-architecture-and-interfaces.md@2
 review_policy_ref: review-applicability@1
 participation:
   policy_ref: contextual-review-participation@1
