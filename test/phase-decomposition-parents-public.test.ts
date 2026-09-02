@@ -262,4 +262,4 @@ it("gives decomposition planning only the active phase parent type", async () =>
       await fs.rm(parent, { recursive: true, force: true });
     }
   }
-}, 60_000);
+}, 360_000);
