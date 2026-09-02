@@ -44,7 +44,7 @@
         "required_evidence": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}, "uniqueItems": true},
         "allowed_findings": {"type": "array", "items": {"enum": ["scope", "traceability", "observability", "consistency", "evidence", "independence"]}, "minItems": 1, "uniqueItems": true},
         "summary_rule": {"type": "string", "minLength": 1},
-        "correction_authorities": {"type": "array", "items": {"enum": ["author", "stakeholder", "package-evidence"]}, "minItems": 1, "uniqueItems": true}
+        "correction_authorities": {"type": "array", "items": {"enum": ["stakeholder", "package-evidence"]}, "minItems": 1, "uniqueItems": true}
       }
     },
     "review_policy_ref": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"},

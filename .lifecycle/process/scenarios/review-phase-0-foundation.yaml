@@ -39,7 +39,7 @@ review_contract:
   required_evidence: [review_context_members]
   allowed_findings: [scope, traceability, observability, consistency]
   summary_rule: State whether the exact subject is necessary, observable, traceable, and consistent with its supplied context.
-  correction_authorities: [author, stakeholder, package-evidence]
+  correction_authorities: [stakeholder, package-evidence]
 review_policy_ref: review-applicability@1
 review_policy_arguments: {subject: subject}
 participation:

@@ -39,7 +39,7 @@ review_contract:
   required_evidence: [review_context_members]
   allowed_findings: [traceability, observability, consistency, evidence, independence]
   summary_rule: State whether the assurance claim is traceable, reproducible, independent where required, and supported by exact execution evidence.
-  correction_authorities: [author, stakeholder, package-evidence]
+  correction_authorities: [stakeholder, package-evidence]
 review_policy_ref: review-applicability@1
 review_policy_arguments: {subject: subject}
 participation:
