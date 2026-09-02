@@ -19,9 +19,22 @@ outputs:
       - {link: governed-by, target: {input: interfaces}}
       - {link: verified-under, target: {input: verification_strategy}}
   - {name: questions, types: [QST], cardinality: zero-or-more, required_links: []}
-prompt_ref: prompts/define-decomposition-work-package.md@3
+prompt_ref: prompts/define-decomposition-work-package.md@4
 review_policy_ref: review-applicability@1
-completion: 'execution.integrity.contract_valid == true'
+completion: >-
+  execution.integrity.contract_valid == true
+  && every("planning-decomposition-plans-for-architecture@1",
+    {architecture: architecture}, plan =>
+      ((phase.id == "phase-2-system-definition"
+          && plan.payload.target_child_type == "SYS")
+        || (phase.id == "phase-3-component-definition"
+          && plan.payload.target_child_type == "CMP")
+        || (phase.id == "phase-4-design-definition"
+          && plan.payload.target_child_type == "DES"))
+      && every("linked-decomposition-parents-for@1", {plan: plan}, parent =>
+        (phase.id == "phase-2-system-definition" && parent.identity.type == "STK")
+        || (phase.id == "phase-3-component-definition" && parent.identity.type == "SYS")
+        || (phase.id == "phase-4-design-definition" && parent.identity.type == "CMP")))
 resolves: [decomposition-planning-required]
 prohibited_inputs: [mutable latest aliases, product source code, proposed implementation details]
 batching: coherent-batch

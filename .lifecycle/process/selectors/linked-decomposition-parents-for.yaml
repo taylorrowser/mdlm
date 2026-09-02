@@ -1,0 +1,13 @@
+kind: selector-definition
+id: linked-decomposition-parents-for
+version: 1
+description: Every exact requirement Revision linked as a parent by one DWP.
+parameters:
+  - {name: plan, kind: revision, types: [DWP]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: plan, link: decomposes, emit: target, types: [STK, SYS, CMP]}
+  as: parent
+  where: 'true'
+  distinct: true
+  order_by: [identity.revision_id]
