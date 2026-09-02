@@ -7,7 +7,7 @@ import { canonicalProcessPackage } from "./helpers/canonical-process-package-fix
 import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 import {
   runPhaseTwoAssuranceReviewRoute,
-  runPhaseTwoPlanningWithStakeholderStrategy,
+  runPhaseTwoSiblingSystemReviewBatch,
 } from
   "./helpers/proportional-phase-2-routes.js";
 import { runPhaseTwoSimplificationReviewBinding } from
@@ -585,9 +585,9 @@ it("routes the remaining system strategy after one Phase 2 acceptance", async ()
 });
 
 it(
-  "keeps a reviewed Phase 2 plan current after its own SYS output",
-  runPhaseTwoPlanningWithStakeholderStrategy,
-  90_000,
+  "reviews four sibling Phase 2 SYS in one subject-local public Assignment",
+  runPhaseTwoSiblingSystemReviewBatch,
+  120_000,
 );
 
 it(
