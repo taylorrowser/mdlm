@@ -130,6 +130,32 @@ describe("loadProcessPackage", () => {
     return { ok: diagnostics.length === 0, diagnostics };
   }
 
+  it("states the exact pilot behavior-array copies required by completion", async () => {
+    const [prototypePrompt, implementationPrompt] = await Promise.all([
+      fs.readFile(
+        path.join(
+          process.cwd(),
+          ".lifecycle/process/prompts/build-representative-level-pilot-control-prototype.md",
+        ),
+        "utf8",
+      ),
+      fs.readFile(
+        path.join(
+          process.cwd(),
+          ".lifecycle/process/prompts/implement-verification-activity.md",
+        ),
+        "utf8",
+      ),
+    ]);
+
+    expect(prototypePrompt.replace(/\s+/g, " ")).toContain(
+      "Set `supported_behavior` to a one-item array whose sole item copies the bound activity's `expected_success_activity` exactly. Set `unsupported_behavior` to a one-item array whose sole item copies the bound activity's `expected_discrimination_activity` exactly.",
+    );
+    expect(implementationPrompt.replace(/\s+/g, " ")).toContain(
+      "Copy the supplied ART's `supported_behavior` array exactly into `target_behavior.supported`, and copy its `unsupported_behavior` array exactly into `target_behavior.intentionally_unsupported`. Do not paraphrase either array.",
+    );
+  });
+
   function scenarioContractResult(processPackage: ProcessPackage) {
     const diagnostics = validateScenarioContracts(processPackage);
     return { ok: diagnostics.length === 0, diagnostics };
