@@ -14,5 +14,7 @@ query:
     && none("failing-reviews-for@1", {subject: candidate})
     && exists("applicable-gate-signoffs-for@1", {candidate: candidate})
     && exists("accepted-component-baselines-for-design-candidate@1", {candidate: candidate})
+    && every("formal-activities-for-phase-5-candidate@1", {candidate: candidate}, activity =>
+      count("formal-environments-for-activity@1", {activity: activity}) == 1)
   distinct: true
   order_by: [identity.revision_id]

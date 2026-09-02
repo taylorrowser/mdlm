@@ -20,6 +20,8 @@ interface SuppliedOutput {
   body: string;
 }
 
+const realizedEnvironments = new Map<string, Map<string, string>>();
+
 function git(repository: string, ...arguments_: string[]) {
   return spawnSync("git", ["-C", repository, ...arguments_], {
     encoding: "utf8",
@@ -144,6 +146,20 @@ async function phaseThreePackage(parent: string): Promise<string> {
     recursive: true,
   });
 
+  // The focused setup seeds accepted upstream strategies without their
+  // historical assurance data. Route every still-unrealized strategy through
+  // the real ENV qualification and Review path before Phase 5.
+  const activeStrategiesPath = path.join(
+    root,
+    "selectors/current-active-phase-verification-strategies.yaml",
+  );
+  const activeStrategies = parse(await fs.readFile(activeStrategiesPath, "utf8"));
+  activeStrategies.query.where = [
+    'state(strategy, "disposition") == "active"',
+    '&& state(strategy, "validity") == "valid"',
+    '&& none("newer-revisions-for@1", {subject: strategy})',
+  ].join(" ");
+  await fs.writeFile(activeStrategiesPath, stringify(activeStrategies));
   const profilePath = path.join(root, "profiles/bootstrap.yaml");
   const profile = parse(await fs.readFile(profilePath, "utf8"));
   profile.enabled.phases = [
@@ -412,6 +428,13 @@ function nextAfterReviews(
     }
     const packet = outcome.assignment?.packet;
     expect(packet, JSON.stringify(outcome)).toBeDefined();
+    if (packet.scenario.reference === "realize-verification-environment@1") {
+      const realized = realizeAndQualifyEnvironment(repository, packet);
+      const byStrategy = realizedEnvironments.get(repository) ?? new Map<string, string>();
+      byStrategy.set(realized.strategy, realized.environment);
+      realizedEnvironments.set(repository, byStrategy);
+      continue;
+    }
     if (packet.scenario.reference === "review-datum-in-context@3") {
       const subject = inputRevisions(packet, "subject")[0]!;
       reviewContexts?.set(subject, inputRevisions(packet, "review_context")[0]!);
@@ -460,6 +483,85 @@ function submitReview(
   }], "independent-reviewer");
   commit(repository, `Review ${expectedSubject}`);
   return publication(result, "review");
+}
+
+function realizeAndQualifyEnvironment(
+  repository: string,
+  packet: Json,
+): { environment: string; strategy: string } {
+  const strategy = inputRevisions(packet, "strategy")[0]!;
+  const strategyDatum = JSON.parse(
+    mdlm(repository, "show", strategy, "--json").stdout,
+  ).lifecycleDatum.datum;
+  const profile = strategyDatum.payload.environment_profile;
+  const realized = submit(repository, packet, [
+    {
+      output: "environment",
+      payload: {
+        title: `${strategyDatum.payload.level} verification environment`,
+        rationale: "Realize the exact strategy before formal implementation.",
+        strategy_revision: strategy,
+        profile_id: profile.id,
+        capabilities: profile.capabilities,
+        reproducibility: {
+          environment_ref: `fixture:${profile.id}@1`,
+          configuration_digest: `sha256:${"0".repeat(64)}`,
+          reconstruction: "Recreate the exact focused fixture.",
+        },
+      },
+      body: "One reproducible exact-strategy environment.\n",
+    },
+    {
+      output: "qualification_activity",
+      payload: {
+        title: `Qualify ${profile.id}`,
+        rationale: "Check the declared capabilities.",
+        kind: "qualification",
+        method: "test",
+        assessment_mode: "automatic",
+        claim: { kind: "qualification", scope: "environment-capability", formal_evidence_eligible: false },
+        acceptance_criteria: ["Declared capabilities are observable."],
+        evidence_requirements: ["Retain both observations."],
+        expected_success_activity: "Exercise a declared capability.",
+        expected_discrimination_activity: "Reject an undeclared capability.",
+      },
+      body: "One qualification activity.\n",
+    },
+    {
+      output: "qualification_implementation",
+      payload: {
+        title: `Qualification procedure for ${profile.id}`,
+        rationale: "Exercise positive and negative capability controls.",
+        kind: "qualification",
+        implementation_ref: `procedure:sha256:${"1".repeat(64)}`,
+        independence_mode: "environment-capability",
+        authoring_input_refs: [strategy],
+        prohibited_inputs_observed: ["product source code", "product unit tests", "private implementation details", "uncontrolled implementation shortcuts"],
+        activity_bindings: ["positive capability", "negative capability"],
+        target_behavior: { supported: ["declared capabilities"], intentionally_unsupported: ["undeclared capabilities"] },
+        execution_procedure: { content: "Run the positive and negative capability controls.", deadlines_ms: { checkout: 1000, environment_check: 1000, product_case: 1000 }, deadline_scope: "infrastructure-safety-only", timeout: { termination: "process-group-sigterm-then-sigkill", force_after_ms: 100, reaping: "all-descendants", capture_partial_raw_observation: true }, cleanup: "guaranteed", aggregation: "continue-through-all-cases" },
+      },
+      body: "One qualification procedure.\n",
+    },
+  ]);
+  commit(repository, `Realize ${profile.id} environment`);
+  const environment = publication(realized, "environment");
+  const qualification = nextPacket(repository, "execute-verification-run@2");
+  const qualified = submit(repository, qualification, [
+    {
+      output: "run",
+      payload: { title: `Qualification run for ${profile.id}`, kind: "qualification", started_at: "2026-08-31T00:00:00Z", completed_at: "2026-08-31T00:00:01Z", execution_state: "completed", execution_target: { kind: "environment", ref: environment }, runner_ref: "fixture-runner@1", configuration_refs: [strategy], activities_expected: ["capability"], activities_invoked: ["capability"], evidence_locations: [`inline:${profile.id}`] },
+      body: "One immutable qualification run.\n",
+    },
+    {
+      output: "result",
+      payload: { title: `Passing qualification for ${profile.id}`, claim: { kind: "qualification", scope: "environment-capability", outcome: "pass", formal_evidence_eligible: false }, assessment_state: "accepted", observations: { expected_success_observed: true, expected_discrimination_observed: true, details: "Both controls behaved as declared." }, evidence_refs: [`inline:${profile.id}`], assessor_ref: "fixture-assessor@1" },
+      body: "The environment is suitable.\n",
+    },
+  ]);
+  expect(publication(qualified, "result")).toMatch(/^RES-/);
+  commit(repository, `Qualify ${profile.id} environment`);
+  return { environment, strategy };
 }
 
 function submitFailedReview(
@@ -786,6 +888,7 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
       review(repository, system),
     ];
     expect(upstreamDefinitionReviews).toHaveLength(2);
+    const reviews: string[] = [...upstreamDefinitionReviews];
     const acceptancePacket = nextPacket(
       repository,
       "seed-accepted-system-slice@1",
@@ -823,9 +926,10 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
     expect(acceptedIntent).toMatch(/^BSL-/);
     commit(repository, "Publish exact accepted system slice");
 
-    const strategyPacket = nextPacket(
+    const strategyPacket = nextAfterReviews(
       repository,
       "define-lower-level-verification-strategy@1",
+      reviews,
     );
     const strategyResult = submit(repository, strategyPacket, [{
       output: "strategy",
@@ -860,10 +964,10 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
     }]);
     commit(repository, "Publish component strategy");
     const strategy = publication(strategyResult, "strategy");
-
-    const architecturePacket = nextPacket(
+    const architecturePacket = nextAfterReviews(
       repository,
       "define-component-architecture@1",
+      reviews,
     );
     expect(inputRevisions(architecturePacket, "requirements")).toEqual([system]);
     const architectureResult = submit(repository, architecturePacket, [{
@@ -1067,47 +1171,6 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
     const correctionRepository = path.join(parent, "correction-repository");
     await fs.cp(repository, correctionRepository, { recursive: true });
 
-    const reviews: string[] = [];
-    const environmentPacket = nextAfterReviews(repository, "realize-verification-environment@1", reviews);
-    const environmentResult = submit(repository, environmentPacket, [
-      { output: "environment", payload: {
-        title: "Component pilot environment", rationale: "Realize the exact component strategy.",
-        strategy_revision: strategy, profile_id: "component-cli",
-        capabilities: { controllability: ["literal value"], observability: ["reported class", "exit status"], external_services: [], timing: "bounded" },
-        reproducibility: { environment_ref: "fixture@1", configuration_digest: `sha256:${"0".repeat(64)}`, reconstruction: "Recreate the fixture." },
-      }, body: "One reproducible environment.\n" },
-      { output: "qualification_activity", payload: {
-        title: "Qualify the component environment", rationale: "Check its declared capabilities.", kind: "qualification", method: "test", assessment_mode: "automatic",
-        claim: { kind: "qualification", scope: "environment-capability", formal_evidence_eligible: false },
-        acceptance_criteria: ["Capabilities are observable."], evidence_requirements: ["Retain observations."],
-        expected_success_activity: "Exercise a declared capability.", expected_discrimination_activity: "Reject an undeclared capability.",
-      }, body: "One qualification activity.\n" },
-      { output: "qualification_implementation", payload: {
-        title: "Environment qualification procedure", rationale: "Exercise positive and negative capability controls.", kind: "qualification",
-        implementation_ref: `procedure:sha256:${"1".repeat(64)}`, independence_mode: "environment-capability",
-        authoring_input_refs: [strategy], prohibited_inputs_observed: ["product source code", "product unit tests", "private implementation details", "uncontrolled implementation shortcuts"],
-        activity_bindings: ["positive capability", "negative capability"],
-        target_behavior: { supported: ["declared capabilities"], intentionally_unsupported: ["undeclared capabilities"] },
-        execution_procedure: { content: "Run the positive and negative capability controls.", deadlines_ms: { checkout: 1000, environment_check: 1000, product_case: 1000 }, deadline_scope: "infrastructure-safety-only", timeout: { termination: "process-group-sigterm-then-sigkill", force_after_ms: 100, reaping: "all-descendants", capture_partial_raw_observation: true }, cleanup: "guaranteed", aggregation: "continue-through-all-cases" },
-      }, body: "One qualification procedure.\n" },
-    ]);
-    commit(repository, "Realize component pilot environment");
-    const environment = publication(environmentResult, "environment");
-
-    const qualificationPacket = nextPacket(repository, "execute-verification-run@2");
-    const qualificationResult = submit(repository, qualificationPacket, [
-      { output: "run", payload: {
-        title: "Environment qualification run", kind: "qualification", started_at: "2026-08-31T00:00:00Z", completed_at: "2026-08-31T00:00:01Z", execution_state: "completed",
-        execution_target: { kind: "environment", ref: environment }, runner_ref: "fixture-runner@1", configuration_refs: [strategy],
-        activities_expected: ["capability"], activities_invoked: ["capability"], evidence_locations: ["inline:qualification"],
-      }, body: "One immutable qualification run.\n" },
-      { output: "result", payload: {
-        title: "Passing environment qualification", claim: { kind: "qualification", scope: "environment-capability", outcome: "pass", formal_evidence_eligible: false },
-        assessment_state: "accepted", observations: { expected_success_observed: true, expected_discrimination_observed: true, details: "Both controls behaved as declared." },
-        evidence_refs: ["inline:qualification"], assessor_ref: "fixture-assessor@1",
-      }, body: "The environment is suitable.\n" },
-    ]);
-    commit(repository, "Qualify component pilot environment");
     const pilotPacket = nextAfterReviews(repository, "write-representative-level-pilot-verification-activity@1", reviews);
     const pilotResult = submit(repository, pilotPacket, [{ output: "activity", payload: {
       title: "Component boundary pilot", rationale: "Discriminate good and bad behavior without source.", kind: "pilot", method: "test", assessment_mode: "automatic",
@@ -1127,11 +1190,14 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
     commit(repository, "Publish component pilot controls");
     const target = publication(targetResult, "target");
 
+    const environment = realizedEnvironments.get(repository)?.get(strategy);
+    expect(environment).toMatch(/^ENV-/);
+
     const implementationPacket = nextPacket(repository, "implement-verification-activity@1");
     const implementationResult = submit(repository, implementationPacket, [
       { output: "implementation", payload: {
         title: "Source-blind component pilot", rationale: "Execute only the declared controls.", kind: "pilot", implementation_ref: `procedure:sha256:${"2".repeat(64)}`, independence_mode: "source-blind",
-        authoring_input_refs: [pilotActivity, environment, target], prohibited_inputs_observed: ["product source code", "product unit tests", "private implementation details", "uncontrolled implementation shortcuts"],
+        authoring_input_refs: [pilotActivity, environment!, target], prohibited_inputs_observed: ["product source code", "product unit tests", "private implementation details", "uncontrolled implementation shortcuts"],
         activity_bindings: ["known_good", "known_bad"], target_behavior: { supported: ["valid classification"], intentionally_unsupported: ["invalid classification"] },
         prototype_control_bindings: { activity_ref: pilotActivity, known_good: { argv: ["node", "-e", "process.exit(0)"], expected_verification_outcome: "pass" }, known_bad: { argv: ["node", "-e", "process.exit(2)"], expected_verification_outcome: "fail" } },
         execution_procedure: { deadlines_ms: { checkout: 1000, environment_check: 1000, product_case: 1000 }, deadline_scope: "infrastructure-safety-only", timeout: { termination: "process-group-sigterm-then-sigkill", force_after_ms: 100, reaping: "all-descendants", capture_partial_raw_observation: true }, cleanup: "guaranteed", aggregation: "continue-through-all-cases" },
