@@ -27,6 +27,12 @@ unresolved question.
   and exact PSP derivation; no prescribed design.
 - **SYS:** one solution-independent behavior or constraint, verification intent,
   rationale, authorized STK derivation, and no coverage duplication.
+- **Pilot or formal VER:** its observable behavior, claim scope, acceptance
+  criteria, expected success and discrimination activities, and evidence
+  requirements match the statement and verification intent of every exact
+  requirement Revision linked through `verifies-revision`. A wrong binding or
+  different observable behavior is a primary blocking finding against the VER,
+  requires `outcome: fail`, and uses the exact package evidence for correction.
 - **Implementation ART:** exact immutable Git commit, runnable controlled public
   interface, every and only candidate DES link and path-mapping key, every mapped
   path present at that commit, and no substantive changed path left unjustified.
