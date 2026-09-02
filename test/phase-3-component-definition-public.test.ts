@@ -158,6 +158,10 @@ async function phaseThreePackage(parent: string): Promise<string> {
     'state(strategy, "disposition") == "active"',
     '&& state(strategy, "validity") == "valid"',
     '&& none("newer-revisions-for@1", {subject: strategy})',
+    '&& (strategy.payload.level != "design"',
+    '|| (exists("complete-phase-4-level-candidates@1", {})',
+    '&& every("complete-phase-4-level-candidates@1", {}, candidate =>',
+    'exists("applicable-gate-signoffs-for@1", {candidate: candidate}))))',
   ].join(" ");
   await fs.writeFile(activeStrategiesPath, stringify(activeStrategies));
   const profilePath = path.join(root, "profiles/bootstrap.yaml");
@@ -1306,10 +1310,38 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
     commit(repository, "Promote exact component candidate");
     expect(publication(promotionResult, "accepted")).toMatch(/^BSL-/);
 
-    const phaseFiveStart = git(repository, "rev-parse", "HEAD").stdout.trim();
+    const designEnvironmentOutcome = next(repository);
+    expect(designEnvironmentOutcome.phase).toBe("phase-4-design-definition@1");
+    expect(designEnvironmentOutcome.outcome).toBe("assignment");
+    const designEnvironmentPacket = designEnvironmentOutcome.assignment.packet;
+    expect(designEnvironmentPacket.scenario.reference).toBe(
+      "realize-verification-environment@1",
+    );
+    expect(inputRevisions(designEnvironmentPacket, "strategy")).toEqual([
+      designStrategy,
+    ]);
+    const realizedDesignEnvironment = realizeAndQualifyEnvironment(
+      repository,
+      designEnvironmentPacket,
+    );
+    const byStrategy = realizedEnvironments.get(repository) ?? new Map<string, string>();
+    byStrategy.set(
+      realizedDesignEnvironment.strategy,
+      realizedDesignEnvironment.environment,
+    );
+    realizedEnvironments.set(repository, byStrategy);
+
+    let phaseFiveStart = "";
     const formalImplementations: string[] = [];
     for (let index = 0; index < 6; index += 1) {
-      const formalPacket = nextPacket(repository, "implement-verification-activity@1");
+      const formalPacket = nextAfterReviews(
+        repository,
+        "implement-verification-activity@1",
+        reviews,
+      );
+      if (index === 0) {
+        phaseFiveStart = git(repository, "rev-parse", "HEAD").stdout.trim();
+      }
       expect(inputRevisions(formalPacket, "execution_target")).toEqual(
         inputRevisions(formalPacket, "environment"),
       );
@@ -1452,6 +1484,7 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
       repository,
       "diff", "--name-only", `${phaseFiveStart}..HEAD`, "--", ".lifecycle/data",
     ).stdout.trim().split("\n").filter((name) => /r00001\.md$/.test(name));
+    expect(phaseFiveStart).not.toBe("");
     expect(phaseFiveFirstRevisions).toHaveLength(3 * formalImplementations.length + 5);
     expect(formalImplementations).toHaveLength(6);
     expect(phaseFiveReviews).toHaveLength(formalImplementations.length + 1);
