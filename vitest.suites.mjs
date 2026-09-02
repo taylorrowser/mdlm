@@ -24,6 +24,7 @@ export const rootTestQualificationManifest = Object.freeze([
   { file: "test/phase-5-formal-environment-public.test.ts", qualificationGate: "pr" },
   { file: "test/gate-rejected-candidate-correction-public.test.ts", qualificationGate: "pr" },
   { file: "test/formal-ver-review-correction-public.test.ts", qualificationGate: "pr" },
+  { file: "test/formal-run-implementation-binding-public.test.ts", qualificationGate: "pr" },
   { file: "test/dependency-changes.test.ts", qualificationGate: "pr" },
   { file: "test/dwp-completion-public.test.ts", qualificationGate: "pr" },
   { file: "test/evaluate-phase.test.ts", qualificationGate: "pr" },
@@ -83,6 +84,7 @@ const rootTestRuntimeManifest = [
   { file: "test/phase-5-formal-environment-public.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 25_437 },
   { file: "test/gate-rejected-candidate-correction-public.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 5_000 },
   { file: "test/formal-ver-review-correction-public.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 23_000 },
+  { file: "test/formal-run-implementation-binding-public.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 16_310 },
 
   { file: "test/dependency-changes.test.ts", runtimeClass: "canonical-fixture-filler", weight: 1, measuredDurationMs: 9_352 },
   { file: "test/dwp-completion-public.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 12_610 },
