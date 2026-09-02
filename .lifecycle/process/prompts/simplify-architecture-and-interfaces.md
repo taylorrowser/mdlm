@@ -24,15 +24,16 @@ Review Context. Preserve the scaffold's exact `reviews` and `contextualizes`
 links. A pass has no `blocks` links and omits `correction_authority`.
 
 A failure declares one `definition_simplification`. For `correction_set:
-subject`, add exactly one `blocks` link to the selected exact SYS Revision. For
-`correction_set: definition-consistency`, add one `blocks` link to every exact
-Revision supplied in `definition_members`, including the ASP, each ICSP when
-present, the planning DWP, and every SYS. Do not add any other `blocks` link.
+subject`, retain only the scaffold's `blocks` link to the selected exact SYS
+Revision and remove the others. For `correction_set: definition-consistency`,
+retain the scaffold's `blocks` link to every exact Revision supplied in
+`definition_members`, including the ASP, each ICSP when present, the planning
+DWP, and every SYS. Do not retain any other `blocks` link.
 Every failed Review includes `correction_authority`: use `stakeholder` when a
 blocker requires a new choice about intent, priority, scope retention, or
 tradeoffs; use `package-evidence` when the exact supplied package evidence fully
 determines the correction. Passing and cancelled Reviews omit
-`correction_authority`.
+`correction_authority` and remove every scaffold `blocks` link.
 
 Use `removes` and a `scope_reduction` rationale only for exact SYS outputs made
 unnecessary. Retain at least one SYS output. If the accepted parent requires no
