@@ -1,6 +1,6 @@
 kind: implementation-profile-definition
 id: bootstrap
-version: 51
+version: 52
 status: experimental
 description: Fresh bootstrap profile through bottom-up formal verification and reviewed final product acceptance.
 enabled:
