@@ -114,6 +114,11 @@ function proveImports(worktree) {
   return { entrypoint, result: "pass" };
 }
 
+function proveDependencyTree(worktree) {
+  run("npm", ["ls", "--all"], { cwd: worktree });
+  return { command: "npm", arguments: ["ls", "--all"], result: "pass" };
+}
+
 function expectedFiles(worktree) {
   return {
     packageJson: join(worktree, "package.json"),
@@ -129,6 +134,7 @@ function prepare({ worktree, commit, tree, evidence }) {
   const startedAt = new Date().toISOString();
 
   run("npm", ["ci"], { cwd: exactWorktree, stdio: "inherit" });
+  const dependencyTreeProof = proveDependencyTree(exactWorktree);
   const importProof = proveImports(exactWorktree);
   authenticateIdentity(exactWorktree, commit, tree);
   if (sha256(files.packageJson) !== packageJsonSha256) fail("package.json changed during preparation");
@@ -144,6 +150,7 @@ function prepare({ worktree, commit, tree, evidence }) {
     packageJsonSha256,
     packageLockSha256,
     install: { command: "npm", arguments: ["ci"] },
+    dependencyTreeProof,
     importProof,
   };
   mkdirSync(dirname(evidence), { recursive: true });
@@ -177,6 +184,12 @@ function verifyPreparation({ worktree, commit, tree, evidence }) {
   if (record.importProof?.entrypoint !== "src/index.ts" || record.importProof.result !== "pass") {
     fail("Preparation evidence does not prove MDLM import resolution");
   }
+  if (record.dependencyTreeProof?.command !== "npm"
+    || JSON.stringify(record.dependencyTreeProof.arguments) !== '["ls","--all"]'
+    || record.dependencyTreeProof.result !== "pass") {
+    fail("Preparation evidence does not prove the complete dependency tree");
+  }
+  proveDependencyTree(exactWorktree);
   proveImports(exactWorktree);
   return exactWorktree;
 }

@@ -27,6 +27,7 @@ function makeDetachedCandidate() {
   mkdirSync(candidate);
   mkdirSync(join(candidate, "src"));
   mkdirSync(join(candidate, "fixture-dependency"));
+  mkdirSync(join(candidate, "release-only-dependency"));
   writeFileSync(join(candidate, ".gitignore"), "node_modules/\n");
   writeFileSync(join(candidate, "fixture-dependency", "package.json"), JSON.stringify({
     name: "fixture-dependency",
@@ -35,6 +36,13 @@ function makeDetachedCandidate() {
     exports: "./index.js",
   }));
   writeFileSync(join(candidate, "fixture-dependency", "index.js"), "export const ready = true;\n");
+  writeFileSync(join(candidate, "release-only-dependency", "package.json"), JSON.stringify({
+    name: "release-only-dependency",
+    version: "1.0.0",
+    type: "module",
+    exports: "./index.js",
+  }));
+  writeFileSync(join(candidate, "release-only-dependency", "index.js"), "export const releaseReady = true;\n");
   writeFileSync(join(candidate, "src", "index.ts"), [
     'import { ready } from "fixture-dependency";',
     'if (!ready) throw new Error("fixture dependency unavailable");',
@@ -46,6 +54,7 @@ function makeDetachedCandidate() {
     private: true,
     type: "module",
     dependencies: { "fixture-dependency": "file:./fixture-dependency" },
+    devDependencies: { "release-only-dependency": "file:./release-only-dependency" },
     scripts: {
       "test:release": "node -e \"require('node:fs').writeFileSync('../test-release-started', '')\"",
     },
@@ -121,8 +130,28 @@ it("prepares a fresh detached candidate before an authoritative attempt can exis
     commit: fixture.commit,
     tree: fixture.tree,
     install: { command: "npm", arguments: ["ci"] },
+    dependencyTreeProof: { command: "npm", arguments: ["ls", "--all"], result: "pass" },
     importProof: { entrypoint: "src/index.ts", result: "pass" },
   });
+
+  rmSync(join(fixture.candidate, "node_modules", "release-only-dependency"), {
+    recursive: true,
+    force: true,
+  });
+  const incompleteStart = spawnSync(process.execPath, [
+    gateScript,
+    "start",
+    "--worktree", fixture.candidate,
+    "--commit", fixture.commit,
+    "--tree", fixture.tree,
+    "--evidence", evidence,
+    "--attempt-dir", attempt,
+  ], { encoding: "utf8" });
+  expect(incompleteStart.status).not.toBe(0);
+  expect(existsSync(attempt)).toBe(false);
+  expect(existsSync(testReleaseStarted)).toBe(false);
+
+  command(fixture.candidate, "npm", ["ci"]);
 
   prepared.tree = "0".repeat(40);
   writeFileSync(evidence, `${JSON.stringify(prepared, null, 2)}\n`);
