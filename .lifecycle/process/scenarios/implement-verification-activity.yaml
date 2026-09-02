@@ -37,6 +37,9 @@ outputs:
   - name: authorization
     types: [DEC]
     cardinality: one
+    required_payload:
+      kind: decision
+      effective_scope: $proposal.implementation.revision_id
     required_links:
       - {link: justifies, target: {output: implementation}}
 prompt_ref: prompts/implement-verification-activity.md@1

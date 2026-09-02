@@ -18,8 +18,11 @@ questions require cited evidence sufficient for the claim. If the needed answer 
 reactivation condition and blocking impact. Cancellation must be intentional and
 reasoned.
 
-For a consequential answer, any deferral, or any cancellation, create one DEC
-with one `resolves` link to the emitted current QST revision. Do not link or
+For an answered preferential question, create a `kind: scope` DEC. For a
+deferral, create a `kind: deferral` DEC. For a cancellation, create a
+`kind: cancellation` DEC. Every DEC sets `effective_scope` to
+`$proposal.updated_question.revision_id` and has one `resolves` link to the
+emitted current QST revision. Do not link or
 claim to resolve the historical input QST; it is supplied only to author the
 next Revision and may be absent from the DEC's frozen Review Context. Normalize
 an attended product answer into one self-contained `attended_answer` on the
@@ -33,7 +36,7 @@ input QST's exact `kind`, `intent_scope`, question text, and complete `blocks`
 link set so the reviewed answer retains its exact affected foundation scope. An initial
 preferential `intent_scope: product` Question must be answered, not deferred or
 cancelled, and its normalized attended answer must be self-contained.
-Do not rewrite the old question. Record alternatives and effective scope when material.
+Do not rewrite the old question. Record alternatives for every DEC.
 A deferral is not an answer, and uncertainty must remain visible.
 
 Validate both outputs and record exact provenance. The DEC is reviewed when the
