@@ -466,11 +466,24 @@ export function assignmentPayloadScaffold(
       : [];
     required.forEach((field) => fields.add(field));
   }
-  Object.keys(requiredPayload).forEach((field) => fields.add(field));
-  return Object.fromEntries([...fields].map((field) => [
+  Object.keys(requiredPayload).forEach((pathValue) =>
+    fields.add(pathValue.split(".")[0]!)
+  );
+  const payload = Object.fromEntries([...fields].map((field) => [
     field,
     Object.hasOwn(requiredPayload, field) ? requiredPayload[field] : null,
   ]));
+  for (const [pathValue, value] of Object.entries(requiredPayload)) {
+    const segments = pathValue.split(".");
+    let parent = payload;
+    for (const segment of segments.slice(0, -1)) {
+      const child = object(parent[segment]);
+      parent[segment] = child ?? {};
+      parent = parent[segment] as Record<string, unknown>;
+    }
+    parent[segments.at(-1)!] = value;
+  }
+  return payload;
 }
 
 /** Surface authored payload obligations without choosing a conditional schema branch. */
