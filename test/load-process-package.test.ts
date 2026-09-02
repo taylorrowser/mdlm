@@ -156,6 +156,30 @@ describe("loadProcessPackage", () => {
     );
   });
 
+  it("distinguishes expanded architecture links from symbolic metadata", async () => {
+    const prompt = await fs.readFile(
+      path.join(
+        process.cwd(),
+        ".lifecycle/process/prompts/define-system-architecture.md",
+      ),
+      "utf8",
+    );
+    const normalized = prompt.replace(/\s+/g, " ");
+
+    expect(normalized).toContain(
+      "Build each `proposal.outputs[].links` by copying the expanded exact `governs` link objects for that output from `packet.responseScaffold`.",
+    );
+    expect(normalized).toContain(
+      "Do not copy `packet.outputs[].requiredLinks.target.input`; it is symbolic Scenario metadata, not a valid authored response-link target.",
+    );
+    expect(normalized).toContain(
+      "For one architecture, the scaffold supplies one exact Revision datum link per supplied STK.",
+    );
+    expect(normalized).toContain(
+      "For several architectures, retain the declared partition: omit or duplicate no supplied STK, and do not govern one from several outputs.",
+    );
+  });
+
   function scenarioContractResult(processPackage: ProcessPackage) {
     const diagnostics = validateScenarioContracts(processPackage);
     return { ok: diagnostics.length === 0, diagnostics };
