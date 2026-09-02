@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -20,7 +21,24 @@ async function writeYaml(root: string, relativePath: string, value: unknown) {
   await fs.writeFile(target, stringify(value));
 }
 
-it("publishes a payload reference to a same-response generated Revision", async () => {
+function commit(repository: string, message: string) {
+  for (const arguments_ of [
+    ["add", ".lifecycle"],
+    [
+      "-c", "user.name=MDLM Test",
+      "-c", "user.email=mdlm-test@localhost",
+      "-c", "commit.gpgSign=false",
+      "commit", "--quiet", "--no-verify", "-m", message,
+    ],
+  ]) {
+    const result = spawnSync("git", ["-C", repository, ...arguments_], {
+      encoding: "utf8",
+    });
+    expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
+  }
+}
+
+it("publishes payload references to generated and exact input Revisions", async () => {
   const parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-payload-reference-"));
   try {
     const processRoot = await terminalProcessPackage(parent);
@@ -30,12 +48,12 @@ it("publishes a payload reference to a same-response generated Revision", async 
     delete manifest.assets;
     await writeYaml(processRoot, "manifest.yaml", manifest);
 
-    await writeYaml(processRoot, "types/VAI.yaml", {
+    await writeYaml(processRoot, "types/DWP.yaml", {
       kind: "type-definition",
-      id: "VAI",
+      id: "DWP",
       version: 1,
-      name: "Verification Activity Implementation",
-      description: "A source-blind verification procedure.",
+      name: "Definition Work Package",
+      description: "One completed lower-level definition package.",
       extends: "terminal-datum@1",
       lifecycle: { authorship: "authored", freeze_when: "explicit" },
       payload_schema: {
@@ -77,7 +95,7 @@ it("publishes a payload reference to a same-response generated Revision", async 
       outgoing_links: [{
         id: "justifies",
         description: "The exact generated procedure authorized by this Decision.",
-        targets: [{ kind: "datum", types: ["VAI"], identity: "revision" }],
+        targets: [{ kind: "datum", types: ["DWP"], identity: "revision" }],
         cardinality: { minimum: 1, maximum: 1 },
         freeze_resolution: "already-exact",
         inverse_label: "justified-by",
@@ -98,6 +116,57 @@ it("publishes a payload reference to a same-response generated Revision", async 
         order_by: ["identity.revision_id"],
       },
     });
+    await writeYaml(processRoot, "types/BSL.yaml", {
+      kind: "type-definition",
+      id: "BSL",
+      version: 1,
+      name: "Baseline",
+      description: "One frozen definition-level candidate.",
+      extends: "terminal-datum@1",
+      lifecycle: { authorship: "authored", freeze_when: "explicit" },
+      payload_schema: {
+        $schema: "https://json-schema.org/draft/2020-12/schema",
+        type: "object",
+        additionalProperties: false,
+        required: ["kind", "role", "scope", "group"],
+        properties: {
+          kind: { const: "level-candidate" },
+          role: { const: "candidate" },
+          scope: { type: "string", minLength: 1 },
+          group: { const: "DEFAULT" },
+        },
+      },
+      outgoing_links: [],
+      kernel_managed_payload_paths: [],
+    });
+    await writeYaml(processRoot, "selectors/definition-candidates.yaml", {
+      kind: "selector-definition",
+      id: "definition-candidates",
+      version: 1,
+      description: "Select published definition-level candidates.",
+      parameters: [],
+      result_kind: "revision",
+      query: {
+        from: { collection: "revisions", types: ["BSL"] },
+        as: "candidate",
+        distinct: true,
+        order_by: ["identity.revision_id"],
+      },
+    });
+    await writeYaml(processRoot, "selectors/definition-completions.yaml", {
+      kind: "selector-definition",
+      id: "definition-completions",
+      version: 1,
+      description: "Select completed definition packages.",
+      parameters: [],
+      result_kind: "revision",
+      query: {
+        from: { collection: "revisions", types: ["DWP"] },
+        as: "completion",
+        distinct: true,
+        order_by: ["identity.revision_id"],
+      },
+    });
 
     const obligationPath = path.join(processRoot, "obligations/terminal-check.yaml");
     const obligation = parse(await fs.readFile(obligationPath, "utf8"));
@@ -113,7 +182,7 @@ it("publishes a payload reference to a same-response generated Revision", async 
       inputs: [],
       outputs: [{
         name: "implementation",
-        types: ["VAI"],
+        types: ["DWP"],
         cardinality: "one",
         required_links: [],
       }, {
@@ -137,10 +206,67 @@ it("publishes a payload reference to a same-response generated Revision", async 
       prohibited_inputs: [],
       batching: "single",
     });
+    await writeYaml(processRoot, "scenarios/create-definition-level-candidate.yaml", {
+      kind: "scenario-definition",
+      id: "create-definition-level-candidate",
+      version: 1,
+      description: "Freeze one completed definition package as a candidate.",
+      phases: ["phase-0-terminal"],
+      inputs: [{
+        name: "completion",
+        types: ["DWP"],
+        cardinality: "one",
+        identity: "revision",
+      }],
+      outputs: [{
+        name: "candidate",
+        types: ["BSL"],
+        cardinality: "one",
+        required_links: [],
+        required_payload: {
+          kind: "level-candidate",
+          role: "candidate",
+          scope: "$input.completion.revision_id",
+          group: "DEFAULT",
+        },
+      }],
+      prompt_ref: "prompts/create-definition-level-candidate.md@1",
+      review_policy_ref: "no-waiver@1",
+      completion: "execution.integrity.contract_valid == true",
+      resolves: ["definition-candidate"],
+      prohibited_inputs: [],
+      batching: "single",
+    });
     await fs.writeFile(
       path.join(processRoot, "prompts/implement-verification-activity.md"),
       "---\nid: implement-verification-activity\nversion: 1\nscenario: implement-verification-activity\n---\n\n# Implement verification activity\n",
     );
+    await fs.writeFile(
+      path.join(processRoot, "prompts/create-definition-level-candidate.md"),
+      "---\nid: create-definition-level-candidate\nversion: 1\nscenario: create-definition-level-candidate\n---\n\n# Create definition-level candidate\n",
+    );
+    await writeYaml(processRoot, "obligations/definition-candidate.yaml", {
+      kind: "obligation-definition",
+      id: "definition-candidate",
+      version: 1,
+      description: "Require a candidate for the completed definition package.",
+      phases: ["phase-0-terminal"],
+      for_each: 'select("definition-completions@1", {})',
+      subject_as: "completion",
+      satisfied_when: 'exists("definition-candidates@1", {})',
+      status_rules: [{
+        status: "ready",
+        priority: 1,
+        when: "true",
+        reason: "Freeze the completed definition package.",
+      }],
+      default_status: "blocked",
+      resolve_with: {
+        scenario: "create-definition-level-candidate@1",
+        inputs: { completion: "completion" },
+      },
+      waiver_policy_ref: "no-waiver@1",
+    });
 
     const phasePath = path.join(processRoot, "phases/phase-0-terminal.yaml");
     const phase = parse(await fs.readFile(phasePath, "utf8"));
@@ -151,11 +277,11 @@ it("publishes a payload reference to a same-response generated Revision", async 
       status_order: ["ready", "awaiting-review", "failed", "stale", "blocked"],
       tie_breakers: ["subject", "obligation"],
     };
-    phase.outputs = ["VAI", "DEC"];
+    phase.outputs = ["DWP", "DEC", "BSL"];
     await writeYaml(processRoot, "phases/phase-0-terminal.yaml", phase);
     const profilePath = path.join(processRoot, "profiles/terminal.yaml");
     const profile = parse(await fs.readFile(profilePath, "utf8"));
-    profile.enabled.types = ["VAI", "DEC"];
+    profile.enabled.types = ["DWP", "DEC", "BSL"];
     await writeYaml(processRoot, "profiles/terminal.yaml", profile);
 
     const repository = path.join(parent, "repository");
@@ -238,6 +364,66 @@ it("publishes a payload reference to a same-response generated Revision", async 
       type: "justifies",
       target: publishedImplementation.revisionId,
     }]);
+    commit(repository, "Publish completed definition package");
+
+    const candidatePrepared = await command(repository, ["next", "--json"]);
+    expect(candidatePrepared.status, JSON.stringify(candidatePrepared.value)).toBe(0);
+    const candidatePacket = candidatePrepared.value.assignment.packet;
+    expect(candidatePacket.scenario.reference)
+      .toBe("create-definition-level-candidate@1");
+    const completionRevision = candidatePacket.exactInputs[0].inputs[0]
+      .values[0].identity.revision_id;
+    expect(completionRevision).toBe(publishedImplementation.revisionId);
+    const candidateResponse = structuredClone(candidatePacket.responseScaffold);
+    const candidate = candidateResponse.proposal.outputs[0];
+    expect(candidate.payload).toEqual({
+      kind: "level-candidate",
+      role: "candidate",
+      scope: completionRevision,
+      group: "DEFAULT",
+    });
+    expect(candidatePacket.outputs[0].payloadSummary.requiredValues).toEqual({
+      kind: "level-candidate",
+      role: "candidate",
+      scope: { input: "completion", identity: "revision_id" },
+      group: "DEFAULT",
+    });
+    candidate.body = "Candidate for the exact completed definition package.\n";
+    candidateResponse.proposal.completionEvidence = {
+      summary: "Froze the exact completed definition package.",
+    };
+
+    const wrongCandidate = structuredClone(candidateResponse);
+    wrongCandidate.proposal.outputs[0].payload.scope =
+      "DWP-NOT-THE-COMPLETION-r00001";
+    wrongCandidate.proposal.outputs[0].payload.group = "PHASE-3-COMPONENT";
+    const candidateRejected = await command(
+      repository,
+      ["scenario", "submit", "-", "--json"],
+      `${JSON.stringify(wrongCandidate)}\n`,
+    );
+    expect(candidateRejected.status, JSON.stringify(candidateRejected.value)).toBe(1);
+    expect(candidateRejected.value).toMatchObject({
+      outcome: "rejected",
+      correctionConsumed: false,
+    });
+    expect(candidateRejected.value.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "scenario-output-required-payload-invalid",
+        path: expect.stringContaining("payload.scope"),
+      }),
+      expect.objectContaining({
+        code: "scenario-output-required-payload-invalid",
+        path: expect.stringContaining("payload.group"),
+      }),
+    ]));
+
+    const candidateSubmitted = await command(
+      repository,
+      ["scenario", "submit", "-", "--json"],
+      `${JSON.stringify(candidateResponse)}\n`,
+    );
+    expect(candidateSubmitted.status, JSON.stringify(candidateSubmitted.value)).toBe(0);
 
     const doctor = await command(repository, ["doctor", "--json"]);
     expect(doctor.status, JSON.stringify(doctor.value)).toBe(0);

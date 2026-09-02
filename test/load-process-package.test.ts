@@ -246,6 +246,35 @@ describe("loadProcessPackage", () => {
     }
   });
 
+  it("rejects required payload references that cannot bind one exact input", () => {
+    const scenario = structuredClone(
+      validPackage.scenarios["create-definition-level-candidate"]!,
+    );
+    const output = records(scenario.outputs)[0]!;
+
+    output.required_payload = { scope: "$input.missing.revision_id" };
+    expect(validateScenarioContracts({
+      obligations: validPackage.obligations,
+      scenarios: { [scenario.id]: scenario },
+      phases: validPackage.phases,
+      types: validPackage.types,
+      templates: validPackage.templates,
+    })).toEqual(expect.arrayContaining([expect.objectContaining({
+      code: "unknown-required-payload-input",
+    })]));
+
+    output.required_payload = { scope: "$input.evidence.revision_id" };
+    expect(validateScenarioContracts({
+      obligations: validPackage.obligations,
+      scenarios: { [scenario.id]: scenario },
+      phases: validPackage.phases,
+      types: validPackage.types,
+      templates: validPackage.templates,
+    })).toEqual(expect.arrayContaining([expect.objectContaining({
+      code: "incompatible-required-payload-input",
+    })]));
+  });
+
   it("rejects a direct completion identity equality without its binding", async () => {
     const processRoot = await copiedProcessPackage();
     try {

@@ -7,6 +7,7 @@ import type {
   ProcessDiagnostic,
   VersionedDefinition,
 } from "./index.js";
+import { scenarioInputRevisionReference } from "./scenario-payload-reference.js";
 
 interface ScenarioContractCatalogs {
   obligations: Record<string, VersionedDefinition>;
@@ -162,6 +163,39 @@ export function validateScenarioContracts(
       const outputName = String(output?.name);
       const identityFrom = record(output?.identity_from);
       const typeFrom = record(output?.type_from);
+      const requiredPayload = record(output?.required_payload) ?? {};
+      for (const [payloadPath, value] of Object.entries(requiredPayload)) {
+        const inputName = scenarioInputRevisionReference(value);
+        if (!inputName) {
+          if (typeof value === "string" && value.startsWith("$input.")) {
+            diagnostics.push({
+              code: "invalid-required-payload-input-reference",
+              path:
+                `scenarios.${scenario.id}.outputs[${outputIndex}].required_payload.${payloadPath}`,
+              message: `Scenario '${scenario.id}' output '${outputName}' has invalid input identity reference '${value}'`,
+            });
+          }
+          continue;
+        }
+        const input = inputsByName.get(inputName);
+        if (!input) {
+          diagnostics.push({
+            code: "unknown-required-payload-input",
+            path:
+              `scenarios.${scenario.id}.outputs[${outputIndex}].required_payload.${payloadPath}`,
+            message: `Scenario '${scenario.id}' output '${outputName}' requires payload from undeclared input '${inputName}'`,
+          });
+        } else if (
+          input.cardinality !== "one" || input.identity !== "revision"
+        ) {
+          diagnostics.push({
+            code: "incompatible-required-payload-input",
+            path:
+              `scenarios.${scenario.id}.outputs[${outputIndex}].required_payload.${payloadPath}`,
+            message: `Scenario '${scenario.id}' output '${outputName}' payload reference '${value}' requires one exact Revision input`,
+          });
+        }
+      }
       if (identityFrom && typeFrom) {
         diagnostics.push({
           code: "conflicting-output-type-binding",

@@ -432,6 +432,11 @@ type from a field in one exact bound input payload. The selected value must be o
 of the output's declared types. `type_from` does not preserve identity and cannot
 be combined with `identity_from`.
 
+An output `required_payload` maps payload paths to exact values. A value may use
+`$input.<name>.revision_id` for one exact Revision input. Assignment preparation
+projects the bound identity into the response scaffold, and submission rejects a
+different value before evaluating the Scenario completion expression.
+
 Prompts choose and order skills through their YAML-frontmatter `skills` array.
 That array is authoritative when present; for legacy prompts without it, exact
 backtick-wrapped skill references in the body remain the compatibility fallback.
