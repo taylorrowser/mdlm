@@ -165,7 +165,7 @@ async function focusedPackage(parent: string, phase: typeof phases[number]): Pro
     ["phase-2-entry-requirements.yaml", "phase-2-entry-requirements", "STK", "requirement"],
     ["phase-3-entry-requirements.yaml", "phase-3-entry-requirements", "SYS", "requirement"],
     ["phase-4-entry-component-requirements.yaml", "phase-4-entry-component-requirements", "CMP", "requirement"],
-  ]) await writeYaml(root, `selectors/${file}`, seededSelector(id, type, alias));
+  ] as [string, string, string, string][]) await writeYaml(root, `selectors/${file}`, seededSelector(id, type, alias));
   return root;
 }
 
