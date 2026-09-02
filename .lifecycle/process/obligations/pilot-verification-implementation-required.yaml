@@ -40,7 +40,7 @@ status_rules:
     reason: Pilot implementation waits for one unambiguous current exact ART derived from the activity's requirement Revision.
     blocked_by:
       - obligation: representative-level-pilot-target-required@1
-        subjects: 'select("requirements-for-pilot-activity@1", {activity: activity})'
+        subjects: '[activity]'
   - status: ready
     priority: 100
     when: >-
