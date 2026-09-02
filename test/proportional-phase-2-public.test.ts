@@ -585,9 +585,9 @@ it("routes the remaining system strategy after one Phase 2 acceptance", async ()
 });
 
 it(
-  "routes a reviewed Phase 2 architecture to planning with its stakeholder strategy",
+  "keeps a reviewed Phase 2 plan current after its own SYS output",
   runPhaseTwoPlanningWithStakeholderStrategy,
-  45_000,
+  90_000,
 );
 
 it(

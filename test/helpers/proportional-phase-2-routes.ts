@@ -256,6 +256,58 @@ function reviewPacket(repository: string, packet: Packet): string {
   return subjects[0]!;
 }
 
+function reviewPhaseTwoPacket(repository: string, packet: Packet): string {
+  const subjectValue = exactInputValuesAt(packet, 0, "subject")[0]!;
+  const subject = subjectValue.identity.revision_id!;
+  const members = exactInputs(packet, "review_context_members");
+  const planning = subjectValue.identity.type === "DWP" &&
+    subjectValue.data.payload.stage === "planning";
+  submit(repository, packet, [{
+    localId: "context",
+    name: "review_context",
+    invocation: 0,
+    lifecycleDatum: {
+      type: "BSL",
+      payload: {
+        title: `Review context for ${subject}`,
+        kind: "review-context",
+        role: "review-context",
+        scope: subject,
+        group: "DEFAULT",
+        definition_members: [subject, ...members].sort(),
+        evidence: [],
+      },
+      links: [],
+      body: "The exact Phase 2 datum and selected support.\n",
+    },
+  }, {
+    localId: "review",
+    name: "review",
+    invocation: 0,
+    lifecycleDatum: {
+      type: "REV",
+      payload: {
+        title: `Review ${subject}`,
+        review_kind: planning
+          ? "simplification-product-definition"
+          : "contextual",
+        reviewer: "independent-reviewer",
+        summary: "The exact Phase 2 datum is traceable and complete.",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
+        ...(planning ? {} : { findings: [] }),
+        outcome: "pass",
+      },
+      links: [
+        { type: "reviews", target: subject },
+        { type: "contextualizes", target: "$proposal.context.revision_id" },
+      ],
+      body: "The exact Phase 2 datum passes independent Review.\n",
+    },
+  }]);
+  commit(repository, `Review ${subject}`);
+  return subject;
+}
+
 function prepareScenarioAfterReviews(
   repository: string,
   scenario: string,
@@ -271,6 +323,10 @@ function prepareScenarioAfterReviews(
     expect(outcome.assignment, next.stdout).toBeDefined();
     const packet = outcome.assignment.packet as Packet;
     if (packet.scenario.reference === scenario) return packet;
+    if (packet.scenario.reference === "review-phase-2-datum@1") {
+      reviewPhaseTwoPacket(repository, packet);
+      continue;
+    }
     expect(packet.scenario.reference).toBe("review-datum-in-context@3");
     reviewPacket(repository, packet);
   }
@@ -1105,6 +1161,16 @@ export async function runPhaseTwoPlanningWithStakeholderStrategy(): Promise<void
     const repository = path.join(parent, "repository");
     await fs.mkdir(repository);
     const processRoot = await phaseTwoOnlyPackage(parent);
+    const reviewSupport = parse(await fs.readFile(path.join(
+      processRoot,
+      "selectors/planning-dwp-review-support-for.yaml",
+    ), "utf8"));
+    expect(reviewSupport.query.where).toContain(
+      'system-requirements-consumed-by@1',
+    );
+    expect(reviewSupport.query.where).not.toContain(
+      'decomposition-output-revisions-for@1',
+    );
     await selectProcessPackageFixture(repository, processRoot);
     const seeded = await seedPublicPhaseTwoEntry(repository, [{
       statement: "Accept one client request",
@@ -1116,7 +1182,7 @@ export async function runPhaseTwoPlanningWithStakeholderStrategy(): Promise<void
       repository,
       "define-system-architecture@3",
     );
-    submit(repository, architecturePacket, [{
+    const architectureExecution = submit(repository, architecturePacket, [{
       localId: "architecture",
       name: "architecture",
       invocation: 0,
@@ -1151,6 +1217,10 @@ export async function runPhaseTwoPlanningWithStakeholderStrategy(): Promise<void
         body: null,
       },
     }]);
+    const architecture = submittedRevision(
+      architectureExecution,
+      "architecture",
+    );
     commit(repository, "Publish client architecture");
 
     const planningPacket = prepareScenarioAfterReviews(
@@ -1160,6 +1230,183 @@ export async function runPhaseTwoPlanningWithStakeholderStrategy(): Promise<void
     expect(exactInputs(planningPacket, "verification_strategy")).toEqual([
       seeded.strategy.datum.revision_id,
     ]);
+
+    const planExecution = submit(repository, planningPacket, [{
+      localId: "plan",
+      name: "plan",
+      invocation: 0,
+      lifecycleDatum: {
+        type: "DWP",
+        payload: {
+          title: "Client behavior slice",
+          rationale: "Keep the client behavior independently verifiable.",
+          architecture_element: "AEL-0C1ENT5350",
+          target_child_type: "SYS",
+          behavioral_slice: "Define the exact client system behavior.",
+          expected_coverage: ["One exact stakeholder behavior"],
+          exclusions: ["Implementation design"],
+          dependencies: [],
+          required_review_policy: "review-applicability@1",
+          stage: "planning",
+        },
+        links: [
+          { type: "decomposes", target: requirement },
+          { type: "allocated-to", target: architecture },
+          {
+            type: "verified-under",
+            target: seeded.strategy.datum.revision_id,
+          },
+        ],
+        body: "One cohesive decomposition slice.\n",
+      },
+    }, {
+      localId: "questions",
+      name: "questions",
+      invocation: 0,
+      lifecycleDatum: {
+        type: "QST",
+        payload: null,
+        links: [],
+        body: null,
+      },
+    }]);
+    const plan = submittedRevision(planExecution, "plan");
+    commit(repository, "Publish client decomposition plan");
+
+    const executionPacket = prepareScenarioAfterReviews(
+      repository,
+      "execute-decomposition-work-package@2",
+    );
+    const execution = submit(repository, executionPacket, [{
+      localId: "requirement",
+      name: "requirements",
+      invocation: 0,
+      lifecycleDatum: {
+        type: "SYS",
+        payload: {
+          title: "Client observable system behavior",
+          rationale: "Allocate one exact solution-independent behavior.",
+          statement: "The system shall accept one client request deterministically.",
+          verification_intent: "Observe the exact client outcome.",
+        },
+        links: [
+          { type: "derived-from", target: requirement },
+          { type: "decomposes", target: plan },
+          { type: "allocated-to", target: architecture },
+        ],
+        body: "One detailed solution-independent system behavior.\n",
+      },
+    }, {
+      localId: "questions",
+      name: "questions",
+      invocation: 0,
+      lifecycleDatum: {
+        type: "QST",
+        payload: null,
+        links: [],
+        body: null,
+      },
+    }]);
+    const system = submittedRevision(execution, "requirements");
+    commit(repository, "Publish client system behavior");
+
+    const outputReviewPacket = prepare(
+      repository,
+      "review-phase-2-datum@1",
+    );
+    expect(exactInputs(outputReviewPacket, "subject")).toEqual([system]);
+    expect(exactInputs(outputReviewPacket, "subject")).not.toContain(plan);
+    reviewPhaseTwoPacket(repository, outputReviewPacket);
+
+    const simplificationPacket = prepareScenarioAfterReviews(
+      repository,
+      "simplify-architecture-and-interfaces@2",
+    );
+    const simplificationContext = exactInputs(
+      simplificationPacket,
+      "subject_context",
+    )[0]!;
+    const simplification = submit(repository, simplificationPacket, [{
+      localId: "review",
+      name: "review",
+      invocation: 0,
+      lifecycleDatum: {
+        type: "REV",
+        payload: {
+          title: "Simplification review of client system definition",
+          review_kind: "simplification-architecture-interfaces",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@3",
+          outcome: "pass",
+          reviewer: "independent-reviewer",
+          summary: "The one-element system definition is minimal and complete.",
+        },
+        links: [
+          { type: "reviews", target: simplificationContext },
+          { type: "contextualizes", target: simplificationContext },
+        ],
+        body: "No behavior or controlled boundary can be removed.\n",
+      },
+    }]);
+    const simplificationReview = submittedRevision(simplification, "review");
+    commit(repository, "Review system definition simplification");
+
+    const completionPacket = prepareScenarioAfterReviews(
+      repository,
+      "complete-decomposition-work-package@3",
+    );
+    const completionResponse = structuredClone(
+      completionPacket.responseScaffold,
+    );
+    completionResponse.proposal.outputs = completionResponse.proposal.outputs
+      .filter((output) => output.handle === "completion");
+    const completionOutput = completionResponse.proposal.outputs[0]!;
+    completionOutput.payload = {
+      ...exactInputValuesAt(completionPacket, 0, "plan")[0]!.data.payload,
+      stage: "completion",
+      parent_coverage_status: "complete",
+      deferred_questions: [],
+      cross_group_dependencies: [],
+      output_reviews_complete: true,
+      simplification_disposition: "retained",
+    };
+    completionOutput.body = "The completed slice covers its exact parent.\n";
+    completionResponse.proposal.completionEvidence = {
+      summary: "Completed the reviewed system decomposition.",
+    };
+    const completionSubmit = mdlmWithInput(
+      repository,
+      `${JSON.stringify(completionResponse)}\n`,
+      "scenario",
+      "submit",
+      "-",
+      "--json",
+    );
+    expect(
+      completionSubmit.status,
+      `${completionSubmit.stderr}${completionSubmit.stdout}`,
+    ).toBe(0);
+    const completionReceipt = JSON.parse(completionSubmit.stdout) as {
+      receipt: { publications: { handle: string; revisionId: string }[] };
+    };
+    const completion = completionReceipt.receipt.publications.find(
+      (publication) => publication.handle === "completion",
+    )!.revisionId;
+    expect(exactInputs(completionPacket, "simplification_reviews")).toEqual([
+      simplificationReview,
+    ]);
+    commit(repository, "Complete client system decomposition");
+
+    const projected = mdlm(repository, "loose-ends", "--json");
+    expect(projected.status, `${projected.stderr}${projected.stdout}`).toBe(0);
+    expect(JSON.parse(projected.stdout).looseEnds.items).toContainEqual(
+      expect.objectContaining({
+        obligation: "phase-2-atomic-review-required",
+        subject: completion,
+        status: "awaiting-review",
+        actionableResolver: "review-phase-2-datum@1",
+        dispatchable: true,
+      }),
+    );
   } finally {
     await fs.rm(parent, { recursive: true, force: true });
   }

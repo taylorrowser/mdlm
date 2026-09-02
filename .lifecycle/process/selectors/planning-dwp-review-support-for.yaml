@@ -1,7 +1,7 @@
 kind: selector-definition
 id: planning-dwp-review-support-for
 version: 1
-description: Exact allocated ASP, governing ICSP, and applicable latest SYS support for one planning DWP Review.
+description: Exact allocated ASP, governing ICSP, and consumed current SYS parents for one planning DWP Review.
 parameters:
   - {name: plan, kind: revision, types: [DWP]}
 result_kind: revision
@@ -16,10 +16,7 @@ query:
       && !every("interfaces-for-decomposition@1", {plan: plan}, interface =>
         interface != support))
     || (support.identity.type == "SYS"
-      && (
-        !every("decomposition-output-revisions-for@1", {plan: plan}, output =>
-          output != support)
-        || !every("system-requirements-consumed-by@1", {consumer: plan}, requirement =>
-          requirement != support)))
+      && !every("system-requirements-consumed-by@1", {consumer: plan}, requirement =>
+        requirement != support))
   distinct: true
   order_by: [identity.revision_id]
