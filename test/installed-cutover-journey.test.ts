@@ -347,7 +347,6 @@ function outputPayload(
       summary: "The exact subject is necessary, observable, traceable, and consistent.",
       findings: [],
       rubric_ref: "policies/rubrics/bootstrap-review.md@3",
-      correction_authority: "author",
     };
   }
   if (scenario === "write-verification-activity" && output.type === "VER") {
@@ -569,7 +568,7 @@ describe("installed v2 cutover journey", () => {
         failedReview.payload = {
           ...failedReview.payload,
           outcome: "fail",
-          correction_authority: "author",
+          correction_authority: "package-evidence",
           findings: [{
             id: "F-001",
             target: subjects[1],

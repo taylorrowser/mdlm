@@ -57,7 +57,6 @@ function atomicReview(
     summary: "The exact subject is supported by its frozen context.",
     findings: [],
     rubric_ref: "policies/rubrics/bootstrap-review.md@3",
-    correction_authority: "author",
   }, "review-phase-0-foundation@1", [
     { type: "reviews", target: subject.datum.revision_id },
     { type: "contextualizes", target: context.datum.revision_id },
@@ -177,7 +176,6 @@ describe("atomic Phase 0 Review liveness", () => {
       summary: "The candidate is exact and supported.",
       findings: [],
       rubric_ref: "policies/rubrics/bootstrap-review.md@3",
-      correction_authority: "author",
     }, "review-phase-0-candidate@1", [
       { type: "reviews", target: candidate.datum.revision_id },
       { type: "contextualizes", target: context.datum.revision_id },

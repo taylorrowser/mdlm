@@ -262,7 +262,6 @@ describe("atomic Review submission", () => {
           summary: "The exact map is supported by its frozen context.",
           findings: [],
           rubric_ref: "policies/rubrics/bootstrap-review.md@3",
-          correction_authority: "author",
         },
       },
     );

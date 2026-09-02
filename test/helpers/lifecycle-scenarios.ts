@@ -53,7 +53,6 @@ export function reviewedGateFixture(processRef: string) {
     summary: "The exact candidate is the smallest sufficient product definition.",
     findings: [],
     outcome: "pass",
-    correction_authority: "author",
   }, {
     scenario: "review-phase-0-candidate@1",
     links: [
@@ -94,7 +93,6 @@ export function reviewedGateFixture(processRef: string) {
     summary: "The exact sign-off passes review.",
     findings: [],
     outcome: "pass",
-    correction_authority: "author",
   }, {
     scenario: "review-phase-0-foundation@1",
     links: [
