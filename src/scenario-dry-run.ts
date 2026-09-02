@@ -20,6 +20,7 @@ import {
 } from "./expression.js";
 import {
   markdownAssetFrontmatter,
+  parseVersionedAssetReference,
   promptSkillReferences,
   readPackageMarkdownAsset,
 } from "./markdown-asset.js";
@@ -232,19 +233,12 @@ async function resolvedAsset(
 }
 
 function referencedPolicyAssets(
-  processPackage: ProcessPackage,
   result: Record<string, unknown>,
 ): string[] {
-  const catalog = object(processPackage.manifest.assets);
-  const declared = new Set(
-    Object.values(catalog ?? {}).flatMap((value) =>
-      array(value).filter((item): item is string => typeof item === "string")
-    ),
-  );
   const references = new Set<string>();
   const visit = (value: unknown): void => {
     if (typeof value === "string") {
-      if (declared.has(value)) references.add(value);
+      if (parseVersionedAssetReference(value)) references.add(value);
       return;
     }
     if (Array.isArray(value)) {
@@ -262,7 +256,7 @@ async function resolvePolicyAssets(
   result: Record<string, unknown>,
 ): Promise<{ assets: ResolvedProcessAsset[]; diagnostics: ProcessDiagnostic[] }> {
   const resolved = await Promise.all(
-    referencedPolicyAssets(processPackage, result).map((reference) =>
+    referencedPolicyAssets(result).map((reference) =>
       resolvedAsset(processPackage, reference, "policy-asset")
     ),
   );

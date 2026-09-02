@@ -49,9 +49,16 @@ import {
 } from "../src/scenario-execution.js";
 import { selectedRepositoryPackage } from "../src/selected-package.js";
 import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
-import { mdlm, mdlmWithInputAndEnvironment } from "./helpers/mdlm.js";
+import {
+  mdlm,
+  mdlmWithInputAndEnvironment,
+  selectProcessPackageFixture,
+} from "./helpers/mdlm.js";
 import { operatorTerminalProcessPackageFixture } from "./helpers/terminal-process-package-fixture.js";
-import { terminalProcessRepository } from "./helpers/terminal-process-package.js";
+import {
+  terminalProcessPackage,
+  terminalProcessRepository,
+} from "./helpers/terminal-process-package.js";
 
 function deepFreeze<T>(value: T): T {
   if (value && typeof value === "object" && !Object.isFrozen(value)) {
@@ -559,6 +566,85 @@ describe("public mdlm outcome and status seam", () => {
         .map((checkpoint) => checkpoint.id) ?? [],
     );
   }
+
+  it("includes a directory-discovered Review rubric in the public next packet", async () => {
+    const processRoot = await terminalProcessPackage(parent);
+
+    const manifestPath = path.join(processRoot, "manifest.yaml");
+    const manifest = parse(await fs.readFile(manifestPath, "utf8"));
+    delete manifest.catalog;
+    delete manifest.assets;
+    await fs.writeFile(manifestPath, stringify(manifest));
+
+    const policyPath = path.join(processRoot, "policies/no-waiver.yaml");
+    const policy = parse(await fs.readFile(policyPath, "utf8"));
+    policy.result_schema.required = ["rubric_ref"];
+    policy.result_schema.properties.rubric_ref = { type: "string" };
+    policy.default.rubric_ref = "policies/rubrics/fixture-review.md@1";
+    await fs.writeFile(policyPath, stringify(policy));
+
+    const scenarioPath = path.join(
+      processRoot,
+      "scenarios/record-terminal-item.yaml",
+    );
+    const scenario = parse(await fs.readFile(scenarioPath, "utf8"));
+    scenario.review_policy_arguments = { instance: '"terminal-check"' };
+    await fs.writeFile(scenarioPath, stringify(scenario));
+
+    const obligationPath = path.join(
+      processRoot,
+      "obligations/terminal-check.yaml",
+    );
+    const obligation = parse(await fs.readFile(obligationPath, "utf8"));
+    obligation.satisfied_when = "false";
+    await fs.writeFile(obligationPath, stringify(obligation));
+
+    const phasePath = path.join(processRoot, "phases/phase-0-terminal.yaml");
+    const phase = parse(await fs.readFile(phasePath, "utf8"));
+    delete phase.scenarios;
+    delete phase.obligations;
+    phase.routing = {
+      eligible_when: "dispatchable",
+      status_order: ["ready", "awaiting-review", "failed", "stale", "blocked"],
+      tie_breakers: ["subject", "obligation"],
+    };
+    await fs.writeFile(phasePath, stringify(phase));
+
+    const rubricPath = path.join(
+      processRoot,
+      "policies/rubrics/fixture-review.md",
+    );
+    await fs.mkdir(path.dirname(rubricPath), { recursive: true });
+    await fs.writeFile(
+      rubricPath,
+      "---\nid: fixture-review\nversion: 1\n---\n\n# Fixture Review rubric\n",
+    );
+
+    await fs.mkdir(repository);
+    await selectProcessPackageFixture(repository, processRoot);
+
+    const result = mdlm(repository, "next", "--json");
+    expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
+    const outcome = JSON.parse(result.stdout);
+    expect(outcome.outcome).toBe("assignment");
+    expect(outcome.assignment.packet).not.toHaveProperty("assets");
+    expect(outcome.assignment.packet.policies).toContainEqual(
+      expect.objectContaining({
+        role: "review",
+        evaluations: [expect.objectContaining({
+          result: expect.objectContaining({
+            rubric_ref: "policies/rubrics/fixture-review.md@1",
+          }),
+          assets: [expect.objectContaining({
+            reference: "policies/rubrics/fixture-review.md@1",
+            path: "policies/rubrics/fixture-review.md",
+            digest: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
+            content: expect.stringContaining("# Fixture Review rubric"),
+          })],
+        })],
+      }),
+    );
+  });
 
   it("reports status without allocating an Assignment", async () => {
     await initializeRepository();
