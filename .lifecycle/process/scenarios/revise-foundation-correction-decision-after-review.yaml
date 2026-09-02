@@ -13,6 +13,7 @@ outputs:
   - name: replacement
     types: [DEC]
     cardinality: one
+    identity_from: {input: decision}
     required_links:
       - {link: justifies, target: {input: corrected_subject}}
       - {link: corrects-review, target: {input: prior_failed_reviews}}

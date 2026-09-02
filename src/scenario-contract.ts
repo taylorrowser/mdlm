@@ -1,4 +1,7 @@
-import { compiledExpressionShape } from "./expression.js";
+import {
+  compiledExpressionShape,
+  directIdentityEqualities,
+} from "./expression.js";
 import {
   effectiveOutgoingLinks,
   effectivePayloadPathSchema,
@@ -432,6 +435,25 @@ export function validateScenarioContracts(
         });
       });
     });
+    for (const equality of directIdentityEqualities(scenario.completion)) {
+      const [outputName, inputName] =
+        outputNames.has(equality.left) && inputNames.has(equality.right)
+          ? [equality.left, equality.right]
+          : outputNames.has(equality.right) && inputNames.has(equality.left)
+          ? [equality.right, equality.left]
+          : [];
+      if (!outputName || !inputName) continue;
+      const output = outputsByName.get(outputName);
+      if (record(output?.identity_from)?.input === inputName) continue;
+      const outputIndex = outputs.findIndex((value) =>
+        record(value)?.name === outputName
+      );
+      diagnostics.push({
+        code: "scenario-output-identity-binding-mismatch",
+        path: `scenarios.${scenario.id}.outputs[${outputIndex}].identity_from`,
+        message: `Scenario '${scenario.id}' output '${outputName}' requires identity_from input '${inputName}' to satisfy its direct completion identity equality`,
+      });
+    }
   }
 
   for (const obligation of Object.values(catalogs.obligations)) {

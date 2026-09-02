@@ -2564,6 +2564,36 @@ export function compiledExpressionShape(
   };
 }
 
+export interface DirectIdentityEquality {
+  left: string;
+  right: string;
+}
+
+export function directIdentityEqualities(
+  value: unknown,
+): DirectIdentityEquality[] {
+  if (!isCompiledTextExpression(value)) return [];
+
+  const conjuncts = (node: ExpressionNode): ExpressionNode[] =>
+    node.kind === "logical" && node.operator === "and"
+      ? [...conjuncts(node.left), ...conjuncts(node.right)]
+      : [node];
+  const identityBinding = (node: ExpressionNode): string | undefined =>
+    node.kind === "path" &&
+      node.segments.length === 2 &&
+      node.segments[0] === "identity" &&
+      node.segments[1] === "id"
+      ? node.variable
+      : undefined;
+
+  return conjuncts(value.root).flatMap((node) => {
+    if (node.kind !== "comparison" || node.operator !== "eq") return [];
+    const left = identityBinding(node.left);
+    const right = identityBinding(node.right);
+    return left && right ? [{ left, right }] : [];
+  });
+}
+
 function readPath(root: unknown, segments: string[]): unknown {
   let value = root;
   for (const segment of segments) {
