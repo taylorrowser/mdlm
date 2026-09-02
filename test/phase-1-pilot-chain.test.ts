@@ -74,6 +74,15 @@ describe("Phase 1 pilot chain", () => {
         title: "Shared pilot strategy",
         level: "stakeholder",
         independence: { boundary: "black-box" },
+        environment_profile: {
+          id: "local-cli",
+          capabilities: {
+            controllability: ["process"],
+            observability: ["stdio", "exit-status"],
+            external_services: [],
+            timing: "bounded",
+          },
+        },
       },
       "define-verification-strategy@1",
       requirements.flatMap((requirement) => [
@@ -103,6 +112,158 @@ describe("Phase 1 pilot chain", () => {
         ]),
         { type: "governed-by", target: strategy.datum.revision_id },
         { type: "derived-from", target: product.datum.revision_id },
+      ],
+    );
+    const environment = record(
+      "ENV",
+      "ENV-4460000001",
+      {
+        title: "Qualified local environment",
+        strategy_revision: strategy.datum.revision_id,
+        profile_id: "local-cli",
+        capabilities: {
+          controllability: ["process"],
+          observability: ["stdio", "exit-status"],
+          external_services: [],
+          timing: "bounded",
+        },
+      },
+      "realize-verification-environment@1",
+      [{ type: "realizes", target: strategy.datum.revision_id }],
+    );
+    const qualificationActivity = record(
+      "VER",
+      "VER-4460000002",
+      { title: "Environment qualification", kind: "qualification" },
+      "write-qualification-activity@1",
+      [
+        { type: "governed-by", target: strategy.datum.revision_id },
+        { type: "qualifies", target: environment.datum.revision_id },
+      ],
+    );
+    const qualificationImplementation = record(
+      "VAI",
+      "VAI-4460000001",
+      {
+        title: "Environment qualification procedure",
+        kind: "qualification",
+        independence_mode: "source-blind",
+      },
+      "implement-verification-activity@1",
+      [
+        { type: "realizes", target: qualificationActivity.datum.revision_id },
+        { type: "uses", target: environment.datum.revision_id },
+        { type: "targets", target: environment.datum.revision_id },
+      ],
+    );
+    const qualificationResult = record(
+      "RES",
+      "RES-4460000001",
+      {
+        title: "Passing environment qualification",
+        claim: {
+          kind: "qualification",
+          scope: "environment-capability",
+          outcome: "pass",
+          formal_evidence_eligible: false,
+        },
+      },
+      "execute-verification-run@2",
+      [{ type: "assessed-in", target: environment.datum.revision_id }],
+    );
+    const qualificationRun = record(
+      "RUN",
+      "RUN-4460000001",
+      {
+        title: "Completed environment qualification",
+        kind: "qualification",
+        execution_state: "completed",
+      },
+      "execute-verification-run@2",
+      [
+        { type: "executes", target: qualificationImplementation.datum.revision_id },
+        { type: "uses", target: environment.datum.revision_id },
+        { type: "targets", target: environment.datum.revision_id },
+        { type: "produces", target: qualificationResult.datum.revision_id },
+      ],
+    );
+    const activityContext = record(
+      "BSL",
+      "BSL-4460000002",
+      {
+        title: "Pilot activity review context",
+        kind: "review-context",
+        role: "review-context",
+        scope: activity.datum.revision_id,
+        group: "DEFAULT",
+        definition_members: [
+          activity.datum.revision_id,
+          product.datum.revision_id,
+          ...requirements.map((requirement) => requirement.datum.revision_id),
+          strategy.datum.revision_id,
+        ],
+        evidence: [],
+      },
+      "review-phase-1-assurance@1",
+    );
+    const activityReview = record(
+      "REV",
+      "REV-4460000001",
+      {
+        title: "Passing pilot activity review",
+        review_kind: "phase-1-assurance",
+        outcome: "pass",
+        reviewer: "independent-reviewer",
+        summary: "The shared activity covers every governed requirement.",
+        findings: [],
+        rubric_ref: "rubrics/contextual-review.md@1",
+        correction_authority: "independent-reviewer",
+      },
+      "review-phase-1-assurance@1",
+      [
+        { type: "reviews", target: activity.datum.revision_id },
+        { type: "contextualizes", target: activityContext.datum.revision_id },
+      ],
+    );
+    const environmentContext = record(
+      "BSL",
+      "BSL-4460000003",
+      {
+        title: "Environment review context",
+        kind: "review-context",
+        role: "review-context",
+        scope: environment.datum.revision_id,
+        group: "DEFAULT",
+        definition_members: [
+          environment.datum.revision_id,
+          strategy.datum.revision_id,
+        ],
+        evidence: [
+          qualificationActivity.datum.revision_id,
+          qualificationImplementation.datum.revision_id,
+          qualificationRun.datum.revision_id,
+          qualificationResult.datum.revision_id,
+        ],
+      },
+      "review-phase-1-assurance@1",
+    );
+    const environmentReview = record(
+      "REV",
+      "REV-4460000002",
+      {
+        title: "Passing environment review",
+        review_kind: "phase-1-assurance",
+        outcome: "pass",
+        reviewer: "independent-reviewer",
+        summary: "The environment qualification evidence passes.",
+        findings: [],
+        rubric_ref: "rubrics/contextual-review.md@1",
+        correction_authority: "independent-reviewer",
+      },
+      "review-phase-1-assurance@1",
+      [
+        { type: "reviews", target: environment.datum.revision_id },
+        { type: "contextualizes", target: environmentContext.datum.revision_id },
       ],
     );
     const target = record(
@@ -139,8 +300,10 @@ describe("Phase 1 pilot chain", () => {
       );
       expect(execution.exitCode, execution.output).toBe(0);
       return JSON.parse(execution.output).looseEnds.items as Array<{
+        id: string;
         obligation: string;
         subject: string;
+        blockedBy: string[];
       }>;
     }
 
@@ -153,6 +316,34 @@ describe("Phase 1 pilot chain", () => {
     ), JSON.stringify(planning, null, 2)).toEqual([
       expect.objectContaining({ subject: strategy.datum.revision_id }),
     ]);
+
+    const assuredWithoutTarget = await looseEnds(
+      "assured-without-target",
+      [
+        product,
+        ...requirements,
+        acceptedIntent,
+        strategy,
+        activity,
+        environment,
+        qualificationActivity,
+        qualificationImplementation,
+        qualificationResult,
+        qualificationRun,
+        activityContext,
+        activityReview,
+        environmentContext,
+        environmentReview,
+      ],
+    );
+    expect(assuredWithoutTarget.find((item) =>
+      item.obligation === "pilot-verification-implementation-required"
+    )).toEqual(expect.objectContaining({
+      subject: activity.datum.revision_id,
+      blockedBy: [
+        `representative-level-pilot-target-required@1:${activity.datum.revision_id}:${processRef}`,
+      ],
+    }));
 
     const prototyped = await looseEnds(
       "prototyped",
