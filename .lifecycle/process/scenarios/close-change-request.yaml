@@ -21,6 +21,7 @@ outputs:
   - name: closed_problem
     types: [PRB]
     cardinality: one
+    identity_from: {input: problem}
     required_links:
       - {link: reports, target: {input: source_evidence}}
       - {link: resolved-by, target: {output: closure}}

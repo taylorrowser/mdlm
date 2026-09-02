@@ -227,6 +227,50 @@ describe("loadProcessPackage", () => {
     }
   });
 
+  it("binds direct completion identity equalities to their exact inputs", () => {
+    const bindings = [
+      ["close-change-request", "closed_problem", "problem"],
+      ["revise-candidate-correction-decision-after-review", "replacement", "decision"],
+      ["revise-change-disposition-after-review", "replacement", "decision"],
+      ["revise-foundation-correction-decision-after-review", "replacement", "decision"],
+    ] as const;
+
+    for (const [scenarioId, outputName, inputName] of bindings) {
+      const scenario = validPackage.scenarios[scenarioId]!;
+      const output = records(scenario.outputs).find((item) =>
+        item.name === outputName
+      );
+      expect(output?.identity_from, `${scenarioId}.${outputName}`).toEqual({
+        input: inputName,
+      });
+    }
+  });
+
+  it("rejects a direct completion identity equality without its binding", async () => {
+    const processRoot = await copiedProcessPackage();
+    try {
+      const scenarioPath = path.join(
+        processRoot,
+        "scenarios/close-change-request.yaml",
+      );
+      const scenario = parse(await fs.readFile(scenarioPath, "utf8"));
+      delete scenario.outputs[1].identity_from;
+      await fs.writeFile(scenarioPath, stringify(scenario));
+
+      expect(await loadProcessPackage(processRoot)).toMatchObject({
+        ok: false,
+        diagnostics: [{
+          code: "scenario-output-identity-binding-mismatch",
+          path: "scenarios.close-change-request.outputs[1].identity_from",
+          message:
+            "Scenario 'close-change-request' output 'closed_problem' requires identity_from input 'problem' to satisfy its direct completion identity equality",
+        }],
+      });
+    } finally {
+      await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
+    }
+  });
+
   it("compiles complete support links for Phase 2 continuation Assignments", () => {
     const routes = [
       ["reevaluate-shared-system-consumer", "replacement_consumer", [
