@@ -116,4 +116,5 @@ resolve_with:
   scenario: record-gate-signoff@3
   inputs:
     candidate: candidate
+    candidate_members: 'select("candidate-definition-members@1", {candidate: candidate})'
 waiver_policy_ref: waiver-applicability@1

@@ -11,6 +11,10 @@ inputs:
     conditions: >-
       candidate.payload.role == "candidate"
       && candidate.storage.frozen == true
+  - name: candidate_members
+    types: [MAP, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, VER]
+    cardinality: zero-or-more
+    identity: revision
 outputs:
   - name: decision
     types: [DEC]
@@ -19,6 +23,7 @@ outputs:
       - {link: justifies, target: {input: candidate}}
     permitted_links:
       - {link: blocks, target: {input: candidate}}
+      - {link: blocks, target: {input: candidate_members}}
   - name: questions
     types: [QST]
     cardinality: zero-or-more

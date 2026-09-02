@@ -1,14 +1,16 @@
 kind: selector-definition
 id: gate-rejection-blocked-members-for-candidate
 version: 1
-description: Direct Phase 0 candidate members implicated by a reviewed rejection of that exact candidate.
+description: Exact candidate definition members implicated by a reviewed rejection of that exact candidate.
 parameters:
   - {name: candidate, kind: baseline, types: [BSL]}
 result_kind: revision
 query:
-  from: {relation: baseline-members, of: candidate, emit: entity, types: [MAP, PSP, STK]}
+  from: {relation: baseline-members, of: candidate, emit: entity, types: [MAP, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, VER]}
   as: member
   where: >-
-    exists("reviewed-gate-rejections-for-subject@1", {subject: member})
+    !every("reviewed-gate-rejections-for-subject@1", {subject: member}, rejection =>
+      every("reviewed-gate-rejections-for-candidate@1", {candidate: candidate}, candidate_rejection =>
+        candidate_rejection != rejection))
   distinct: true
   order_by: [identity.type, identity.id, identity.revision]

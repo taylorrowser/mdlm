@@ -275,7 +275,7 @@ outgoing_links:
   - id: blocks
     description: Exact candidate or permitted candidate member implicated by this gate rejection.
     targets:
-      - {kind: datum, types: [MAP, PSP, STK, BSL], identity: revision}
+      - {kind: datum, types: [MAP, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, VER, BSL], identity: revision}
     cardinality: {minimum: 0, maximum: many}
     freeze_resolution: already-exact
     inverse_label: blocked-by-gate-rejection

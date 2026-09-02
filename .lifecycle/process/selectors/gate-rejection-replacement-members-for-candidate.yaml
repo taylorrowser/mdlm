@@ -1,0 +1,22 @@
+kind: selector-definition
+id: gate-rejection-replacement-members-for-candidate
+version: 1
+description: Valid reviewed same-lineage replacements for exact candidate members named by a reviewed gate rejection.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+  - {name: replacement, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from: {relation: baseline-members, of: replacement, emit: entity, types: [MAP, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, VER]}
+  as: replacement_member
+  where: >-
+    state(replacement_member, "validity") == "valid"
+    && exists("passing-reviews-for@1", {subject: replacement_member})
+    && none("failing-reviews-for@1", {subject: replacement_member})
+    && !every("gate-rejection-blocked-members-for-candidate@1",
+      {candidate: candidate}, blocked =>
+        replacement_member.identity.type != blocked.identity.type
+        || replacement_member.identity.id != blocked.identity.id
+        || replacement_member.identity.revision <= blocked.identity.revision)
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]
