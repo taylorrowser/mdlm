@@ -19,7 +19,7 @@ rules:
   - priority: 550
     when: >-
       subject.identity.type == "RES"
-      && subject.payload.claim.kind == "formal"
+      && subject.payload.claim.kind in ["pilot", "formal"]
       && subject.payload.assessment_state == "assessment-required"
     result:
       required: true

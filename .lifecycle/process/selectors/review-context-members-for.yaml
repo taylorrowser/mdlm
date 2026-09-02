@@ -17,6 +17,11 @@ query:
           {subject: subject}, support => support != member))
       ||
       (subject.identity.type == "RES"
+        && subject.payload.claim.kind == "pilot"
+        && !every("pilot-result-review-context-members-for@1",
+          {subject: subject}, support => support != member))
+      ||
+      (subject.identity.type == "RES"
         && subject.payload.claim.kind == "formal"
         && !every("formal-results-in-review-context-class@1",
           {subject: subject}, compatible =>

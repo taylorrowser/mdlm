@@ -1,0 +1,24 @@
+kind: selector-definition
+id: pilot-results-awaiting-assessment-for-implementation
+version: 1
+description: Suitable pilot results from one exact implementation that declare independent assessment and have no current Review.
+parameters:
+  - {name: implementation, kind: revision, types: [VAI]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [RES]}
+  as: result
+  where: >-
+    result.payload.claim.kind == "pilot"
+    && result.payload.claim.scope == "verification-design"
+    && result.payload.claim.outcome == "suitable"
+    && result.payload.claim.formal_evidence_eligible == false
+    && result.payload.assessment_state == "assessment-required"
+    && state(result, "validity") == "valid"
+    && exists("pilot-runs-producing-result@1", {result: result})
+    && !every("pilot-runs-producing-result@1", {result: result}, run =>
+      every("completed-runs-for-implementation@1",
+        {implementation: implementation}, completed => completed != run))
+    && none("passing-reviews-for@1", {subject: result})
+  distinct: true
+  order_by: [identity.revision_id]

@@ -43,6 +43,7 @@ async function focusedPackage(parent: string): Promise<string> {
   );
   const correction = parse(await fs.readFile(correctionPath, "utf8"));
   correction.for_each = 'select("seeded-pilot-implementations@1", {})';
+  correction.status_rules[0].when += '\n&& none("pilot-results-awaiting-assessment-for-implementation@1", {implementation: implementation})';
   await fs.writeFile(correctionPath, stringify(correction));
   const targetCorrectionPath = path.join(
     root,
@@ -50,7 +51,26 @@ async function focusedPackage(parent: string): Promise<string> {
   );
   const targetCorrection = parse(await fs.readFile(targetCorrectionPath, "utf8"));
   targetCorrection.for_each = 'select("seeded-pilot-implementations@1", {})';
+  targetCorrection.status_rules[0].when += '\n&& none("pilot-results-awaiting-assessment-for-implementation@1", {implementation: implementation})';
   await fs.writeFile(targetCorrectionPath, stringify(targetCorrection));
+  const assessmentPath = path.join(
+    root,
+    "obligations/pilot-result-assessment-required.yaml",
+  );
+  const assessment = parse(await fs.readFile(assessmentPath, "utf8"));
+  assessment.phases = ["phase-3-component-definition"];
+  assessment.status_rules.find(
+    (rule: Json) => rule.status === "awaiting-review",
+  ).priority = 1_000;
+  await fs.writeFile(assessmentPath, stringify(assessment));
+  const reviewScenarioPath = path.join(root, "scenarios/review-phase-1-assurance.yaml");
+  const reviewScenario = parse(await fs.readFile(reviewScenarioPath, "utf8"));
+  reviewScenario.phases.push("phase-3-component-definition");
+  await fs.writeFile(reviewScenarioPath, stringify(reviewScenario));
+  const genericReviewPath = path.join(root, "obligations/passing-review-required.yaml");
+  const genericReview = parse(await fs.readFile(genericReviewPath, "utf8"));
+  genericReview.phases = ["phase-2-system-definition"];
+  await fs.writeFile(genericReviewPath, stringify(genericReview));
   for (const [type, terminal] of [["ART", "prototype"], ["VAI", "pilot"]]) {
     const typePath = path.join(root, `types/${type}.yaml`);
     const definition = parse(await fs.readFile(typePath, "utf8"));
@@ -142,6 +162,23 @@ async function focusedPackage(parent: string): Promise<string> {
           { link: "produces", target: { output: "result" } },
         ],
       },
+      {
+        name: "assessment_result",
+        types: ["RES"],
+        cardinality: "one",
+        required_links: [{ link: "assessed-in", target: { output: "environment" } }],
+      },
+      {
+        name: "assessment_run",
+        types: ["RUN"],
+        cardinality: "one",
+        required_links: [
+          { link: "executes", target: { output: "implementation" } },
+          { link: "uses", target: { output: "environment" } },
+          { link: "targets", target: { output: "target" } },
+          { link: "produces", target: { output: "assessment_result" } },
+        ],
+      },
     ],
     prompt_ref: "prompts/seed-pilot-art-result-correction.md@1",
     review_policy_ref: "review-applicability@1",
@@ -213,11 +250,19 @@ function commit(repository: string): void {
 }
 
 function packet(repository: string, scenario: string): Json {
-  const next = mdlm(repository, "next", "--json");
+  let next = mdlm(repository, "next", "--json");
   expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
-  const outcome = JSON.parse(next.stdout);
+  let outcome = JSON.parse(next.stdout);
+  if (outcome.outcome === "publication-required") {
+    commit(repository);
+    next = mdlm(repository, "next", "--json");
+    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+    outcome = JSON.parse(next.stdout);
+  }
   expect(outcome.phase).toBe("phase-3-component-definition@2");
-  expect(outcome.assignment.packet.scenario.reference).toBe(scenario);
+  expect(outcome.assignment, JSON.stringify(outcome, null, 2)).toBeDefined();
+  expect(outcome.assignment.packet.scenario.reference, JSON.stringify(outcome, null, 2))
+    .toBe(scenario);
   return outcome.assignment.packet;
 }
 
@@ -239,7 +284,7 @@ function fill(response: Json, payloads: Record<string, Json>): void {
   response.proposal.completionEvidence = { summary: "Focused public correction." };
 }
 
-it("routes a Phase 3 unsuitable pilot to same-lineage ART and VAI correction", async () => {
+it("routes assessed and unsuitable pilots without replay", async () => {
   const parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pilot-art-correction-"));
   roots.push(parent);
   const repository = path.join(parent, "repository");
@@ -326,7 +371,7 @@ it("routes a Phase 3 unsuitable pilot to same-lineage ART and VAI correction", a
     },
     activity: {
       title: "Pilot activity", rationale: "Discriminate the behavior.", kind: "pilot",
-      method: "test", assessment_mode: "authored",
+      method: "test", assessment_mode: "witnessed",
       claim: { kind: "pilot", scope: "verification-design", formal_evidence_eligible: false },
       acceptance_criteria: ["The good case passes."],
       evidence_requirements: ["Exact exit status."],
@@ -388,6 +433,34 @@ it("routes a Phase 3 unsuitable pilot to same-lineage ART and VAI correction", a
       activities_invoked: ["known-good", "known-bad"],
       evidence_locations: ["observation:good-exit-1"],
     },
+    assessment_result: {
+      title: "Suitable pilot awaiting assessment",
+      claim: {
+        kind: "pilot", scope: "verification-design", outcome: "suitable",
+        formal_evidence_eligible: false,
+      },
+      assessment_state: "assessment-required",
+      observations: {
+        expected_success_observed: true, expected_discrimination_observed: true,
+        details: "Both exact controls discriminated the verification design.",
+      },
+      control_judgments: {
+        known_good: { observation_ref: "known_good", outcome: "pass" },
+        known_bad: { observation_ref: "known_bad", outcome: "fail" },
+      },
+      evidence_refs: ["observation:good-exit-0", "observation:bad-exit-1"],
+      assessor_ref: "focused-runner",
+    },
+    assessment_run: {
+      title: "Completed suitable pilot", kind: "pilot",
+      started_at: "2026-08-31T08:01:00.000Z",
+      completed_at: "2026-08-31T08:01:01.000Z", execution_state: "completed",
+      execution_target: { kind: "prototype", ref: ref("target") },
+      runner_ref: "focused-runner", configuration_refs: [ref("environment")],
+      activities_expected: ["known-good", "known-bad"],
+      activities_invoked: ["known-good", "known-bad"],
+      evidence_locations: ["observation:good-exit-0", "observation:bad-exit-1"],
+    },
   });
   const seeded = submit(repository, { responseScaffold: seedResponse });
   expect(seeded.status, `${seeded.stderr}${seeded.stdout}`).toBe(0);
@@ -399,6 +472,40 @@ it("routes a Phase 3 unsuitable pilot to same-lineage ART and VAI correction", a
   const evidenceHead = spawnSync("git", ["-C", repository, "rev-parse", "HEAD"], {
     encoding: "utf8",
   }).stdout.trim();
+
+  const pending = mdlm(repository, "loose-ends", "--json");
+  expect(JSON.parse(pending.stdout).looseEnds.items.some(
+    (item: Json) => item.obligation === "pilot-result-assessment-required",
+  ), pending.stdout).toBe(true);
+  const assessment = packet(repository, "review-phase-1-assurance@1");
+  const assessmentInputs = assessment.exactInputs[0].inputs;
+  const assessedResult = seeded.stdout.match(/RES-[A-Z0-9]+-r00001/g)?.[1];
+  expect(assessmentInputs.find((input: Json) => input.name === "subject")
+    .values[0].identity.revision_id).toBe(assessedResult);
+  expect(assessmentInputs.find((input: Json) => input.name === "review_context_members")
+    .values.map((value: Json) => value.identity.type)).toEqual(
+      expect.arrayContaining(["RUN", "VAI", "VER", "ENV", "ART"]),
+    );
+  const assessmentResponse = structuredClone(assessment.responseScaffold);
+  fill(assessmentResponse, {
+    context: {
+      title: "Pilot result review context", kind: "review-context",
+      role: "review-context", scope: assessedResult, group: "DEFAULT",
+      definition_members: assessmentInputs.find(
+        (input: Json) => input.name === "review_context_members",
+      ).values.map((value: Json) => value.identity.revision_id),
+      evidence: [],
+    },
+    review: {
+      title: "Passing pilot result assessment", review_kind: "phase-1-assurance",
+      outcome: "pass", reviewer: "independent-reviewer",
+      summary: "The exact good and bad controls discriminate correctly.", findings: [],
+      rubric_ref: "policies/rubrics/bootstrap-review.md@3",
+    },
+  });
+  const assessed = submit(repository, { responseScaffold: assessmentResponse });
+  expect(assessed.status, `${assessed.stderr}${assessed.stdout}`).toBe(0);
+  commit(repository);
 
   const correction = packet(
     repository,
@@ -494,4 +601,4 @@ it("routes a Phase 3 unsuitable pilot to same-lineage ART and VAI correction", a
     file.includes(".lifecycle/data/RUN/")
     || file.includes(".lifecycle/data/RES/"),
   )).toBe(false);
-});
+}, 45_000);
