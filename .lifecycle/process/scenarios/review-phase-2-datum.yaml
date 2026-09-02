@@ -1,7 +1,7 @@
 kind: scenario-definition
 id: review-phase-2-datum
 version: 1
-description: Independently review one ordinary exact Phase 2 Revision and publish its deterministic Review Context with the REV.
+description: Independently review each ordinary exact Phase 2 Revision and publish its deterministic Review Context with its REV.
 kernel_materialization:
   kind: exact-baseline@1
   output: review_context
@@ -46,7 +46,7 @@ participation:
   arguments: {subject: subject}
 authority_evidence: {output: review, type: REV}
 standing_delegation: {selector_ref: applicable-authority-delegations-for@1, target_input: subject, authority: stakeholder, delegate: independent-reviewer}
-completion_summary: Publish exactly one deterministic Review Context and its exact REV in one transaction.
+completion_summary: Publish exactly one deterministic Review Context and exact REV per invocation in one transaction.
 completion: >-
   execution.integrity.contract_valid == true
   && review_context.payload.kind == "review-context"
