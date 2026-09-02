@@ -23,10 +23,10 @@ async function focusedPackage(parent: string): Promise<string> {
 
   const profilePath = path.join(root, "profiles/bootstrap.yaml");
   const profile = parse(await fs.readFile(profilePath, "utf8"));
-  profile.enabled.phases = ["phase-1-product-assurance"];
+  profile.enabled.phases = ["phase-3-component-definition"];
   await fs.writeFile(profilePath, stringify(profile));
 
-  const phasePath = path.join(root, "phases/phase-1-product-assurance.yaml");
+  const phasePath = path.join(root, "phases/phase-3-component-definition.yaml");
   const phase = parse(await fs.readFile(phasePath, "utf8"));
   phase.order = 0;
   phase.entry = "true";
@@ -68,7 +68,7 @@ async function focusedPackage(parent: string): Promise<string> {
     id: "seed-pilot-art-result-correction",
     version: 1,
     description: "Publish one accepted unsuitable pilot result against one ART.",
-    phases: ["phase-1-product-assurance"],
+    phases: ["phase-3-component-definition"],
     inputs: [],
     outputs: [
       { name: "product", types: ["PSP"], cardinality: "one", required_links: [] },
@@ -155,7 +155,7 @@ async function focusedPackage(parent: string): Promise<string> {
     id: "seed-pilot-art-result-correction-required",
     version: 1,
     description: "The focused regression requires one unsuitable pilot result.",
-    phases: ["phase-1-product-assurance"],
+    phases: ["phase-3-component-definition"],
     for_each: "[phase]",
     subject_as: "required_phase",
     satisfied_when: 'exists("seeded-pilot-implementations@1", {})',
@@ -216,6 +216,7 @@ function packet(repository: string, scenario: string): Json {
   const next = mdlm(repository, "next", "--json");
   expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
   const outcome = JSON.parse(next.stdout);
+  expect(outcome.phase).toBe("phase-3-component-definition@2");
   expect(outcome.assignment.packet.scenario.reference).toBe(scenario);
   return outcome.assignment.packet;
 }
@@ -238,7 +239,7 @@ function fill(response: Json, payloads: Record<string, Json>): void {
   response.proposal.completionEvidence = { summary: "Focused public correction." };
 }
 
-it("retargets a corrected pilot VAI to its same-lineage replacement ART", async () => {
+it("routes a Phase 3 unsuitable pilot to same-lineage ART and VAI correction", async () => {
   const parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-pilot-art-correction-"));
   roots.push(parent);
   const repository = path.join(parent, "repository");
@@ -391,6 +392,13 @@ it("retargets a corrected pilot VAI to its same-lineage replacement ART", async 
   const seeded = submit(repository, { responseScaffold: seedResponse });
   expect(seeded.status, `${seeded.stderr}${seeded.stdout}`).toBe(0);
   commit(repository);
+  const unfavorableRun = seeded.stdout.match(/RUN-[A-Z0-9]+-r00001/)?.[0];
+  const unfavorableResult = seeded.stdout.match(/RES-[A-Z0-9]+-r00001/)?.[0];
+  expect(unfavorableRun).toBeDefined();
+  expect(unfavorableResult).toBeDefined();
+  const evidenceHead = spawnSync("git", ["-C", repository, "rev-parse", "HEAD"], {
+    encoding: "utf8",
+  }).stdout.trim();
 
   const correction = packet(
     repository,
@@ -400,6 +408,7 @@ it("retargets a corrected pilot VAI to its same-lineage replacement ART", async 
   const inputRevision = (name: string) => correction.exactInputs[0].inputs.find(
     (input: Json) => input.name === name,
   ).values[0].identity.revision_id;
+  expect(inputRevision("failed_results")).toBe(unfavorableResult);
   const targetHandle = response.proposal.outputs.some(
     (output: Json) => output.handle === "replacement_with_target",
   ) ? "replacement_with_target" : "replacement";
@@ -475,4 +484,14 @@ it("retargets a corrected pilot VAI to its same-lineage replacement ART", async 
   );
   expect(publishedTarget.revisionId).toMatch(/-r00002$/);
   expect(publishedImplementation.revisionId).toMatch(/-r00002$/);
+  commit(repository);
+  const correctionChanges = spawnSync(
+    "git",
+    ["-C", repository, "diff", "--name-only", `${evidenceHead}..HEAD`],
+    { encoding: "utf8" },
+  ).stdout.trim().split("\n");
+  expect(correctionChanges.some((file) =>
+    file.includes(".lifecycle/data/RUN/")
+    || file.includes(".lifecycle/data/RES/"),
+  )).toBe(false);
 });
