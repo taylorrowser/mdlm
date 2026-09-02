@@ -311,7 +311,6 @@ describe("Phase 1 review routing", () => {
       "pilot-verification-activity-required",
       "environment-assurance-required",
       "pilot-verification-implementation-required",
-      "verification-run-required",
     ]) {
       const declaration = JSON.stringify(processPackage.obligations[obligationId]);
       expect(declaration).toContain("phase-1-assurance-review-required@1");

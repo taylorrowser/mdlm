@@ -1,10 +1,10 @@
 kind: scenario-definition
 id: write-verification-activity
 version: 2
-description: Write a source-independent pilot activity with explicit success and discrimination behavior from its exact accepted intent.
+description: Write one source-independent pilot activity with explicit success and discrimination behavior for an exact strategy and its governed requirements.
 phases: [phase-1-product-assurance]
 inputs:
-  - {name: requirement, types: [STK], cardinality: one, identity: revision}
+  - {name: requirements, types: [STK], cardinality: one-or-more, identity: revision}
   - {name: strategy, types: [VSP], cardinality: one, identity: revision}
   - {name: intent_support, types: [PSP], cardinality: one, identity: revision}
 outputs:
@@ -12,8 +12,8 @@ outputs:
     types: [VER]
     cardinality: one
     required_links:
-      - {link: verifies, target: {input: requirement}}
-      - {link: verifies-revision, target: {input: requirement}}
+      - {link: verifies, target: {input: requirements}}
+      - {link: verifies-revision, target: {input: requirements}}
       - {link: governed-by, target: {input: strategy}}
       - {link: derived-from, target: {input: intent_support}}
 prompt_ref: prompts/write-verification-activity.md@2
@@ -23,8 +23,10 @@ completion: >-
   && activity.payload.kind == "pilot"
   && activity.payload.claim.scope == "verification-design"
   && activity.payload.claim.formal_evidence_eligible == false
-  && intent_support == one("pilot-intent-support-for-requirement@1",
-    {requirement: requirement})
+  && requirements == select("phase-1-requirements-governed-by-strategy@1",
+    {strategy: strategy})
+  && intent_support == one("pilot-intent-support-for-strategy@1",
+    {strategy: strategy})
 resolves: [pilot-verification-activity-required]
 prohibited_inputs: [product source code, product unit tests, private implementation details, unstated product behavior, formal acceptance conclusion]
-batching: single
+batching: coherent-batch

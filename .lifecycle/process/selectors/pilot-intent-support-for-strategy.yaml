@@ -1,0 +1,17 @@
+kind: selector-definition
+id: pilot-intent-support-for-strategy
+version: 1
+description: Exact accepted product specifications needed to interpret every requirement governed by one Phase 1 strategy.
+parameters:
+  - {name: strategy, kind: revision, types: [VSP]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [PSP]}
+  as: intent_support
+  where: >-
+    state(intent_support, "disposition") == "active"
+    && !every("phase-1-requirements-governed-by-strategy@1", {strategy: strategy}, requirement =>
+      every("pilot-intent-support-for-requirement@1",
+        {requirement: requirement}, parent => parent != intent_support))
+  distinct: true
+  order_by: [identity.id, identity.revision]

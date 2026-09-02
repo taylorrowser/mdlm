@@ -1,11 +1,10 @@
 kind: selector-definition
 id: valid-pilot-vai-activity-reconciliations
 version: 1
-description: The exact same-lineage pilot VER replacement preserving one failed pilot VAI's claim, requirement, and strategy.
+description: The exact same-lineage pilot VER replacement preserving one failed pilot VAI's claim, governed requirement set, and strategy.
 parameters:
   - {name: implementation, kind: revision, types: [VAI]}
   - {name: activity, kind: revision, types: [VER]}
-  - {name: requirement, kind: revision, types: [STK]}
   - {name: strategy, kind: revision, types: [VSP]}
   - {name: replacement, kind: revision, types: [VER]}
 result_kind: revision
@@ -23,9 +22,8 @@ query:
     && every("all-cited-reviews-by-correction@1", {replacement: candidate}, review =>
       exists("matching-failing-review-for@1",
         {subject: implementation, review: review}))
-    && count("requirements-for-pilot-activity@1", {activity: candidate}) == 1
-    && one("requirements-for-pilot-activity@1", {activity: candidate})
-      == requirement
+    && select("requirements-for-pilot-activity@1", {activity: candidate})
+      == select("requirements-for-pilot-activity@1", {activity: activity})
     && count("strategies-for-verification-activity@1", {activity: candidate}) == 1
     && one("strategies-for-verification-activity@1", {activity: candidate})
       == strategy

@@ -9,7 +9,7 @@ skills: [skills/lifecycle-data.md@1, skills/verification-activity-implementation
 
 Create the next Revision in the supplied VAI lineage. Cite and address every
 supplied failed Review, preserving the exact claim class, declared cases,
-requirement, strategy, supported behavior, and intentionally unsupported
+requirement set, strategy, supported behavior, and intentionally unsupported
 behavior. Correct only the VAI procedure, keep the exact supplied VER and ENV
 links, and keep the exact supplied ART target for a pilot VAI.
 

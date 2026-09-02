@@ -47,14 +47,10 @@ inputs:
         && execution_target == environment))
       && execution_target == one("execution-targets-for-implementation@1",
         {implementation: implementation})
-  - name: requirement
+  - name: requirements
     types: [STK, SYS, CMP, DES]
-    cardinality: one
+    cardinality: one-or-more
     identity: revision
-    conditions: >-
-      count("requirements-for-pilot-activity@1", {activity: activity}) == 1
-      && requirement == one("requirements-for-pilot-activity@1",
-        {activity: activity})
   - name: strategy
     types: [VSP]
     cardinality: one
@@ -113,5 +109,5 @@ completion: >-
       && authorization.payload.kind == "scope")
   )
 resolves: [pilot-vai-review-correction-required]
-prohibited_inputs: [mutation of failed VAI history, mutation of supplied VER history, mutation of prior RUN or RES evidence, mutation of failed Review history, mutation of supplied ENV history, mutation of supplied ART history, changed pilot claim class, VER requirement change, VER strategy change, ART behavior-scope change, ENV capability change outside the exact VSP profile, unrelated VER, unrelated ENV, unrelated ART, borrowed qualification evidence, product source, product unit tests, private implementation details, mutable aliases, prototype implementation bytes, product implementation ART during formal work]
+prohibited_inputs: [mutation of failed VAI history, mutation of supplied VER history, mutation of prior RUN or RES evidence, mutation of failed Review history, mutation of supplied ENV history, mutation of supplied ART history, changed pilot claim class, VER requirement-set change, VER strategy change, ART behavior-scope change, ENV capability change outside the exact VSP profile, unrelated VER, unrelated ENV, unrelated ART, borrowed qualification evidence, product source, product unit tests, private implementation details, mutable aliases, prototype implementation bytes, product implementation ART during formal work]
 batching: single

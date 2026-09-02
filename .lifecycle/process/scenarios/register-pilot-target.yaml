@@ -1,22 +1,27 @@
 kind: scenario-definition
 id: register-pilot-target
 version: 1
-description: Register one existing immutable bounded repository artifact as the exact pilot target for one requirement Revision.
+description: Register one existing immutable bounded repository artifact as the exact target for one pilot activity and its complete requirement set.
 phases: [phase-1-product-assurance]
 inputs:
-  - name: requirement
-    types: [STK]
+  - name: activity
+    types: [VER]
     cardinality: one
     identity: revision
     conditions: >-
-      exists("pilot-verification-activities-for-requirement@1", {requirement: requirement})
-      && none("current-pilot-targets-for-requirement@1", {requirement: requirement})
+      !every("current-pilot-verification-activities@1", {}, candidate =>
+        candidate != activity)
+      && none("current-pilot-targets-for-activity@1", {activity: activity})
+  - name: requirements
+    types: [STK]
+    cardinality: one-or-more
+    identity: revision
 outputs:
   - name: target
     types: [ART]
     cardinality: one
     required_links:
-      - {link: derived-from, target: {input: requirement}}
+      - {link: derived-from, target: {input: requirements}}
 prompt_ref: prompts/register-pilot-target.md@1
 review_policy_ref: review-applicability@1
 completion: >-
@@ -27,9 +32,9 @@ completion: >-
   && target.payload.evidence_refs != []
   && present(target.payload.public_interface)
   && target.payload.public_interface.working_directory == "fresh-temporary-directory"
-  && count("current-pilot-targets-for-requirement@1", {requirement: requirement}) == 1
-  && one("current-pilot-targets-for-requirement@1", {requirement: requirement}) == target
+  && count("current-pilot-targets-for-activity@1", {activity: activity}) == 1
+  && one("current-pilot-targets-for-activity@1", {activity: activity}) == target
 resolves: []
 initiation: explicit
 prohibited_inputs: [mutable repository reference, product source as verification evidence, product unit tests, private implementation detail, requirement acceptance claim, verification result claim, authority claim, unbounded supported behavior, omitted unsupported boundary, incomplete public execution interface]
-batching: single
+batching: coherent-batch

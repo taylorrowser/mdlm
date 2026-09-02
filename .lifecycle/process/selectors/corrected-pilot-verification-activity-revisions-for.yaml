@@ -1,7 +1,7 @@
 kind: selector-definition
 id: corrected-pilot-verification-activity-revisions-for
 version: 1
-description: Valid newer pilot VER Revisions preserving the exact requirement, strategy, and claim boundary and addressing every and only current failed Review.
+description: Valid newer pilot VER Revisions preserving the exact requirement set, strategy, and claim boundary and addressing every and only current failed Review.
 parameters:
   - {name: activity, kind: revision, types: [VER]}
 result_kind: revision
@@ -19,18 +19,10 @@ query:
         {subject: activity, replacement: replacement, review: review}))
     && none("unexpected-corrected-phase-1-assurance-reviews@1",
       {subject: activity, replacement: replacement})
-    && count("requirements-for-pilot-activity@1", {activity: activity}) == 1
-    && count("requirements-for-pilot-activity@1", {activity: replacement}) == 1
-    && one("requirements-for-pilot-activity@1", {activity: replacement})
-      == one("requirements-for-pilot-activity@1", {activity: activity})
-    && (
-      (exists("stakeholder-requirements-for-pilot-activity@1", {activity: activity})
-        && count("pilot-intent-support-for-activity@1", {activity: replacement}) == 1
-        && one("pilot-intent-support-for-activity@1", {activity: replacement})
-          == one("pilot-intent-support-for-activity@1", {activity: activity}))
-      || (none("stakeholder-requirements-for-pilot-activity@1", {activity: activity})
-        && none("pilot-intent-support-for-activity@1", {activity: replacement}))
-    )
+    && select("requirements-for-pilot-activity@1", {activity: replacement})
+      == select("requirements-for-pilot-activity@1", {activity: activity})
+    && select("pilot-intent-support-for-activity@1", {activity: replacement})
+      == select("pilot-intent-support-for-activity@1", {activity: activity})
     && count("strategies-for-verification-activity@1", {activity: activity}) == 1
     && count("strategies-for-verification-activity@1", {activity: replacement}) == 1
     && one("strategies-for-verification-activity@1", {activity: replacement})

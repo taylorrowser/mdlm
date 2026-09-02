@@ -5,7 +5,7 @@ description: Exact same-lineage ART replacement preserving behavior scope and ci
 parameters:
   - {name: implementation, kind: revision, types: [VAI]}
   - {name: target, kind: revision, types: [ART]}
-  - {name: requirement, kind: revision, types: [STK, SYS]}
+  - {name: activity, kind: revision, types: [VER]}
   - {name: replacement, kind: revision, types: [ART]}
 result_kind: revision
 query:
@@ -24,9 +24,7 @@ query:
     && every("pilot-results-cited-by-correction@1", {replacement: candidate}, result =>
       !every("unfavorable-pilot-results-for-implementation@1",
         {implementation: implementation}, cause => cause != result))
-    && count("current-pilot-targets-for-requirement@1",
-      {requirement: requirement}) == 1
-    && one("current-pilot-targets-for-requirement@1",
-      {requirement: requirement}) == candidate
+    && count("current-pilot-targets-for-activity@1", {activity: activity}) == 1
+    && one("current-pilot-targets-for-activity@1", {activity: activity}) == candidate
   distinct: true
   order_by: [identity.revision]

@@ -9,14 +9,17 @@ inputs:
   - {name: activity, types: [VER], cardinality: one, identity: revision}
   - {name: environment, types: [ENV], cardinality: one, identity: revision}
   - {name: execution_target, types: [ART], cardinality: one, identity: revision}
-  - {name: requirement, types: [STK, SYS, CMP, DES], cardinality: one, identity: revision}
+  - name: requirements
+    types: [STK, SYS, CMP, DES]
+    cardinality: one-or-more
+    identity: revision
 outputs:
   - name: replacement_target
     types: [ART]
     cardinality: one
     identity_from: {input: execution_target}
     required_links:
-      - {link: derived-from, target: {input: requirement}}
+      - {link: derived-from, target: {input: requirements}}
       - {link: corrects-pilot-result, target: {input: failed_results}}
   - name: replacement_with_target
     types: [VAI]
