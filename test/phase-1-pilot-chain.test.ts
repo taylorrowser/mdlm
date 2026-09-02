@@ -508,7 +508,7 @@ describe("Phase 1 pilot chain", () => {
         .includes(item.obligation)
     )).toBe(false);
 
-    for (const [assessmentState, suffix] of [["recorded", "3"], ["accepted", "4"]]) {
+    for (const [assessmentState, suffix] of [["recorded", "3"], ["accepted", "4"]] as const) {
       const completedResult = result(assessmentState, suffix);
       const complete = await looseEnds(
         `${assessmentState}-result`,
