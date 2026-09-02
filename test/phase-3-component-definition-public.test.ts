@@ -1060,12 +1060,22 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
       "execute-lower-level-decomposition-work-package@1",
     );
     const componentTemplate = executionPacket.responseScaffold.proposal.outputs.find(
-      (output: Json) => (output.output ?? output.handle) === "component_requirements",
+      (output: Json) => (output.output ?? output.handle) === "requirements",
     );
-    expect(componentTemplate).toBeDefined();
+    expect(componentTemplate).toMatchObject({ type: "CMP" });
+    const wrongComponentType = assignmentResponse(executionPacket, [{
+      output: "requirements",
+      payload: {},
+      body: "Wrong target type.\n",
+    }]);
+    wrongComponentType.proposal.outputs[0].type = "DES";
+    const wrongComponentSubmit = mdlmWithInput(repository,
+      `${JSON.stringify(wrongComponentType)}\n`, "scenario", "submit", "-", "--json");
+    expect(wrongComponentSubmit.status).toBe(1);
+    expect(wrongComponentSubmit.stdout).toContain("assignment-response-type-invalid");
     const executionResult = submit(repository, executionPacket, [
       {
-        output: "component_requirements",
+        output: "requirements",
         handle: "classifier-requirement",
         payload: {
           title: "Classify the supplied value",
@@ -1080,7 +1090,7 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
         body: "One solution-independent classifier requirement.\n",
       },
       {
-        output: "component_requirements",
+        output: "requirements",
         handle: "reporter-requirement",
         payload: {
           title: "Report the classification",
@@ -1272,9 +1282,22 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
     const designPlan = publication(designPlanResult, "plan");
 
     const designExecutionPacket = nextAfterReviews(repository, "execute-lower-level-decomposition-work-package@1", reviews);
+    expect(designExecutionPacket.responseScaffold.proposal.outputs.find(
+      (output: Json) => (output.output ?? output.handle) === "requirements",
+    )).toMatchObject({ type: "DES" });
+    const wrongDesignType = assignmentResponse(designExecutionPacket, [{
+      output: "requirements",
+      payload: {},
+      body: "Wrong target type.\n",
+    }]);
+    wrongDesignType.proposal.outputs[0].type = "CMP";
+    const wrongDesignSubmit = mdlmWithInput(repository,
+      `${JSON.stringify(wrongDesignType)}\n`, "scenario", "submit", "-", "--json");
+    expect(wrongDesignSubmit.status).toBe(1);
+    expect(wrongDesignSubmit.stdout).toContain("assignment-response-type-invalid");
     const designExecutionResult = submit(repository, designExecutionPacket, [
-      { output: "design_requirements", handle: "classifier-design", payload: { title: "Evaluate the supplied value", rationale: "Implement the classifier responsibility.", statement: "The design shall evaluate the supplied value against the declared validity rule.", verification_intent: "Analyze the exact classification decision.", interface_effect: "unchanged", architecture_allocation: { architecture_revision: architecture, element: "AEL-CMPDEF00001" } }, body: "One classifier design requirement.\n" },
-      { output: "design_requirements", handle: "reporter-design", payload: { title: "Emit the classification", rationale: "Implement the reporter responsibility.", statement: "The design shall emit the evaluated classification through the existing contract.", verification_intent: "Analyze the exact emitted classification.", interface_effect: "unchanged", architecture_allocation: { architecture_revision: architecture, element: "AEL-CMPDEF00002" } }, body: "One reporter design requirement.\n" },
+      { output: "requirements", handle: "classifier-design", payload: { title: "Evaluate the supplied value", rationale: "Implement the classifier responsibility.", statement: "The design shall evaluate the supplied value against the declared validity rule.", verification_intent: "Analyze the exact classification decision.", interface_effect: "unchanged", architecture_allocation: { architecture_revision: architecture, element: "AEL-CMPDEF00001" } }, body: "One classifier design requirement.\n" },
+      { output: "requirements", handle: "reporter-design", payload: { title: "Emit the classification", rationale: "Implement the reporter responsibility.", statement: "The design shall emit the evaluated classification through the existing contract.", verification_intent: "Analyze the exact emitted classification.", interface_effect: "unchanged", architecture_allocation: { architecture_revision: architecture, element: "AEL-CMPDEF00002" } }, body: "One reporter design requirement.\n" },
     ]);
     commit(repository, "Publish two design requirements");
     const designs = [publication(designExecutionResult, "classifier-design"), publication(designExecutionResult, "reporter-design")];

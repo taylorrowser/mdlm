@@ -427,6 +427,11 @@ prohibited-input conflicts, and required-link names, targets, target types, and
 cardinalities are rejected before execution. The completion expression may add
 process-specific conditions but should not duplicate those generic checks.
 
+A multi-type output may declare `type_from: {input, path}` to select its concrete
+type from a field in one exact bound input payload. The selected value must be one
+of the output's declared types. `type_from` does not preserve identity and cannot
+be combined with `identity_from`.
+
 Prompts choose and order skills through their YAML-frontmatter `skills` array.
 That array is authoritative when present; for legacy prompts without it, exact
 backtick-wrapped skill references in the body remain the compatibility fallback.
