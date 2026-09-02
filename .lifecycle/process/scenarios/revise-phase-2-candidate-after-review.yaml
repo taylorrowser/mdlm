@@ -7,6 +7,7 @@ inputs:
   - {name: candidate, types: [BSL], cardinality: one, identity: revision}
   - {name: definition_members, types: [SYS, CMP, DES, ASP, ICSP, DWP, VSP, VER], cardinality: one-or-more, identity: revision}
   - {name: evidence, types: [REV, DEC, ENV, ART, VAI, RUN, RES], cardinality: zero-or-more, identity: revision}
+  - {name: rejected_members, types: [MAP, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, VER], cardinality: zero-or-more, identity: revision}
   - {name: failed_reviews, types: [REV], cardinality: zero-or-more, identity: revision}
   - {name: gate_rejections, types: [DEC], cardinality: zero-or-more, identity: revision}
 outputs:
@@ -50,5 +51,5 @@ completion: >-
           && state(authority, "validity") == "valid"))
   )
 resolves: [phase-2-candidate-correction-required]
-prohibited_inputs: [mutation of prior candidate or judgment, omission of unaffected evidence, inferred stop, inferred deferral, inferred cancellation, mutable latest aliases]
+prohibited_inputs: [mutation of prior candidate or judgment, omission of unaffected membership or evidence, unrelated membership changes, retention of exact rejected members, inferred stop, inferred deferral, inferred cancellation, mutable latest aliases]
 batching: single

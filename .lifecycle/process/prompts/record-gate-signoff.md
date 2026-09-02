@@ -27,9 +27,10 @@ scope, with a `justifies` link to the exact frozen candidate BSL revision. For a
 rejection, record the complete rationale as structured
 `gate_rejection.findings` and record every exact blocker once through a `blocks`
 link. The links are the canonical blocker set; every finding applies to that set.
-A blocker may be the candidate itself or, for an intent candidate, one of its
-exact MAP, PSP, or STK members. Capture new unresolved questions as QSTs rather
-than weakening the decision text.
+A blocker may be the candidate itself or one of its exact supplied definition
+members. Name each defective member directly so correction can replace or remove
+only that member and its obsolete Review evidence. Capture new unresolved
+questions as QSTs rather than weakening the decision text.
 
 Never modify the candidate during the gate. Rejection remains immutable
 non-approval history and derives correction; it does not mean stop, defer, or

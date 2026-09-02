@@ -1,0 +1,18 @@
+kind: selector-definition
+id: gate-rejection-replacement-review-evidence-for-candidate
+version: 1
+description: Passing Review evidence for a valid same-lineage replacement of one gate-rejected candidate member.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+  - {name: replacement, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from: {relation: baseline-evidence, of: replacement, emit: entity, types: [REV]}
+  as: review
+  where: >-
+    !every("gate-rejection-replacement-members-for-candidate@1",
+      {candidate: candidate, replacement: replacement}, member =>
+        !exists("matching-passing-review-for@1",
+          {subject: member, review: review}))
+  distinct: true
+  order_by: [identity.revision_id]
