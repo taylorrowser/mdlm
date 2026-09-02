@@ -39,7 +39,7 @@ review_contract:
   required_evidence: [review_context_members]
   allowed_findings: [scope, traceability, consistency, evidence]
   summary_rule: State whether the candidate is complete, internally consistent, scope challenged, and supported by exact authority.
-  correction_authorities: [author, stakeholder, package-evidence]
+  correction_authorities: [stakeholder, package-evidence]
 review_policy_ref: review-applicability@1
 review_policy_arguments: {subject: subject}
 participation:

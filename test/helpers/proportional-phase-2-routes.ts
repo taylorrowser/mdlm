@@ -1830,7 +1830,6 @@ export async function runPhaseTwoAssuranceReviewRoute(): Promise<void> {
             summary: "The exact strategy is traceable and bounded.",
             rubric_ref: "policies/rubrics/bootstrap-review.md@3",
             findings: [],
-            correction_authority: "author",
             outcome: "pass",
           },
           links: [
