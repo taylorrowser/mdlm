@@ -28,7 +28,7 @@ function makeDetachedCandidate() {
   mkdirSync(join(candidate, "src"));
   mkdirSync(join(candidate, "fixture-dependency"));
   mkdirSync(join(candidate, "release-only-dependency"));
-  writeFileSync(join(candidate, ".gitignore"), "node_modules/\n");
+  writeFileSync(join(candidate, ".gitignore"), "node_modules/\ndist/\n");
   writeFileSync(join(candidate, "fixture-dependency", "package.json"), JSON.stringify({
     name: "fixture-dependency",
     version: "1.0.0",
@@ -45,8 +45,17 @@ function makeDetachedCandidate() {
   writeFileSync(join(candidate, "release-only-dependency", "index.js"), "export const releaseReady = true;\n");
   writeFileSync(join(candidate, "src", "index.ts"), [
     'import { ready } from "fixture-dependency";',
-    'if (!ready) throw new Error("fixture dependency unavailable");',
-    "export { ready };",
+    'import { localReady } from "./local.js";',
+    'if (!ready || !localReady) throw new Error("fixture dependency unavailable");',
+    "export { localReady, ready };",
+    "",
+  ].join("\n"));
+  writeFileSync(join(candidate, "src", "local.ts"), "export const localReady = true;\n");
+  writeFileSync(join(candidate, "build.mjs"), [
+    'import { cpSync, mkdirSync } from "node:fs";',
+    'mkdirSync("dist", { recursive: true });',
+    'cpSync("src/index.ts", "dist/index.js");',
+    'cpSync("src/local.ts", "dist/local.js");',
     "",
   ].join("\n"));
   writeFileSync(join(candidate, "package.json"), JSON.stringify({
@@ -54,8 +63,11 @@ function makeDetachedCandidate() {
     private: true,
     type: "module",
     dependencies: { "fixture-dependency": "file:./fixture-dependency" },
-    devDependencies: { "release-only-dependency": "file:./release-only-dependency" },
+    devDependencies: {
+      "release-only-dependency": "file:./release-only-dependency",
+    },
     scripts: {
+      build: "node build.mjs",
       "test:release": "node -e \"require('node:fs').writeFileSync('../test-release-started', '')\"",
     },
   }, null, 2));
@@ -126,12 +138,16 @@ it("prepares a fresh detached candidate before an authoritative attempt can exis
   expect(existsSync(join(fixture.candidate, "node_modules", "fixture-dependency"))).toBe(true);
   const prepared = JSON.parse(readFileSync(evidence, "utf8"));
   expect(prepared).toMatchObject({
-    contract: "mdlm-release-candidate-preparation@1",
+    contract: "mdlm-release-candidate-preparation@2",
     commit: fixture.commit,
     tree: fixture.tree,
     install: { command: "npm", arguments: ["ci"] },
     dependencyTreeProof: { command: "npm", arguments: ["ls", "--all"], result: "pass" },
-    importProof: { entrypoint: "src/index.ts", result: "pass" },
+    importProof: {
+      build: { command: "npm", arguments: ["run", "build"] },
+      entrypoint: "dist/index.js",
+      result: "pass",
+    },
   });
 
   rmSync(join(fixture.candidate, "node_modules", "release-only-dependency"), {
@@ -148,6 +164,24 @@ it("prepares a fresh detached candidate before an authoritative attempt can exis
     "--attempt-dir", attempt,
   ], { encoding: "utf8" });
   expect(incompleteStart.status).not.toBe(0);
+  expect(existsSync(attempt)).toBe(false);
+  expect(existsSync(testReleaseStarted)).toBe(false);
+
+  command(fixture.candidate, "npm", ["ci"]);
+  writeFileSync(
+    join(fixture.candidate, "node_modules", "fixture-dependency", "index.js"),
+    'throw new Error("fixture import failed");\n',
+  );
+  const failedImportStart = spawnSync(process.execPath, [
+    gateScript,
+    "start",
+    "--worktree", fixture.candidate,
+    "--commit", fixture.commit,
+    "--tree", fixture.tree,
+    "--evidence", evidence,
+    "--attempt-dir", attempt,
+  ], { encoding: "utf8" });
+  expect(failedImportStart.status).not.toBe(0);
   expect(existsSync(attempt)).toBe(false);
   expect(existsSync(testReleaseStarted)).toBe(false);
 
