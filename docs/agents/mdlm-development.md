@@ -112,6 +112,10 @@ The integration lane owns expensive checks:
 
 Feature and fix writers rely on focused checks instead of repeating the full suite. Integration failures create focused follow-up work. They do not erase valid operational evidence.
 
+Build the exact worktree before a public CLI regression whose helper invokes
+`dist/mdlm.js`. A missing executable is preflight setup failure and supplies no
+behavioral evidence.
+
 In repository tests, protect the pure decision with direct
 `deriveOperatorOutcome` cases and freeze the serialized public contract through
 real `claimNextWork` packets and `submitAssignmentResponse` outcomes. Keep one
