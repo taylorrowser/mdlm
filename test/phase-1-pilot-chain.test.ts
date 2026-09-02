@@ -458,9 +458,10 @@ describe("Phase 1 pilot chain", () => {
       implementationReview,
     ];
     const pendingResult = result("assessment-required", "2");
+    const pendingRun = run(pendingResult, "2");
     const pending = await looseEnds(
       "pending-result-assessment",
-      [...common, pendingResult, run(pendingResult, "2")],
+      [...common, pendingResult, pendingRun],
     );
     expect(pending.find((item) =>
       item.obligation === "verification-run-required" &&
@@ -479,6 +480,33 @@ describe("Phase 1 pilot chain", () => {
       status: "awaiting-review",
       actionableResolver: "review-phase-1-assurance@1",
     }));
+
+    const resultContext = record("BSL", "BSL-4460000005", {
+      title: "Pilot result review context",
+      kind: "review-context", role: "review-context",
+      scope: pendingResult.datum.revision_id, group: "DEFAULT",
+      definition_members: [
+        pendingResult.datum.revision_id, pendingRun.datum.revision_id,
+        implementation.datum.revision_id, activity.datum.revision_id,
+        environment.datum.revision_id, target.datum.revision_id,
+      ].sort(),
+      evidence: [],
+    }, "review-phase-1-assurance@1");
+    const resultReview = record("REV", "REV-4460000004", {
+      title: "Passing pilot result assessment",
+      review_kind: "phase-1-assurance", outcome: "pass",
+    }, "review-phase-1-assurance@1", [
+      { type: "reviews", target: pendingResult.datum.revision_id },
+      { type: "contextualizes", target: resultContext.datum.revision_id },
+    ]);
+    const reviewed = await looseEnds("reviewed-result", [
+      ...common, pendingResult, pendingRun, resultContext, resultReview,
+    ]);
+    expect(reviewed.some((item) =>
+      item.subject === implementation.datum.revision_id &&
+      ["verification-run-required", "pilot-result-assessment-required"]
+        .includes(item.obligation)
+    )).toBe(false);
 
     for (const [assessmentState, suffix] of [["recorded", "3"], ["accepted", "4"]]) {
       const completedResult = result(assessmentState, suffix);
