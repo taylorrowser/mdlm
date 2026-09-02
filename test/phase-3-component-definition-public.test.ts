@@ -144,6 +144,24 @@ async function phaseThreePackage(parent: string): Promise<string> {
     recursive: true,
   });
 
+  // This cumulative tracer seeds accepted upstream strategies without their
+  // historical ENV assurance chains. Keep its one synthetic environment
+  // compatible across levels; the focused Phase 5 public regression exercises
+  // the production exact-strategy selector.
+  const formalEnvironmentPath = path.join(
+    root,
+    "selectors/formal-environments-for-activity.yaml",
+  );
+  const formalEnvironment = parse(await fs.readFile(formalEnvironmentPath, "utf8"));
+  formalEnvironment.query.where = [
+    'count("strategies-for-verification-activity@1", {activity: activity}) == 1',
+    '&& every("strategies-for-verification-activity@1", {activity: activity}, strategy =>',
+    "environment.payload.capabilities == strategy.payload.environment_profile.capabilities)",
+    '&& exists("passing-qualification-results-for@1", {environment: environment})',
+    '&& exists("passing-reviews-for@1", {subject: environment})',
+  ].join(" ");
+  await fs.writeFile(formalEnvironmentPath, stringify(formalEnvironment));
+
   const profilePath = path.join(root, "profiles/bootstrap.yaml");
   const profile = parse(await fs.readFile(profilePath, "utf8"));
   profile.enabled.phases = [

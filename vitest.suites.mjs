@@ -20,6 +20,7 @@ export const rootTestQualificationManifest = Object.freeze([
   { file: "test/proportional-distinct-context-phase-2-public.test.ts", qualificationGate: "release" },
   { file: "test/phase-3-component-definition-public.test.ts", qualificationGate: "release" },
   { file: "test/phase-decomposition-parents-public.test.ts", qualificationGate: "release" },
+  { file: "test/phase-5-formal-environment-public.test.ts", qualificationGate: "pr" },
   { file: "test/gate-rejected-candidate-correction-public.test.ts", qualificationGate: "pr" },
   { file: "test/formal-ver-review-correction-public.test.ts", qualificationGate: "pr" },
   { file: "test/dependency-changes.test.ts", qualificationGate: "pr" },
@@ -76,6 +77,7 @@ const rootTestRuntimeManifest = [
   { file: "test/proportional-distinct-context-phase-2-public.test.ts", runtimeClass: "process-repository-heavy", weight: 1, measuredDurationMs: 27_558 },
   { file: "test/phase-3-component-definition-public.test.ts", runtimeClass: "process-repository-heavy", weight: 1, measuredDurationMs: 79_500 },
   { file: "test/phase-decomposition-parents-public.test.ts", runtimeClass: "process-repository-heavy", weight: 1, measuredDurationMs: 35_900 },
+  { file: "test/phase-5-formal-environment-public.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 25_437 },
   { file: "test/gate-rejected-candidate-correction-public.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 5_000 },
   { file: "test/formal-ver-review-correction-public.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 23_000 },
 
