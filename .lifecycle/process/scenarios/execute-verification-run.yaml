@@ -34,6 +34,7 @@ completion: >-
   execution.integrity.contract_valid == true
   && implementation.payload.kind == activity.payload.kind
   && run.payload.kind == implementation.payload.kind
+  && run.payload.runner_ref == implementation.payload.implementation_ref
   && ((implementation.payload.kind == "qualification"
     && run.payload.execution_state == "completed"
     && execution_target.identity.type == "ENV"
