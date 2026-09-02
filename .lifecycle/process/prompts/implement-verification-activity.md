@@ -32,6 +32,10 @@ both. The known-good control must be expected to pass, and the one-fault
 known-bad control must be expected to fail. Record both exact bindings in
 `prototype_control_bindings`. Preserve the bare `PATH`-resolved executable name
 in argv position zero. Never replace it with an absolute or relative host path.
+Copy the supplied ART's `supported_behavior` array exactly into
+`target_behavior.supported`, and copy its `unsupported_behavior` array exactly
+into `target_behavior.intentionally_unsupported`. Do not paraphrase either
+array.
 
 Define bounded checkout, environment-check, and per-product-case deadlines as
 infrastructure-safety limits rather than product timing claims. On timeout,
