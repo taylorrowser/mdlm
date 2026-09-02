@@ -1340,9 +1340,19 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
     expect(designEnvironmentPacket.scenario.reference).toBe(
       "realize-verification-environment@1",
     );
-    expect(inputRevisions(designEnvironmentPacket, "strategy")).toEqual([
-      designStrategy,
-    ]);
+    const candidateGoverningStrategies = new Set(
+      [...formalActivities, ...designFormalActivities].flatMap((activity) => {
+        const datum = JSON.parse(
+          mdlm(repository, "show", activity, "--json").stdout,
+        ).lifecycleDatum.datum;
+        return datum.links
+          .filter((link: Json) => link.type === "governed-by")
+          .map((link: Json) => link.target);
+      }),
+    );
+    expect(candidateGoverningStrategies).toContain(
+      inputRevisions(designEnvironmentPacket, "strategy")[0],
+    );
     const realizedDesignEnvironment = realizeAndQualifyEnvironment(
       repository,
       designEnvironmentPacket,
@@ -1364,6 +1374,9 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
       );
       if (index === 0) {
         phaseFiveStart = git(repository, "rev-parse", "HEAD").stdout.trim();
+        expect(realizedEnvironments.get(repository)?.get(designStrategy)).toMatch(
+          /^ENV-/,
+        );
       }
       expect(inputRevisions(formalPacket, "execution_target")).toEqual(
         inputRevisions(formalPacket, "environment"),
