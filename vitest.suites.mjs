@@ -16,6 +16,7 @@ export const mdlmPiTestFiles = [
 // exhaustive so verification can detect missing, duplicate, and stale entries.
 export const rootTestQualificationManifest = Object.freeze([
   { file: "test/load-process-package.test.ts", qualificationGate: "pr" },
+  { file: "test/process-package-cases.test.ts", qualificationGate: "pr" },
   { file: "test/mdlm-assignment.test.ts", qualificationGate: "release" },
   { file: "test/proportional-distinct-context-phase-2-public.test.ts", qualificationGate: "release" },
   { file: "test/phase-3-component-definition-public.test.ts", qualificationGate: "release" },
@@ -74,6 +75,7 @@ const qualificationGateByFile = new Map(
 // include focused Vitest startup and remain estimates, not p95s.
 const rootTestRuntimeManifest = [
   { file: "test/load-process-package.test.ts", runtimeClass: "process-package-heavy", weight: 3, measuredDurationMs: 66_137 },
+  { file: "test/process-package-cases.test.ts", runtimeClass: "process-package-heavy", weight: 3, measuredDurationMs: 5_550 },
   { file: "test/mdlm-assignment.test.ts", runtimeClass: "assignment-publication-heavy", weight: 3, measuredDurationMs: 53_780 },
   { file: "test/proportional-distinct-context-phase-2-public.test.ts", runtimeClass: "process-repository-heavy", weight: 1, measuredDurationMs: 27_558 },
   { file: "test/phase-3-component-definition-public.test.ts", runtimeClass: "process-repository-heavy", weight: 1, measuredDurationMs: 79_500 },

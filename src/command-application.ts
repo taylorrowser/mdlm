@@ -66,8 +66,8 @@ import {
   type ScenarioExecution,
 } from "./scenario-execution.js";
 import {
-  testProcessFixtures,
-  type FixtureTestSummary,
+  testProcessPackage,
+  type ProcessTestSummary,
 } from "./process-package-fixtures.js";
 import { initializeBundledRepository } from "./repository-initialization.js";
 import { repositoryGitEnvironment } from "./git-environment.js";
@@ -195,7 +195,7 @@ interface CommandResultBase {
   evaluation?: ProcessDirectEvaluation | ProcessExpressionEvaluation;
   phaseStatus?: PhaseStatusProjection;
   looseEnds?: LooseEndsProjection;
-  tests?: FixtureTestSummary;
+  tests?: ProcessTestSummary;
   repository?: RepositorySummary | AssignmentPacket["repository"];
   operatorGuide?: StartBriefing["operatorGuide"];
   git?: StartBriefing["git"];
@@ -326,7 +326,7 @@ async function installedPackageRoot(
   return undefined;
 }
 
-async function runProcessFixtures(
+async function runProcessTests(
   repositoryRoot: string,
   reference?: string,
 ): Promise<CommandResult> {
@@ -350,7 +350,7 @@ async function runProcessFixtures(
       packageRoot = path.resolve(repositoryRoot, selection.package.path);
     }
   }
-  const tested = await testProcessFixtures(packageRoot);
+  const tested = await testProcessPackage(packageRoot);
   if (!tested.ok) {
     return {
       ok: false,
@@ -358,8 +358,8 @@ async function runProcessFixtures(
       diagnostics: tested.diagnostics,
     };
   }
-  const diagnostics = tested.value.fixtures.flatMap((fixture) =>
-    fixture.diagnostics
+  const diagnostics = tested.value.cases.flatMap((testCase) =>
+    testCase.diagnostics
   );
   return {
     ok: tested.value.failed === 0,
@@ -1681,9 +1681,9 @@ function renderCommandResult(result: CommandResult): string {
   }
   if (result.tests) {
     return [
-      `Process Fixtures: passed=${result.tests.passed}, failed=${result.tests.failed}`,
-      ...result.tests.fixtures.map((fixture) =>
-        `${fixture.passed ? "PASS" : "FAIL"} ${fixture.name}`
+      `Process Cases: passed=${result.tests.passed}, failed=${result.tests.failed}`,
+      ...result.tests.cases.map((testCase) =>
+        `${testCase.passed ? "PASS" : "FAIL"} ${testCase.name}`
       ),
     ].join("\n");
   }
@@ -2140,7 +2140,7 @@ async function dispatchCommand(
     );
   }
   if (operands[1] === "test") {
-    return runProcessFixtures(repositoryRoot, optionValue(arguments_, "--ref"));
+    return runProcessTests(repositoryRoot, optionValue(arguments_, "--ref"));
   }
   if (operands[1] === "migrate" && operands[2]) {
     return migrateRepositoryPackage(repositoryRoot, operands[2]);
