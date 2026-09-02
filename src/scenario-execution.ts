@@ -31,6 +31,7 @@ import {
   type ScenarioDryRun,
   type ScenarioDryRunInvocation,
 } from "./scenario-dry-run.js";
+import { scenarioInputRevisionReference } from "./scenario-payload-reference.js";
 
 export interface PackageExecutionIdentity {
   reference: string;
@@ -222,11 +223,20 @@ export function scenarioOutputContractDiagnostics(
         const requiredPayload = object(contract.required_payload);
         for (const [payloadPath, expected] of Object.entries(requiredPayload ?? {})) {
           const actual = valueAtPath(value.lifecycleDatum.payload, payloadPath);
-          if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+          const inputName = scenarioInputRevisionReference(expected);
+          const inputIdentity = inputName
+            ? invocations[invocation]?.inputs.find((input) =>
+              input.name === inputName
+            )?.values[0]?.identity
+            : undefined;
+          const resolvedExpected = inputName
+            ? inputIdentity?.revision_id
+            : expected;
+          if (JSON.stringify(actual) !== JSON.stringify(resolvedExpected)) {
             diagnostics.push({
               code: "scenario-output-required-payload-invalid",
               path: `outputs.${name}.payload.${payloadPath}`,
-              message: `Scenario output '${name}' requires payload '${payloadPath}' to equal ${JSON.stringify(expected)}`,
+              message: `Scenario output '${name}' requires payload '${payloadPath}' to equal ${JSON.stringify(resolvedExpected)}`,
             });
           }
         }

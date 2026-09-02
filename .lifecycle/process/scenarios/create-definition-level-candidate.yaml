@@ -11,6 +11,11 @@ outputs:
   - name: candidate
     types: [BSL]
     cardinality: one
+    required_payload:
+      kind: level-candidate
+      role: candidate
+      scope: $input.completion.revision_id
+      group: DEFAULT
     required_links: []
 prompt_ref: prompts/create-definition-level-candidate.md@1
 review_policy_ref: review-applicability@1

@@ -51,6 +51,7 @@ import {
   type ScenarioExecution,
   type ScenarioProposal,
 } from "./scenario-execution.js";
+import { scenarioInputRevisionReference } from "./scenario-payload-reference.js";
 import { selectedRepositoryPackage } from "./selected-package.js";
 import type { PackageSummary } from "./repository-contract.js";
 import { withRepositoryLock } from "./repository-lock.js";
@@ -2786,13 +2787,19 @@ function assignmentResponseSkeleton(
         ? object(invocation.inputs.find((input) => input.name === identityInput)
           ?.values[0]?.data.payload) ?? {}
         : {};
-      const requiredPayload = publicPayloadReferences(
+      const requiredPayload = publicRequiredPayloadReferences(
         object(outputDefinition?.required_payload) ?? {},
         (output) => {
           const target = routesByName.get(output);
           return target
             ? responseHandle(invocationIndex, target.handle)
             : output;
+        },
+        (inputName) => {
+          const identity = invocation.inputs.find((input) =>
+            input.name === inputName
+          )?.values[0]?.identity;
+          return identity?.revision_id;
         },
       ) as Record<string, unknown>;
       outputs.push({
@@ -2913,6 +2920,25 @@ function publicPayloadReferences(
         publicPayloadReferences(item, outputHandle),
       ]))
     : value;
+}
+
+function publicRequiredPayloadReferences(
+  requiredPayload: Record<string, unknown>,
+  outputHandle: (output: string) => string = (output) => output,
+  inputRevision: (input: string) => unknown = (input) => ({
+    input,
+    identity: "revision_id",
+  }),
+): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(requiredPayload).map(([path, value]) => {
+    const inputName = scenarioInputRevisionReference(value);
+    return [
+      path,
+      inputName
+        ? inputRevision(inputName)
+        : publicPayloadReferences(value, outputHandle),
+    ];
+  }));
 }
 
 function scenarioProposalFromResponse(
@@ -3214,7 +3240,7 @@ function packet(
         ? exact.scenario.outputs.map(object)
         : []).find((candidate) => candidate?.name === output.name);
       const identityFrom = object(definition?.identity_from);
-      const requiredPayload = publicPayloadReferences(
+      const requiredPayload = publicRequiredPayloadReferences(
         object(definition?.required_payload) ?? {},
         (outputName) => outputHandles.get(outputName) ?? outputName,
       ) as Record<string, unknown>;
