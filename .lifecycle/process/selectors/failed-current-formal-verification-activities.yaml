@@ -1,0 +1,19 @@
+kind: selector-definition
+id: failed-current-formal-verification-activities
+version: 1
+description: Current exact source-blind formal VER Revisions with a valid failed Review and no replacement.
+parameters: []
+result_kind: revision
+query:
+  from: {collection: revisions, types: [VER]}
+  as: activity
+  where: >-
+    activity.payload.kind == "formal"
+    && activity.payload.claim.scope == "requirement"
+    && activity.payload.claim.formal_evidence_eligible == true
+    && state(activity, "disposition") == "active"
+    && state(activity, "validity") == "valid"
+    && none("newer-revisions-for@1", {subject: activity})
+    && exists("failing-reviews-for@1", {subject: activity})
+  distinct: true
+  order_by: [identity.id, identity.revision]
