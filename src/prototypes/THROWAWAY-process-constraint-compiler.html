@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Throwaway Process Package constraint compiler</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f4f0e7;
+      --ink: #24221e;
+      --muted: #6b665d;
+      --line: #d5cdbf;
+      --accent: #1d6471;
+      --proved: #1f6a43;
+      --contradictory: #a33b2b;
+      --inconclusive: #9a6515;
+      --panel: #fffdf8;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+
+    main {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 42px 0 72px;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { max-width: 780px; font-size: clamp(2rem, 5vw, 3.6rem); line-height: 1.02; letter-spacing: -0.04em; }
+    h2 { font-size: 1.15rem; }
+    h3 { font-size: 0.95rem; }
+    .lede { max-width: 850px; color: var(--muted); font-size: 1.05rem; }
+    .question { border-left: 5px solid var(--accent); padding: 4px 0 4px 18px; margin: 28px 0 34px; max-width: 900px; }
+    .question strong { display: block; margin-bottom: 5px; }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 12px 32px rgb(47 40 29 / 6%);
+      margin-bottom: 18px;
+    }
+
+    .state-head, .actions, .tabs, .steps, .result-grid {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .state-head { justify-content: space-between; margin-bottom: 16px; }
+    .state-head h2 { margin: 0; }
+    .badge { color: white; border-radius: 999px; padding: 7px 13px; font-size: 0.78rem; font-weight: 800; letter-spacing: 0.09em; }
+    .badge.PROVED { background: var(--proved); }
+    .badge.CONTRADICTORY { background: var(--contradictory); }
+    .badge.INCONCLUSIVE { background: var(--inconclusive); }
+    .badge.NOT-RUN { background: var(--muted); }
+
+    .result-grid { align-items: stretch; }
+    .metric { flex: 1 1 180px; border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+    .metric span { display: block; color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; }
+    .metric strong { display: block; margin-top: 5px; font-size: 1.08rem; }
+
+    button {
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #fff;
+      color: var(--ink);
+      padding: 9px 12px;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button:hover { border-color: var(--accent); }
+    button.primary { background: var(--accent); color: white; border-color: var(--accent); }
+    button.active { background: #dcebee; border-color: var(--accent); }
+    button:disabled { cursor: default; opacity: 0.45; }
+
+    .actions { margin-top: 12px; }
+    .walkthrough-copy { min-height: 70px; color: var(--muted); margin: 14px 0 8px; }
+    .step-note { min-height: 24px; margin: 12px 0 0; color: var(--accent); font-weight: 650; }
+
+    .declarations { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+    .declaration { border: 1px solid var(--line); border-radius: 10px; padding: 14px; min-width: 0; }
+    .path { color: var(--accent); overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.76rem; }
+    pre { background: #292722; color: #f8f4e9; border-radius: 9px; padding: 14px; overflow: auto; font-size: 0.76rem; line-height: 1.5; white-space: pre-wrap; }
+    details { margin-top: 14px; }
+    summary { cursor: pointer; color: var(--accent); font-weight: 700; }
+    .diagnostic { border-left: 4px solid var(--line); padding: 8px 12px; margin-top: 10px; }
+    .diagnostic.CONTRADICTORY { border-color: var(--contradictory); }
+    .diagnostic.INCONCLUSIVE { border-color: var(--inconclusive); }
+    .diagnostic.PROVED { border-color: var(--proved); }
+    .diagnostic p { margin: 3px 0; }
+    .diagnostic code { font-size: 0.78rem; overflow-wrap: anywhere; }
+    .small { color: var(--muted); font-size: 0.84rem; }
+  </style>
+</head>
+<body>
+<main>
+  <p class="small">THROWAWAY LOGIC PROTOTYPE · exact MDLM 0.139 source d1c556f</p>
+  <h1>Can declarations catch their own contradictions?</h1>
+  <p class="lede">This page models the proposed compiler seam after YAML parsing. It reads two small relationships from the exact 0.139 declarations. It does not create Lifecycle Data, run a repository, or simulate an agent.</p>
+
+  <div class="question">
+    <strong>Question</strong>
+    Can a small pure constraint compiler classify current declarations and the exact #636 and #637 revert mutations as PROVED or CONTRADICTORY, while classifying an opaque supported-looking expression as INCONCLUSIVE rather than PASS?
+  </div>
+
+  <section class="panel">
+    <div class="state-head">
+      <h2>Current result</h2>
+      <span id="status" class="badge NOT-RUN">NOT RUN</span>
+    </div>
+    <div class="result-grid">
+      <div class="metric"><span>Loaded declaration set</span><strong id="fixture-name">Current 0.139</strong></div>
+      <div class="metric"><span>Classification time</span><strong id="duration">Not run</strong></div>
+      <div class="metric"><span>Deterministic rerun</span><strong id="determinism">Not checked</strong></div>
+      <div class="metric"><span>Last action</span><strong id="last-action">Loaded initial state</strong></div>
+    </div>
+    <div id="diagnostics"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Free play</h2>
+    <p class="small">Load a known declaration set or alter one relationship. Every action reveals the resulting compiled state below.</p>
+    <div class="actions">
+      <button data-action="load-current">Load current 0.139</button>
+      <button data-action="load-636">Load exact #636 revert</button>
+      <button data-action="load-637">Load exact #637 revert</button>
+      <button data-action="load-opaque">Load opaque expression</button>
+      <button data-action="toggle-route">Toggle output route</button>
+      <button data-action="toggle-membership">Toggle Phase admission fact</button>
+      <button data-action="make-opaque">Make completion opaque</button>
+      <button class="primary" data-action="compile">Compile constraints</button>
+      <button data-action="compile-twice">Compile twice and compare</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Guided walkthroughs</h2>
+    <div id="tabs" class="tabs"></div>
+    <p id="walkthrough-copy" class="walkthrough-copy"></p>
+    <div id="steps" class="steps"></div>
+    <p id="step-note" class="step-note"></p>
+  </section>
+
+  <section class="panel">
+    <h2>Declarations under analysis</h2>
+    <div id="declarations" class="declarations"></div>
+    <details open>
+      <summary>Full compiled state</summary>
+      <pre id="compiled-state"></pre>
+    </details>
+    <details>
+      <summary>Semantic result without timing</summary>
+      <pre id="semantic-result"></pre>
+    </details>
+    <details>
+      <summary>Action history</summary>
+      <pre id="history"></pre>
+    </details>
+  </section>
+</main>
+
+<script>
+/*
+ * Portable pure module. It consumes already parsed declaration relationships.
+ * There is no DOM access, package-specific vocabulary, or lifecycle execution here.
+ */
+const ProcessConstraintCompiler = (() => {
+  const result = (status, code, paths, fact, explanation) => ({ status, code, paths, fact, explanation });
+
+  function classifyOutputDiscriminator(relation) {
+    const { completion, inputDiscriminator, outputs } = relation;
+    if (completion.kind !== "each-output-type-equals-input-field") {
+      return result(
+        "INCONCLUSIVE",
+        "output-discriminator-unsupported-expression",
+        [completion.path, relation.outputsPath],
+        completion.expression,
+        "The compiler recognizes an output-type relationship, but this expression is outside the supported direct-equality form."
+      );
+    }
+
+    const expected = [...inputDiscriminator.values].sort();
+    const routed = outputs.filter(output => output.typeFrom).flatMap(output => output.types).sort();
+    const everyRouteMatches = outputs.length === 1
+      && outputs[0].typeFrom?.input === inputDiscriminator.input
+      && outputs[0].typeFrom?.path === inputDiscriminator.path;
+    const coversEveryValue = JSON.stringify(routed) === JSON.stringify(expected);
+
+    if (everyRouteMatches && coversEveryValue) {
+      return result(
+        "PROVED",
+        "output-discriminator-total",
+        [relation.outputsPath, completion.path],
+        `${inputDiscriminator.input}.${inputDiscriminator.path} chooses exactly one allowed output type`,
+        "The declared response route and direct completion equality require the same discriminator."
+      );
+    }
+
+    return result(
+      "CONTRADICTORY",
+      "output-discriminator-not-total",
+      [relation.outputsPath, completion.path],
+      `allowed values [${expected.join(", ")}], routed values [${routed.join(", ") || "none"}]`,
+      "At least one schema-valid output choice is not mechanically tied to the discriminator required by completion."
+    );
+  }
+
+  function classifyAdjacentPhaseAdmission(relation) {
+    const { sourceReadiness, nextEntry } = relation;
+    if (sourceReadiness.kind !== "candidate-conjunction" || nextEntry.kind !== "selector-exists") {
+      return result(
+        "INCONCLUSIVE",
+        "phase-admission-unsupported-expression",
+        [sourceReadiness.path, nextEntry.path],
+        sourceReadiness.expression,
+        "The compiler recognizes an adjacent Phase relationship, but one expression is outside the supported conjunction and existence forms."
+      );
+    }
+
+    const membership = sourceReadiness.candidateFacts.find(fact =>
+      fact.kind === "member-of-selector" && fact.selector === nextEntry.selector
+    );
+    if (sourceReadiness.requiresCandidate && membership) {
+      return result(
+        "PROVED",
+        "phase-admission-implied",
+        [sourceReadiness.path, nextEntry.path],
+        `a nonempty source set contributes each candidate to ${nextEntry.selector}`,
+        "Source readiness implies that the next Phase entry selector is nonempty."
+      );
+    }
+
+    return result(
+      "CONTRADICTORY",
+      "phase-admission-not-implied",
+      [sourceReadiness.path, nextEntry.path],
+      `source readiness can be true while ${nextEntry.selector} is empty`,
+      "The source Phase can progress into a next Phase whose entry condition remains false."
+    );
+  }
+
+  function compileProcessConstraints(model) {
+    const checks = [
+      classifyOutputDiscriminator(model.outputDiscriminator),
+      classifyAdjacentPhaseAdmission(model.adjacentPhaseAdmission)
+    ];
+    const status = checks.some(check => check.status === "CONTRADICTORY")
+      ? "CONTRADICTORY"
+      : checks.some(check => check.status === "INCONCLUSIVE")
+        ? "INCONCLUSIVE"
+        : "PROVED";
+    return { status, checks };
+  }
+
+  return { compileProcessConstraints };
+})();
+
+const currentSource = {
+  name: "Current 0.139",
+  outputDiscriminator: {
+    outputsPath: ".lifecycle/process/scenarios/execute-lower-level-decomposition-work-package.yaml#/outputs",
+    outputsSource: `outputs:\n  - name: requirements\n    types: [CMP, DES]\n    cardinality: one-or-more\n    type_from: {input: plan, path: target_child_type}`,
+    completion: {
+      kind: "each-output-type-equals-input-field",
+      path: ".lifecycle/process/scenarios/execute-lower-level-decomposition-work-package.yaml#/completion",
+      expression: `every("decomposition-outputs-for@1", {plan: plan}, output =>\n  output.identity.type == plan.payload.target_child_type)`
+    },
+    inputDiscriminator: { input: "plan", path: "target_child_type", values: ["CMP", "DES"] },
+    outputs: [{ name: "requirements", types: ["CMP", "DES"], typeFrom: { input: "plan", path: "target_child_type" } }]
+  },
+  adjacentPhaseAdmission: {
+    sourceReadiness: {
+      kind: "candidate-conjunction",
+      path: ".lifecycle/process/phases/phase-4-design-definition.yaml#/progression/readiness",
+      expression: `exists("complete-phase-4-level-candidates@1", {})\n&& every("complete-phase-4-level-candidates@1", {}, candidate =>\n  ...\n  && !every("phase-5-entry-design-candidates@1", {}, admitted =>\n    admitted != candidate))`,
+      requiresCandidate: true,
+      candidateFacts: [{ kind: "member-of-selector", selector: "phase-5-entry-design-candidates@1" }]
+    },
+    nextEntry: {
+      kind: "selector-exists",
+      path: ".lifecycle/process/phases/phase-5-implementation.yaml#/entry",
+      expression: `process.integrity.package_valid == true\n&& exists("phase-5-entry-design-candidates@1", {})`,
+      selector: "phase-5-entry-design-candidates@1"
+    }
+  }
+};
+
+function clone(value) { return JSON.parse(JSON.stringify(value)); }
+
+const fixtures = {
+  current: () => clone(currentSource),
+  issue636: () => {
+    const model = clone(currentSource);
+    model.name = "Exact #636 revert mutation";
+    model.adjacentPhaseAdmission.sourceReadiness.expression = `exists("complete-phase-4-level-candidates@1", {})\n&& every("complete-phase-4-level-candidates@1", {}, candidate =>\n  exists("passing-reviews-for@1", {subject: candidate})\n  && none("failing-reviews-for@1", {subject: candidate})\n  && exists("applicable-gate-signoffs-for@1", {candidate: candidate})\n  && exists("accepted-component-baselines-for-design-candidate@1",\n    {candidate: candidate}))`;
+    model.adjacentPhaseAdmission.sourceReadiness.candidateFacts = [];
+    return model;
+  },
+  issue637: () => {
+    const model = clone(currentSource);
+    model.name = "Exact #637 revert mutation";
+    model.outputDiscriminator.outputsSource = `outputs:\n  - name: component_requirements\n    types: [CMP]\n    cardinality: zero-or-more\n  - name: design_requirements\n    types: [DES]\n    cardinality: zero-or-more`;
+    model.outputDiscriminator.outputs = [
+      { name: "component_requirements", types: ["CMP"], typeFrom: null },
+      { name: "design_requirements", types: ["DES"], typeFrom: null }
+    ];
+    return model;
+  },
+  opaque: () => {
+    const model = clone(currentSource);
+    model.name = "Opaque supported-looking expression";
+    model.outputDiscriminator.completion = {
+      kind: "opaque-expression",
+      path: ".lifecycle/process/scenarios/execute-lower-level-decomposition-work-package.yaml#/completion",
+      expression: `every("decomposition-outputs-for@1", {plan: plan}, output =>\n  policy("output-matches-plan@1", {output: output, plan: plan}) == true)`
+    };
+    return model;
+  }
+};
+
+const walkthroughs = {
+  current: {
+    label: "Current 0.139",
+    copy: "The accepted declarations tie every output type to the plan discriminator and keep Phase 4 active until its candidate appears in the Phase 5 entry set.",
+    steps: [
+      ["Load current declarations", "load-current"],
+      ["Compile both relationships", "compile"],
+      ["Compile twice and compare", "compile-twice"]
+    ]
+  },
+  issue637: {
+    label: "#637 revert",
+    copy: "The old declaration exposed independent CMP and DES arrays. Completion still demanded that every output match the plan discriminator.",
+    steps: [["Load the exact revert shape", "load-637"], ["Compile and expose the counterexample", "compile"]]
+  },
+  issue636: {
+    label: "#636 revert",
+    copy: "The old Phase 4 readiness rule could pass without putting its candidate in the selector required to enter Phase 5.",
+    steps: [["Load the exact revert shape", "load-636"], ["Compile and expose the missing implication", "compile"]]
+  },
+  opaque: {
+    label: "Opaque expression",
+    copy: "This expression still looks like a completion check, but it delegates the decisive relationship to a policy the small compiler does not prove.",
+    steps: [["Load the opaque expression", "load-opaque"], ["Compile without guessing", "compile"]]
+  }
+};
+
+let state = {
+  model: fixtures.current(),
+  compilation: null,
+  durationMs: null,
+  deterministic: null,
+  lastAction: "Loaded initial state",
+  history: ["Loaded current 0.139 declarations"],
+  walkthrough: "current",
+  walkthroughStep: 0
+};
+
+function semanticCompilation(model) {
+  return ProcessConstraintCompiler.compileProcessConstraints(model);
+}
+
+function timedCompilation(model) {
+  const started = performance.now();
+  const compilation = semanticCompilation(model);
+  return { compilation, durationMs: performance.now() - started };
+}
+
+function setModel(factory, action) {
+  state.model = factory();
+  state.compilation = null;
+  state.durationMs = null;
+  state.deterministic = null;
+  state.lastAction = action;
+  state.history.push(action);
+}
+
+function perform(action) {
+  if (action === "load-current") setModel(fixtures.current, "Loaded current 0.139");
+  if (action === "load-636") setModel(fixtures.issue636, "Loaded exact #636 revert mutation");
+  if (action === "load-637") setModel(fixtures.issue637, "Loaded exact #637 revert mutation");
+  if (action === "load-opaque") setModel(fixtures.opaque, "Loaded opaque supported-looking expression");
+  if (action === "toggle-route") {
+    const routed = state.model.outputDiscriminator.outputs.some(output => output.typeFrom);
+    state.model.outputDiscriminator.outputs = routed
+      ? fixtures.issue637().outputDiscriminator.outputs
+      : fixtures.current().outputDiscriminator.outputs;
+    state.model.outputDiscriminator.outputsSource = routed
+      ? fixtures.issue637().outputDiscriminator.outputsSource
+      : fixtures.current().outputDiscriminator.outputsSource;
+    state.model.name = "Free-play mutation";
+    state.compilation = null;
+    state.durationMs = null;
+    state.deterministic = null;
+    state.lastAction = routed ? "Removed the output discriminator route" : "Restored the output discriminator route";
+    state.history.push(state.lastAction);
+  }
+  if (action === "toggle-membership") {
+    const facts = state.model.adjacentPhaseAdmission.sourceReadiness.candidateFacts;
+    state.model.adjacentPhaseAdmission.sourceReadiness.candidateFacts = facts.length
+      ? []
+      : fixtures.current().adjacentPhaseAdmission.sourceReadiness.candidateFacts;
+    state.model.adjacentPhaseAdmission.sourceReadiness.expression = facts.length
+      ? fixtures.issue636().adjacentPhaseAdmission.sourceReadiness.expression
+      : fixtures.current().adjacentPhaseAdmission.sourceReadiness.expression;
+    state.model.name = "Free-play mutation";
+    state.compilation = null;
+    state.durationMs = null;
+    state.deterministic = null;
+    state.lastAction = facts.length ? "Removed the Phase admission fact" : "Restored the Phase admission fact";
+    state.history.push(state.lastAction);
+  }
+  if (action === "make-opaque") {
+    state.model.outputDiscriminator.completion = fixtures.opaque().outputDiscriminator.completion;
+    state.model.name = "Free-play mutation";
+    state.compilation = null;
+    state.durationMs = null;
+    state.deterministic = null;
+    state.lastAction = "Replaced direct completion equality with an opaque policy call";
+    state.history.push(state.lastAction);
+  }
+  if (action === "compile") {
+    const run = timedCompilation(state.model);
+    state.compilation = run.compilation;
+    state.durationMs = run.durationMs;
+    state.deterministic = null;
+    state.lastAction = `Compiled constraints as ${run.compilation.status}`;
+    state.history.push(state.lastAction);
+  }
+  if (action === "compile-twice") {
+    const first = timedCompilation(state.model);
+    const second = timedCompilation(state.model);
+    state.compilation = second.compilation;
+    state.durationMs = second.durationMs;
+    state.deterministic = JSON.stringify(first.compilation) === JSON.stringify(second.compilation);
+    state.lastAction = state.deterministic ? "Two semantic results matched" : "Two semantic results differed";
+    state.history.push(state.lastAction);
+  }
+  render();
+}
+
+function renderDiagnostics() {
+  if (!state.compilation) return `<p class="small">Run the compiler to classify both declaration relationships.</p>`;
+  return state.compilation.checks.map(check => `
+    <div class="diagnostic ${check.status}">
+      <p><strong>${check.status}</strong> · ${check.code}</p>
+      <p>${check.explanation}</p>
+      <p><code>${check.paths.join(" ↔ ")}</code></p>
+      <p class="small">Minimal fact: ${check.fact}</p>
+    </div>`).join("");
+}
+
+function renderDeclarations() {
+  const output = state.model.outputDiscriminator;
+  const phase = state.model.adjacentPhaseAdmission;
+  return [
+    ["Scenario outputs", output.outputsPath, output.outputsSource],
+    ["Scenario completion", output.completion.path, output.completion.expression],
+    ["Source Phase readiness", phase.sourceReadiness.path, phase.sourceReadiness.expression],
+    ["Next Phase entry", phase.nextEntry.path, phase.nextEntry.expression]
+  ].map(([title, path, source]) => `<article class="declaration"><h3>${title}</h3><p class="path">${path}</p><pre>${escapeHtml(source)}</pre></article>`).join("");
+}
+
+function escapeHtml(value) {
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+}
+
+function renderWalkthrough() {
+  const active = walkthroughs[state.walkthrough];
+  document.querySelector("#tabs").innerHTML = Object.entries(walkthroughs).map(([key, item]) =>
+    `<button class="${key === state.walkthrough ? "active" : ""}" data-tab="${key}">${item.label}</button>`
+  ).join("");
+  document.querySelector("#walkthrough-copy").textContent = active.copy;
+  document.querySelector("#steps").innerHTML = active.steps.map(([label, action], index) =>
+    `<button data-step="${index}" data-step-action="${action}" ${index !== state.walkthroughStep ? "disabled" : ""}>${index + 1}. ${label}</button>`
+  ).join("");
+  document.querySelector("#step-note").textContent = state.walkthroughStep >= active.steps.length
+    ? "Walkthrough complete. The full state and semantic result are visible below."
+    : `Next: ${active.steps[state.walkthroughStep][0]}`;
+}
+
+function render() {
+  const status = state.compilation?.status ?? "NOT-RUN";
+  const badge = document.querySelector("#status");
+  badge.textContent = status.replace("-", " ");
+  badge.className = `badge ${status}`;
+  document.querySelector("#fixture-name").textContent = state.model.name;
+  document.querySelector("#duration").textContent = state.durationMs === null ? "Not run" : `${state.durationMs.toFixed(3)} ms ${state.durationMs < 250 ? "(<250 ms)" : "(over target)"}`;
+  document.querySelector("#determinism").textContent = state.deterministic === null ? "Not checked" : state.deterministic ? "Matched" : "Mismatch";
+  document.querySelector("#last-action").textContent = state.lastAction;
+  document.querySelector("#diagnostics").innerHTML = renderDiagnostics();
+  document.querySelector("#declarations").innerHTML = renderDeclarations();
+  document.querySelector("#compiled-state").textContent = JSON.stringify(state.model, null, 2);
+  document.querySelector("#semantic-result").textContent = state.compilation ? JSON.stringify(state.compilation, null, 2) : "Not run";
+  document.querySelector("#history").textContent = JSON.stringify(state.history, null, 2);
+  renderWalkthrough();
+}
+
+document.addEventListener("click", event => {
+  const action = event.target.closest("[data-action]")?.dataset.action;
+  if (action) perform(action);
+
+  const tab = event.target.closest("[data-tab]")?.dataset.tab;
+  if (tab) {
+    state.walkthrough = tab;
+    state.walkthroughStep = 0;
+    state.lastAction = `Selected ${walkthroughs[tab].label} walkthrough`;
+    state.history.push(state.lastAction);
+    render();
+  }
+
+  const step = event.target.closest("[data-step]");
+  if (step && Number(step.dataset.step) === state.walkthroughStep) {
+    perform(step.dataset.stepAction);
+    state.walkthroughStep += 1;
+    render();
+  }
+});
+
+render();
+</script>
+</body>
+</html>
