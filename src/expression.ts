@@ -2569,29 +2569,172 @@ export interface DirectIdentityEquality {
   right: string;
 }
 
+export interface CompiledExpressionPath {
+  binding: string;
+  segments: string[];
+}
+
+export interface CompiledPathEquality {
+  left: CompiledExpressionPath;
+  right: CompiledExpressionPath;
+}
+
+export interface CompiledFinitePathMembership {
+  path: CompiledExpressionPath;
+  values: string[];
+}
+
+export interface CompiledSelectorCall {
+  operation: SelectorOperation | "every";
+  reference: string;
+}
+
+export interface CompiledSelectorAdmission {
+  source: string;
+  target: string;
+}
+
+export interface CompiledExpressionFacts {
+  pathEqualities: CompiledPathEquality[];
+  finitePathMemberships: CompiledFinitePathMembership[];
+  selectorCalls: CompiledSelectorCall[];
+  selectorAdmissions: CompiledSelectorAdmission[];
+}
+
+/**
+ * Extract the small structural facts used by package contract compilation.
+ * This deliberately recognizes no implication or Boolean equivalence beyond
+ * direct nodes and conjunction nesting.
+ */
+export function compiledExpressionFacts(
+  value: unknown,
+): CompiledExpressionFacts | undefined {
+  if (!isCompiledTextExpression(value)) return undefined;
+  const pathEqualities: CompiledPathEquality[] = [];
+  const finitePathMemberships: CompiledFinitePathMembership[] = [];
+  const selectorCalls: CompiledSelectorCall[] = [];
+  const selectorAdmissions: CompiledSelectorAdmission[] = [];
+  const asPath = (node: ExpressionNode): CompiledExpressionPath | undefined =>
+    node.kind === "path"
+      ? { binding: node.variable, segments: [...node.segments] }
+      : undefined;
+  const literalStrings = (node: ExpressionNode): string[] | undefined => {
+    if (node.kind !== "array") return undefined;
+    const values = node.elements.map((element) =>
+      element.kind === "literal" && typeof element.value === "string"
+        ? element.value
+        : undefined
+    );
+    return values.every((item): item is string => item !== undefined)
+      ? values
+      : undefined;
+  };
+  const hasAdmission = (
+    node: ExpressionNode,
+    candidateBinding: string,
+  ): string | undefined => {
+    if (node.kind === "logical" && node.operator === "and") {
+      return hasAdmission(node.left, candidateBinding) ??
+        hasAdmission(node.right, candidateBinding);
+    }
+    if (node.kind !== "not" || node.operand.kind !== "every") return undefined;
+    const admitted = node.operand;
+    const predicate = admitted.predicate;
+    if (predicate.kind !== "comparison" || predicate.operator !== "ne") {
+      return undefined;
+    }
+    const leftIsAdmission = predicate.left.kind === "variable" &&
+      predicate.left.variable === admitted.binding &&
+      predicate.right.kind === "variable" &&
+      predicate.right.variable === candidateBinding;
+    const rightIsAdmission = predicate.right.kind === "variable" &&
+      predicate.right.variable === admitted.binding &&
+      predicate.left.kind === "variable" &&
+      predicate.left.variable === candidateBinding;
+    return leftIsAdmission || rightIsAdmission ? admitted.reference : undefined;
+  };
+  const visit = (node: ExpressionNode): void => {
+    if (node.kind === "comparison") {
+      if (node.operator === "eq") {
+        const left = asPath(node.left);
+        const right = asPath(node.right);
+        if (left && right) pathEqualities.push({ left, right });
+      } else if (node.operator === "in") {
+        const path = asPath(node.left);
+        const values = literalStrings(node.right);
+        if (path && values) finitePathMemberships.push({ path, values });
+      }
+      visit(node.left);
+      visit(node.right);
+      return;
+    }
+    if (node.kind === "logical") {
+      if (node.operator === "and") {
+        visit(node.left);
+        visit(node.right);
+      }
+      return;
+    }
+    if (node.kind === "not") return;
+    if (node.kind === "present") return;
+    if (node.kind === "array-has-field") {
+      visit(node.array);
+      visit(node.expected);
+      return;
+    }
+    if (node.kind === "array") {
+      node.elements.forEach(visit);
+      return;
+    }
+    if (node.kind === "object") {
+      Object.values(node.properties).forEach(visit);
+      return;
+    }
+    if (node.kind === "selector") {
+      selectorCalls.push({
+        operation: node.operation,
+        reference: node.reference,
+      });
+      visit(node.arguments);
+      return;
+    }
+    if (node.kind === "every") {
+      selectorCalls.push({ operation: "every", reference: node.reference });
+      const target = hasAdmission(node.predicate, node.binding);
+      if (target) selectorAdmissions.push({ source: node.reference, target });
+      visit(node.arguments);
+      visit(node.predicate);
+      return;
+    }
+    if (node.kind === "policy") {
+      visit(node.arguments);
+      return;
+    }
+    if (node.kind === "state") visit(node.subject);
+  };
+  visit(value.root);
+  return {
+    pathEqualities,
+    finitePathMemberships,
+    selectorCalls,
+    selectorAdmissions,
+  };
+}
+
 export function directIdentityEqualities(
   value: unknown,
 ): DirectIdentityEquality[] {
-  if (!isCompiledTextExpression(value)) return [];
-
-  const conjuncts = (node: ExpressionNode): ExpressionNode[] =>
-    node.kind === "logical" && node.operator === "and"
-      ? [...conjuncts(node.left), ...conjuncts(node.right)]
-      : [node];
-  const identityBinding = (node: ExpressionNode): string | undefined =>
-    node.kind === "path" &&
-      node.segments.length === 2 &&
-      node.segments[0] === "identity" &&
-      node.segments[1] === "id"
-      ? node.variable
-      : undefined;
-
-  return conjuncts(value.root).flatMap((node) => {
-    if (node.kind !== "comparison" || node.operator !== "eq") return [];
-    const left = identityBinding(node.left);
-    const right = identityBinding(node.right);
+  return compiledExpressionFacts(value)?.pathEqualities.flatMap((equality) => {
+    const identityBinding = (path: CompiledExpressionPath) =>
+      path.segments.length === 2 &&
+        path.segments[0] === "identity" &&
+        path.segments[1] === "id"
+        ? path.binding
+        : undefined;
+    const left = identityBinding(equality.left);
+    const right = identityBinding(equality.right);
     return left && right ? [{ left, right }] : [];
-  });
+  }) ?? [];
 }
 
 function readPath(root: unknown, segments: string[]): unknown {

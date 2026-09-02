@@ -11,6 +11,10 @@ import {
   compileAssignmentProjection,
   publicAssignmentRenderer,
 } from "./assignment-projection-compiler.js";
+import {
+  compileProcessConstraints,
+  type CompiledProcessContract,
+} from "./process-constraint-compiler.js";
 import { validateDefinitionGraph } from "./definition-graph.js";
 import { compileDefinitionExpressions } from "./expression.js";
 import {
@@ -55,6 +59,15 @@ export {
   type AssignmentRendererContract,
   type CompileAssignmentProjectionResult,
 } from "./assignment-projection-compiler.js";
+export {
+  compileProcessConstraints,
+  type CompiledProcessContract,
+  type CompileProcessConstraintsResult,
+  type ProcessConstraintCatalogs,
+  type ProcessConstraintCheck,
+  type ProcessConstraintKind,
+  type ProcessConstraintStatus,
+} from "./process-constraint-compiler.js";
 export type {
   BaselineCompositionDependencyChange,
   BaselineMembershipDependencyChange,
@@ -111,6 +124,7 @@ export interface ProcessPackage {
   profiles: Record<string, VersionedDefinition>;
   aliases: Record<string, VersionedDefinition>;
   primitives: Record<string, VersionedDefinition>;
+  constraintContract?: CompiledProcessContract;
 }
 
 export interface ResolvedType {
@@ -755,16 +769,15 @@ export async function loadProcessPackage(
     diagnostics.push(...validateDefinitionGraph(manifest, definitions));
     diagnostics.push(...validatePayloadInheritance(definitions));
     diagnostics.push(...validateScenarioContracts(definitions));
+    let constraintContract: CompiledProcessContract | undefined;
     if (options.compatibility !== "historical-authoring") {
-      for (const scenario of Object.values(definitions.scenarios)) {
-        const compiled = compileAssignmentProjection({
-          scenario,
-          renderer: publicAssignmentRenderer,
-          source: definitionSources.scenarios[scenario.id] ??
-            `scenarios.${scenario.id}`,
-        });
-        if (!compiled.ok) diagnostics.push(...compiled.diagnostics);
-      }
+      const compiled = compileProcessConstraints({
+        catalogs: definitions,
+        renderer: publicAssignmentRenderer,
+        scenarioSources: definitionSources.scenarios,
+      });
+      constraintContract = compiled.contract;
+      if (!compiled.ok) diagnostics.push(...compiled.diagnostics);
       diagnostics.push(...await validateScenarioAssets(
         root,
         definitions.scenarios,
@@ -799,6 +812,7 @@ export async function loadProcessPackage(
       >,
       envelopeSchema,
       ...definitions,
+      ...(constraintContract ? { constraintContract } : {}),
     };
     diagnostics.push(...validateKernelCapabilities(processPackage));
     if (diagnostics.length > 0) return { ok: false, diagnostics };

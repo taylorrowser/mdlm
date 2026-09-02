@@ -1681,7 +1681,7 @@ function renderCommandResult(result: CommandResult): string {
   }
   if (result.tests) {
     return [
-      `Process Cases: passed=${result.tests.passed}, failed=${result.tests.failed}`,
+      `Process Constraints: passed=${result.tests.passed}, failed=${result.tests.failed}`,
       ...result.tests.cases.map((testCase) =>
         `${testCase.passed ? "PASS" : "FAIL"} ${testCase.name}`
       ),

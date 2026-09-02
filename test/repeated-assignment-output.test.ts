@@ -54,6 +54,11 @@ it("renders and validates repeated and batched symbolic outputs", async () => {
       id: "GRP",
       name: "Fixture Group",
       description: "A generic partition of supplied fixture items.",
+      payload_schema: {
+        ...groupType.payload_schema,
+        required: ["audit_type"],
+        properties: { audit_type: { enum: ["ITM", "ALT"] } },
+      },
       outgoing_links: [{
         id: "covers",
         description: "Exact fixture items assigned to this group.",
@@ -191,6 +196,31 @@ it("renders and validates repeated and batched symbolic outputs", async () => {
         inverse_label: "reviewed-by",
       }];
     await writeYaml(processRoot, "types/ITM.yaml", itemType);
+    await writeYaml(processRoot, "types/ALT.yaml", {
+      ...itemType,
+      id: "ALT",
+      name: "Alternate Fixture Item",
+    });
+    await writeYaml(processRoot, "selectors/group-audits-for.yaml", {
+      kind: "selector-definition",
+      id: "group-audits-for",
+      version: 1,
+      description: "Select exact audits linked to one fixture group.",
+      parameters: [{ name: "group", kind: "revision", types: ["GRP"] }],
+      result_kind: "revision",
+      query: {
+        from: {
+          relation: "incoming-links",
+          of: "group",
+          link: "reviews",
+          emit: "source",
+          types: ["ITM", "ALT"],
+        },
+        as: "audit",
+        distinct: true,
+        order_by: ["identity.revision_id"],
+      },
+    });
     await writeYaml(processRoot, "scenarios/audit-groups.yaml", {
       kind: "scenario-definition",
       id: "audit-groups",
@@ -205,13 +235,15 @@ it("renders and validates repeated and batched symbolic outputs", async () => {
       }],
       outputs: [{
         name: "audit",
-        types: ["ITM"],
+        types: ["ITM", "ALT"],
         cardinality: "one",
+        type_from: { input: "group", path: "audit_type" },
         required_links: [{ link: "reviews", target: { input: "group" } }],
       }],
       prompt_ref: "prompts/audit-groups.md@1",
       review_policy_ref: "no-waiver@1",
-      completion: "execution.integrity.contract_valid == true",
+      completion:
+        'execution.integrity.contract_valid == true && every("group-audits-for@1", {group: group}, audit => audit.identity.type == group.payload.audit_type)',
       resolves: ["group-audits-required"],
       prohibited_inputs: [],
       batching: "coherent-batch",
@@ -232,7 +264,8 @@ it("renders and validates repeated and batched symbolic outputs", async () => {
       status_rules: [{
         status: "ready",
         priority: 1,
-        when: 'exists("partitioned-groups@1", {})',
+        when:
+          'exists("partitioned-groups@1", {}) && every("partitioned-groups@1", {}, group => group.payload.audit_type in ["ITM", "ALT"])',
         reason: "Audit every exact fixture group.",
       }],
       default_status: "blocked",
@@ -256,11 +289,11 @@ it("renders and validates repeated and batched symbolic outputs", async () => {
       status_order: ["ready", "awaiting-review", "failed", "stale", "blocked"],
       tie_breakers: ["subject", "obligation"],
     };
-    phase.outputs.push("GRP");
+    phase.outputs.push("GRP", "ALT");
     await writeYaml(processRoot, "phases/phase-0-terminal.yaml", phase);
     const profilePath = path.join(processRoot, "profiles/terminal.yaml");
     const profile = parse(await fs.readFile(profilePath, "utf8"));
-    profile.enabled.types.push("GRP");
+    profile.enabled.types.push("GRP", "ALT");
     await writeYaml(processRoot, "profiles/terminal.yaml", profile);
 
     const repository = path.join(parent, "repository");
@@ -327,7 +360,7 @@ it("renders and validates repeated and batched symbolic outputs", async () => {
     response.proposal.outputs = targets.map((target: string, index: number) => ({
       ...structuredClone(groupTemplate),
       handle: `group-${index + 1}`,
-      payload: {},
+      payload: { audit_type: index === 0 ? "ITM" : "ALT" },
       links: [
         { type: "covers", target: { datum: target } },
         ...groupTemplate.links.filter((link: Json) => link.type !== "covers"),
@@ -376,20 +409,13 @@ it("renders and validates repeated and batched symbolic outputs", async () => {
     const batchedPacket = batched.value.assignment.packet;
     expect(batchedPacket.scenario.reference).toBe("audit-groups@1");
     expect(batchedPacket.exactInputs).toHaveLength(2);
-    expect(batchedPacket.responseScaffold.proposal.outputs).toEqual([
-      expect.objectContaining({
-        handle: "invocation-1-audit",
-        output: "audit",
-        invocation: 0,
-        links: [{ type: "reviews", target: { input: "group" } }],
-      }),
-      expect.objectContaining({
-        handle: "invocation-2-audit",
-        output: "audit",
-        invocation: 1,
-        links: [{ type: "reviews", target: { input: "group" } }],
-      }),
-    ]);
+    const routedTypes = batchedPacket.exactInputs.map(
+      (invocation: Json) => invocation.inputs[0].values[0].data.payload.audit_type,
+    );
+    expect(new Set(routedTypes)).toEqual(new Set(["ITM", "ALT"]));
+    expect(batchedPacket.responseScaffold.proposal.outputs.map(
+      (output: Json) => output.type,
+    )).toEqual(routedTypes);
     const auditResponse = structuredClone(
       batchedPacket.responseScaffold,
     );
