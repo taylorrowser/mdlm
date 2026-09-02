@@ -57,7 +57,7 @@ async function preferReviewWork(packageRoot: string): Promise<void> {
 function response(
   packet: AssignmentPacket,
   failMapReview = false,
-  correctionAuthority: "author" | "package-evidence" = "package-evidence",
+  correctionAuthority: "stakeholder" | "package-evidence" = "package-evidence",
 ): string {
   const source: JsonObject = structuredClone(packet.responseScaffold);
   const scenario = packet.scenario.reference;
@@ -150,7 +150,9 @@ function response(
               material_consequence: "The operator can request an answer twice.",
             }]
             : [],
-          correction_authority: failMapReview ? correctionAuthority : "author",
+          ...(failMapReview
+            ? { correction_authority: correctionAuthority }
+            : {}),
           outcome: failMapReview ? "fail" : "pass",
         };
         output.body = failMapReview
@@ -370,7 +372,7 @@ it("accepts an empty MAP frontier and advances after the attended correction", a
       response(
         packet,
         failMapReview,
-        failedMapReviews === 0 ? "author" : "package-evidence",
+        failedMapReviews === 0 ? "stakeholder" : "package-evidence",
       ),
       packet.scenario.reference === "resolve-question@2" ||
           packet.scenario.reference === "escalate-foundation-review-correction@3"
