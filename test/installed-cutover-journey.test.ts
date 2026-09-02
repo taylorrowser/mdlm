@@ -4,6 +4,11 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import {
+  claimNextWork,
+  submitAssignmentResponse,
+} from "../src/assignment.js";
+import { initializeRepositoryFromProcessPackage } from "../src/repository-initialization.js";
 import { currentProcessPackageIdentity } from "./helpers/current-process-package-identity.js";
 
 const temporaryRoots: string[] = [];
@@ -216,6 +221,18 @@ function inputData(packet: Record<string, any>, name: string): Record<string, an
   );
 }
 
+function invocationInputData(
+  packet: Record<string, any>,
+  invocation: number,
+  name: string,
+): Record<string, any>[] {
+  return packet.exactInputs[invocation]?.inputs
+    .filter((input: Record<string, any>) => input.name === name)
+    .flatMap((input: Record<string, any>) => input.values.map(
+      (value: Record<string, any>) => value.data,
+    )) ?? [];
+}
+
 function answeredQuestionPayload(question: Record<string, any>): Record<string, unknown> {
   const { attended_answer: _attendedAnswer, ...payload } = question.payload;
   return question.payload.kind === "preferential"
@@ -249,7 +266,8 @@ function outputPayload(
   output: Record<string, any>,
 ): Record<string, unknown> {
   const scenario = packet.scenario.reference.split("@")[0];
-  const subject = inputData(packet, "subject")[0]!;
+  const invocation = output.invocation ?? 0;
+  const subject = invocationInputData(packet, invocation, "subject")[0]!;
   const source = inputData(packet, "source")[0]!;
   const question = inputData(packet, "question")[0]!;
   const candidate = inputData(packet, "candidate")[0]!;
@@ -260,6 +278,28 @@ function outputPayload(
     ...inputData(packet, "candidate_reviews"),
   ];
   const generic = () => requiredPayload(packet.schemas[output.type].payload);
+  if (scenario === "establish-initial-wayfinding-map" && output.type === "MAP") {
+    return {
+      title: "Sibling review wayfinding map",
+      purpose: "Reach one reviewed product specification and six sibling requirements.",
+      frontier: ["product-intent"],
+    };
+  }
+  if (scenario === "establish-initial-wayfinding-map" && output.type === "QST") {
+    return {
+      ...generic(),
+      title: output.handle === "product_intent"
+        ? "Sibling review product intent"
+        : "Sibling review evidence boundary",
+      kind: output.handle === "product_intent" ? "preferential" : "empirical",
+      question: output.handle === "product_intent"
+        ? "Which exact product should the sibling requirements define?"
+        : "Which repository evidence bounds that product?",
+      state: "open",
+      blocking_impact: "Product specification compilation waits for this answer.",
+      intent_scope: "product",
+    };
+  }
   if (scenario === "resolve-question" && output.type === "QST") {
     return answeredQuestionPayload(question);
   }
@@ -477,6 +517,151 @@ afterEach(async () => {
 });
 
 describe("installed v2 cutover journey", () => {
+  it("batches six sibling STK Reviews through one public Assignment", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-sibling-review-"));
+    temporaryRoots.push(root);
+    const repository = path.join(root, "repository");
+    const initialized = await initializeRepositoryFromProcessPackage(
+      repository,
+      path.join(process.cwd(), ".lifecycle/process"),
+    );
+    expect(initialized.ok, initialized.ok ? "" : JSON.stringify(initialized.diagnostics))
+      .toBe(true);
+    if (!initialized.ok) return;
+
+    let drafted = false;
+    for (let step = 0; step < 20; step += 1) {
+      const claimed = await claimNextWork(repository);
+      expect(claimed.ok, claimed.ok ? "" : JSON.stringify(claimed.diagnostics)).toBe(true);
+      if (!claimed.ok) return;
+      if (
+        claimed.value.outcome !== "assignment" &&
+        claimed.value.outcome !== "attention-required"
+      ) return;
+      const packet = claimed.value.assignment.packet as Record<string, any>;
+      const scenario = packet.scenario.reference;
+      if (
+        drafted && scenario === "review-phase-0-foundation@1" &&
+        invocationInputData(packet, 0, "subject")[0]?.type === "STK"
+      ) {
+        expect(packet.exactInputs).toHaveLength(6);
+        const subjects = packet.exactInputs.map(
+          (_: Record<string, any>, invocation: number) =>
+            invocationInputData(packet, invocation, "subject")[0]!.revision_id,
+        );
+        expect(subjects).toEqual([...subjects].sort());
+        expect(new Set(subjects).size).toBe(6);
+        expect(packet.authority.requirements).toEqual(
+          subjects.map((_: string, invocation: number) => expect.objectContaining({
+            invocation,
+            authorityRequirement: expect.objectContaining({
+              mode: "delegated",
+              authority: "stakeholder",
+              delegationAllowed: true,
+            }),
+          })),
+        );
+
+        const reviewResponse = completedResponse(packet);
+        const failedReview = reviewResponse.proposal.outputs.find(
+          (output: Record<string, any>) => output.invocation === 1 && output.output === "review",
+        );
+        failedReview.payload = {
+          ...failedReview.payload,
+          outcome: "fail",
+          correction_authority: "author",
+          findings: [{
+            id: "F-001",
+            target: subjects[1],
+            relationship: "primary",
+            severity: "blocking",
+            summary: "The second requirement needs one bounded correction.",
+            criterion: "Each requirement must be independently observable.",
+            evidence: "Its current statement leaves the result ambiguous.",
+            material_consequence: "Two implementations can disagree.",
+          }],
+        };
+        const accepted = await submitAssignmentResponse(
+          repository,
+          JSON.stringify(reviewResponse),
+        );
+        expect(accepted.ok, accepted.ok ? "" : JSON.stringify(accepted.diagnostics)).toBe(true);
+        if (!accepted.ok || accepted.value.outcome !== "accepted") return;
+        expect(accepted.value.receipt.publications).toHaveLength(12);
+
+        const execution = JSON.parse(await fs.readFile(path.join(
+          repository,
+          ".lifecycle/data/.transactions",
+          accepted.value.settlement.execution,
+          "execution.json",
+        ), "utf8"));
+        expect(execution.authority.requirements).toHaveLength(6);
+        for (let invocation = 0; invocation < 6; invocation += 1) {
+          const context = execution.outputs.find(
+            (output: Record<string, any>) =>
+              output.invocation === invocation && output.name === "review_context",
+          ).data;
+          const review = execution.outputs.find(
+            (output: Record<string, any>) =>
+              output.invocation === invocation && output.name === "review",
+          ).data;
+          expect(context.payload.scope).toBe(subjects[invocation]);
+          expect(review.links).toEqual(expect.arrayContaining([
+            { type: "reviews", target: subjects[invocation] },
+            { type: "contextualizes", target: context.revision_id },
+          ]));
+        }
+
+        const correction = await claimNextWork(repository);
+        expect(correction.ok).toBe(true);
+        if (!correction.ok || correction.value.outcome !== "assignment") return;
+        expect(invocationInputData(
+          correction.value.assignment.packet as Record<string, any>,
+          0,
+          "subject",
+        )[0]?.revision_id).toBe(subjects[1]);
+        return;
+      }
+
+      const response = completedResponse(packet);
+      if (scenario === "draft-stakeholder-requirements@2") {
+        const requirement = response.proposal.outputs.find(
+          (output: Record<string, any>) => output.handle === "requirements",
+        );
+        response.proposal.outputs = response.proposal.outputs.flatMap(
+          (output: Record<string, any>) => output === requirement
+            ? Array.from({ length: 6 }, (_, index) => ({
+                ...structuredClone(requirement),
+                handle: `requirements-${index + 1}`,
+                payload: {
+                  ...requirement.payload,
+                  title: `Sibling requirement ${index + 1}`,
+                  statement: `The product shall expose sibling result ${index + 1}.`,
+                },
+              }))
+            : [output],
+        );
+        drafted = true;
+      }
+      const authorities = claimed.value.outcome === "attention-required"
+        ? [claimed.value.authorityRequirement.authority]
+        : [];
+      const submitted = await submitAssignmentResponse(
+        repository,
+        JSON.stringify(response),
+        authorities,
+      );
+      expect(submitted.ok, submitted.ok ? "" : JSON.stringify(submitted.diagnostics)).toBe(true);
+      if (
+        scenario === "draft-stakeholder-requirements@2" && submitted.ok &&
+        submitted.value.outcome === "accepted"
+      ) {
+        expect(submitted.value.receipt.publications).toHaveLength(6);
+      }
+    }
+    throw new Error("Did not reach the sibling STK Review Assignment");
+  }, 45_000);
+
   it("preserves exact evidence for an unexpected terminal outcome", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-installed-evidence-"));
     temporaryRoots.push(root);
