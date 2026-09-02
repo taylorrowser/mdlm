@@ -2,11 +2,35 @@ import { spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { expect, it } from "vitest";
+import { beforeAll, expect, it } from "vitest";
 import { parse, stringify } from "yaml";
+import { evaluateProcessExpressionResult } from "../src/evaluator.js";
+import type { LifecycleRecord, ProcessPackage } from "../src/index.js";
+import { canonicalProcessPackage } from "./helpers/canonical-process-package-fixture.js";
+import { lifecycleRecord } from "./helpers/lifecycle-record.js";
 import { mdlm, mdlmWithInput, selectProcessPackageFixture } from "./helpers/mdlm.js";
 
 type Json = Record<string, any>;
+
+const processRef = `mdlm-bootstrap@0.122.0#sha256:${"c".repeat(64)}`;
+let processPackage: ProcessPackage;
+
+beforeAll(async () => {
+  processPackage = await canonicalProcessPackage();
+});
+
+function record(
+  type: string,
+  id: string,
+  payload: Record<string, unknown>,
+  links: { type: string; target: string }[] = [],
+): LifecycleRecord {
+  return lifecycleRecord(type, id, payload, {
+    links,
+    createdBy: { process_ref: processRef, scenario: "focused-phase-preservation@1" },
+    storage: { editable: false, frozen: true },
+  });
+}
 
 async function focusedPackage(parent: string): Promise<string> {
   const root = path.join(parent, "process");
@@ -215,3 +239,47 @@ it("rejects a phase-incompatible DWP before publication", async () => {
     await fs.rm(parent, { recursive: true, force: true });
   }
 }, 60_000);
+
+it("validates only the proposed Phase 4 plan when its architecture has a Phase 3 plan", () => {
+  const architecture = record("ASP", "ASP-PHASESHARED", { title: "Shared architecture" });
+  const strategy = record("VSP", "VSP-PHASE4STRAT", { title: "Design verification" });
+  const system = record("SYS", "SYS-PHASE3PARENT", { statement: "The system shall report." });
+  const component = record("CMP", "CMP-PHASE4PARENT", { statement: "The component shall report." });
+  const priorPlan = record("DWP", "DWP-PHASE3PLAN", {
+    stage: "planning",
+    target_child_type: "CMP",
+  }, [
+    { type: "allocated-to", target: architecture.datum.revision_id },
+    { type: "decomposes", target: system.datum.revision_id },
+  ]);
+  const proposedPlan = record("DWP", "DWP-PHASE4PLAN", {
+    stage: "planning",
+    target_child_type: "DES",
+  }, [
+    { type: "allocated-to", target: architecture.datum.revision_id },
+    { type: "decomposes", target: component.datum.revision_id },
+  ]);
+  priorPlan.integrity.scenario_execution_valid = true;
+  proposedPlan.integrity.scenario_execution_valid = false;
+  const snapshot = {
+    processRef,
+    phaseId: "phase-4-design-definition",
+    records: [architecture, strategy, system, component, priorPlan, proposedPlan],
+    dependencyComparisons: [],
+    execution: { integrity: { contract_valid: true } },
+  };
+
+  expect(evaluateProcessExpressionResult(
+    processPackage,
+    snapshot,
+    "define-decomposition-work-package@4#completion",
+    {
+      parents: [component.datum.revision_id],
+      architecture: architecture.datum.revision_id,
+      interfaces: [],
+      verification_strategy: strategy.datum.revision_id,
+      plan: [proposedPlan.datum.revision_id],
+      questions: [],
+    },
+  )).toBe(true);
+});
