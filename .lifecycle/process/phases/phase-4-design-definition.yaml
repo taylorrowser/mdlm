@@ -24,7 +24,7 @@ routing:
   eligible_when: dispatchable
   status_order: [ready, awaiting-review, failed, stale, blocked]
   tie_breakers: [subject, obligation]
-outputs: [DES, ICSP, DWP, VSP, VER, REV, BSL, QST, DEC]
+outputs: [DES, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, REV, BSL, QST, DEC]
 progression:
   next_phase: phase-5-implementation
   readiness: >-
