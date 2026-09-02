@@ -554,7 +554,7 @@ function realizeAndQualifyEnvironment(
   const qualified = submit(repository, qualification, [
     {
       output: "run",
-      payload: { title: `Qualification run for ${profile.id}`, kind: "qualification", started_at: "2026-08-31T00:00:00Z", completed_at: "2026-08-31T00:00:01Z", execution_state: "completed", execution_target: { kind: "environment", ref: environment }, runner_ref: "fixture-runner@1", configuration_refs: [strategy], activities_expected: ["capability"], activities_invoked: ["capability"], evidence_locations: [`inline:${profile.id}`] },
+      payload: { title: `Qualification run for ${profile.id}`, kind: "qualification", started_at: "2026-08-31T00:00:00Z", completed_at: "2026-08-31T00:00:01Z", execution_state: "completed", execution_target: { kind: "environment", ref: environment }, runner_ref: `procedure:sha256:${"1".repeat(64)}`, configuration_refs: [strategy], activities_expected: ["capability"], activities_invoked: ["capability"], evidence_locations: [`inline:${profile.id}`] },
       body: "One immutable qualification run.\n",
     },
     {
@@ -723,6 +723,8 @@ function formalExecutionOutputs(
   outcome: "pass" | "fail" | "inconclusive",
 ): SuppliedOutput[] {
   const implementation = inputRevisions(packet, "implementation")[0]!;
+  const implementationRef = exactInputs(packet, "implementation")[0]!.data.payload
+    .implementation_ref;
   const activity = exactInputs(packet, "activity")[0]!;
   const environment = inputRevisions(packet, "environment")[0]!;
   const requirement = inputRevisions(packet, "requirement")[0]!;
@@ -739,7 +741,7 @@ function formalExecutionOutputs(
         completed_at: `2026-09-01T01:01:${second}Z`,
         execution_state: executionState,
         execution_target: { kind: "product-build", ref: productArtifact },
-        runner_ref: "fixture-formal-runner@1",
+        runner_ref: implementationRef,
         configuration_refs: [implementation, activity.identity.revision_id, environment, requirement],
         activities_expected: [activity.identity.revision_id],
         activities_invoked: completed ? [activity.identity.revision_id] : [],
@@ -1220,7 +1222,7 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
     const runPacket = nextAfterReviews(repository, "execute-verification-run@2", reviews);
     const observation = (control: string, argv: string[], exit_status: number) => ({ artifact_ref: target, control, activity_ref: pilotActivity, argv, working_directory: "fresh-temporary-directory", stdin: { encoding: "base64", bytes: "" }, stdout: { encoding: "base64", bytes: "" }, stderr: { encoding: "base64", bytes: "" }, exit_status, timed_out: false, truncated: false });
     const runResult = submit(repository, runPacket, [
-      { output: "run", payload: { title: "Component pilot run", kind: "pilot", started_at: "2026-08-31T00:00:02Z", completed_at: "2026-08-31T00:00:03Z", execution_state: "completed", execution_target: { kind: "prototype", ref: target }, runner_ref: "fixture-runner@1", configuration_refs: [implementation], activities_expected: ["known_good", "known_bad"], activities_invoked: ["known_good", "known_bad"], evidence_locations: ["inline:pilot"], control_observations: { known_good: observation("known_good", ["node", "-e", "process.exit(0)"], 0), known_bad: observation("known_bad", ["node", "-e", "process.exit(2)"], 2) } }, body: "One immutable pilot run.\n" },
+      { output: "run", payload: { title: "Component pilot run", kind: "pilot", started_at: "2026-08-31T00:00:02Z", completed_at: "2026-08-31T00:00:03Z", execution_state: "completed", execution_target: { kind: "prototype", ref: target }, runner_ref: `procedure:sha256:${"2".repeat(64)}`, configuration_refs: [implementation], activities_expected: ["known_good", "known_bad"], activities_invoked: ["known_good", "known_bad"], evidence_locations: ["inline:pilot"], control_observations: { known_good: observation("known_good", ["node", "-e", "process.exit(0)"], 0), known_bad: observation("known_bad", ["node", "-e", "process.exit(2)"], 2) } }, body: "One immutable pilot run.\n" },
       { output: "result", payload: { title: "Suitable component pilot", claim: { kind: "pilot", scope: "verification-design", outcome: "suitable", formal_evidence_eligible: false }, assessment_state: "accepted", observations: { expected_success_observed: true, expected_discrimination_observed: true, details: "Good passed and bad failed." }, control_judgments: { known_good: { observation_ref: "known_good", outcome: "pass" }, known_bad: { observation_ref: "known_bad", outcome: "fail" } }, evidence_refs: ["inline:pilot"], assessor_ref: "fixture-assessor@1" }, body: "The pilot discriminates correctly.\n" },
     ]);
     commit(repository, "Execute component pilot");
