@@ -1,6 +1,6 @@
 ---
 id: define-system-architecture
-version: 2
+version: 3
 scenario: define-system-architecture
 ---
 
@@ -26,6 +26,13 @@ Produce more than one only when concrete responsibility, boundary, risk, or trus
 seams require a partition; every supplied requirement must be governed by exactly
 one output architecture, and every output must govern at least one supplied
 requirement. If no justified partition exists, do not split by requirement count.
+Build each `proposal.outputs[].links` by copying the expanded exact `governs` link
+objects for that output from `packet.responseScaffold`. Do not copy
+`packet.outputs[].requiredLinks.target.input`; it is symbolic Scenario metadata,
+not a valid authored response-link target. For one architecture, the scaffold
+supplies one exact Revision datum link per supplied STK. For several
+architectures, retain the declared partition: omit or duplicate no supplied STK,
+and do not govern one from several outputs.
 Give every element an opaque stable AEL identity, keep aliases
 human-facing. Record ordinary collaboration as `internal_interactions`. Record a
 `controlled_boundaries` entry only where two elements have an independently
