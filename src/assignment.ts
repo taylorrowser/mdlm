@@ -382,6 +382,8 @@ export interface AssignmentPayloadDependentRule {
 export interface AssignmentPayloadSummary {
   required: string[];
   kernelManaged: string[];
+  /** Exact Scenario-required values, including same-response identity references. */
+  requiredValues?: Record<string, unknown>;
   /** Compact construction hints for required authored fields. */
   fieldShapes?: Record<string, Record<string, unknown>>;
   conditional?: AssignmentPayloadConditionalRule[];
@@ -464,17 +466,31 @@ export function assignmentPayloadScaffold(
       : [];
     required.forEach((field) => fields.add(field));
   }
-  Object.keys(requiredPayload).forEach((field) => fields.add(field));
-  return Object.fromEntries([...fields].map((field) => [
+  Object.keys(requiredPayload).forEach((pathValue) =>
+    fields.add(pathValue.split(".")[0]!)
+  );
+  const payload = Object.fromEntries([...fields].map((field) => [
     field,
     Object.hasOwn(requiredPayload, field) ? requiredPayload[field] : null,
   ]));
+  for (const [pathValue, value] of Object.entries(requiredPayload)) {
+    const segments = pathValue.split(".");
+    let parent = payload;
+    for (const segment of segments.slice(0, -1)) {
+      const child = object(parent[segment]);
+      parent[segment] = child ?? {};
+      parent = parent[segment] as Record<string, unknown>;
+    }
+    parent[segments.at(-1)!] = value;
+  }
+  return payload;
 }
 
 /** Surface authored payload obligations without choosing a conditional schema branch. */
 export function assignmentPayloadSummary(
   payloadSchema: Record<string, unknown>,
   kernelManagedPayloadPaths: string[],
+  requiredValues: Record<string, unknown> = {},
 ): AssignmentPayloadSummary {
   const kernelManaged = new Set(kernelManagedPayloadPaths);
   const required = Array.isArray(payloadSchema.required)
@@ -557,6 +573,9 @@ export function assignmentPayloadSummary(
   return {
     required,
     kernelManaged: kernelManagedPayloadPaths,
+    ...(Object.keys(requiredValues).length > 0
+      ? { requiredValues: structuredClone(requiredValues) }
+      : {}),
     ...(Object.keys(fieldShapes).length > 0 ? { fieldShapes } : {}),
     ...(conditional.length > 0 ? { conditional } : {}),
     ...(dependentRequired.length > 0 ? { dependentRequired } : {}),
@@ -2775,7 +2794,15 @@ function assignmentResponseSkeleton(
         ? object(invocation.inputs.find((input) => input.name === identityInput)
           ?.values[0]?.data.payload) ?? {}
         : {};
-      const requiredPayload = object(outputDefinition?.required_payload) ?? {};
+      const requiredPayload = publicPayloadReferences(
+        object(outputDefinition?.required_payload) ?? {},
+        (output) => {
+          const target = routesByName.get(output);
+          return target
+            ? responseHandle(invocationIndex, target.handle)
+            : output;
+        },
+      ) as Record<string, unknown>;
       outputs.push({
         handle: responseHandle(invocationIndex, route.handle),
         ...(repeated || batched ? { output: route.handle } : {}),
@@ -2874,6 +2901,26 @@ function internalPayloadReferences(
     key,
     internalPayloadReferences(item),
   ]));
+}
+
+function publicPayloadReferences(
+  value: unknown,
+  outputHandle: (output: string) => string = (output) => output,
+): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => publicPayloadReferences(item, outputHandle));
+  }
+  if (typeof value === "string") {
+    const match = /^\$proposal\.([A-Za-z][A-Za-z0-9_-]*)\.revision_id$/.exec(value);
+    return match ? { output: outputHandle(match[1]!) } : value;
+  }
+  const valueRecord = object(value);
+  return valueRecord
+    ? Object.fromEntries(Object.entries(valueRecord).map(([key, item]) => [
+        key,
+        publicPayloadReferences(item, outputHandle),
+      ]))
+    : value;
 }
 
 function scenarioProposalFromResponse(
@@ -3175,6 +3222,10 @@ function packet(
         ? exact.scenario.outputs.map(object)
         : []).find((candidate) => candidate?.name === output.name);
       const identityFrom = object(definition?.identity_from);
+      const requiredPayload = publicPayloadReferences(
+        object(definition?.required_payload) ?? {},
+        (outputName) => outputHandles.get(outputName) ?? outputName,
+      ) as Record<string, unknown>;
       const handle = outputHandles.get(output.name) ?? output.name;
       const type = scaffoldTypes.get(handle)!;
       return {
@@ -3189,6 +3240,7 @@ function packet(
           materialization?.output === output.name
             ? Object.values(materialization.payloadFields)
             : [],
+          requiredPayload,
         ),
       };
     }),

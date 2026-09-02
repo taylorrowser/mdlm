@@ -16,6 +16,8 @@ outputs:
   - name: decision
     types: [DEC]
     cardinality: zero-or-one
+    required_payload:
+      effective_scope: $proposal.updated_question.revision_id
     required_links:
       - {link: resolves, target: {output: updated_question}}
   - name: updated_question

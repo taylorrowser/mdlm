@@ -60,10 +60,18 @@ it("publishes a payload reference to a same-response generated Revision", async 
         $schema: "https://json-schema.org/draft/2020-12/schema",
         type: "object",
         additionalProperties: false,
-        required: ["kind", "effective_scope"],
+        required: ["kind", "effective_scope", "binding"],
         properties: {
           kind: { const: "decision" },
           effective_scope: { type: "string", minLength: 1 },
+          binding: {
+            type: "object",
+            additionalProperties: false,
+            required: ["generated_scope"],
+            properties: {
+              generated_scope: { type: "string", minLength: 1 },
+            },
+          },
         },
       },
       outgoing_links: [{
@@ -112,6 +120,11 @@ it("publishes a payload reference to a same-response generated Revision", async 
         name: "authorization",
         types: ["DEC"],
         cardinality: "one",
+        required_payload: {
+          kind: "decision",
+          effective_scope: "$proposal.implementation.revision_id",
+          "binding.generated_scope": "$proposal.implementation.revision_id",
+        },
         required_links: [{
           link: "justifies",
           target: { output: "implementation" },
@@ -162,18 +175,44 @@ it("publishes a payload reference to a same-response generated Revision", async 
     const authorization = response.proposal.outputs.find(
       (output: Json) => output.handle === "authorization",
     );
+    expect(prepared.value.assignment.packet.outputs.find(
+      (output: Json) => output.handle === "authorization",
+    ).payloadSummary.requiredValues).toEqual({
+      kind: "decision",
+      effective_scope: { output: "implementation" },
+      "binding.generated_scope": { output: "implementation" },
+    });
     expect(authorization.links).toEqual([{
       type: "justifies",
       target: { output: "implementation" },
     }]);
     implementation.payload = { kind: "pilot" };
     implementation.body = "The source-blind procedure.\n";
-    authorization.payload = {
+    expect(authorization.payload).toMatchObject({
       kind: "decision",
-      effective_scope: structuredClone(authorization.links[0].target),
-    };
+      effective_scope: { output: "implementation" },
+      binding: { generated_scope: { output: "implementation" } },
+    });
     authorization.body = "Authorization for the exact procedure Revision.\n";
     response.proposal.completionEvidence = { summary: "Authorized exact procedure." };
+
+    const wrongScope = structuredClone(response);
+    wrongScope.proposal.outputs.find(
+      (output: Json) => output.handle === "authorization",
+    ).payload.effective_scope = "VAI-NOT-THE-GENERATED-REVISION-r00001";
+    const rejected = await command(
+      repository,
+      ["scenario", "submit", "-", "--json"],
+      `${JSON.stringify(wrongScope)}\n`,
+    );
+    expect(rejected.status, JSON.stringify(rejected.value)).toBe(1);
+    expect(rejected.value).toMatchObject({
+      outcome: "rejected",
+      correctionConsumed: false,
+      diagnostics: [expect.objectContaining({
+        code: "scenario-output-required-payload-invalid",
+      })],
+    });
 
     const submitted = await command(
       repository,
