@@ -25,7 +25,14 @@ and known-bad argv in a fresh temporary directory. For each, retain base64 stdin
 stdout, and stderr bytes, exit status or signal, timeout and truncation state,
 the exact ART Revision and control name, and the exact VER Revision in
 `RUN.control_observations`. Record both control names in `activities_expected`
-and `activities_invoked`; link the RES pass/fail judgments to those observations.
+and `activities_invoked`. For a suitable pilot, set
+`RES.payload.control_judgments` to exactly these entries:
+
+```yaml
+known_good: {observation_ref: known_good, outcome: pass}
+known_bad: {observation_ref: known_bad, outcome: fail}
+```
+
 Missing, truncated, timed-out, or mismatched observations remain durable only as
 an inconclusive or unsuitable result, never a suitable pilot result.
 

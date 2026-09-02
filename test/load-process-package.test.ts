@@ -161,6 +161,20 @@ describe("loadProcessPackage", () => {
     return { ok: diagnostics.length === 0, diagnostics };
   }
 
+  it("states the exact suitable-pilot control judgment shape", async () => {
+    const prompt = await fs.readFile(
+      path.join(
+        process.cwd(),
+        ".lifecycle/process/prompts/execute-verification-run.md",
+      ),
+      "utf8",
+    );
+
+    expect(prompt.replace(/\s+/g, " ")).toContain(
+      "For a suitable pilot, set `RES.payload.control_judgments` to exactly these entries: ```yaml known_good: {observation_ref: known_good, outcome: pass} known_bad: {observation_ref: known_bad, outcome: fail} ```",
+    );
+  });
+
   function record(value: unknown): Record<string, unknown> {
     if (typeof value !== "object" || value === null || Array.isArray(value)) {
       throw new Error("Expected definition field to be a record");
