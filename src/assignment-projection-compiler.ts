@@ -23,7 +23,13 @@ export const publicAssignmentRenderer: AssignmentRendererContract =
 
 export type AssignmentOutputTypeRoute =
   | { kind: "declared"; type: string }
-  | { kind: "invocation-input"; input: string; types: string[] };
+  | { kind: "invocation-input"; input: string; types: string[] }
+  | {
+      kind: "invocation-input-payload";
+      input: string;
+      path: string;
+      types: string[];
+    };
 
 export type AssignmentLinkRoute = {
   link: string;
@@ -92,6 +98,7 @@ export function compileAssignmentProjection(input: {
     const outputName = String(output.name);
     const outputTypes = strings(output.types);
     const identityInputName = record(output.identity_from)?.input;
+    const typeFrom = record(output.type_from);
     let type: AssignmentOutputTypeRoute | undefined;
     if (outputTypes.length === 1) {
       type = { kind: "declared", type: outputTypes[0]! };
@@ -106,6 +113,19 @@ export function compileAssignmentProjection(input: {
         type = {
           kind: "invocation-input",
           input: identityInputName,
+          types: outputTypes,
+        };
+      }
+    } else if (
+      typeof typeFrom?.input === "string" &&
+      typeof typeFrom.path === "string"
+    ) {
+      const typeInput = inputsByName.get(typeFrom.input);
+      if (typeInput?.cardinality === "one") {
+        type = {
+          kind: "invocation-input-payload",
+          input: typeFrom.input,
+          path: typeFrom.path,
           types: outputTypes,
         };
       }

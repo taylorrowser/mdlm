@@ -312,6 +312,31 @@ describe("loadProcessPackage", () => {
     }
   });
 
+  it("rejects an output type route whose input payload path is not a string field", async () => {
+    const processRoot = await copiedProcessPackage();
+    try {
+      const scenarioPath = path.join(
+        processRoot,
+        "scenarios/execute-lower-level-decomposition-work-package.yaml",
+      );
+      const scenario = parse(await fs.readFile(scenarioPath, "utf8"));
+      scenario.outputs[0].type_from.path = "missing_target_type";
+      await fs.writeFile(scenarioPath, stringify(scenario));
+
+      expect(await loadProcessPackage(processRoot)).toMatchObject({
+        ok: false,
+        diagnostics: expect.arrayContaining([expect.objectContaining({
+          code: "invalid-output-type-payload-path",
+          path: expect.stringMatching(
+            /execute-lower-level-decomposition-work-package\.outputs\[0\]\.type_from\.path$/,
+          ),
+        })]),
+      });
+    } finally {
+      await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
+    }
+  });
+
   it("recalculates a package digest after nested package bytes change", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-package-digest-"));
     try {

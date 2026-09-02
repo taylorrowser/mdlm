@@ -185,6 +185,15 @@
           "required": ["input"],
           "properties": {"input": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}}
         },
+        "type_from": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["input", "path"],
+          "properties": {
+            "input": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+            "path": {"type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$"}
+          }
+        },
         "required_links": {"type": "array", "items": {"$ref": "#/$defs/requiredLink"}},
         "permitted_links": {"type": "array", "items": {"$ref": "#/$defs/requiredLink"}},
         "required_payload": {

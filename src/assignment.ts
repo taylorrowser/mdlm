@@ -2674,6 +2674,17 @@ function assignmentResponseSkeleton(
     const input = invocation.inputs.find((candidate) =>
       candidate.name === typeRoute.input
     );
+    if (typeRoute.kind === "invocation-input-payload") {
+      let bound: unknown = input?.values.length === 1
+        ? object(input.values[0]!.data)?.payload
+        : undefined;
+      for (const segment of typeRoute.path.split(".")) {
+        bound = object(bound)?.[segment];
+      }
+      return typeof bound === "string" && typeRoute.types.includes(bound)
+        ? bound
+        : undefined;
+    }
     const bound = input?.values.length === 1
       ? input.values[0]!.identity.type
       : undefined;

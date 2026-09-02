@@ -161,6 +161,14 @@ export function validateScenarioContracts(
       const output = record(outputValue);
       const outputName = String(output?.name);
       const identityFrom = record(output?.identity_from);
+      const typeFrom = record(output?.type_from);
+      if (identityFrom && typeFrom) {
+        diagnostics.push({
+          code: "conflicting-output-type-binding",
+          path: `scenarios.${scenario.id}.outputs[${outputIndex}]`,
+          message: `Scenario '${scenario.id}' output '${outputName}' cannot combine identity_from and type_from`,
+        });
+      }
       if (typeof identityFrom?.input === "string") {
         const input = inputsByName.get(identityFrom.input);
         const outputTypes = Array.isArray(output?.types) ? output.types : [];
@@ -181,6 +189,42 @@ export function validateScenarioContracts(
             path: `scenarios.${scenario.id}.outputs[${outputIndex}].identity_from`,
             message: `Scenario '${scenario.id}' output '${outputName}' identity binding requires one exact input with a compatible lifecycle type`,
           });
+        }
+      }
+      if (typeof typeFrom?.input === "string") {
+        const input = inputsByName.get(typeFrom.input);
+        if (!input) {
+          diagnostics.push({
+            code: "unknown-output-type-input",
+            path: `scenarios.${scenario.id}.outputs[${outputIndex}].type_from.input`,
+            message: `Scenario '${scenario.id}' output '${outputName}' selects its type from undeclared input '${typeFrom.input}'`,
+          });
+        } else if (input.cardinality !== "one") {
+          diagnostics.push({
+            code: "incompatible-output-type-input",
+            path: `scenarios.${scenario.id}.outputs[${outputIndex}].type_from`,
+            message: `Scenario '${scenario.id}' output '${outputName}' type binding requires one exact input`,
+          });
+        } else {
+          for (const inputType of Array.isArray(input.types) ? input.types : []) {
+            if (typeof inputType !== "string") continue;
+            const pathSchema = effectivePayloadPathSchema(
+              inputType,
+              typeFrom.path,
+              catalogs,
+            );
+            const stringEnum = Array.isArray(pathSchema?.enum) &&
+              pathSchema.enum.length > 0 &&
+              pathSchema.enum.every((value) => typeof value === "string");
+            if (!pathSchema ||
+              (pathSchema.type !== "string" && !stringEnum)) {
+              diagnostics.push({
+                code: "invalid-output-type-payload-path",
+                path: `scenarios.${scenario.id}.outputs[${outputIndex}].type_from.path`,
+                message: `Scenario '${scenario.id}' output '${outputName}' type path '${String(typeFrom.path)}' must select a string payload field on input type ${inputType}`,
+              });
+            }
+          }
         }
       }
       const requiredLinks = Array.isArray(output?.required_links)

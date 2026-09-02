@@ -9,17 +9,10 @@ inputs:
   - {name: architecture, types: [ASP], cardinality: one, identity: revision}
   - {name: interfaces, types: [ICSP], cardinality: zero-or-more, identity: revision}
 outputs:
-  - name: component_requirements
-    types: [CMP]
-    cardinality: zero-or-more
-    required_links:
-      - {link: derived-from, target: {input: parents}, distribution: cover}
-      - {link: decomposes, target: {input: plan}, distribution: each-output}
-      - {link: allocated-to, target: {input: architecture}, distribution: each-output}
-      - {link: governed-by, target: {input: interfaces}}
-  - name: design_requirements
-    types: [DES]
-    cardinality: zero-or-more
+  - name: requirements
+    types: [CMP, DES]
+    cardinality: one-or-more
+    type_from: {input: plan, path: target_child_type}
     required_links:
       - {link: derived-from, target: {input: parents}, distribution: cover}
       - {link: decomposes, target: {input: plan}, distribution: each-output}

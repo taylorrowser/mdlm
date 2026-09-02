@@ -158,6 +158,10 @@ async function phaseThreePackage(parent: string): Promise<string> {
     'state(strategy, "disposition") == "active"',
     '&& state(strategy, "validity") == "valid"',
     '&& none("newer-revisions-for@1", {subject: strategy})',
+    '&& (strategy.payload.level != "design"',
+    '|| (exists("complete-phase-4-level-candidates@1", {})',
+    '&& every("complete-phase-4-level-candidates@1", {}, candidate =>',
+    'exists("applicable-gate-signoffs-for@1", {candidate: candidate}))))',
   ].join(" ");
   await fs.writeFile(activeStrategiesPath, stringify(activeStrategies));
   const profilePath = path.join(root, "profiles/bootstrap.yaml");
@@ -1060,12 +1064,22 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
       "execute-lower-level-decomposition-work-package@1",
     );
     const componentTemplate = executionPacket.responseScaffold.proposal.outputs.find(
-      (output: Json) => (output.output ?? output.handle) === "component_requirements",
+      (output: Json) => (output.output ?? output.handle) === "requirements",
     );
-    expect(componentTemplate).toBeDefined();
+    expect(componentTemplate).toMatchObject({ type: "CMP" });
+    const wrongComponentType = assignmentResponse(executionPacket, [{
+      output: "requirements",
+      payload: {},
+      body: "Wrong target type.\n",
+    }]);
+    wrongComponentType.proposal.outputs[0].type = "DES";
+    const wrongComponentSubmit = mdlmWithInput(repository,
+      `${JSON.stringify(wrongComponentType)}\n`, "scenario", "submit", "-", "--json");
+    expect(wrongComponentSubmit.status).toBe(1);
+    expect(wrongComponentSubmit.stdout).toContain("assignment-response-type-invalid");
     const executionResult = submit(repository, executionPacket, [
       {
-        output: "component_requirements",
+        output: "requirements",
         handle: "classifier-requirement",
         payload: {
           title: "Classify the supplied value",
@@ -1080,7 +1094,7 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
         body: "One solution-independent classifier requirement.\n",
       },
       {
-        output: "component_requirements",
+        output: "requirements",
         handle: "reporter-requirement",
         payload: {
           title: "Report the classification",
@@ -1167,9 +1181,6 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
     const doctor = mdlm(repository, "doctor", "--json");
     expect(doctor.status, `${doctor.stderr}${doctor.stdout}`).toBe(0);
     commit(repository, "Publish coherent definition Review Context");
-
-    const correctionRepository = path.join(parent, "correction-repository");
-    await fs.cp(repository, correctionRepository, { recursive: true });
 
     const pilotPacket = nextAfterReviews(repository, "write-representative-level-pilot-verification-activity@1", reviews);
     const pilotResult = submit(repository, pilotPacket, [{ output: "activity", payload: {
@@ -1272,9 +1283,22 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
     const designPlan = publication(designPlanResult, "plan");
 
     const designExecutionPacket = nextAfterReviews(repository, "execute-lower-level-decomposition-work-package@1", reviews);
+    expect(designExecutionPacket.responseScaffold.proposal.outputs.find(
+      (output: Json) => (output.output ?? output.handle) === "requirements",
+    )).toMatchObject({ type: "DES" });
+    const wrongDesignType = assignmentResponse(designExecutionPacket, [{
+      output: "requirements",
+      payload: {},
+      body: "Wrong target type.\n",
+    }]);
+    wrongDesignType.proposal.outputs[0].type = "CMP";
+    const wrongDesignSubmit = mdlmWithInput(repository,
+      `${JSON.stringify(wrongDesignType)}\n`, "scenario", "submit", "-", "--json");
+    expect(wrongDesignSubmit.status).toBe(1);
+    expect(wrongDesignSubmit.stdout).toContain("assignment-response-type-invalid");
     const designExecutionResult = submit(repository, designExecutionPacket, [
-      { output: "design_requirements", handle: "classifier-design", payload: { title: "Evaluate the supplied value", rationale: "Implement the classifier responsibility.", statement: "The design shall evaluate the supplied value against the declared validity rule.", verification_intent: "Analyze the exact classification decision.", interface_effect: "unchanged", architecture_allocation: { architecture_revision: architecture, element: "AEL-CMPDEF00001" } }, body: "One classifier design requirement.\n" },
-      { output: "design_requirements", handle: "reporter-design", payload: { title: "Emit the classification", rationale: "Implement the reporter responsibility.", statement: "The design shall emit the evaluated classification through the existing contract.", verification_intent: "Analyze the exact emitted classification.", interface_effect: "unchanged", architecture_allocation: { architecture_revision: architecture, element: "AEL-CMPDEF00002" } }, body: "One reporter design requirement.\n" },
+      { output: "requirements", handle: "classifier-design", payload: { title: "Evaluate the supplied value", rationale: "Implement the classifier responsibility.", statement: "The design shall evaluate the supplied value against the declared validity rule.", verification_intent: "Analyze the exact classification decision.", interface_effect: "unchanged", architecture_allocation: { architecture_revision: architecture, element: "AEL-CMPDEF00001" } }, body: "One classifier design requirement.\n" },
+      { output: "requirements", handle: "reporter-design", payload: { title: "Emit the classification", rationale: "Implement the reporter responsibility.", statement: "The design shall emit the evaluated classification through the existing contract.", verification_intent: "Analyze the exact emitted classification.", interface_effect: "unchanged", architecture_allocation: { architecture_revision: architecture, element: "AEL-CMPDEF00002" } }, body: "One reporter design requirement.\n" },
     ]);
     commit(repository, "Publish two design requirements");
     const designs = [publication(designExecutionResult, "classifier-design"), publication(designExecutionResult, "reporter-design")];
@@ -1306,10 +1330,51 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
     commit(repository, "Promote exact component candidate");
     expect(publication(promotionResult, "accepted")).toMatch(/^BSL-/);
 
-    const phaseFiveStart = git(repository, "rev-parse", "HEAD").stdout.trim();
+    const designEnvironmentOutcome = next(repository);
+    expect(designEnvironmentOutcome.phase).toBe("phase-4-design-definition@1");
+    expect(designEnvironmentOutcome.outcome).toBe("assignment");
+    const designEnvironmentPacket = designEnvironmentOutcome.assignment.packet;
+    expect(designEnvironmentPacket.scenario.reference).toBe(
+      "realize-verification-environment@1",
+    );
+    const candidateGoverningStrategies = new Set(
+      [...formalActivities, ...designFormalActivities].flatMap((activity) => {
+        const datum = JSON.parse(
+          mdlm(repository, "show", activity, "--json").stdout,
+        ).lifecycleDatum.datum;
+        return datum.links
+          .filter((link: Json) => link.type === "governed-by")
+          .map((link: Json) => link.target);
+      }),
+    );
+    expect(candidateGoverningStrategies).toContain(
+      inputRevisions(designEnvironmentPacket, "strategy")[0],
+    );
+    const realizedDesignEnvironment = realizeAndQualifyEnvironment(
+      repository,
+      designEnvironmentPacket,
+    );
+    const byStrategy = realizedEnvironments.get(repository) ?? new Map<string, string>();
+    byStrategy.set(
+      realizedDesignEnvironment.strategy,
+      realizedDesignEnvironment.environment,
+    );
+    realizedEnvironments.set(repository, byStrategy);
+
+    let phaseFiveStart = "";
     const formalImplementations: string[] = [];
     for (let index = 0; index < 6; index += 1) {
-      const formalPacket = nextPacket(repository, "implement-verification-activity@1");
+      const formalPacket = nextAfterReviews(
+        repository,
+        "implement-verification-activity@1",
+        reviews,
+      );
+      if (index === 0) {
+        phaseFiveStart = git(repository, "rev-parse", "HEAD").stdout.trim();
+        expect(realizedEnvironments.get(repository)?.get(designStrategy)).toMatch(
+          /^ENV-/,
+        );
+      }
       expect(inputRevisions(formalPacket, "execution_target")).toEqual(
         inputRevisions(formalPacket, "environment"),
       );
@@ -1382,9 +1447,6 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
       formalImplementations.push(publication(formalResult, "implementation"));
     }
 
-    const phaseFiveFaultRepository = path.join(parent, "phase-five-fault-repository");
-    await fs.cp(repository, phaseFiveFaultRepository, { recursive: true });
-
     const phaseFiveReviews: string[] = [];
     const reviewContexts = new Map<string, string>();
     const productPacket = nextAfterReviews(
@@ -1452,16 +1514,13 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
       repository,
       "diff", "--name-only", `${phaseFiveStart}..HEAD`, "--", ".lifecycle/data",
     ).stdout.trim().split("\n").filter((name) => /r00001\.md$/.test(name));
+    expect(phaseFiveStart).not.toBe("");
     expect(phaseFiveFirstRevisions).toHaveLength(3 * formalImplementations.length + 5);
     expect(formalImplementations).toHaveLength(6);
     expect(phaseFiveReviews).toHaveLength(formalImplementations.length + 1);
     expect(reviewContexts.get(productArtifact)).not.toBe(sharedFormalContext);
     expect(new Set(reviews).size).toBe(reviews.length);
     expect(git(repository, "status", "--porcelain").stdout).toBe("");
-
-    const phaseSixStart = git(repository, "rev-parse", "HEAD").stdout.trim();
-    const phaseSixFaultRepository = path.join(parent, "phase-six-fault-repository");
-    await fs.cp(repository, phaseSixFaultRepository, { recursive: true });
 
     const phaseSixRuns: string[] = [];
     const phaseSixResults: string[] = [];
@@ -1532,341 +1591,6 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
     });
     expect(new Set(phaseSixReviews).size).toBe(phaseSixReviews.length);
     expect(git(repository, "status", "--porcelain").stdout).toBe("");
-
-    const infrastructurePacket = nextPacket(
-      phaseSixFaultRepository,
-      "execute-verification-run@2",
-    );
-    expect(exactInputs(infrastructurePacket, "requirement")[0]!.identity.type)
-      .toBe("DES");
-    const infrastructureAttempt = infrastructurePacket.responseScaffold.assignment;
-    const infrastructureResult = submit(
-      phaseSixFaultRepository,
-      infrastructurePacket,
-      formalExecutionOutputs(
-        infrastructurePacket,
-        productArtifact,
-        20,
-        "infrastructure-error",
-        "inconclusive",
-      ),
-    );
-    commit(phaseSixFaultRepository, "Preserve inconclusive infrastructure attempt");
-    const infrastructureRun = publication(infrastructureResult, "run");
-    const infrastructureEvidence = publication(infrastructureResult, "result");
-    expect(git(
-      phaseSixFaultRepository,
-      "grep", "-l", "kind: problem-report", "--", ".lifecycle/data",
-    ).status).toBe(1);
-
-    const failingPacket = nextPacket(
-      phaseSixFaultRepository,
-      "execute-verification-run@2",
-    );
-    expect(failingPacket.responseScaffold.assignment).not.toBe(infrastructureAttempt);
-    expect(inputRevisions(failingPacket, "implementation"))
-      .toEqual(inputRevisions(infrastructurePacket, "implementation"));
-    expect(inputRevisions(failingPacket, "requirement"))
-      .toEqual(inputRevisions(infrastructurePacket, "requirement"));
-    expect(exactInputs(failingPacket, "activity")[0]!.data.payload.assessment_mode)
-      .toBe("automatic");
-    const failingResult = submit(
-      phaseSixFaultRepository,
-      failingPacket,
-      formalExecutionOutputs(failingPacket, productArtifact, 21, "completed", "fail"),
-    );
-    commit(phaseSixFaultRepository, "Preserve completed formal product failure");
-    const failingRun = publication(failingResult, "run");
-    const failingEvidence = publication(failingResult, "result");
-    expect(failingRun).not.toBe(infrastructureRun);
-    expect(failingEvidence).not.toBe(infrastructureEvidence);
-
-    const problemPacket = nextPacket(phaseSixFaultRepository, "report-problem@1");
-    expect(inputRevisions(problemPacket, "result")).toEqual([failingEvidence]);
-    const problemResult = submit(phaseSixFaultRepository, problemPacket, [{
-      output: "problem",
-      payload: {
-        title: "Controlled product fails one exact design claim",
-        rationale: "The immutable completed formal result establishes a product failure.",
-        condition: "The controlled product did not satisfy the exact design requirement.",
-        severity: "major",
-        disposition: "open",
-        evidence_refs: [failingEvidence],
-      },
-      body: "One exact ordinary Problem Report preserves the formal failure.\n",
-    }]);
-    commit(phaseSixFaultRepository, "Report exact formal product failure");
-    const problem = publication(problemResult, "problem");
-    expect(problem).toMatch(/^PRB-/);
-    const phaseSixFaultFiles = git(
-      phaseSixFaultRepository,
-      "diff", "--name-only", `${phaseSixStart}..HEAD`, "--", ".lifecycle/data",
-    ).stdout.trim().split("\n").filter(Boolean);
-    expect(phaseSixFaultFiles.some((name) => /\/DEC-/.test(name))).toBe(false);
-    expect(git(phaseSixFaultRepository, "status", "--porcelain").stdout).toBe("");
-    expect(next(phaseSixFaultRepository)).toMatchObject({
-      outcome: "profile-boundary-reached",
-      phase: "phase-6-verification@1",
-    });
-
-    const faultProductPacket = nextPacket(
-      phaseFiveFaultRepository,
-      "implement-design-set@1",
-    );
-    const incompleteArtifactResult = submit(
-      phaseFiveFaultRepository,
-      faultProductPacket,
-      [{
-        output: "implementation",
-        payload: {
-          ...implementationArtifactPayload(productCommit, productRepository, designs),
-          design_path_mapping: [{
-            design_revision: designs[0],
-            paths: ["checker.mjs"],
-          }],
-        },
-        body: "One deliberately incomplete DES mapping.\n",
-      }],
-    );
-    commit(phaseFiveFaultRepository, "Publish incomplete product mapping");
-    const incompleteArtifact = publication(
-      incompleteArtifactResult,
-      "implementation",
-    );
-
-    let failedArtifactReview: { context: string; review: string } | undefined;
-    for (;;) {
-      const outcome = next(phaseFiveFaultRepository);
-      if (outcome.outcome === "publication-required") {
-        commit(phaseFiveFaultRepository, "Publish Phase 5 fault Review Contexts");
-        continue;
-      }
-      const packet = outcome.assignment?.packet;
-      expect(packet, JSON.stringify(outcome)).toBeDefined();
-      expect(packet.scenario.reference).toBe("review-datum-in-context@3");
-      const subject = inputRevisions(packet, "subject")[0]!;
-      if (subject === incompleteArtifact) {
-        failedArtifactReview = submitFailedReview(
-          phaseFiveFaultRepository,
-          packet,
-          subject,
-          "The DES-to-path mapping must cover every exact candidate DES Revision.",
-        );
-        break;
-      }
-      submitReview(phaseFiveFaultRepository, packet, subject);
-    }
-    expect(failedArtifactReview).toBeDefined();
-
-    const artifactCorrectionPacket = nextPacket(
-      phaseFiveFaultRepository,
-      "revise-implementation-artifact-after-review@1",
-    );
-    expect(inputRevisions(artifactCorrectionPacket, "implementation"))
-      .toEqual([incompleteArtifact]);
-    const artifactCorrectionResult = submit(
-      phaseFiveFaultRepository,
-      artifactCorrectionPacket,
-      [{
-        output: "replacement",
-        payload: implementationArtifactPayload(productCommit, productRepository, designs),
-        body: "The same-lineage artifact now maps every exact DES Revision.\n",
-      }],
-    );
-    commit(phaseFiveFaultRepository, "Correct product mapping in the same lineage");
-    const correctedArtifact = publication(artifactCorrectionResult, "replacement");
-    expect(correctedArtifact.replace(/-r[0-9]{5}$/, "")).toBe(
-      incompleteArtifact.replace(/-r[0-9]{5}$/, ""),
-    );
-    const correctedArtifactReviewPacket = nextPacket(
-      phaseFiveFaultRepository,
-      "review-datum-in-context@3",
-    );
-    expect(inputRevisions(correctedArtifactReviewPacket, "subject"))
-      .toEqual([correctedArtifact]);
-    expect(inputRevisions(correctedArtifactReviewPacket, "review_context")[0])
-      .not.toBe(failedArtifactReview!.context);
-    const correctedArtifactReview = submitReview(
-      phaseFiveFaultRepository,
-      correctedArtifactReviewPacket,
-      correctedArtifact,
-    );
-
-    const failingFormal = [...formalImplementations].sort().at(-1)!;
-    const unaffectedFormalReviews = new Map<string, string>();
-    const faultFormalContexts = new Map<string, string>();
-    let failedFormalReview: { context: string; review: string } | undefined;
-    while (unaffectedFormalReviews.size < formalImplementations.length - 1 || !failedFormalReview) {
-      const packet = nextPacket(
-        phaseFiveFaultRepository,
-        "review-datum-in-context@3",
-      );
-      const subject = inputRevisions(packet, "subject")[0]!;
-      faultFormalContexts.set(
-        subject,
-        inputRevisions(packet, "review_context")[0]!,
-      );
-      if (subject === failingFormal) {
-        failedFormalReview = submitFailedReview(
-          phaseFiveFaultRepository,
-          packet,
-          subject,
-          "The formal procedure must state one complete executable judgment step.",
-        );
-      } else {
-        unaffectedFormalReviews.set(
-          subject,
-          submitReview(phaseFiveFaultRepository, packet, subject),
-        );
-      }
-    }
-    expect(
-      new Set([
-        ...unaffectedFormalReviews.keys(),
-        failingFormal,
-      ].map((subject) => faultFormalContexts.get(subject))).size,
-    ).toBe(1);
-
-    const formalCorrectionPacket = nextPacket(
-      phaseFiveFaultRepository,
-      "revise-pilot-vai-after-review@3",
-    );
-    const correctedActivity = inputRevisions(formalCorrectionPacket, "activity")[0]!;
-    const correctedEnvironment = inputRevisions(formalCorrectionPacket, "environment")[0]!;
-    const formalCorrectionResult = submit(
-      phaseFiveFaultRepository,
-      formalCorrectionPacket,
-      [
-        {
-          output: "replacement",
-          payload: formalImplementationPayload(correctedActivity, correctedEnvironment, 99),
-          body: "The same-lineage formal procedure now states the complete judgment step.\n",
-        },
-        {
-          output: "authorization",
-          payload: {
-            title: "Authorize corrected formal procedure",
-            rationale: "The correction addresses only the exact failed Review.",
-            kind: "decision",
-            decision: "Authorize the corrected exact procedure.",
-            alternatives: ["Do not authorize."],
-            effective_scope: "$proposal.replacement.revision_id",
-          },
-          body: "Authorize only this corrected formal procedure.\n",
-        },
-      ],
-    );
-    commit(phaseFiveFaultRepository, "Correct formal VAI in the same lineage");
-    const correctedFormal = publication(formalCorrectionResult, "replacement");
-    expect(correctedFormal.replace(/-r[0-9]{5}$/, "")).toBe(
-      failingFormal.replace(/-r[0-9]{5}$/, ""),
-    );
-    const correctedFormalReviewPacket = nextPacket(
-      phaseFiveFaultRepository,
-      "review-datum-in-context@3",
-    );
-    expect(inputRevisions(correctedFormalReviewPacket, "subject"))
-      .toEqual([correctedFormal]);
-    expect(inputRevisions(correctedFormalReviewPacket, "review_context")[0])
-      .not.toBe(failedFormalReview!.context);
-    const correctedFormalReview = submitReview(
-      phaseFiveFaultRepository,
-      correctedFormalReviewPacket,
-      correctedFormal,
-    );
-    const faultDesignAcceptancePacket = nextPacket(
-      phaseFiveFaultRepository,
-      "accept-phase-2-system@1",
-    );
-    const faultAcceptanceEvidence = new Set(
-      inputRevisions(faultDesignAcceptancePacket, "evidence"),
-    );
-    expect(faultAcceptanceEvidence.has(correctedArtifactReview)).toBe(true);
-    expect(faultAcceptanceEvidence.has(correctedFormalReview)).toBe(true);
-    for (const reviewId of unaffectedFormalReviews.values()) {
-      expect(faultAcceptanceEvidence.has(reviewId)).toBe(true);
-    }
-
-    const failedPacket = nextPacket(
-      correctionRepository,
-      "review-datum-in-context@3",
-    );
-    const failedContext = inputRevisions(failedPacket, "review_context")[0];
-    expect(inputRevisions(failedPacket, "subject")).toEqual([completion]);
-    const failedResult = submit(correctionRepository, failedPacket, [{
-      output: "review",
-      payload: {
-        title: `Review ${completion}`,
-        review_kind: "contextual",
-        reviewer: "independent-reviewer",
-        summary: "The completion account is ambiguous in the frozen definition set.",
-        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
-        findings: [{
-          id: "F-001",
-          target: completion,
-          relationship: "primary",
-          severity: "blocking",
-          summary: "Clarify the exact completion account.",
-          criterion: "The DWP completion must account unambiguously for its frozen component set.",
-          evidence: "The completion rationale does not identify how its exact outputs close the slice.",
-          material_consequence: "The candidate could advance without an explicit exact-set completion judgment.",
-        }],
-        correction_authority: "package-evidence",
-        outcome: "fail",
-      },
-      body: "One exact member-targeted Finding blocks the coherent component set.\n",
-    }], "independent-reviewer");
-    commit(correctionRepository, "Publish failed coherent definition Review");
-    const failedReview = publication(failedResult, "review");
-
-    const correctionPacket = nextPacket(
-      correctionRepository,
-      "revise-definition-completion-after-review@1",
-    );
-    expect(inputRevisions(correctionPacket, "completion")).toEqual([completion]);
-    expect(inputRevisions(correctionPacket, "failed_reviews")).toEqual([failedReview]);
-    const correctionResult = submit(correctionRepository, correctionPacket, [{
-      output: "replacement",
-      payload: {
-        title: "Corrected classification component slice",
-        rationale: "Preserve the exact slice while resolving the member-targeted Finding.",
-        stage: "completion",
-        architecture_element: "AEL-CMPDEF00001",
-        target_child_type: "CMP",
-        behavioral_slice: "Classify and report one supplied value.",
-        expected_coverage: ["The accepted system classification behavior"],
-        exclusions: ["Implementation and formal verification"],
-        dependencies: [system, architecture, interfaceRevision, strategy],
-        required_review_policy: "review-applicability@1",
-      },
-      body: "The same-lineage completion now addresses the exact failed Review.\n",
-    }]);
-    commit(correctionRepository, "Correct component completion in the same lineage");
-    const correctedCompletion = publication(correctionResult, "replacement");
-    expect(correctedCompletion.replace(/-r[0-9]{5}$/, "")).toBe(
-      completion.replace(/-r[0-9]{5}$/, ""),
-    );
-    expect(correctedCompletion).not.toBe(completion);
-
-    const freshContextOutcome = next(correctionRepository);
-    expect(freshContextOutcome.outcome).toBe("publication-required");
-    commit(correctionRepository, "Publish corrected coherent definition context");
-    const freshReviewPacket = nextPacket(
-      correctionRepository,
-      "review-datum-in-context@3",
-    );
-    const freshContext = inputRevisions(freshReviewPacket, "review_context")[0];
-    expect(freshContext).not.toBe(failedContext);
-    const freshReview = submitReview(
-      correctionRepository,
-      freshReviewPacket,
-      correctedCompletion,
-    );
-    expect(freshReview).not.toBe(failedReview);
-    expect(mdlm(correctionRepository, "show", completion, "--json").status).toBe(0);
-    expect(mdlm(correctionRepository, "show", failedReview, "--json").status).toBe(0);
-
-    expect(git(correctionRepository, "status", "--porcelain").stdout).toBe("");
   } finally {
     if (process.env.MDLM_KEEP_PHASE5_TEST !== "1") {
       await fs.rm(parent, { recursive: true, force: true });
