@@ -34,7 +34,9 @@ progression:
       && none("failing-reviews-for@1", {subject: candidate})
       && exists("applicable-gate-signoffs-for@1", {candidate: candidate})
       && exists("accepted-component-baselines-for-design-candidate@1",
-        {candidate: candidate}))
+        {candidate: candidate})
+      && !every("phase-5-entry-design-candidates@1", {}, admitted =>
+        admitted != candidate))
   authorization:
     condition: >-
       exists("complete-phase-4-level-candidates@1", {})
