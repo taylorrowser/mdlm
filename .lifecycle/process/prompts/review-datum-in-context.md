@@ -57,6 +57,14 @@ detail, prototype byte, or uncontrolled shortcut in the Assignment or context.
 Each REV still has exactly one primary VAI subject even when sibling Reviews cite
 the same immutable context.
 
+For a pilot or formal VER, compare its observable behavior, claim scope,
+acceptance criteria, expected success and discrimination activities, and evidence
+requirements with the statement and verification intent of every exact
+requirement Revision linked through `verifies-revision`. A wrong requirement
+binding or a VER that tests different observable behavior is a primary blocking
+finding against the VER and requires `outcome: fail`. Use the exact package
+evidence to determine the correction.
+
 A candidate linked through `changed-under` additionally receives
 the bounded CHG and attended disposition; a replacement STK receives the same
 change context so its judgment is scoped to the approved change.
