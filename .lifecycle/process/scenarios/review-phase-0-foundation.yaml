@@ -1,7 +1,7 @@
 kind: scenario-definition
 id: review-phase-0-foundation
 version: 1
-description: Independently judge one exact Phase 0 foundation or consequential Decision Revision and publish its Review Context with the REV.
+description: Independently judge each exact Phase 0 foundation or consequential Decision Revision and publish its Review Context with its REV.
 kernel_materialization:
   kind: exact-baseline@1
   output: review_context
@@ -47,7 +47,7 @@ participation:
   arguments: {subject: subject}
 authority_evidence: {output: review, type: REV}
 standing_delegation: {selector_ref: applicable-authority-delegations-for@1, target_input: subject, authority: stakeholder, delegate: independent-reviewer}
-completion_summary: Publish exactly one Review Context and its exact REV in one transaction.
+completion_summary: Publish exactly one Review Context and exact REV per invocation in one transaction.
 completion: >-
   execution.integrity.contract_valid == true
   && review_context.payload.kind == "review-context"
@@ -58,4 +58,4 @@ completion: >-
   && review.payload.outcome in ["pass", "fail", "cancelled"]
 resolves: [phase-0-foundation-review-required]
 prohibited_inputs: [product source code, product unit tests, mutable latest aliases]
-batching: single
+batching: coherent-batch

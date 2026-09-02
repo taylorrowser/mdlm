@@ -1,0 +1,27 @@
+kind: selector-definition
+id: phase-0-foundation-review-cohort-for
+version: 1
+description: The pending Phase 0 subject or its current review-ready sibling STKs from the same exact PSP.
+parameters:
+  - {name: subject, kind: revision, types: [MAP, PSP, STK, DEC]}
+result_kind: revision
+query:
+  from:
+    selector: phase-0-foundation-review-required-revisions@1
+    arguments: {}
+  as: candidate
+  where: >-
+    candidate == subject
+    || (
+      subject.identity.type == "STK"
+      && candidate.identity.type == "STK"
+      && none("passing-reviews-for@1", {subject: candidate})
+      && none("failing-reviews-for@1", {subject: candidate})
+      && !every("current-product-specifications@1", {}, product_specification =>
+        every("stakeholder-requirements-for-review-context@1",
+          {product_specification: product_specification}, sibling => sibling != subject)
+        || every("stakeholder-requirements-for-review-context@1",
+          {product_specification: product_specification}, sibling => sibling != candidate))
+    )
+  distinct: true
+  order_by: [identity.revision_id]
