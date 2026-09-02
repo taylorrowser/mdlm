@@ -75,7 +75,7 @@ const qualificationGateByFile = new Map(
 // include focused Vitest startup and remain estimates, not p95s.
 const rootTestRuntimeManifest = [
   { file: "test/load-process-package.test.ts", runtimeClass: "process-package-heavy", weight: 3, measuredDurationMs: 66_137 },
-  { file: "test/process-package-cases.test.ts", runtimeClass: "process-package-heavy", weight: 3, measuredDurationMs: 5_550 },
+  { file: "test/process-package-cases.test.ts", runtimeClass: "process-package-heavy", weight: 3, measuredDurationMs: 7_220 },
   { file: "test/mdlm-assignment.test.ts", runtimeClass: "assignment-publication-heavy", weight: 3, measuredDurationMs: 53_780 },
   { file: "test/proportional-distinct-context-phase-2-public.test.ts", runtimeClass: "process-repository-heavy", weight: 1, measuredDurationMs: 27_558 },
   { file: "test/phase-3-component-definition-public.test.ts", runtimeClass: "process-repository-heavy", weight: 1, measuredDurationMs: 79_500 },

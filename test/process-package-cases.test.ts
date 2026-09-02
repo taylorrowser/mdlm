@@ -57,6 +57,35 @@ describe("Process Package semantic cases", () => {
     }
   });
 
+  it("reports a mismatched case fact", async () => {
+    const copied = await copyPackage();
+    try {
+      await rewriteYaml(
+        path.join(copied.root, "cases/phase-4-admission/case.yaml"),
+        (testCase) => {
+          testCase.selector = "complete-phase-4-level-candidates@1";
+        },
+      );
+      const result = await testProcessPackage(copied.root);
+      expect(result).toMatchObject({
+        ok: true,
+        value: {
+          passed: 1,
+          failed: 1,
+          cases: [
+            {
+              name: "phase-4-admission",
+              diagnostics: [{ code: "process-case-phase-admission-mismatch" }],
+            },
+            { name: "scenario-output-discriminator", diagnostics: [] },
+          ],
+        },
+      });
+    } finally {
+      await fs.rm(copied.temporaryRoot, { recursive: true, force: true });
+    }
+  });
+
   it("reports the two observed declaration mismatches deterministically", async () => {
     const copied = await copyPackage();
     try {
