@@ -1,0 +1,15 @@
+kind: selector-definition
+id: proposed-planning-decomposition-plans-for-architecture
+version: 1
+description: Exact in-flight planning DWP Revisions allocated to one architecture Revision.
+parameters:
+  - {name: architecture, kind: revision, types: [ASP]}
+result_kind: revision
+query:
+  from: {relation: incoming-links, of: architecture, link: allocated-to, emit: source, types: [DWP]}
+  as: plan
+  where: >-
+    plan.payload.stage == "planning"
+    && plan.integrity.scenario_execution_valid != true
+  distinct: true
+  order_by: [identity.revision_id]
