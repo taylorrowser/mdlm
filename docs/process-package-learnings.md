@@ -117,7 +117,8 @@ refreshed after every package edit. 70 of the last 200 commits on main are
 fixture checkpoints or refreshes, and several issues exist only to repair
 fixture provenance after squash merges.
 
-Rule: derived artifacts live in an ignored cache keyed by the package digest.
+Rule: derived artifacts live in an ignored cache keyed by the package and
+loader source digests, so a change to either yields a new entry.
 Tests rebuild the cache when it is missing or stale.
 
 Check: repository validation fails if a generated artifact is tracked.

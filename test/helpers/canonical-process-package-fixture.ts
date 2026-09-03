@@ -1,17 +1,26 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { gunzipSync } from "node:zlib";
 import { loadProcessPackage, type ProcessPackage } from "../../src/index.js";
 import { processPackageDigest } from "../../src/process-package-digest.js";
 
-const DEFAULT_FIXTURE_ROOT = path.join(
-  process.cwd(),
-  "test/fixtures/canonical-process-package",
-);
+/**
+ * The canonical Process Package fixture is the serialized form of
+ * `.lifecycle/process` as the current loader produces it. It lives in an
+ * ignored cache keyed by the digests of the package source and of the loader
+ * source, so a change to either yields a new entry and nothing is committed.
+ */
 const CANONICAL_PROCESS_ROOT = ".lifecycle/process";
+const LOADER_ROOT = "src";
+const TRACKED_FIXTURE_ROOT = "test/fixtures/canonical-process-package";
+export const CANONICAL_FIXTURE_CACHE_ROOT =
+  "node_modules/.cache/mdlm-canonical-process-package";
+const ARCHIVE_NAME = "process-package.json.gz";
+const CONTRACT = "mdlm-canonical-process-package-fixture@2";
+const CAPTURE_COMMAND = "node scripts/process-fixture.mjs build";
+const COMMAND_BUFFER_LIMIT = 64 * 1024 * 1024;
 const DEFINITION_GROUPS = [
   "templates",
   "types",
@@ -27,8 +36,8 @@ const DEFINITION_GROUPS = [
 ] as const;
 
 type FixtureManifest = {
-  contract: "mdlm-canonical-process-package-fixture@1";
-  schemaVersion: 1;
+  contract: typeof CONTRACT;
+  schemaVersion: 2;
   artifact: {
     archive: string;
     compression: "gzip -n -9";
@@ -37,23 +46,58 @@ type FixtureManifest = {
     gzipHeaderMtime: 0;
   };
   processPackage: {
-    root: ".lifecycle/process";
+    root: typeof CANONICAL_PROCESS_ROOT;
     reference: string;
     digest: string;
     definitionCount: number;
   };
   provenance: {
-    sourceTree: string;
+    loaderDigest: string;
+    cacheKey: string;
     captureCommand: string;
   };
 };
 
 export interface CanonicalProcessPackageFixtureOptions {
+  /** Directory holding `manifest.json` and the archive. Defaults to the cache entry for the current source. */
   fixtureRoot?: string;
+  /** Repository root holding `.lifecycle/process` and `src`. Defaults to the working directory. */
+  repositoryRoot?: string;
+}
+
+interface FixtureKey {
+  packageDigest: string;
+  loaderDigest: string;
+  cacheKey: string;
+}
+
+interface BuiltFixture {
+  archive: Buffer;
+  manifest: Buffer;
+}
+
+export interface CanonicalProcessPackageFixture {
+  archive: Buffer;
+  content: Buffer;
+  manifest: FixtureManifest;
+  processPackage: ProcessPackage;
+}
+
+export interface EnsuredCanonicalProcessPackageFixture {
+  fixtureRoot: string;
+  fixture: CanonicalProcessPackageFixture;
+  built: boolean;
 }
 
 function sha256(value: Uint8Array): string {
   return createHash("sha256").update(value).digest("hex");
+}
+
+function gzip(content: Buffer): Buffer {
+  return execFileSync("gzip", ["-n", "-9", "-c"], {
+    input: content,
+    maxBuffer: COMMAND_BUFFER_LIMIT,
+  });
 }
 
 function fixtureManifest(value: unknown): FixtureManifest {
@@ -63,8 +107,8 @@ function fixtureManifest(value: unknown): FixtureManifest {
   const provenance = manifest?.provenance;
   if (
     typeof manifest !== "object" || manifest === null ||
-    manifest.contract !== "mdlm-canonical-process-package-fixture@1" ||
-    manifest.schemaVersion !== 1 ||
+    manifest.contract !== CONTRACT ||
+    manifest.schemaVersion !== 2 ||
     typeof artifact !== "object" || artifact === null ||
     typeof artifact.archive !== "string" || artifact.archive === "" ||
     artifact.compression !== "gzip -n -9" ||
@@ -80,7 +124,8 @@ function fixtureManifest(value: unknown): FixtureManifest {
     !Number.isInteger(processPackage.definitionCount) ||
     processPackage.definitionCount! < 1 ||
     typeof provenance !== "object" || provenance === null ||
-    !/^[a-f0-9]{40}$/.test(provenance.sourceTree ?? "") ||
+    !/^sha256:[a-f0-9]{64}$/.test(provenance.loaderDigest ?? "") ||
+    !/^[a-f0-9]{64}$/.test(provenance.cacheKey ?? "") ||
     typeof provenance.captureCommand !== "string" ||
     provenance.captureCommand === ""
   ) {
@@ -130,18 +175,129 @@ function deepFreeze<T>(value: T): T {
   return Object.freeze(value);
 }
 
-async function readFixture(options: CanonicalProcessPackageFixtureOptions = {}): Promise<{
-  archive: Buffer;
-  content: Buffer;
-  manifest: FixtureManifest;
-  processPackage: ProcessPackage;
-}> {
-  const fixtureRoot = path.resolve(options.fixtureRoot ?? DEFAULT_FIXTURE_ROOT);
+function canonicalizeSourcePaths(value: unknown, sourceRoot: string): unknown {
+  if (typeof value === "string") {
+    if (value === sourceRoot || value.startsWith(`${sourceRoot}${path.sep}`)) {
+      return `${CANONICAL_PROCESS_ROOT}${value.slice(sourceRoot.length)}`;
+    }
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => canonicalizeSourcePaths(item, sourceRoot));
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        canonicalizeSourcePaths(item, sourceRoot),
+      ]),
+    );
+  }
+  return value;
+}
+
+/** The key covers the package, the loader source, and the locked dependencies. */
+async function fixtureKey(repositoryRoot: string): Promise<FixtureKey> {
+  const [packageDigest, loaderDigest, lockfile] = await Promise.all([
+    processPackageDigest(path.join(repositoryRoot, CANONICAL_PROCESS_ROOT)),
+    processPackageDigest(path.join(repositoryRoot, LOADER_ROOT)),
+    fs.readFile(path.join(repositoryRoot, "package-lock.json")),
+  ]);
+  return {
+    packageDigest,
+    loaderDigest,
+    cacheKey: createHash("sha256")
+      .update(`${packageDigest}\n${loaderDigest}\n${sha256(lockfile)}\n`)
+      .digest("hex"),
+  };
+}
+
+async function loadSourcePackage(repositoryRoot: string): Promise<ProcessPackage> {
+  const sourceRoot = path.join(repositoryRoot, CANONICAL_PROCESS_ROOT);
+  const loaded = await loadProcessPackage(sourceRoot);
+  if (!loaded.ok) {
+    throw new Error(
+      `Canonical Process Package failed to load: ${loaded.diagnostics
+        .map((diagnostic) => diagnostic.message)
+        .join("; ")}`,
+    );
+  }
+  return canonicalizeSourcePaths(
+    loaded.package,
+    path.resolve(sourceRoot),
+  ) as ProcessPackage;
+}
+
+async function buildFixture(
+  repositoryRoot: string,
+  key: FixtureKey,
+): Promise<BuiltFixture> {
+  const processPackage = await loadSourcePackage(repositoryRoot);
+  const content = Buffer.from(JSON.stringify(processPackage));
+  const archive = gzip(content);
+  if (
+    archive.length < 8 || archive.readUInt32LE(4) !== 0 ||
+    !gzip(content).equals(archive)
+  ) {
+    throw new Error("Canonical Process Package archive is not deterministic");
+  }
+  const manifest: FixtureManifest = {
+    contract: CONTRACT,
+    schemaVersion: 2,
+    artifact: {
+      archive: ARCHIVE_NAME,
+      compression: "gzip -n -9",
+      compressedSha256: sha256(archive),
+      contentSha256: sha256(content),
+      gzipHeaderMtime: 0,
+    },
+    processPackage: {
+      root: CANONICAL_PROCESS_ROOT,
+      reference: `${processPackage.manifest.id}@${processPackage.manifest.version}`,
+      digest: key.packageDigest,
+      definitionCount: definitionCount(processPackage),
+    },
+    provenance: {
+      loaderDigest: key.loaderDigest,
+      cacheKey: key.cacheKey,
+      captureCommand: CAPTURE_COMMAND,
+    },
+  };
+  return {
+    archive,
+    manifest: Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`),
+  };
+}
+
+/** Publish atomically; a concurrent worker that wins the rename is accepted as-is. */
+async function publishFixture(
+  fixtureRoot: string,
+  fixture: BuiltFixture,
+): Promise<void> {
+  await fs.mkdir(path.dirname(fixtureRoot), { recursive: true });
+  const stage = `${fixtureRoot}.stage-${process.pid}-${Date.now()}`;
+  await fs.mkdir(stage);
+  try {
+    await fs.writeFile(path.join(stage, ARCHIVE_NAME), fixture.archive, { flag: "wx" });
+    await fs.writeFile(path.join(stage, "manifest.json"), fixture.manifest, { flag: "wx" });
+    try {
+      await fs.rename(stage, fixtureRoot);
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "EEXIST" && code !== "ENOTEMPTY" && code !== "EPERM") throw error;
+    }
+  } finally {
+    await fs.rm(stage, { recursive: true, force: true });
+  }
+}
+
+async function readFixture(fixtureRoot: string): Promise<CanonicalProcessPackageFixture> {
+  const resolvedRoot = path.resolve(fixtureRoot);
   const manifest = fixtureManifest(JSON.parse(
-    await fs.readFile(path.join(fixtureRoot, "manifest.json"), "utf8"),
+    await fs.readFile(path.join(resolvedRoot, "manifest.json"), "utf8"),
   ));
-  const archivePath = path.resolve(fixtureRoot, manifest.artifact.archive);
-  if (!archivePath.startsWith(`${fixtureRoot}${path.sep}`)) {
+  const archivePath = path.resolve(resolvedRoot, manifest.artifact.archive);
+  if (!archivePath.startsWith(`${resolvedRoot}${path.sep}`)) {
     throw new Error("Canonical Process Package fixture archive escapes its root");
   }
   const archive = await fs.readFile(archivePath);
@@ -170,123 +326,64 @@ async function readFixture(options: CanonicalProcessPackageFixtureOptions = {}):
   };
 }
 
-const COMMAND_BUFFER_LIMIT = 64 * 1024 * 1024;
-
-function gitOutput(repositoryRoot: string, arguments_: string[]): string {
-  return execFileSync("git", arguments_, {
-    cwd: repositoryRoot,
-    encoding: "utf8",
-    maxBuffer: COMMAND_BUFFER_LIMIT,
-  }).trim();
+/** Where the cache entry for the current package and loader source lives. */
+export async function canonicalProcessPackageFixtureRoot(
+  repositoryRoot = process.cwd(),
+): Promise<string> {
+  const key = await fixtureKey(repositoryRoot);
+  return path.join(repositoryRoot, CANONICAL_FIXTURE_CACHE_ROOT, key.cacheKey);
 }
 
-function reproduceArchive(content: Buffer): Buffer {
-  return execFileSync("gzip", ["-n", "-9", "-c"], {
-    input: content,
-    maxBuffer: COMMAND_BUFFER_LIMIT,
-  });
-}
-
-function canonicalizeSourcePaths(value: unknown, sourceRoot: string): unknown {
-  if (typeof value === "string") {
-    if (value === sourceRoot || value.startsWith(`${sourceRoot}${path.sep}`)) {
-      return `${CANONICAL_PROCESS_ROOT}${value.slice(sourceRoot.length)}`;
-    }
-    return value;
-  }
-  if (Array.isArray(value)) {
-    return value.map((item) => canonicalizeSourcePaths(item, sourceRoot));
-  }
-  if (typeof value === "object" && value !== null) {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [
-        key,
-        canonicalizeSourcePaths(item, sourceRoot),
-      ]),
-    );
-  }
-  return value;
-}
-
-async function packageAtSourceTree(manifest: FixtureManifest): Promise<ProcessPackage> {
-  const repositoryRoot = gitOutput(process.cwd(), ["rev-parse", "--show-toplevel"]);
-  const sourceTree = gitOutput(repositoryRoot, [
-    "rev-parse",
-    "--verify",
-    `${manifest.provenance.sourceTree}^{tree}`,
-  ]);
-  if (sourceTree !== manifest.provenance.sourceTree) {
-    throw new Error("Source package tree does not resolve for canonical fixture");
-  }
-  const currentTree = gitOutput(repositoryRoot, [
-    "rev-parse",
-    `HEAD:${manifest.processPackage.root}`,
-  ]);
-  if (sourceTree !== currentTree) {
-    throw new Error("Source package tree mismatch for canonical fixture");
-  }
-
-  const temporaryRoot = await fs.mkdtemp(
-    path.join(os.tmpdir(), "mdlm-canonical-source-"),
-  );
+/** Read the cache entry for the current source, building it when missing or unreadable. */
+export async function ensureCanonicalProcessPackageFixture(
+  repositoryRoot = process.cwd(),
+): Promise<EnsuredCanonicalProcessPackageFixture> {
+  const key = await fixtureKey(repositoryRoot);
+  const fixtureRoot = path.join(repositoryRoot, CANONICAL_FIXTURE_CACHE_ROOT, key.cacheKey);
   try {
-    const sourceArchive = execFileSync("git", [
-      "archive",
-      "--format=tar",
-      sourceTree,
-    ], {
-      cwd: repositoryRoot,
-      maxBuffer: COMMAND_BUFFER_LIMIT,
-    });
-    execFileSync("tar", ["-x", "-C", temporaryRoot], {
-      input: sourceArchive,
-      maxBuffer: COMMAND_BUFFER_LIMIT,
-    });
-    const sourceRoot = temporaryRoot;
-    const sourceDigest = await processPackageDigest(sourceRoot);
-    if (sourceDigest !== manifest.processPackage.digest) {
-      throw new Error("Provenance Process Package digest mismatch for canonical fixture");
+    return { fixtureRoot, fixture: await readFixture(fixtureRoot), built: false };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      await fs.rm(fixtureRoot, { recursive: true, force: true });
     }
-    const loaded = await loadProcessPackage(sourceRoot);
-    if (!loaded.ok) {
-      throw new Error(
-        `Provenance Process Package failed to load: ${loaded.diagnostics
-          .map((diagnostic) => diagnostic.message)
-          .join("; ")}`,
-      );
-    }
-    return canonicalizeSourcePaths(loaded.package, sourceRoot) as ProcessPackage;
-  } finally {
-    await fs.rm(temporaryRoot, { recursive: true, force: true });
   }
+  await publishFixture(fixtureRoot, await buildFixture(repositoryRoot, key));
+  return { fixtureRoot, fixture: await readFixture(fixtureRoot), built: true };
+}
+
+async function selectedFixture(
+  options: CanonicalProcessPackageFixtureOptions,
+): Promise<CanonicalProcessPackageFixture> {
+  if (options.fixtureRoot !== undefined) return readFixture(options.fixtureRoot);
+  return (await ensureCanonicalProcessPackageFixture(options.repositoryRoot)).fixture;
 }
 
 /** Load the exact immutable canonical package without repeating YAML/schema validation. */
 export async function canonicalProcessPackage(
   options: CanonicalProcessPackageFixtureOptions = {},
 ): Promise<ProcessPackage> {
-  return (await readFixture(options)).processPackage;
+  return (await selectedFixture(options)).processPackage;
 }
 
 /**
- * Verify the declared Git source, deterministic archive bytes, and exact
- * serialized semantics against one live load supplied by the loader owner.
+ * Verify the deterministic archive bytes, the source and loader digests, and
+ * the exact serialized semantics against one live load supplied by the caller.
  */
 export async function verifyCanonicalProcessPackageFixture(
   liveProcessPackage: ProcessPackage,
   options: CanonicalProcessPackageFixtureOptions = {},
 ): Promise<{ processPackage: string; verified: true }> {
-  const fixture = await readFixture(options);
-  if (!reproduceArchive(fixture.content).equals(fixture.archive)) {
+  const repositoryRoot = options.repositoryRoot ?? process.cwd();
+  const fixture = await selectedFixture(options);
+  if (!gzip(fixture.content).equals(fixture.archive)) {
     throw new Error("Declared compression does not reproduce canonical fixture archive");
   }
-  const sourceDigest = await processPackageDigest(CANONICAL_PROCESS_ROOT);
-  if (sourceDigest !== fixture.manifest.processPackage.digest) {
+  const key = await fixtureKey(repositoryRoot);
+  if (key.packageDigest !== fixture.manifest.processPackage.digest) {
     throw new Error("Source Process Package digest mismatch for canonical fixture");
   }
-  const provenancePackage = await packageAtSourceTree(fixture.manifest);
-  if (JSON.stringify(provenancePackage) !== JSON.stringify(fixture.processPackage)) {
-    throw new Error("Provenance and serialized canonical Process Packages differ");
+  if (key.loaderDigest !== fixture.manifest.provenance.loaderDigest) {
+    throw new Error("Loader digest mismatch for canonical fixture");
   }
   const reference =
     `${liveProcessPackage.manifest.id}@${liveProcessPackage.manifest.version}`;
@@ -297,4 +394,31 @@ export async function verifyCanonicalProcessPackageFixture(
     throw new Error("Live and serialized canonical Process Packages differ");
   }
   return { processPackage: reference, verified: true };
+}
+
+/**
+ * Repository check: fail when a generated fixture artifact is tracked, then
+ * verify the cache entry for the current source against a fresh load.
+ */
+export async function checkCanonicalProcessPackageFixture(
+  repositoryRoot = process.cwd(),
+): Promise<EnsuredCanonicalProcessPackageFixture> {
+  const tracked = execFileSync(
+    "git",
+    ["ls-files", "--", TRACKED_FIXTURE_ROOT, CANONICAL_FIXTURE_CACHE_ROOT],
+    { cwd: repositoryRoot, encoding: "utf8", maxBuffer: COMMAND_BUFFER_LIMIT },
+  ).trim();
+  if (tracked !== "") {
+    throw new Error(
+      `Generated canonical Process Package fixture is tracked: ${
+        tracked.split("\n").join(", ")
+      }`,
+    );
+  }
+  const ensured = await ensureCanonicalProcessPackageFixture(repositoryRoot);
+  await verifyCanonicalProcessPackageFixture(
+    await loadSourcePackage(repositoryRoot),
+    { repositoryRoot },
+  );
+  return ensured;
 }

@@ -14,6 +14,7 @@ import { processPackageDigest } from "../src/process-package-digest.js";
 import { validateScenarioContracts } from "../src/scenario-contract.js";
 import {
   canonicalProcessPackage,
+  ensureCanonicalProcessPackageFixture,
   verifyCanonicalProcessPackageFixture,
 } from "./helpers/canonical-process-package-fixture.js";
 
@@ -63,13 +64,10 @@ describe("canonical immutable ProcessPackage fixture", () => {
 
   it("rejects artifact hash and package-digest drift", async () => {
     const temporaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-canonical-fixture-"));
+    const cachedRoot = (await ensureCanonicalProcessPackageFixture()).fixtureRoot;
     try {
       const fixtureRoot = path.join(temporaryRoot, "fixture");
-      await fs.cp(
-        path.join(process.cwd(), "test/fixtures/canonical-process-package"),
-        fixtureRoot,
-        { recursive: true },
-      );
+      await fs.cp(cachedRoot, fixtureRoot, { recursive: true });
       const manifestPath = path.join(fixtureRoot, "manifest.json");
       const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8")) as {
         artifact: { archive: string };
@@ -82,11 +80,7 @@ describe("canonical immutable ProcessPackage fixture", () => {
       );
 
       await fs.rm(fixtureRoot, { recursive: true, force: true });
-      await fs.cp(
-        path.join(process.cwd(), "test/fixtures/canonical-process-package"),
-        fixtureRoot,
-        { recursive: true },
-      );
+      await fs.cp(cachedRoot, fixtureRoot, { recursive: true });
       const driftedManifest = JSON.parse(
         await fs.readFile(path.join(fixtureRoot, "manifest.json"), "utf8"),
       ) as { processPackage: { digest: string } };
