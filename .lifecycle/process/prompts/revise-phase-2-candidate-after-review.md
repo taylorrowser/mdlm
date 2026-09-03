@@ -15,7 +15,7 @@ supplied definition member and evidence Revision except exact
 `rejected_members` and their Review evidence. Remove a rejected member, or use
 one later valid same-lineage Revision with its fresh passing Review. Do not add,
 remove, or replace unrelated membership or evidence.
-Replace every gate-rejected requirement member with its supplied
+Replace every gate-rejected DES member with its supplied
 `corrected_members` Revision and add the supplied `corrected_member_reviews` as
 fresh evidence. Never refreeze the rejected Revision.
 Record the process-significant predecessor through `supersedes`, every failed

@@ -1,12 +1,12 @@
 kind: selector-definition
 id: reviewed-gate-rejection-corrections-for-candidate-members
 version: 1
-description: Fresh reviewed same-lineage corrections for exact candidate requirement members blocked by any reviewed gate rejection.
+description: Fresh reviewed same-lineage corrections for exact candidate DES members blocked by any reviewed gate rejection.
 parameters:
   - {name: candidate, kind: baseline, types: [BSL]}
 result_kind: revision
 query:
-  from: {collection: revisions, types: [SYS, CMP, DES]}
+  from: {collection: revisions, types: [DES]}
   as: replacement
   where: >-
     state(replacement, "validity") == "valid"
