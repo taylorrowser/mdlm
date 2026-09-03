@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Throwaway ART assurance coverage model</title>
+  <style>
+    :root { --ink:#19231f; --muted:#617069; --paper:#f6f4ee; --panel:#fffdf8; --line:#d9d6cc; --accent:#176b55; --good:#176b55; --bad:#a33b32; --unknown:#8a661a; }
+    * { box-sizing: border-box; }
+    body { margin:0; color:var(--ink); background:var(--paper); font:15px/1.45 ui-sans-serif,system-ui,sans-serif; }
+    main { max-width:1180px; margin:auto; padding:34px 22px 60px; }
+    h1,h2,h3 { line-height:1.15; margin:0 0 12px; }
+    h1 { font-size:clamp(28px,4vw,46px); max-width:900px; }
+    h2 { font-size:20px; }
+    h3 { font-size:15px; }
+    p { margin:0 0 12px; }
+    code { font:13px/1.4 ui-monospace,SFMono-Regular,monospace; overflow-wrap:anywhere; }
+    .lede { max-width:900px; color:var(--muted); font-size:17px; }
+    .notice { margin:22px 0; padding:15px 18px; border-left:4px solid var(--accent); background:#eaf2ee; }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+    .panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:16px; min-width:0; }
+    .wide { grid-column:1/-1; }
+    .verdict { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin:14px 0; }
+    .verdict > div { border:1px solid var(--line); border-radius:7px; padding:13px; background:white; }
+    .status { display:inline-block; margin-top:5px; font-weight:750; text-transform:uppercase; letter-spacing:.04em; }
+    .proved { color:var(--good); } .not-proved { color:var(--bad); } .indeterminate { color:var(--unknown); }
+    .controls { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+    button { border:1px solid #9fa9a4; border-radius:6px; padding:8px 11px; color:var(--ink); background:white; cursor:pointer; text-align:left; }
+    button:hover,button:focus-visible { border-color:var(--accent); outline:2px solid transparent; box-shadow:0 0 0 2px #b8d9ce; }
+    button.primary { color:white; background:var(--accent); border-color:var(--accent); }
+    button.active { color:white; background:#273d35; border-color:#273d35; }
+    .tabs { display:flex; gap:7px; flex-wrap:wrap; border-bottom:1px solid var(--line); padding-bottom:9px; }
+    .walkthrough { margin-top:14px; }
+    .steps { display:grid; gap:8px; margin-top:12px; }
+    .step { display:flex; gap:12px; align-items:flex-start; }
+    .step span { width:24px; height:24px; flex:0 0 auto; display:grid; place-items:center; border-radius:50%; background:#e5e4dd; font-size:12px; font-weight:700; }
+    .step.done { opacity:.58; }
+    .step.current button { border-color:var(--accent); box-shadow:0 0 0 2px #d0e5dd; }
+    .list { margin:0; padding-left:19px; }
+    .list li + li { margin-top:8px; }
+    .hunk { border-left:4px solid var(--line); padding:8px 10px; margin-top:8px; background:#faf9f5; }
+    .hunk.proved { border-color:var(--good); } .hunk.not-proved { border-color:var(--bad); } .hunk.indeterminate { border-color:var(--unknown); }
+    .chain { margin-top:10px; padding-top:10px; border-top:1px solid var(--line); }
+    .chain:first-of-type { border-top:0; padding-top:0; }
+    .ancestry { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:7px; }
+    .ancestry span { border:1px solid var(--line); border-radius:5px; padding:3px 7px; background:white; font:12px ui-monospace,monospace; }
+    .muted { color:var(--muted); }
+    .changed { margin:8px 0 0; padding:8px 10px; background:#fff5cd; border-radius:5px; }
+    @media (max-width:760px) { .grid,.verdict { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Can one derived ART report tell proof from missing proof?</h1>
+  <p class="lede">This throwaway demo asks whether <code>mdlm assurance coverage &lt;ART-revision&gt; --json</code> can keep code trace proof, behavioral verification proof, and indeterminate evidence distinct, using existing Git and Lifecycle Data only.</p>
+  <div class="notice"><strong>Question under test.</strong> Does the proposed state and result model remain honest across exact frozen Pi227 evidence, a synthetic current-contract pass, and an ambiguous change set?</div>
+
+  <section class="panel wide">
+    <h2>Guided walkthroughs</h2>
+    <div class="tabs" id="tabs"></div>
+    <div class="walkthrough" id="walkthrough"></div>
+  </section>
+
+  <section class="panel wide" style="margin-top:14px">
+    <h2>Free play</h2>
+    <p class="muted">Change one proof input at a time. Every action recomputes the entire report.</p>
+    <div class="controls" id="free-play"></div>
+    <p class="changed" id="last-change">No input changed yet.</p>
+  </section>
+
+  <section style="margin-top:20px">
+    <h2>Current projection</h2>
+    <div class="verdict" id="verdict"></div>
+    <div class="grid">
+      <div class="panel"><h3>Artifact and diff scope</h3><div id="artifact"></div></div>
+      <div class="panel"><h3>Diagnostics</h3><div id="diagnostics"></div></div>
+      <div class="panel wide"><h3>Changed hunks and mappings</h3><div id="hunks"></div></div>
+      <div class="panel wide"><h3>Requirement ancestry</h3><div id="ancestry"></div></div>
+      <div class="panel wide"><h3>VER / VAI / RUN / RES comparison</h3><div id="chains"></div></div>
+    </div>
+  </section>
+</main>
+
+<!-- Pure projection module. It knows nothing about the page or button state. -->
+<script>
+const AssuranceCoverageProjection = (() => {
+  const rank = { "proved": 0, "indeterminate": 1, "not-proved": 2 };
+  const worst = statuses => statuses.reduce((a, b) => rank[b] > rank[a] ? b : a, "proved");
+  const equal = (left, right) => JSON.stringify(left) === JSON.stringify(right);
+
+  function projectTrace(input, diagnostics) {
+    const diffIsExact = Boolean(input.artifact.baseCommit) || input.artifact.commitCount === 1;
+    if (!diffIsExact) diagnostics.push({ code:"diff-base-unknown", dimension:"code-trace", message:"ART does not identify a predecessor for its multi-commit change set." });
+
+    const hunks = input.artifact.changedHunks.map(hunk => {
+      if (!diffIsExact) return { ...hunk, status:"indeterminate", reason:"The changed hunk set cannot be derived exactly without a base commit." };
+      if (hunk.production === null) return { ...hunk, status:"indeterminate", reason:"Lifecycle Data does not establish whether this path is production code." };
+      if (!hunk.production) return { ...hunk, status:"proved", reason:"This hunk is explicitly classified as non-production and is outside production trace coverage." };
+      if (!hunk.designRevisions.length) {
+        diagnostics.push({ code:"unmapped-production-hunk", dimension:"code-trace", message:`${hunk.path}:${hunk.lines} has no exact DES mapping.` });
+        return { ...hunk, status:"not-proved", reason:"A changed production hunk has no exact design mapping." };
+      }
+      const ancestry = hunk.designRevisions.map(id => input.requirementAncestry[id]);
+      if (ancestry.some(path => !path || ["DES","CMP","SYS","STK"].some(type => !path[type]))) {
+        diagnostics.push({ code:"requirement-ancestry-incomplete", dimension:"code-trace", message:`${hunk.path}:${hunk.lines} does not reach an exact STK Revision through DES, CMP, and SYS.` });
+        return { ...hunk, status:"not-proved", reason:"At least one mapped DES lacks complete exact requirement ancestry." };
+      }
+      return { ...hunk, status:"proved", reason:"Every changed production hunk maps through exact DES, CMP, SYS, and STK Revisions." };
+    });
+    return { status:worst(hunks.map(h => h.status)), hunks };
+  }
+
+  function projectVerification(input, diagnostics) {
+    const chains = input.verificationChains.map(chain => {
+      const notes = [];
+      let status = "proved";
+      if (!chain.ver || !chain.vai || !chain.run || !chain.res) {
+        status = "not-proved";
+        notes.push("The VER, VAI, RUN, and RES chain is incomplete.");
+      } else {
+        if (chain.run.runnerRef !== chain.vai.implementationRef) {
+          status = "not-proved";
+          notes.push("RUN runner_ref does not equal the exact VAI implementation_ref.");
+        }
+        if (!chain.ver.expectedObservations || !chain.run.actualObservations) {
+          status = "not-proved";
+          notes.push("Structured expected or actual observations are absent.");
+        } else if (!equal(chain.ver.expectedObservations, chain.run.actualObservations)) {
+          status = "not-proved";
+          notes.push("RUN actual observations differ from reviewed VER expected observations.");
+        }
+        if (chain.res.outcome !== "pass") {
+          status = "not-proved";
+          notes.push(`RES outcome is ${chain.res.outcome}, not pass.`);
+        }
+        if (chain.res.requirementRevision !== chain.requirementRevision) {
+          status = "not-proved";
+          notes.push("RES does not apply to this exact requirement Revision.");
+        }
+      }
+      if (status !== "proved") diagnostics.push({ code:"behavioral-proof-failed", dimension:"behavioral-verification", message:`${chain.requirementRevision}: ${notes.join(" ")}` });
+      return { ...chain, status, notes:notes.length ? notes : ["Exact identities, observations, outcome, and applicability agree."] };
+    });
+    return { status:worst(chains.map(c => c.status)), chains };
+  }
+
+  function projectAssuranceCoverage(input) {
+    const diagnostics = [];
+    const codeTrace = projectTrace(input, diagnostics);
+    const behavioralVerification = projectVerification(input, diagnostics);
+    const overall = worst([codeTrace.status, behavioralVerification.status]);
+    return {
+      contract:"mdlm-art-assurance-coverage@prototype-1",
+      subject:input.artifact.revision,
+      codeTrace,
+      behavioralVerification,
+      overall,
+      diagnostics
+    };
+  }
+
+  return Object.freeze({ projectAssuranceCoverage });
+})();
+</script>
+
+<!-- Disposable page wiring. -->
+<script>
+const clone = value => JSON.parse(JSON.stringify(value));
+const observations = { "four-tabs":{ stdout:"4\\n", stderr:"", exit:0 }, "empty":{ stdout:"0\\n", stderr:"", exit:0 }, "one-tab":{ stdout:"1\\n", stderr:"", exit:0 } };
+const piAncestry = {
+  "DES-NMV96RW7GC-r00001": { DES:"DES-NMV96RW7GC-r00001", CMP:"CMP-CMZQ9R3G7B-r00001", SYS:"SYS-1BMBQ25ZR2-r00001", STK:"STK-ME8G2EKTT5-r00001" },
+  "DES-XTZBN1FPG4-r00001": { DES:"DES-XTZBN1FPG4-r00001", CMP:"CMP-JBXNYGBBFP-r00001", SYS:"SYS-KQ328E8T70-r00001", STK:"STK-PKMM9PJ1N2-r00001" }
+};
+
+const cases = {
+  pi227: {
+    label:"1. Frozen Pi227",
+    description:"Exact historical evidence. The code trace is proved. Behavioral verification is not proved because the old RUN disagrees with its VAI identity and lacks current structured actual observations.",
+    source:"Frozen lifecycle 9a984ad / product 0ef2700",
+    input:{
+      artifact:{ revision:"ART-SWTWMBP4RW-r00001", commit:"0ef2700db2e25eb368c9022ab28ba2bfc4ec389d", baseCommit:null, commitCount:1, changedHunks:[{ path:"tabcount.py", lines:"1-19", production:true, designRevisions:["DES-NMV96RW7GC-r00001","DES-XTZBN1FPG4-r00001"] }] },
+      requirementAncestry:piAncestry,
+      verificationChains:[{ requirementRevision:"DES-NMV96RW7GC-r00001", ver:{ revision:"VER-Q36SHRWH1P-r00001", expectedObservations:null }, vai:{ revision:"VAI-WY0RP2C6S6-r00001", implementationRef:"4884…", procedureDigest:"historical embedded procedure" }, run:{ revision:"RUN-700E30MBA1-r00001", runnerRef:"017d…", actualObservations:null }, res:{ revision:"RES-5BNMFRMGCR-r00001", outcome:"pass", requirementRevision:"DES-NMV96RW7GC-r00001" } }]
+    }
+  },
+  happy: {
+    label:"2. Synthetic current-contract pass",
+    description:"Clearly synthetic evidence shaped like the current contract. Every production hunk maps to exact ancestry, the RUN uses the VAI identity, observations match, and RES applies exactly.",
+    source:"Synthetic current-contract fixture, not historical Lifecycle Data",
+    input:{
+      artifact:{ revision:"ART-SYNTHETIC-r00001", commit:"1111111", baseCommit:"0000000", commitCount:1, changedHunks:[{ path:"src/tabcount.ts", lines:"4-18", production:true, designRevisions:["DES-SYNTHETIC-r00001"] },{ path:"README.md", lines:"2-6", production:false, designRevisions:[] }] },
+      requirementAncestry:{ "DES-SYNTHETIC-r00001":{ DES:"DES-SYNTHETIC-r00001", CMP:"CMP-SYNTHETIC-r00001", SYS:"SYS-SYNTHETIC-r00001", STK:"STK-SYNTHETIC-r00001" } },
+      verificationChains:[{ requirementRevision:"DES-SYNTHETIC-r00001", ver:{ revision:"VER-SYNTHETIC-r00001", expectedObservations:observations }, vai:{ revision:"VAI-SYNTHETIC-r00001", implementationRef:"sha256:runner-bytes", procedureDigest:"sha256:procedure-bytes" }, run:{ revision:"RUN-SYNTHETIC-r00001", runnerRef:"sha256:runner-bytes", actualObservations:observations }, res:{ revision:"RES-SYNTHETIC-r00001", outcome:"pass", requirementRevision:"DES-SYNTHETIC-r00001" } }]
+    }
+  },
+  ambiguous: {
+    label:"3. Ambiguous change set",
+    description:"A multi-commit ART lacks an exact base, and one production hunk has no DES mapping. The report must expose uncertainty and missing proof instead of manufacturing coverage.",
+    source:"Synthetic negative contract probe",
+    input:{
+      artifact:{ revision:"ART-AMBIGUOUS-r00001", commit:"3333333", baseCommit:null, commitCount:3, changedHunks:[{ path:"src/parser.ts", lines:"20-38", production:true, designRevisions:["DES-SYNTHETIC-r00001"] },{ path:"src/format.ts", lines:"7-12", production:true, designRevisions:[] }] },
+      requirementAncestry:{ "DES-SYNTHETIC-r00001":{ DES:"DES-SYNTHETIC-r00001", CMP:"CMP-SYNTHETIC-r00001", SYS:"SYS-SYNTHETIC-r00001", STK:"STK-SYNTHETIC-r00001" } },
+      verificationChains:[{ requirementRevision:"DES-SYNTHETIC-r00001", ver:{ revision:"VER-SYNTHETIC-r00001", expectedObservations:observations }, vai:{ revision:"VAI-SYNTHETIC-r00001", implementationRef:"sha256:runner-bytes", procedureDigest:"sha256:procedure-bytes" }, run:{ revision:"RUN-SYNTHETIC-r00001", runnerRef:"sha256:runner-bytes", actualObservations:observations }, res:{ revision:"RES-SYNTHETIC-r00001", outcome:"pass", requirementRevision:"DES-SYNTHETIC-r00001" } }]
+    }
+  }
+};
+
+const actions = {
+  reset:{ label:"Reset selected case", apply:(_, key) => clone(cases[key].input) },
+  exactBase:{ label:"Supply an exact diff base", apply:s => { s.artifact.baseCommit="0000000"; return s; } },
+  mapHunks:{ label:"Map every production hunk", apply:s => { s.artifact.changedHunks.forEach(h => { if (h.production && !h.designRevisions.length) h.designRevisions=[Object.keys(s.requirementAncestry)[0]]; }); return s; } },
+  alignRunner:{ label:"Bind RUN to VAI identity", apply:s => { s.verificationChains.forEach(c => c.run.runnerRef=c.vai.implementationRef); return s; } },
+  addObservations:{ label:"Add matching structured observations", apply:s => { s.verificationChains.forEach(c => { c.ver.expectedObservations=clone(observations); c.run.actualObservations=clone(observations); }); return s; } },
+  mismatch:{ label:"Introduce observation mismatch", apply:s => { s.verificationChains.forEach(c => { c.run.actualObservations=clone(observations); c.run.actualObservations["one-tab"].stdout="2\\n"; }); return s; } },
+  unmap:{ label:"Remove a production mapping", apply:s => { const h=s.artifact.changedHunks.find(x => x.production); if(h) h.designRevisions=[]; return s; } }
+};
+
+const walkthroughs = {
+  pi227:[{ action:"reset", label:"Load exact frozen Pi227 projection" },{ action:"alignRunner", label:"Repair only the runner identity" },{ action:"addObservations", label:"Add current structured expected and actual observations" }],
+  happy:[{ action:"reset", label:"Load the synthetic current-contract evidence" },{ action:"mismatch", label:"Change one captured value and watch only behavioral proof fail" }],
+  ambiguous:[{ action:"reset", label:"Load the ambiguous multi-commit ART" },{ action:"exactBase", label:"Supply the missing exact diff base" },{ action:"mapHunks", label:"Map the remaining production hunk" }]
+};
+
+let selected="pi227", state=clone(cases.pi227.input), step=0, lastChange="Loaded frozen Pi227 evidence.";
+const el=id => document.getElementById(id);
+const esc=value => String(value).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const badge=status => `<span class="status ${status}">${esc(status)}</span>`;
+
+function dispatch(actionKey, guided=false) {
+  state=actions[actionKey].apply(clone(state), selected);
+  lastChange=actions[actionKey].label;
+  if (guided) step++;
+  render();
+}
+
+function selectCase(key) {
+  selected=key; state=clone(cases[key].input); step=0; lastChange=`Loaded ${cases[key].label}.`; render();
+}
+
+function render() {
+  const report=AssuranceCoverageProjection.projectAssuranceCoverage(state);
+  el("tabs").innerHTML=Object.entries(cases).map(([key,c]) => `<button class="${key===selected?"active":""}" data-case="${key}">${esc(c.label)}</button>`).join("");
+  const steps=walkthroughs[selected];
+  el("walkthrough").innerHTML=`<p><strong>${esc(cases[selected].source)}</strong></p><p>${esc(cases[selected].description)}</p><div class="steps">${steps.map((s,i) => `<div class="step ${i<step?"done":i===step?"current":""}"><span>${i+1}</span><button data-step="${i}" data-action="${s.action}" ${i!==step?"disabled":""}>${esc(s.label)}</button></div>`).join("")}</div>`;
+  el("free-play").innerHTML=Object.entries(actions).map(([key,a]) => `<button class="${key==="reset"?"primary":""}" data-action="${key}">${esc(a.label)}</button>`).join("");
+  el("last-change").textContent=lastChange;
+  el("verdict").innerHTML=`<div><div>Code trace proof</div>${badge(report.codeTrace.status)}</div><div><div>Behavioral verification proof</div>${badge(report.behavioralVerification.status)}</div><div><div>Final assurance verdict</div>${badge(report.overall)}</div>`;
+  el("artifact").innerHTML=`<p><code>${esc(state.artifact.revision)}</code></p><p>Commit <code>${esc(state.artifact.commit)}</code></p><p>Base ${state.artifact.baseCommit?`<code>${esc(state.artifact.baseCommit)}</code>`:"not recorded"}</p><p>${state.artifact.commitCount} commit${state.artifact.commitCount===1?"":"s"} in claimed change set</p>`;
+  el("diagnostics").innerHTML=report.diagnostics.length?`<ul class="list">${report.diagnostics.map(d => `<li><code>${esc(d.code)}</code><br>${esc(d.message)}</li>`).join("")}</ul>`:"<p>No diagnostic. Both proof dimensions have sufficient, matching inputs.</p>";
+  el("hunks").innerHTML=report.codeTrace.hunks.map(h => `<div class="hunk ${h.status}"><code>${esc(h.path)}:${esc(h.lines)}</code> ${badge(h.status)}<br>${esc(h.reason)}<br><span class="muted">Mapped DES: ${h.designRevisions.length?h.designRevisions.map(esc).join(", "):"none"}</span></div>`).join("");
+  const used=[...new Set(report.codeTrace.hunks.flatMap(h => h.designRevisions))];
+  el("ancestry").innerHTML=used.length?used.map(id => { const a=state.requirementAncestry[id]; return `<div class="ancestry">${a?[a.DES,a.CMP,a.SYS,a.STK].map(x=>`<span>${esc(x)}</span>`).join(" → "):`<span>${esc(id)}</span> → missing ancestry`}</div>`; }).join(""):"<p>No mapped design Revision reaches requirement ancestry.</p>";
+  el("chains").innerHTML=report.behavioralVerification.chains.map(c => `<div class="chain"><p><code>${esc(c.requirementRevision)}</code> ${badge(c.status)}</p><p><code>${esc(c.ver?.revision||"VER missing")}</code> → <code>${esc(c.vai?.revision||"VAI missing")}</code> → <code>${esc(c.run?.revision||"RUN missing")}</code> → <code>${esc(c.res?.revision||"RES missing")}</code></p><p>VAI implementation ref: <code>${esc(c.vai?.implementationRef||"missing")}</code><br>RUN runner ref: <code>${esc(c.run?.runnerRef||"missing")}</code><br>Structured expected observations: ${c.ver?.expectedObservations?Object.keys(c.ver.expectedObservations).length:"missing"}<br>Structured actual observations: ${c.run?.actualObservations?Object.keys(c.run.actualObservations).length:"missing"}<br>RES outcome and target: <code>${esc(c.res?.outcome||"missing")}</code> for <code>${esc(c.res?.requirementRevision||"missing")}</code></p><ul class="list">${c.notes.map(n=>`<li>${esc(n)}</li>`).join("")}</ul></div>`).join("");
+
+  document.querySelectorAll("[data-case]").forEach(b => b.onclick=()=>selectCase(b.dataset.case));
+  document.querySelectorAll("#free-play [data-action]").forEach(b => b.onclick=()=>dispatch(b.dataset.action));
+  document.querySelectorAll("[data-step]:not([disabled])").forEach(b => b.onclick=()=>dispatch(b.dataset.action,true));
+}
+render();
+</script>
+</body>
+</html>
