@@ -498,7 +498,7 @@ it("projects fixed pilot RUN fields through author-only submission", async () =>
       }],
       completionEvidence: { summary: "Executed both exact controls." },
     };
-    const changed = structuredClone(authorValues);
+    const changed: Json = structuredClone(authorValues);
     changed.outputs[0].payload.runner_ref = `procedure:sha256:${"2".repeat(64)}`;
     const rejected = mdlmWithInput(
       repository,
