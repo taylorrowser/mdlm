@@ -163,6 +163,7 @@ async function gateCorrectionPackage(parent: string): Promise<string> {
   ] as [string, unknown][]) {
     await fs.writeFile(path.join(root, relative), stringify(value));
   }
+  await fs.rm(path.join(root, "selectors/completions-for-level-candidate.yaml"));
   await fs.writeFile(
     path.join(root, "prompts/seed-phase-2-gate-candidate.md"),
     "---\nid: seed-phase-2-gate-candidate\nversion: 1\nscenario: seed-phase-2-gate-candidate\n---\n\n# Seed the exact candidate\n",

@@ -39,6 +39,10 @@ async function installPilotControlAssignment(packageRoot: string): Promise<void>
   ].join(" && ");
   scenario.prohibited_inputs = [];
   await fs.writeFile(scenarioPath, stringify(scenario));
+  await fs.rm(path.join(
+    packageRoot,
+    "selectors/product-intent-questions-from-initial-map.yaml",
+  ));
 }
 
 function exactObservation(exitStatus: number) {
