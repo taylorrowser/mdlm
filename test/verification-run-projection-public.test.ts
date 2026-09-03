@@ -513,6 +513,19 @@ it("projects fixed pilot RUN fields through author-only submission", async () =>
       })]),
     });
 
+    const falseSuitable = structuredClone(authorValues);
+    const falseSuitableRun = falseSuitable.outputs.find(
+      (output: Json) => output.slot === "run",
+    );
+    expect(falseSuitableRun).toBeDefined();
+    falseSuitableRun!.payload!.control_observations!.known_good!.stdout!.bytes = "WA==";
+    const falseSuitableResult = mdlmWithInput(
+      repository,
+      `${JSON.stringify(falseSuitable)}\n`,
+      "assignment", "submit-proposal", "-", "--json",
+    );
+    expect(falseSuitableResult.status).toBe(1);
+
     const accepted = mdlmWithInput(
       repository,
       `${JSON.stringify(authorValues)}\n`,
