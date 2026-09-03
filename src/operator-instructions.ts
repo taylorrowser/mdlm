@@ -60,6 +60,7 @@ export function operatorInstructions(
       action: "execute-assignment",
       disposition: "continuation",
       commands: [
+        "mdlm assignment response --json > .lifecycle/work/assignment-response.json",
         "mdlm scenario submit <response-file> --json",
         "mdlm doctor --json",
         "mdlm next --json",
@@ -75,6 +76,7 @@ export function operatorInstructions(
       action: "obtain-attention",
       disposition: "continuation",
       commands: [
+        "mdlm assignment response --json > .lifecycle/work/assignment-response.json",
         `mdlm scenario submit <response-file>${authority ? ` --authority ${authority}` : ""} --json`,
         "mdlm doctor --json",
         "mdlm next --json",

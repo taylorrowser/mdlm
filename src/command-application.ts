@@ -77,6 +77,7 @@ import {
 } from "./operator-instructions.js";
 import {
   claimNextWork,
+  inspectActiveAssignmentResponseScaffold,
   inspectAssignmentState,
   inspectOperatorStatus,
   inspectSubmissionSettlement,
@@ -217,6 +218,7 @@ interface CommandResultBase {
   baselineDiff?: BaselineDiff;
   baselineRepositoryVerification?: BaselineRepositoryVerification;
   execution?: ScenarioExecution;
+  responseScaffold?: AssignmentPacket["responseScaffold"];
   responseDigest?: string;
   settlement?: Extract<SubmissionOutcome, { outcome: "accepted" | "settlement-required" }>["settlement"];
   receipt?: Extract<SubmissionOutcome, { outcome: "accepted" }>["receipt"];
@@ -241,6 +243,7 @@ Agent-guided lifecycle commands:
   mdlm init <destination>
   mdlm start [--json]
   mdlm next [--json]
+  mdlm assignment response [--json]
   mdlm scenario submit [response-file|-] [--authority <authority-id>] [--json]
   mdlm scenario settlement <assignment-or-execution-id> [--json]
   mdlm doctor [--json]`;
@@ -1297,6 +1300,24 @@ async function showAssignmentState(
       };
 }
 
+async function showActiveAssignmentResponse(
+  repositoryRoot: string,
+): Promise<CommandResult> {
+  const inspected = await inspectActiveAssignmentResponseScaffold(repositoryRoot);
+  return inspected.ok
+    ? {
+        ok: true,
+        command: "assignment.response",
+        responseScaffold: inspected.value,
+        diagnostics: [],
+      }
+    : {
+        ok: false,
+        command: "assignment.response",
+        diagnostics: inspected.diagnostics,
+      };
+}
+
 async function submitExactAssignment(
   repositoryRoot: string,
   responsePath: string | undefined,
@@ -2102,6 +2123,18 @@ async function dispatchCommand(
           contract: "mdlm-assignment-state@1",
         };
   }
+  if (operands[0] === "assignment" && operands[1] === "response") {
+    const responseArguments = arguments_.filter((argument) => argument !== "--json");
+    return responseArguments.length === 2
+      ? showActiveAssignmentResponse(repositoryRoot)
+      : {
+          ...failure(
+            "assignment-response-arguments-invalid",
+            "Expected 'mdlm assignment response' without operands",
+          ),
+          command: "assignment.response",
+        };
+  }
   if (operands[0] === "scenario" && operands[1] === "submit") {
     const submitArguments = operands;
     return submitArguments.length <= 3 &&
@@ -2233,7 +2266,10 @@ async function executeCommand(
   }
   return {
     exitCode: result.ok ? 0 : 1,
-    output: `${arguments_.includes("--json") ||
+    output: `${result.ok && result.command === "assignment.response" &&
+        result.responseScaffold
+      ? JSON.stringify(result.responseScaffold, null, 2)
+      : arguments_.includes("--json") ||
         (result.contract && arguments_[0] !== "status" &&
           arguments_[0] !== "start") ||
         arguments_[0] === "next" ||
