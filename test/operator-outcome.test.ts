@@ -598,7 +598,6 @@ describe("public mdlm outcome and status seam", () => {
     const obligation = parse(await fs.readFile(obligationPath, "utf8"));
     obligation.satisfied_when = "false";
     await fs.writeFile(obligationPath, stringify(obligation));
-    await fs.rm(path.join(processRoot, "selectors/terminal-evidence.yaml"));
 
     const phasePath = path.join(processRoot, "phases/phase-0-terminal.yaml");
     const phase = parse(await fs.readFile(phasePath, "utf8"));

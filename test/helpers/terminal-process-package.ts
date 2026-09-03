@@ -178,7 +178,7 @@ export async function terminalProcessPackage(
     status_rules: [{
       status: "ready",
       priority: 1,
-      when: "true",
+      when: 'none("terminal-evidence@1", {})',
       reason: "The fixture would record one generic item if unsatisfied.",
     }],
     default_status: "ready",
