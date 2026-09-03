@@ -434,7 +434,7 @@ be combined with `identity_from`.
 
 An output `required_payload` maps payload paths to exact values. A value may use
 `$input.<name>.revision_id` for one exact Revision input or
-`$input.<name>.payload.<path>` for a scalar in that input's payload. Assignment
+`$input.<name>.payload.<path>` for a scalar or scalar array in that input's payload. Assignment
 preparation projects the bound value into the response scaffold, and submission
 rejects a different value before evaluating the Scenario completion expression.
 

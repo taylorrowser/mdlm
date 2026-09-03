@@ -69,7 +69,8 @@ completion: >-
         && implementation.payload.target_behavior.supported == target.payload.supported_behavior
         && implementation.payload.target_behavior.intentionally_unsupported == target.payload.unsupported_behavior
         && (!present(target.payload.prototype_controls)
-          || (implementation.payload.prototype_control_bindings.activity_ref
+          || (implementation.payload.activity_bindings == ["known_good", "known_bad"]
+          && implementation.payload.prototype_control_bindings.activity_ref
             == target.payload.prototype_controls.activity_ref
           && implementation.payload.prototype_control_bindings.known_good.argv
             == target.payload.prototype_controls.known_good.argv

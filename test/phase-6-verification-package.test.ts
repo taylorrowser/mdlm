@@ -44,12 +44,12 @@ it("blocks sibling formal runs after a reported Phase 6 product failure", async 
       formal_evidence_eligible: true,
     },
     assessment_state: "recorded",
-  }, "execute-verification-run@2");
+  }, "execute-formal-verification-run@1");
   const failingRun = record("RUN", "RUN-5940000001", {
     title: "Completed formal run",
     kind: "formal",
     execution_state: "completed",
-  }, "execute-verification-run@2", [{
+  }, "execute-formal-verification-run@1", [{
     type: "produces",
     target: failingResult.datum.revision_id,
   }]);
@@ -73,7 +73,7 @@ it("blocks sibling formal runs after a reported Phase 6 product failure", async 
     dependencyComparisons: [],
   });
   const siblingRun = evaluation.obligations.find((item) =>
-    item.obligation === "verification-run-required" &&
+    item.obligation === "formal-verification-run-required" &&
     item.subject === siblingImplementation.datum.revision_id
   );
 

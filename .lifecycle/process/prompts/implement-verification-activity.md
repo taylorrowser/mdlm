@@ -30,7 +30,8 @@ For pilot work, when the ART supplies `prototype_controls`, bind the exact known
 known-bad argv without rewriting either command. Apply the same reviewed VER to
 both. The known-good control must be expected to pass, and the one-fault
 known-bad control must be expected to fail. Record both exact bindings in
-`prototype_control_bindings`. Preserve the bare `PATH`-resolved executable name
+`prototype_control_bindings`, and set `activity_bindings` to exactly
+`["known_good", "known_bad"]`. Preserve the bare `PATH`-resolved executable name
 in argv position zero. Never replace it with an absolute or relative host path.
 Copy the supplied ART's `supported_behavior` array exactly into
 `target_behavior.supported`, and copy its `unsupported_behavior` array exactly

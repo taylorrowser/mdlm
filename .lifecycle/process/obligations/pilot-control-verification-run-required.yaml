@@ -1,9 +1,9 @@
 kind: obligation-definition
-id: verification-run-required
-version: 2
-description: Pilot implementations require their existing bounded execution evidence.
+id: pilot-control-verification-run-required
+version: 1
+description: Prototype-control pilot implementations require their bounded control execution evidence.
 phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition]
-for_each: 'select("pilot-verification-implementations-requiring-run@1", {})'
+for_each: 'select("pilot-control-verification-implementations-requiring-run@1", {})'
 subject_as: implementation
 satisfied_when: 'exists("exercised-pilot-runs-for-implementation@2", {implementation: implementation})'
 status_rules:
@@ -62,10 +62,10 @@ status_rules:
   - status: ready
     priority: 100
     when: 'true'
-    reason: Exact activity, environment, target, and independence provenance permit a bounded pilot execution when no accepted unfavorable result requires correction.
+    reason: Exact activity, environment, target, and independence provenance permit a bounded prototype-control execution.
 default_status: blocked
 resolve_with:
-  scenario: execute-verification-run@2
+  scenario: execute-pilot-control-verification-run@1
   inputs:
     implementation: implementation
     activity: 'one("verification-activities-for-implementation@1", {implementation: implementation})'

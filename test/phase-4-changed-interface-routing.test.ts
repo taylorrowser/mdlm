@@ -224,7 +224,7 @@ it("runs Phase 4 ENV qualification before materializing its Review Context", asy
     item.subject === environment.datum.revision_id
   );
   const qualificationRun = postEnvironment.looseEnds.find((item) =>
-    item.obligation === "verification-run-required" &&
+    item.obligation === "qualification-verification-run-required" &&
     item.subject === qualificationImplementation.datum.revision_id
   );
 
@@ -235,6 +235,6 @@ it("runs Phase 4 ENV qualification before materializing its Review Context", asy
   expect(qualificationRun).toEqual(expect.objectContaining({
     status: "ready",
     dispatchable: true,
-    actionableResolver: "execute-verification-run@2",
+    actionableResolver: "execute-qualification-verification-run@1",
   }));
 });
