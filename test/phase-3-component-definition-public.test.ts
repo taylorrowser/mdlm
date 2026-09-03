@@ -620,6 +620,16 @@ function publishFormalActivity(repository: string): string {
       evidence_requirements: ["Retain the authored claim judgment."],
       expected_success_activity: "The claim is supported.",
       expected_discrimination_activity: "A contradictory claim is rejected.",
+      expected_observations: {
+        "exact-formal-claim": {
+          stdin_base64: "",
+          stdout_base64: "",
+          stderr_base64: "",
+          exit_status: 0,
+          timed_out: false,
+          truncated: false,
+        },
+      },
     },
     body: "One source-blind formal verification specification.\n",
   }]);
@@ -746,6 +756,9 @@ function formalExecutionOutputs(
         activities_expected: [activity.identity.revision_id],
         activities_invoked: completed ? [activity.identity.revision_id] : [],
         evidence_locations: [`inline:formal-${index}`],
+        actual_observations: completed
+          ? structuredClone(activity.data.payload.expected_observations)
+          : {},
       },
       body: "One immutable exact formal execution manifest.\n",
     },
