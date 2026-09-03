@@ -51,7 +51,10 @@ import {
   type ScenarioExecution,
   type ScenarioProposal,
 } from "./scenario-execution.js";
-import { scenarioInputRevisionReference } from "./scenario-payload-reference.js";
+import {
+  scenarioInputPayloadReference,
+  scenarioInputRevisionReference,
+} from "./scenario-payload-reference.js";
 import { selectedRepositoryPackage } from "./selected-package.js";
 import type { PackageSummary } from "./repository-contract.js";
 import { withRepositoryLock } from "./repository-lock.js";
@@ -2841,10 +2844,17 @@ function assignmentResponseSkeleton(
             ? responseHandle(invocationIndex, target.handle)
             : output;
         },
-        (inputName) => {
-          const identity = invocation.inputs.find((input) =>
-            input.name === inputName
-          )?.values[0]?.identity;
+        (inputName, payloadPath) => {
+          const input = invocation.inputs.find((candidate) =>
+            candidate.name === inputName
+          )?.values[0];
+          if (payloadPath) {
+            return payloadPath.split(".").reduce<unknown>(
+              (current, segment) => object(current)?.[segment],
+              input?.data.payload,
+            );
+          }
+          const identity = input?.identity;
           return identity?.revision_id;
         },
       ) as Record<string, unknown>;
@@ -2971,17 +2981,20 @@ function publicPayloadReferences(
 function publicRequiredPayloadReferences(
   requiredPayload: Record<string, unknown>,
   outputHandle: (output: string) => string = (output) => output,
-  inputRevision: (input: string) => unknown = (input) => ({
-    input,
-    identity: "revision_id",
-  }),
+  inputValue: (input: string, payloadPath?: string) => unknown =
+    (input, payloadPath) => payloadPath
+      ? { input, payload: payloadPath }
+      : { input, identity: "revision_id" },
 ): Record<string, unknown> {
   return Object.fromEntries(Object.entries(requiredPayload).map(([path, value]) => {
     const inputName = scenarioInputRevisionReference(value);
+    const inputPayload = scenarioInputPayloadReference(value);
     return [
       path,
       inputName
-        ? inputRevision(inputName)
+        ? inputValue(inputName)
+        : inputPayload
+        ? inputValue(inputPayload.input, inputPayload.path)
         : publicPayloadReferences(value, outputHandle),
     ];
   }));
