@@ -1235,7 +1235,11 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
     ]);
     commit(repository, "Implement component pilot");
     const implementation = publication(implementationResult, "implementation");
-    const runPacket = nextAfterReviews(repository, "execute-verification-run@2", reviews);
+    const runPacket = nextAfterReviews(
+      repository,
+      "execute-pilot-control-verification-run@1",
+      reviews,
+    );
     const observation = (control: string, argv: string[], exit_status: number) => ({ artifact_ref: target, control, activity_ref: pilotActivity, argv, working_directory: "fresh-temporary-directory", stdin: { encoding: "base64", bytes: "" }, stdout: { encoding: "base64", bytes: "" }, stderr: { encoding: "base64", bytes: "" }, exit_status, timed_out: false, truncated: false });
     const runResult = submit(repository, runPacket, [
       { output: "run", payload: { title: "Component pilot run", kind: "pilot", started_at: "2026-08-31T00:00:02Z", completed_at: "2026-08-31T00:00:03Z", execution_state: "completed", execution_target: { kind: "prototype", ref: target }, runner_ref: `procedure:sha256:${"2".repeat(64)}`, configuration_refs: [implementation], activities_expected: ["known_good", "known_bad"], activities_invoked: ["known_good", "known_bad"], evidence_locations: ["inline:pilot"], control_observations: { known_good: observation("known_good", ["node", "-e", "process.exit(0)"], 0), known_bad: observation("known_bad", ["node", "-e", "process.exit(2)"], 2) } }, body: "One immutable pilot run.\n" },

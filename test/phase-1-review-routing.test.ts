@@ -346,20 +346,20 @@ describe("Phase 1 review routing", () => {
     };
     const evaluation = evaluateLifecycle(loaded.package, snapshot);
     const obligation = evaluation.obligations.find((item) =>
-      item.obligation === "verification-run-required" &&
+      item.obligation === "qualification-verification-run-required" &&
       item.subject === implementation.datum.revision_id
     );
     expect(obligation).toEqual(expect.objectContaining({
       status: "ready",
       dispatchable: true,
-      actionableResolver: "execute-verification-run@2",
+      actionableResolver: "execute-qualification-verification-run@1",
     }));
     expect(obligation).toBeDefined();
 
     const prepared = await dryRunResolverScenario(
       loaded.package,
       snapshot,
-      "execute-verification-run@2",
+      "execute-qualification-verification-run@1",
       obligation!.id,
       [],
       evaluation,
@@ -369,7 +369,7 @@ describe("Phase 1 review routing", () => {
     if (!prepared.ok) return;
     expect(prepared.value.invocations[0]!.inputs.find(
       (input) => input.name === "requirement",
-    )?.values).toEqual([]);
+    )).toBeUndefined();
   });
 
   it("routes an inconclusive pilot result to correction before another run", async () => {
@@ -543,7 +543,7 @@ describe("Phase 1 review routing", () => {
         dispatchable: true,
       }),
       expect.objectContaining({
-        definition: "verification-run-required@2",
+        definition: "pilot-control-verification-run-required@1",
         scenario: "revise-pilot-vai-after-result@1",
         dispatchable: false,
         blockedBy: [expect.stringContaining("pilot-vai-result-correction-required@1")],
