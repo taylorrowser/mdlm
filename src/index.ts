@@ -15,7 +15,10 @@ import {
   compileProcessConstraints,
   type CompiledProcessContract,
 } from "./process-constraint-compiler.js";
-import { validateDefinitionGraph } from "./definition-graph.js";
+import {
+  validateDefinitionGraph,
+  validateUnreferencedSelectors,
+} from "./definition-graph.js";
 import { compileDefinitionExpressions } from "./expression.js";
 import {
   promptSkillReferences,
@@ -771,6 +774,7 @@ export async function loadProcessPackage(
     diagnostics.push(...validateScenarioContracts(definitions));
     let constraintContract: CompiledProcessContract | undefined;
     if (options.compatibility !== "historical-authoring") {
+      diagnostics.push(...validateUnreferencedSelectors(manifest, definitions));
       const compiled = compileProcessConstraints({
         catalogs: definitions,
         renderer: publicAssignmentRenderer,

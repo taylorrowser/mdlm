@@ -275,6 +275,33 @@ describe("loadProcessPackage", () => {
     })]));
   });
 
+  it("rejects a Selector that no other declaration references", async () => {
+    const processRoot = await copiedProcessPackage();
+    try {
+      const orphan = parse(await fs.readFile(
+        path.join(processRoot, "selectors/open-questions.yaml"),
+        "utf8",
+      ));
+      orphan.id = "orphan-questions";
+      await fs.writeFile(
+        path.join(processRoot, "selectors/orphan-questions.yaml"),
+        stringify(orphan),
+      );
+
+      expect(await loadProcessPackage(processRoot)).toMatchObject({
+        ok: false,
+        diagnostics: [{
+          code: "unreferenced-selector",
+          path: "selectors/orphan-questions",
+          message:
+            "Selector 'orphan-questions' is not referenced by any other declaration",
+        }],
+      });
+    } finally {
+      await fs.rm(path.dirname(processRoot), { recursive: true, force: true });
+    }
+  });
+
   it("rejects a direct completion identity equality without its binding", async () => {
     const processRoot = await copiedProcessPackage();
     try {
