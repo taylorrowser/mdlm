@@ -57,12 +57,23 @@ function expectExactArgvBoundary(
   expect(
     projected.schema.flattenedPayloadSchema.properties[objectName]
       .properties[controlName].properties.argv,
-  ).toEqual({
-    type: "array",
-    minItems: 1,
-    prefixItems: [{ type: "string", minLength: 1, pattern: "^[^/\\\\]+$" }],
-    items: { type: "string" },
-  });
+  ).toEqual(objectName === "prototype_controls"
+    ? {
+      type: "array",
+      minItems: 3,
+      prefixItems: [
+        { const: "node" },
+        { const: "-e" },
+        { type: "string", minLength: 1 },
+      ],
+      items: { type: "string" },
+    }
+    : {
+      type: "array",
+      minItems: 1,
+      prefixItems: [{ type: "string", minLength: 1, pattern: "^[^/\\\\]+$" }],
+      items: { type: "string" },
+    });
 }
 
 export async function runPilotControlEmptyArgvPublic(): Promise<void> {
