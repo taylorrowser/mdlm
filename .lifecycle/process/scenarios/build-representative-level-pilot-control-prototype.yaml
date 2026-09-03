@@ -18,7 +18,7 @@ outputs:
     cardinality: one
     required_links:
       - {link: derived-from, target: {input: requirements}}
-prompt_ref: prompts/build-representative-level-pilot-control-prototype.md@1
+prompt_ref: prompts/build-representative-level-pilot-control-prototype.md@2
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true

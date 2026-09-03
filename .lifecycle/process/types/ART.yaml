@@ -91,10 +91,13 @@ payload_schema:
           properties:
             argv:
               type: array
-              minItems: 1
+              minItems: 3
+              maxItems: 3
               prefixItems:
-                - {type: string, minLength: 1, pattern: '^[^/\\]+$'}
-              items: {type: string}
+                - {const: node}
+                - {const: -e}
+                - {type: string, minLength: 1}
+              items: false
             expected_observation: {$ref: '#/properties/prototype_controls/$defs/exact_observation'}
             expected_verification_outcome: {const: pass}
         known_bad:
@@ -104,10 +107,13 @@ payload_schema:
           properties:
             argv:
               type: array
-              minItems: 1
+              minItems: 3
+              maxItems: 3
               prefixItems:
-                - {type: string, minLength: 1, pattern: '^[^/\\]+$'}
-              items: {type: string}
+                - {const: node}
+                - {const: -e}
+                - {type: string, minLength: 1}
+              items: false
             expected_observation: {$ref: '#/properties/prototype_controls/$defs/exact_observation'}
             expected_verification_outcome: {const: fail}
             fault: {type: string, minLength: 1}
