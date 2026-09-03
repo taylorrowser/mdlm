@@ -1,0 +1,12 @@
+kind: selector-definition
+id: component-decomposition-parents-for-design
+version: 1
+description: Exact component requirements from which one design requirement was derived.
+parameters:
+  - {name: design, kind: revision, types: [DES]}
+result_kind: revision
+query:
+  from: {relation: outgoing-links, of: design, link: derived-from, emit: target, types: [CMP]}
+  as: parent
+  distinct: true
+  order_by: [identity.revision_id]

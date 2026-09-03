@@ -1,13 +1,12 @@
 kind: selector-definition
-id: gate-rejection-replacement-review-evidence-for-candidate
+id: passing-reviews-for-gate-corrected-candidate-members
 version: 1
-description: Passing Review evidence for a valid same-lineage replacement of one gate-rejected candidate member.
+description: Passing Reviews for fresh same-lineage corrections of gate-rejected candidate members.
 parameters:
   - {name: candidate, kind: baseline, types: [BSL]}
-  - {name: replacement, kind: baseline, types: [BSL]}
 result_kind: revision
 query:
-  from: {relation: baseline-evidence, of: replacement, emit: entity, types: [REV]}
+  from: {collection: revisions, types: [REV]}
   as: review
   where: >-
     !every("reviewed-gate-rejection-corrections-for-candidate-members@1",
