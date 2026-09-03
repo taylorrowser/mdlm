@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 
 const usage = `Usage: node scripts/cutover-tests.mjs <fast|cutover>
 
-fast      typecheck both packages and run the bounded decision, package, and public-contract tests
+fast      typecheck both packages, build mdlm, and run the bounded decision, package, and public-contract tests
 cutover   run fast, build both packages, check the mdlm-pi contract, and run the installed journey
 `;
 
@@ -23,6 +23,7 @@ function fast() {
   run("npm", ["run", "process-fixture:check"]);
   run("npm", ["run", "typecheck"]);
   run("npm", ["run", "typecheck:mdlm-pi"]);
+  run("npm", ["run", "build"]);
   run("./node_modules/.bin/vitest", [
     "run",
     "--config",
@@ -50,7 +51,6 @@ if (args.length !== 1 || !["fast", "cutover"].includes(args[0])) {
 
 fast();
 if (args[0] === "cutover") {
-  run("npm", ["run", "build"]);
   run("npm", ["run", "build:mdlm-pi"]);
   run("npm", [
     "exec",
