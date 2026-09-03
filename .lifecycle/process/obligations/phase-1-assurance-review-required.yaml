@@ -22,7 +22,7 @@ status_rules:
           {environment: subject}))
     reason: An ENV Review waits for exact realization and completed qualification evidence.
     blocked_by:
-      - obligation: verification-run-required@2
+      - obligation: qualification-verification-run-required@1
         subjects: 'select("qualification-implementations-for-environment@1", {environment: subject})'
   - status: awaiting-review
     priority: 100

@@ -32,7 +32,9 @@ payload_schema:
           execution_procedure: {required: [content]}
     - if: {required: [prototype_control_bindings]}
       then:
-        properties: {kind: {const: pilot}}
+        properties:
+          kind: {const: pilot}
+          activity_bindings: {const: [known_good, known_bad]}
         required: [kind]
   properties:
     kind: {enum: [qualification, pilot, formal]}

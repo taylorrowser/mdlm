@@ -1,91 +1,25 @@
 kind: obligation-definition
 id: verification-run-required
 version: 2
-description: Qualification and pilot implementations require their existing bounded evidence; each Phase 6 formal implementation requires one exact applicable result after lower-level claims pass.
-phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition, phase-6-verification]
-for_each: 'select("verification-implementations-requiring-run@1", {})'
+description: Pilot implementations require their existing bounded execution evidence.
+phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition]
+for_each: 'select("pilot-verification-implementations-requiring-run@1", {})'
 subject_as: implementation
-satisfied_when: >-
-  (implementation.payload.kind == "qualification"
-    && exists("completed-runs-for-implementation@1", {implementation: implementation}))
-  || (implementation.payload.kind == "pilot"
-    && exists("exercised-pilot-runs-for-implementation@2", {implementation: implementation}))
-  || (implementation.payload.kind == "formal"
-    && exists("phase-6-applicable-formal-results-for-implementation@1",
-      {implementation: implementation}))
+satisfied_when: 'exists("exercised-pilot-runs-for-implementation@2", {implementation: implementation})'
 status_rules:
   - status: awaiting-review
     priority: 900
     when: >-
-      implementation.payload.kind == "pilot"
-      && exists("pilot-results-awaiting-assessment-for-implementation@1",
+      exists("pilot-results-awaiting-assessment-for-implementation@1",
         {implementation: implementation})
     reason: The accepted immutable pilot execution awaits its declared independent result assessment and must not be replayed.
     blocked_by:
       - obligation: pilot-result-assessment-required@1
         subjects: '[implementation]'
   - status: blocked
-    priority: 850
-    when: >-
-      implementation.payload.kind == "formal"
-      && exists("problem-reportable-results@1", {})
-      && every("problem-reportable-results@1", {}, result =>
-        count("problem-reports-for-result@1", {result: result}) == 1)
-    reason: The reported formal product failure reaches this profile's explicit Phase 6 boundary before any sibling execution can start.
-  - status: blocked
-    priority: 800
-    when: >-
-      implementation.payload.kind == "formal"
-      && exists("phase-6-failing-formal-results-for-implementation@1",
-        {implementation: implementation})
-    reason: A completed formal product failure is immutable and routes through the ordinary Problem Report boundary rather than replaying this execution.
-    blocked_by:
-      - obligation: problem-report-required@1
-        subjects: >-
-          select("phase-6-failing-formal-results-for-implementation@1",
-            {implementation: implementation})
-  - status: awaiting-review
-    priority: 750
-    when: >-
-      implementation.payload.kind == "formal"
-      && exists("phase-6-formal-results-awaiting-assessment-for-implementation@1",
-        {implementation: implementation})
-    reason: This exact judgment-dependent formal result requires one independent Review before it can support an ancestor claim.
-    blocked_by:
-      - obligation: passing-review-required@2
-        subjects: >-
-          select("phase-6-formal-results-awaiting-assessment-for-implementation@1",
-            {implementation: implementation})
-  - status: blocked
-    priority: 700
-    when: >-
-      implementation.payload.kind == "formal"
-      && (count("phase-6-accepted-requirements-for-formal-implementation@1",
-        {implementation: implementation}) != 1
-      || count("phase-6-qualified-environments-for-formal-implementation@1",
-        {implementation: implementation}) != 1
-      || count("phase-6-controlled-artifacts-for-formal-implementation@1",
-        {implementation: implementation}) != 1)
-    reason: Formal execution requires one exact accepted requirement and one current passing-reviewed controlled implementation ART from the accepted design lineage.
-  - status: blocked
-    priority: 650
-    when: >-
-      implementation.payload.kind == "formal"
-      && !every("phase-6-lower-level-requirements-for-formal-implementation@1",
-        {implementation: implementation}, requirement =>
-          exists("phase-6-applicable-formal-results-for-requirement@1",
-            {requirement: requirement}))
-    reason: Formal evidence proceeds bottom-up; every exact lower-level supporting claim must have applicable formal evidence first.
-    blocked_by:
-      - obligation: verification-run-required@2
-        subjects: >-
-          select("phase-6-formal-implementations-for-lower-level-requirements@1",
-            {implementation: implementation})
-  - status: blocked
     priority: 500
     when: >-
-      implementation.payload.kind == "pilot"
-      && exists("unfavorable-pilot-results-for-implementation@1",
+      exists("unfavorable-pilot-results-for-implementation@1",
         {implementation: implementation})
       && none("pilot-result-corrections-for-implementation@1",
         {implementation: implementation})
@@ -96,20 +30,18 @@ status_rules:
   - status: blocked
     priority: 400
     when: >-
-      implementation.payload.kind == "pilot"
-      && none("passing-qualification-results-for@1",
+      none("passing-qualification-results-for@1",
         {environment: one("environments-for-implementation@1", {implementation: implementation})})
     reason: Pilot execution is blocked until an exact passing environment-capability qualification result exists.
     blocked_by:
-      - obligation: verification-run-required@2
+      - obligation: qualification-verification-run-required@1
         subjects: >-
           select("qualification-implementations-for-environment@1",
             {environment: one("environments-for-implementation@1", {implementation: implementation})})
   - status: awaiting-review
     priority: 300
     when: >-
-      implementation.payload.kind == "pilot"
-      && none("passing-reviews-for@1",
+      none("passing-reviews-for@1",
         {subject: one("environments-for-implementation@1", {implementation: implementation})})
     reason: The qualified environment must pass contextual review before pilot use.
     blocked_by:
@@ -118,10 +50,9 @@ status_rules:
   - status: awaiting-review
     priority: 200
     when: >-
-      implementation.payload.kind == "pilot"
-      && (none("passing-reviews-for@1", {subject: implementation})
+      none("passing-reviews-for@1", {subject: implementation})
       || none("passing-reviews-for@1",
-        {subject: one("verification-activities-for-implementation@1", {implementation: implementation})}))
+        {subject: one("verification-activities-for-implementation@1", {implementation: implementation})})
     reason: The source-independent pilot activity and its implementation require independent review before execution.
     blocked_by:
       - obligation: phase-1-assurance-review-required@1
@@ -130,34 +61,14 @@ status_rules:
         subjects: 'select("verification-activities-for-implementation@1", {implementation: implementation})'
   - status: ready
     priority: 100
-    when: 'implementation.payload.kind in ["qualification", "pilot"]'
-    reason: Exact activity, environment, target, and independence provenance permit a bounded execution when no accepted unfavorable result requires correction.
-  - status: ready
-    priority: 90
-    when: >-
-      implementation.payload.kind == "formal"
-      && count("phase-6-accepted-requirements-for-formal-implementation@1",
-        {implementation: implementation}) == 1
-      && count("phase-6-qualified-environments-for-formal-implementation@1",
-        {implementation: implementation}) == 1
-      && count("phase-6-controlled-artifacts-for-formal-implementation@1",
-        {implementation: implementation}) == 1
-      && every("phase-6-lower-level-requirements-for-formal-implementation@1",
-        {implementation: implementation}, requirement =>
-          exists("phase-6-applicable-formal-results-for-requirement@1",
-            {requirement: requirement}))
-    reason: The reviewed formal activity, source-blind VAI, qualified environment, controlled ART, and lower-level evidence permit one fresh immutable RUN/RES transaction.
+    when: 'true'
+    reason: Exact activity, environment, target, and independence provenance permit a bounded pilot execution when no accepted unfavorable result requires correction.
 default_status: blocked
 resolve_with:
   scenario: execute-verification-run@2
   inputs:
     implementation: implementation
     activity: 'one("verification-activities-for-implementation@1", {implementation: implementation})'
-    environment: >-
-      one("environments-for-required-run@1", {implementation: implementation})
-    execution_target: >-
-      one("execution-targets-for-required-run@1", {implementation: implementation})
-    requirement: >-
-      first("phase-6-accepted-requirements-for-formal-implementation@1",
-        {implementation: implementation})
+    environment: 'one("environments-for-required-run@1", {implementation: implementation})'
+    execution_target: 'one("execution-targets-for-required-run@1", {implementation: implementation})'
 waiver_policy_ref: waiver-applicability@1
