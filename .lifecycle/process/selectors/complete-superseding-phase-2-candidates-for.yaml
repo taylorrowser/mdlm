@@ -31,6 +31,13 @@ query:
       {candidate: candidate}, blocked =>
         !exists("candidate-members-matching@1",
           {candidate: replacement, required_member: blocked}))
+    && every("gate-rejected-requirement-members-for-candidate@1",
+      {candidate: candidate}, blocked =>
+        !every("reviewed-gate-rejection-corrections-for-candidate-members@1",
+          {candidate: candidate}, corrected =>
+            corrected.identity.id != blocked.identity.id
+            || !exists("candidate-members-matching@1",
+              {candidate: replacement, required_member: corrected})))
     && every("baseline-evidence@1", {baseline: candidate}, evidence =>
       exists("baseline-contains-evidence@1",
         {baseline: replacement, subject: evidence})

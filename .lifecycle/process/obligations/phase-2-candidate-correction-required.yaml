@@ -11,8 +11,11 @@ status_rules:
     priority: 300
     when: >-
       exists("gate-rejected-requirement-members-for-candidate@1", {candidate: candidate})
-      && none("reviewed-gate-rejection-corrections-for-candidate-members@1",
-        {candidate: candidate})
+      && !every("gate-rejected-requirement-members-for-candidate@1",
+        {candidate: candidate}, blocked =>
+          !every("reviewed-gate-rejection-corrections-for-candidate-members@1",
+            {candidate: candidate}, corrected =>
+              corrected.identity.id != blocked.identity.id))
     reason: Gate-rejected DES members need same-lineage passing-reviewed corrections before candidate replacement.
     blocked_by:
       - obligation: gate-rejected-design-requirement-correction-required@1

@@ -80,13 +80,25 @@ it("routes a gate-rejected DES through same-lineage correction before candidate 
     { type: "decomposes", target: plan.datum.revision_id },
     { type: "allocated-to", target: architecture.datum.revision_id },
   ]);
+  const secondRejectedDesign = record("DES", "DES-6750000002", {
+    title: "Handle command arguments",
+    statement: "The design shall handle command arguments.",
+    verification_intent: "Observe argument handling.",
+  }, "execute-lower-level-decomposition-work-package@1", [
+    { type: "derived-from", target: component.datum.revision_id },
+    { type: "decomposes", target: plan.datum.revision_id },
+    { type: "allocated-to", target: architecture.datum.revision_id },
+  ]);
   const rejectedCandidate = record("BSL", "BSL-6750000001", {
     title: "Rejected Phase 4 candidate",
     kind: "level-candidate",
     role: "candidate",
     scope: "phase-4-design-definition",
     group: "DEFAULT",
-    definition_members: [rejectedDesign.datum.revision_id],
+    definition_members: [
+      rejectedDesign.datum.revision_id,
+      secondRejectedDesign.datum.revision_id,
+    ],
     evidence: [],
   }, "create-definition-level-candidate@1");
   const rejection = record("DEC", "DEC-6750000001", {
@@ -97,6 +109,7 @@ it("routes a gate-rejected DES through same-lineage correction before candidate 
   }, "record-reviewed-gate-signoff@1", [
     { type: "justifies", target: rejectedCandidate.datum.revision_id },
     { type: "blocks", target: rejectedDesign.datum.revision_id },
+    { type: "blocks", target: secondRejectedDesign.datum.revision_id },
   ]);
   const rejectionContext = context("BSL-6750000003", rejection);
   const rejectionReview = review("REV-6750000001", rejection, rejectionContext, "pass");
@@ -106,7 +119,10 @@ it("routes a gate-rejected DES through same-lineage correction before candidate 
     role: "candidate",
     scope: "phase-4-design-definition",
     group: "DEFAULT",
-    definition_members: [rejectedDesign.datum.revision_id],
+    definition_members: [
+      rejectedDesign.datum.revision_id,
+      secondRejectedDesign.datum.revision_id,
+    ],
     evidence: [],
   }, "revise-phase-2-candidate-after-review@2");
   const candidateContext = context("BSL-6750000004", currentCandidate);
@@ -116,6 +132,7 @@ it("routes a gate-rejected DES through same-lineage correction before candidate 
     plan,
     architecture,
     rejectedDesign,
+    secondRejectedDesign,
     rejectedCandidate,
     rejection,
     rejectionContext,
@@ -164,14 +181,52 @@ it("routes a gate-rejected DES through same-lineage correction before candidate 
   ], 2);
   const designContext = context("BSL-6750000005", correctedDesign);
   const designReview = review("REV-6750000003", correctedDesign, designContext, "pass");
+  const partial = evaluateLifecycle(loaded.package, {
+    processRef,
+    phaseId: "phase-4-design-definition",
+    records: [...before, correctedDesign, designContext, designReview],
+    dependencyComparisons: [],
+  });
+  expect(partial.looseEnds).toContainEqual(expect.objectContaining({
+    obligation: "phase-2-candidate-correction-required",
+    subject: currentCandidate.datum.revision_id,
+    status: "blocked",
+    dispatchable: false,
+  }));
+  expect(partial.looseEnds).toContainEqual(expect.objectContaining({
+    obligation: "gate-rejected-design-requirement-correction-required",
+    subject: secondRejectedDesign.datum.revision_id,
+    status: "ready",
+  }));
+
+  const secondCorrectedDesign = record("DES", secondRejectedDesign.datum.id, {
+    title: "Explicit no-argument gate design",
+    statement: "Reject any command argument before reading stdin and emit the documented diagnostic.",
+    verification_intent: "Verify the argument gate precedes input processing and emits exact bytes.",
+  }, "revise-gate-rejected-design-requirement@1", [
+    { type: "corrects-gate-rejection", target: rejection.datum.revision_id },
+    { type: "derived-from", target: component.datum.revision_id },
+    { type: "decomposes", target: plan.datum.revision_id },
+    { type: "allocated-to", target: architecture.datum.revision_id },
+  ], 2);
+  const secondDesignContext = context("BSL-6750000006", secondCorrectedDesign);
+  const secondDesignReview = review(
+    "REV-6750000004",
+    secondCorrectedDesign,
+    secondDesignContext,
+    "pass",
+  );
   const replacementCandidate = record("BSL", currentCandidate.datum.id, {
     title: "Corrected Phase 4 candidate",
     kind: "level-candidate",
     role: "candidate",
     scope: "phase-4-design-definition",
     group: "DEFAULT",
-    definition_members: [correctedDesign.datum.revision_id],
-    evidence: [designReview.datum.revision_id],
+    definition_members: [
+      correctedDesign.datum.revision_id,
+      secondCorrectedDesign.datum.revision_id,
+    ],
+    evidence: [designReview.datum.revision_id, secondDesignReview.datum.revision_id],
   }, "revise-phase-2-candidate-after-review@2", [
     { type: "supersedes", target: currentCandidate.datum.revision_id },
     { type: "corrects-review", target: candidateReview.datum.revision_id },
@@ -179,14 +234,25 @@ it("routes a gate-rejected DES through same-lineage correction before candidate 
   const after = evaluateLifecycle(loaded.package, {
     processRef,
     phaseId: "phase-4-design-definition",
-    records: [...before, correctedDesign, designContext, designReview, replacementCandidate],
+    records: [
+      ...before,
+      correctedDesign,
+      designContext,
+      designReview,
+      secondCorrectedDesign,
+      secondDesignContext,
+      secondDesignReview,
+      replacementCandidate,
+    ],
     dependencyComparisons: [],
   });
   expect(after.diagnostics).toEqual([]);
   expect(replacementCandidate.datum.payload.definition_members)
-    .toEqual(["DES-6750000001-r00002"]);
+    .toEqual(["DES-6750000001-r00002", "DES-6750000002-r00002"]);
   expect(replacementCandidate.datum.payload.definition_members)
     .not.toContain("DES-6750000001-r00001");
+  expect(replacementCandidate.datum.payload.definition_members)
+    .not.toContain("DES-6750000002-r00001");
   expect(after.looseEnds).not.toContainEqual(expect.objectContaining({
     obligation: "gate-rejected-design-requirement-correction-required",
     subject: rejectedDesign.datum.revision_id,
