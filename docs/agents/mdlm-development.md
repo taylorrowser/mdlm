@@ -217,6 +217,17 @@ Keep release candidates separate from demo history. Demo records answer what hap
 
 ## Scale ladder
 
+Make simplifying how agents produce correct Lifecycle Data the first job. Choose
+each simplification from exact failures or authoring friction observed in real
+runs, change the smallest owning mechanism, and rerun the same tier. Judge the
+result across the full V-model. Prefer CLI-derived identities and relationships,
+compact authoring scaffolds, fewer manual copies, shared level-aware rules,
+reused unchanged evidence, grouped compatible review context, and artifacts that
+bind bounded sets of implementation paths. Agents author decisions and product
+meaning while the CLI supplies mechanical lifecycle structure. A simplification
+may increase the downstream lifecycle artifact count only after demo evidence
+shows that the added artifact is needed.
+
 Stay at the tiny tier until three consecutive fresh tiny demos on the current
 supported release lineage reach `Lifecycle Complete` without a kernel/package
 contradiction, false trace, false verification claim, or unbounded operator
@@ -226,19 +237,18 @@ learning loop; the gate keeps demos running. Existing healthy tiny demos and
 current qualification continue as operational evidence. This gate does not
 invalidate them.
 
-After the gate passes, increase one complexity axis at a time. The first scaled
-tier remains a tiny runnable product, but has a few stakeholder requirements
-and requires real decomposition. If that tier exposes a process defect, fix or
-simplify the owning mechanism and run the same tier again before growing.
+Only after the gate passes, increase one complexity axis at a time. The first
+scaled tier is a slightly larger runnable project with multiple stakeholder
+requirements and real decomposition. If that tier exposes a process defect, fix
+or simplify the owning mechanism and run the same tier again before growing.
 
 End-to-end trace integrity is a demo and release acceptance condition. Account
 for every changed production line under an implementation or change artifact
-that links through design and decomposed requirements to a stakeholder
-requirement. Every claimed behavior must have a linked verification activity
-and a recorded observation and result. This is graph coverage, not a demand for
-one lifecycle artifact or source annotation per line. Unmapped production code,
-or verification whose trace cannot reach a stakeholder requirement, is a
-finding.
+whose graph reaches a stakeholder requirement (`STK`) through design and
+decomposition. Every claimed behavior must have linked verification activity,
+observation, and result evidence. This is graph coverage, not a demand for one
+lifecycle artifact or source annotation per line. Unmapped production code, or
+verification whose trace cannot reach an `STK`, is a finding.
 
 After the targeted canary satisfies the Phase 0 and first Phase 1 RUN/RES
 acceptance boundary under [Targeted demos](#targeted-demos), keep Phase 3 and
@@ -247,12 +257,3 @@ reliability gate owned by [issue
 #222](https://github.com/taylorrowser/mdlm/issues/222). Apply that issue's exact
 pass criteria. After the gate passes, add one complete operational slice at a
 time and run it before expanding the next Phase.
-
-Make simplifying how agents produce correct Lifecycle Data the current
-priority. Judge simplification across the full V-model. Prefer CLI-derived
-identities and relationships, compact authoring scaffolds, fewer manual copies,
-shared level-aware rules, reused unchanged evidence, grouped compatible review
-context, and artifacts that bind bounded sets of implementation paths. Agents author
-decisions and product meaning while the CLI supplies mechanical lifecycle
-structure. A simplification may increase the downstream lifecycle artifact
-count only after demo evidence shows that the added artifact is needed.
