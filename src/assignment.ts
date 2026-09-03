@@ -2854,6 +2854,22 @@ function assignmentResponseFromAuthorValues(
     ]);
   }
 
+  const omittedHandles = new Set(templates.flatMap((template) => {
+    const route = template.output ?? template.handle;
+    const contract = assignmentPacket.outputs.find((candidate) =>
+      candidate.handle === route
+    );
+    return contract?.cardinality.startsWith("zero-") &&
+        (suppliedBySlot.get(template.handle)?.length ?? 0) === 0
+      ? [template.handle]
+      : [];
+  }));
+  const activeTemplateLinks = (links: SymbolicProposalLink[]) => links.filter((link) =>
+    !("output" in link.target && omittedHandles.has(link.target.output)) &&
+    !("payload" in link.target && omittedHandles.has(link.target.payload.output))
+  );
+  const authoredHandleByTemplate = new Map<string, string>();
+
   const resultOutputs: SymbolicProposalOutput[] = [];
   for (const template of templates) {
     const route = template.output ?? template.handle;
@@ -2863,6 +2879,47 @@ function assignmentResponseFromAuthorValues(
     if (!contract) continue;
     const supplied = suppliedBySlot.get(template.handle) ?? [];
     const repeated = ["one-or-more", "zero-or-more"].includes(contract.cardinality);
+    const definition = (Array.isArray(exact.scenario.outputs)
+      ? exact.scenario.outputs.map(object)
+      : []).find((candidate) => candidate?.name === contract.name);
+    const invocationInputs = exact.dryRun.invocations[template.invocation ?? 0]
+      ?.inputs ?? [];
+    const requiredLinks = Array.isArray(definition?.required_links)
+      ? definition.required_links.map(object)
+      : [];
+    const requiredLinkCount = requiredLinks.reduce((count, required) => {
+      const target = object(required?.target);
+      if (typeof target?.input !== "string") return count + 1;
+      return count + (invocationInputs.find((input) =>
+        input.name === target.input
+      )?.values.length ?? 0);
+    }, 0);
+    const activeLinks = activeTemplateLinks(template.links);
+    const permittedLinks = activeTemplateLinks(
+      template.links.slice(requiredLinkCount),
+    );
+    if (permittedLinks.length > 0 && supplied.length > 0) {
+      diagnostics.push({
+        code: "assignment-proposal-routing-underdetermined",
+        path: `authorValues.outputs.${template.handle}`,
+        message: `Output slot '${template.handle}' has permitted link choices that author-only values cannot determine; use the full Assignment Response interface`,
+      });
+    }
+    const distributedLinkTypes = new Set(requiredLinks
+      .filter((required) =>
+        ["partition", "cover"].includes(String(required?.distribution))
+      )
+      .map((required) => String(required!.link)));
+    if (
+      supplied.length > 1 &&
+      activeLinks.some((link) => distributedLinkTypes.has(link.type))
+    ) {
+      diagnostics.push({
+        code: "assignment-proposal-routing-underdetermined",
+        path: `authorValues.outputs.${template.handle}`,
+        message: `Repeated output slot '${template.handle}' has distributed link ownership that author-only values cannot determine; use the full Assignment Response interface`,
+      });
+    }
     if (!repeated && supplied.length > 1) {
       diagnostics.push({
         code: "assignment-author-values-slot-duplicate",
@@ -2910,6 +2967,9 @@ function assignmentResponseFromAuthorValues(
       }
       continue;
     }
+    if (repeated && supplied.length === 1) {
+      authoredHandleByTemplate.set(template.handle, supplied[0]!.handle!);
+    }
     for (const value of supplied) {
       const fixed = [...new Set([
         ...Object.keys(contract.payloadSummary.requiredValues ?? {}),
@@ -2952,12 +3012,39 @@ function assignmentResponseFromAuthorValues(
     });
   }
   if (diagnostics.length > 0) return { ok: false, diagnostics };
+  const routedOutputs = resultOutputs.map((output) => ({
+    ...output,
+    links: output.links.map((link) => {
+      if ("output" in link.target) {
+        return {
+          ...link,
+          target: {
+            output: authoredHandleByTemplate.get(link.target.output) ??
+              link.target.output,
+          },
+        };
+      }
+      if ("payload" in link.target) {
+        return {
+          ...link,
+          target: {
+            payload: {
+              ...link.target.payload,
+              output: authoredHandleByTemplate.get(link.target.payload.output) ??
+                link.target.payload.output,
+            },
+          },
+        };
+      }
+      return link;
+    }),
+  }));
   return {
     ok: true,
     value: {
       ...scaffold,
       proposal: {
-        outputs: resultOutputs,
+        outputs: routedOutputs,
         completionEvidence: authored.completionEvidence,
       },
     },

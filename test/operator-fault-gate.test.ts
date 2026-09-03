@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { constants as fsConstants, promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -30,6 +30,22 @@ async function command(repository: string, arguments_: string[], input?: string)
     status: result.exitCode,
     value: JSON.parse(result.output) as JsonObject,
   };
+}
+
+async function compiledCommand(repository: string, arguments_: string[]) {
+  return new Promise<{ status: number | null; stdout: string; stderr: string }>(
+    (resolve, reject) => {
+      const child = spawn(process.execPath, [mdlmExecutable, ...arguments_], {
+        cwd: repository,
+      });
+      let stdout = "";
+      let stderr = "";
+      child.stdout.setEncoding("utf8").on("data", (chunk) => stdout += chunk);
+      child.stderr.setEncoding("utf8").on("data", (chunk) => stderr += chunk);
+      child.on("error", reject);
+      child.on("close", (status) => resolve({ status, stdout, stderr }));
+    },
+  );
 }
 
 async function filesDigest(root: string): Promise<string> {
@@ -226,6 +242,25 @@ function foundationReviewAuthorValues(review: JsonObject): JsonObject {
   };
 }
 
+function authoredValuesFromFilledResponse(next: JsonObject): JsonObject {
+  const fullResponse = responseFrom(next);
+  return {
+    outputs: fullResponse.proposal.outputs.map((output: JsonObject) => {
+      const fixed = next.assignment.packet.responseScaffold.proposal.outputs.find(
+        (candidate: JsonObject) => candidate.handle === output.handle,
+      );
+      return {
+        slot: output.handle,
+        payload: Object.fromEntries(Object.entries(output.payload).filter(([key]) =>
+          fixed.payload?.[key] === null || !(key in (fixed.payload ?? {}))
+        )),
+        body: output.body,
+      };
+    }),
+    completionEvidence: fullResponse.proposal.completionEvidence,
+  };
+}
+
 describe("focused v2 fault-injection gate", () => {
   it("emits the exact active response file for one successful submission", async () => {
     const next = await command(repository, ["next", "--json"]);
@@ -313,25 +348,48 @@ describe("focused v2 fault-injection gate", () => {
   it("submits only authored Review values while preserving fixed fields and Context", async () => {
     const review = await advanceToFoundationReview(repository);
     const authorValues = foundationReviewAuthorValues(review);
+    const competingAuthorValues = structuredClone(authorValues);
+    competingAuthorValues.outputs[0].payload.summary =
+      "A competing exact review of the same frozen context.";
+    competingAuthorValues.outputs[0].body = "Competing independent judgment.\n";
     const authorValuesPath = path.join(
       repository,
       ".lifecycle/work/author-values.json",
     );
+    const competingAuthorValuesPath = path.join(
+      repository,
+      ".lifecycle/work/competing-author-values.json",
+    );
     await fs.writeFile(authorValuesPath, `${JSON.stringify(authorValues)}\n`);
+    await fs.writeFile(
+      competingAuthorValuesPath,
+      `${JSON.stringify(competingAuthorValues)}\n`,
+    );
 
-    const submitted = spawnSync(
-      process.execPath,
-      [
-        mdlmExecutable,
+    const submissions = await Promise.all([
+      compiledCommand(repository, [
         "assignment",
         "submit-proposal",
         ".lifecycle/work/author-values.json",
         "--json",
-      ],
-      { cwd: repository, encoding: "utf8" },
-    );
-    expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
-    const outcome = JSON.parse(submitted.stdout) as JsonObject;
+      ]),
+      compiledCommand(repository, [
+        "assignment",
+        "submit-proposal",
+        ".lifecycle/work/competing-author-values.json",
+        "--json",
+      ]),
+    ]);
+    const accepted = submissions.find((submission) => submission.status === 0);
+    const unavailable = submissions.find((submission) => submission.status === 1);
+    expect(accepted, JSON.stringify(submissions)).toBeDefined();
+    expect(unavailable, JSON.stringify(submissions)).toBeDefined();
+    expect(JSON.parse(unavailable!.stdout)).toMatchObject({
+      diagnostics: expect.arrayContaining([
+        expect.objectContaining({ code: "assignment-unavailable" }),
+      ]),
+    });
+    const outcome = JSON.parse(accepted!.stdout) as JsonObject;
     const responsePath = path.join(
       repository,
       ".lifecycle/work/assignment-response.json",
@@ -380,21 +438,7 @@ describe("focused v2 fault-injection gate", () => {
   it("rejects a stale lease before saving or submitting derived response bytes", async () => {
     const next = await command(repository, ["next", "--json"]);
     expect(next.status, JSON.stringify(next.value)).toBe(0);
-    const fullResponse = responseFrom(next.value);
-    const authorValues = {
-      outputs: fullResponse.proposal.outputs.map((output: JsonObject) => {
-        const scaffold = next.value.assignment.packet.responseScaffold.proposal.outputs
-          .find((candidate: JsonObject) => candidate.handle === output.handle);
-        return {
-          slot: output.handle,
-          payload: Object.fromEntries(Object.entries(output.payload).filter(([key]) =>
-            scaffold.payload?.[key] === null || !(key in (scaffold.payload ?? {}))
-          )),
-          body: output.body,
-        };
-      }),
-      completionEvidence: fullResponse.proposal.completionEvidence,
-    };
+    const authorValues = authoredValuesFromFilledResponse(next.value);
     const authorValuesPath = path.join(
       repository,
       ".lifecycle/work/author-values.json",
@@ -431,6 +475,93 @@ describe("focused v2 fault-injection gate", () => {
     });
     expect(await fs.readFile(responsePath, "utf8"))
       .toBe("preserved-before-stale-check\n");
+    expect(await filesDigest(path.join(repository, ".lifecycle/data"))).toBe(dataBefore);
+  });
+
+  it("rejects package-declared permitted routing before saving or submitting", async () => {
+    const selectionPath = path.join(repository, ".lifecycle/process-selection.json");
+    const repositoryContractPath = path.join(repository, ".lifecycle/repository.json");
+    const selection = JSON.parse(await fs.readFile(selectionPath, "utf8"));
+    const packageRoot = path.join(repository, selection.package.path);
+    const scenarioPath = path.join(
+      packageRoot,
+      "scenarios/establish-initial-wayfinding-map.yaml",
+    );
+    const scenario = await fs.readFile(scenarioPath, "utf8");
+    await fs.writeFile(
+      scenarioPath,
+      scenario.replace(
+        "    required_links: []\n    required_payload:\n      kind: preferential",
+        "    required_links: []\n    permitted_links:\n" +
+          "      - {link: blocks, target: {output: product_intent}}\n" +
+          "    required_payload:\n      kind: preferential",
+      ).replace(
+        "  - name: questions\n    types: [QST]\n" +
+          "    cardinality: zero-or-more\n    required_links: []",
+        "  - name: questions\n    types: [QST]\n" +
+          "    cardinality: zero-or-more\n    required_links:\n" +
+          "      - {link: blocks, target: {output: product_intent}, distribution: partition}",
+      ),
+    );
+    const digest = await processPackageDigest(packageRoot);
+    selection.package.digest = digest;
+    await fs.writeFile(selectionPath, `${JSON.stringify(selection, null, 2)}\n`);
+    const repositoryContract = JSON.parse(
+      await fs.readFile(repositoryContractPath, "utf8"),
+    );
+    repositoryContract.package.digest = digest;
+    await fs.writeFile(
+      repositoryContractPath,
+      `${JSON.stringify(repositoryContract, null, 2)}\n`,
+    );
+
+    const next = await command(repository, ["next", "--json"]);
+    expect(next.status, JSON.stringify(next.value)).toBe(0);
+    const authorValuesPath = path.join(repository, ".lifecycle/work/author-values.json");
+    const responsePath = path.join(
+      repository,
+      ".lifecycle/work/assignment-response.json",
+    );
+    const authorValues = authoredValuesFromFilledResponse(next.value);
+    const question = authorValues.outputs.find(
+      (output: JsonObject) => output.slot === "questions",
+    );
+    question.handle = "first-question";
+    authorValues.outputs.push({
+      ...structuredClone(question),
+      handle: "second-question",
+    });
+    await fs.writeFile(authorValuesPath, `${JSON.stringify(authorValues)}\n`);
+    await fs.writeFile(responsePath, "preserved-before-routing-check\n");
+    const dataBefore = await filesDigest(path.join(repository, ".lifecycle/data"));
+
+    const rejected = spawnSync(
+      process.execPath,
+      [
+        mdlmExecutable,
+        "assignment",
+        "submit-proposal",
+        ".lifecycle/work/author-values.json",
+        "--json",
+      ],
+      { cwd: repository, encoding: "utf8" },
+    );
+    expect(rejected.status, `${rejected.stderr}${rejected.stdout}`).toBe(1);
+    expect(JSON.parse(rejected.stdout)).toMatchObject({
+      command: "assignment.submit-proposal",
+      diagnostics: expect.arrayContaining([
+        expect.objectContaining({
+          code: "assignment-proposal-routing-underdetermined",
+          path: "authorValues.outputs.product_intent",
+        }),
+        expect.objectContaining({
+          code: "assignment-proposal-routing-underdetermined",
+          path: "authorValues.outputs.questions",
+        }),
+      ]),
+    });
+    expect(await fs.readFile(responsePath, "utf8"))
+      .toBe("preserved-before-routing-check\n");
     expect(await filesDigest(path.join(repository, ".lifecycle/data"))).toBe(dataBefore);
   });
 

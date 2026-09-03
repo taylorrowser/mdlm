@@ -71,6 +71,7 @@ import {
 } from "./process-package-fixtures.js";
 import { initializeBundledRepository } from "./repository-initialization.js";
 import { repositoryGitEnvironment } from "./git-environment.js";
+import { withRepositoryLock } from "./repository-lock.js";
 import {
   operatorInstructions,
   type OperatorInstructions,
@@ -237,6 +238,7 @@ type CommandResult = CommandResultBase;
 
 const executeFile = promisify(execFile);
 const operatorGuidePath = "MDLM.md";
+const proposalSubmissionLockRef = "refs/mdlm/assignment-proposal-submit-lock";
 
 const help = `Usage: mdlm <command> [--json]
 
@@ -1425,48 +1427,54 @@ async function submitAssignmentProposal(
       command: "assignment.submit-proposal",
     };
   }
-  const compiled = await compileActiveAssignmentProposal(
+  return withRepositoryLock(
     repositoryRoot,
-    authorValuesSource,
+    proposalSubmissionLockRef,
+    async () => {
+      const compiled = await compileActiveAssignmentProposal(
+        repositoryRoot,
+        authorValuesSource,
+      );
+      if (!compiled.ok) {
+        return {
+          ok: false,
+          command: "assignment.submit-proposal",
+          diagnostics: compiled.diagnostics,
+        };
+      }
+      try {
+        await atomicWriteResponse(repositoryRoot, compiled.value.source);
+      } catch (error) {
+        return {
+          ...failure(
+            "assignment-response-write-failed",
+            `Could not save the derived Assignment Response: ${error instanceof Error ? error.message : String(error)}`,
+            ".lifecycle/work/assignment-response.json",
+          ),
+          command: "assignment.submit-proposal",
+        };
+      }
+      const submitted = await submitAssignmentResponse(
+        repositoryRoot,
+        compiled.value.source,
+        authoritySupplies,
+      );
+      if (!submitted.ok) {
+        return {
+          ok: false,
+          command: "assignment.submit-proposal",
+          ...(submitted.value ?? submitted.disposition ?? {}),
+          diagnostics: submitted.diagnostics,
+        };
+      }
+      return {
+        ok: true,
+        command: "assignment.submit-proposal",
+        ...submitted.value,
+        diagnostics: [],
+      };
+    },
   );
-  if (!compiled.ok) {
-    return {
-      ok: false,
-      command: "assignment.submit-proposal",
-      diagnostics: compiled.diagnostics,
-    };
-  }
-  try {
-    await atomicWriteResponse(repositoryRoot, compiled.value.source);
-  } catch (error) {
-    return {
-      ...failure(
-        "assignment-response-write-failed",
-        `Could not save the derived Assignment Response: ${error instanceof Error ? error.message : String(error)}`,
-        ".lifecycle/work/assignment-response.json",
-      ),
-      command: "assignment.submit-proposal",
-    };
-  }
-  const submitted = await submitAssignmentResponse(
-    repositoryRoot,
-    compiled.value.source,
-    authoritySupplies,
-  );
-  if (!submitted.ok) {
-    return {
-      ok: false,
-      command: "assignment.submit-proposal",
-      ...(submitted.value ?? submitted.disposition ?? {}),
-      diagnostics: submitted.diagnostics,
-    };
-  }
-  return {
-    ok: true,
-    command: "assignment.submit-proposal",
-    ...submitted.value,
-    diagnostics: [],
-  };
 }
 
 async function showScenarioExecution(
