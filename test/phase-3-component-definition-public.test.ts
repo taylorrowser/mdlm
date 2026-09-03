@@ -550,11 +550,14 @@ function realizeAndQualifyEnvironment(
   ]);
   commit(repository, `Realize ${profile.id} environment`);
   const environment = publication(realized, "environment");
-  const qualification = nextPacket(repository, "execute-verification-run@2");
+  const qualification = nextPacket(
+    repository,
+    "execute-qualification-verification-run@1",
+  );
   const qualified = submit(repository, qualification, [
     {
       output: "run",
-      payload: { title: `Qualification run for ${profile.id}`, kind: "qualification", started_at: "2026-08-31T00:00:00Z", completed_at: "2026-08-31T00:00:01Z", execution_state: "completed", execution_target: { kind: "environment", ref: environment }, runner_ref: `procedure:sha256:${"1".repeat(64)}`, configuration_refs: [strategy], activities_expected: ["capability"], activities_invoked: ["capability"], evidence_locations: [`inline:${profile.id}`] },
+      payload: { title: `Qualification run for ${profile.id}`, kind: "qualification", started_at: "2026-08-31T00:00:00Z", completed_at: "2026-08-31T00:00:01Z", execution_state: "completed", execution_target: { kind: "environment", ref: environment }, runner_ref: `procedure:sha256:${"1".repeat(64)}`, configuration_refs: [strategy], activities_expected: ["positive capability", "negative capability"], activities_invoked: ["positive capability", "negative capability"], evidence_locations: [`inline:${profile.id}`] },
       body: "One immutable qualification run.\n",
     },
     {
@@ -1544,7 +1547,10 @@ it("runs accepted-SYS evidence through lean Phase 6 at the public CLI", async ()
     let witnessedResult: string | undefined;
     let witnessedReview: string | undefined;
     for (let index = 0; index < formalImplementations.length; index += 1) {
-      const executionPacket = nextPacket(repository, "execute-verification-run@2");
+      const executionPacket = nextPacket(
+        repository,
+        "execute-formal-verification-run@1",
+      );
       const requirement = exactInputs(executionPacket, "requirement")[0]!;
       executionLevels.push(requirement.identity.type);
       expect(inputRevisions(executionPacket, "execution_target")).toEqual([productArtifact]);

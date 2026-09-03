@@ -389,7 +389,7 @@ it("routes assessed and unsuitable pilots without replay", async () => {
       implementation_ref: `procedure:sha256:${"c".repeat(64)}`,
       independence_mode: "source-blind", authoring_input_refs: [ref("activity")],
       prohibited_inputs_observed: independence.prohibited_inputs,
-      activity_bindings: ["known-good", "known-bad"],
+      activity_bindings: ["known_good", "known_bad"],
       prototype_control_bindings: prototypeBindings(ref("activity")),
       target_behavior: {
         supported: ["The good case exits zero."],
@@ -429,8 +429,8 @@ it("routes assessed and unsuitable pilots without replay", async () => {
       completed_at: "2026-08-31T08:00:01.000Z", execution_state: "completed",
       execution_target: { kind: "prototype", ref: ref("target") },
       runner_ref: "focused-runner", configuration_refs: [ref("environment")],
-      activities_expected: ["known-good", "known-bad"],
-      activities_invoked: ["known-good", "known-bad"],
+      activities_expected: ["known_good", "known_bad"],
+      activities_invoked: ["known_good", "known_bad"],
       evidence_locations: ["observation:good-exit-1"],
     },
     assessment_result: {
@@ -457,8 +457,8 @@ it("routes assessed and unsuitable pilots without replay", async () => {
       completed_at: "2026-08-31T08:01:01.000Z", execution_state: "completed",
       execution_target: { kind: "prototype", ref: ref("target") },
       runner_ref: "focused-runner", configuration_refs: [ref("environment")],
-      activities_expected: ["known-good", "known-bad"],
-      activities_invoked: ["known-good", "known-bad"],
+      activities_expected: ["known_good", "known_bad"],
+      activities_invoked: ["known_good", "known_bad"],
       evidence_locations: ["observation:good-exit-0", "observation:bad-exit-1"],
     },
   });

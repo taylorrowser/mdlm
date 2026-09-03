@@ -168,7 +168,7 @@ describe("Phase 1 pilot chain", () => {
           formal_evidence_eligible: false,
         },
       },
-      "execute-verification-run@2",
+      "execute-qualification-verification-run@1",
       [{ type: "assessed-in", target: environment.datum.revision_id }],
     );
     const qualificationRun = record(
@@ -179,7 +179,7 @@ describe("Phase 1 pilot chain", () => {
         kind: "qualification",
         execution_state: "completed",
       },
-      "execute-verification-run@2",
+      "execute-qualification-verification-run@1",
       [
         { type: "executes", target: qualificationImplementation.datum.revision_id },
         { type: "uses", target: environment.datum.revision_id },
@@ -363,6 +363,7 @@ describe("Phase 1 pilot chain", () => {
         title: "Witnessed pilot procedure",
         kind: "pilot",
         independence_mode: "source-blind",
+        activity_bindings: ["known_good", "known_bad"],
         prototype_control_bindings: {
           activity_ref: activity.datum.revision_id,
           known_good: { argv: ["good"] },

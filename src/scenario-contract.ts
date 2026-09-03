@@ -45,6 +45,13 @@ function scalarPayloadSchema(
     : Array.isArray(schema.enum) && schema.enum.every(scalarValue);
 }
 
+function fixedPayloadSchema(
+  schema: Record<string, unknown> | undefined,
+): boolean {
+  return scalarPayloadSchema(schema) ||
+    (schema?.type === "array" && scalarPayloadSchema(record(schema.items)));
+}
+
 function referencedScenario(
   reference: unknown,
   scenarios: Record<string, VersionedDefinition>,
@@ -226,12 +233,12 @@ export function validateScenarioContracts(
               inputPayload.path,
               catalogs,
             );
-            if (!scalarPayloadSchema(pathSchema)) {
+            if (!fixedPayloadSchema(pathSchema)) {
               diagnostics.push({
                 code: "invalid-required-payload-input-path",
                 path:
                   `scenarios.${scenario.id}.outputs[${outputIndex}].required_payload.${payloadPath}`,
-                message: `Scenario '${scenario.id}' output '${outputName}' payload reference '${value}' must select a scalar payload field on input type ${inputType}`,
+                message: `Scenario '${scenario.id}' output '${outputName}' payload reference '${value}' must select a scalar or scalar-array payload field on input type ${inputType}`,
               });
             }
           }
