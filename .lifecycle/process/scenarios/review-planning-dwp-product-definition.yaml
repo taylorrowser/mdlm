@@ -15,7 +15,7 @@ outputs:
     required_links:
       - {link: reviews, target: {input: subject}}
       - {link: contextualizes, target: {input: review_context}}
-prompt_ref: prompts/review-datum-in-context.md@6
+prompt_ref: prompts/review-planning-dwp-product-definition.md@1
 review_policy_ref: review-applicability@1
 review_policy_arguments:
   subject: subject
