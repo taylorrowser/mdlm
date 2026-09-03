@@ -2806,6 +2806,19 @@ function assignmentResponseFromAuthorValues(
   const materialization = exactBaselineMaterializationContract(exact.scenario);
   const templates = scaffold.proposal.outputs;
   const templateBySlot = new Map(templates.map((output) => [output.handle, output]));
+  const templateHandleByInvocationAndOutput = new Map<string, string>();
+  for (const template of templates) {
+    const route = template.output ?? template.handle;
+    const contract = assignmentPacket.outputs.find((candidate) =>
+      candidate.handle === route
+    );
+    if (contract) {
+      templateHandleByInvocationAndOutput.set(
+        `${template.invocation ?? 0}:${contract.name}`,
+        template.handle,
+      );
+    }
+  }
   const suppliedBySlot = new Map<string, AssignmentAuthorValues["outputs"]>();
   const diagnostics: ProcessDiagnostic[] = [];
 
@@ -2971,6 +2984,15 @@ function assignmentResponseFromAuthorValues(
       authoredHandleByTemplate.set(template.handle, supplied[0]!.handle!);
     }
     for (const value of supplied) {
+      const invocation = template.invocation ?? 0;
+      const fixedPayload = assignmentRequiredPayload(
+        exact,
+        definition,
+        invocation,
+        (output) =>
+          templateHandleByInvocationAndOutput.get(`${invocation}:${output}`) ??
+          output,
+      );
       const fixed = [...new Set([
         ...Object.keys(contract.payloadSummary.requiredValues ?? {}),
         ...nonNullPayloadPaths(template.payload ?? {}),
@@ -2998,7 +3020,10 @@ function assignmentResponseFromAuthorValues(
       resultOutputs.push({
         ...template,
         handle: repeated ? value.handle! : template.handle,
-        payload: mergePayloadValues(template.payload ?? {}, value.payload),
+        payload: mergePayloadValues(
+          mergePayloadValues(template.payload ?? {}, fixedPayload),
+          value.payload,
+        ),
         body: value.body,
       });
     }
@@ -3271,26 +3296,15 @@ function assignmentResponseSkeleton(
         ? object(invocation.inputs.find((input) => input.name === identityInput)
           ?.values[0]?.data.payload) ?? {}
         : {};
-      const requiredPayload = publicRequiredPayloadReferences(
-        object(outputDefinition?.required_payload) ?? {},
+      const requiredPayload = assignmentRequiredPayload(
+        exact,
+        outputDefinition,
+        invocationIndex,
         (output) => {
           const target = routesByName.get(output);
           return target
             ? responseHandle(invocationIndex, target.handle)
             : output;
-        },
-        (inputName, payloadPath) => {
-          const input = invocation.inputs.find((candidate) =>
-            candidate.name === inputName
-          )?.values[0];
-          if (payloadPath) {
-            return payloadPath.split(".").reduce<unknown>(
-              (current, segment) => object(current)?.[segment],
-              input?.data.payload,
-            );
-          }
-          const identity = input?.identity;
-          return identity?.revision_id;
         },
       ) as Record<string, unknown>;
       outputs.push({
@@ -3433,6 +3447,30 @@ function publicRequiredPayloadReferences(
         : publicPayloadReferences(value, outputHandle),
     ];
   }));
+}
+
+function assignmentRequiredPayload(
+  exact: ExactAssignment,
+  outputDefinition: Record<string, unknown> | undefined,
+  invocation: number,
+  outputHandle: (output: string) => string,
+): Record<string, unknown> {
+  return publicRequiredPayloadReferences(
+    object(outputDefinition?.required_payload) ?? {},
+    outputHandle,
+    (inputName, payloadPath) => {
+      const input = exact.dryRun.invocations[invocation]?.inputs.find(
+        (candidate) => candidate.name === inputName,
+      )?.values[0];
+      if (payloadPath) {
+        return payloadPath.split(".").reduce<unknown>(
+          (current, segment) => object(current)?.[segment],
+          input?.data.payload,
+        );
+      }
+      return input?.identity.revision_id;
+    },
+  );
 }
 
 function scenarioProposalFromResponse(

@@ -32,7 +32,11 @@ async function command(repository: string, arguments_: string[], input?: string)
   };
 }
 
-async function compiledCommand(repository: string, arguments_: string[]) {
+async function compiledCommand(
+  repository: string,
+  arguments_: string[],
+  input?: string,
+) {
   return new Promise<{ status: number | null; stdout: string; stderr: string }>(
     (resolve, reject) => {
       const child = spawn(process.execPath, [mdlmExecutable, ...arguments_], {
@@ -44,6 +48,7 @@ async function compiledCommand(repository: string, arguments_: string[]) {
       child.stderr.setEncoding("utf8").on("data", (chunk) => stderr += chunk);
       child.on("error", reject);
       child.on("close", (status) => resolve({ status, stdout, stderr }));
+      child.stdin.end(input);
     },
   );
 }
@@ -433,6 +438,86 @@ describe("focused v2 fault-injection gate", () => {
     });
     expect(JSON.stringify(authorValues)).not.toContain("review_kind");
     expect(JSON.stringify(authorValues)).not.toContain("review-context");
+  }, 30_000);
+
+  it("projects a fixed cross-output Revision into an author-only proposal", async () => {
+    let next = await command(repository, ["next", "--json"]);
+    while (next.value.outcome === "assignment") {
+      const submitted = await command(
+        repository,
+        ["scenario", "submit", "-", "--json"],
+        `${JSON.stringify(filledResponse(next.value))}\n`,
+      );
+      expect(submitted.status, JSON.stringify(submitted.value)).toBe(0);
+      next = await command(repository, ["next", "--json"]);
+    }
+    expect(next.value).toMatchObject({
+      outcome: "attention-required",
+      assignment: {
+        packet: { scenario: { reference: "resolve-question@2" } },
+      },
+    });
+
+    const question = next.value.assignment.packet.exactInputs[0].inputs.find(
+      (input: JsonObject) => input.name === "question",
+    ).values[0];
+    const answer = "Build the exact fault-injection acceptance gate.";
+    const authorValues = {
+      outputs: [{
+        slot: "decision",
+        payload: {
+          title: "Resolve the exact product-intent question",
+          kind: "scope",
+          rationale: "The attended answer fixes the selected outcome.",
+          decision: answer,
+          alternatives: ["Leave the question open."],
+        },
+        body: "The attended answer authorizes this exact scope.\n",
+      }, {
+        slot: "updated_question",
+        payload: {
+          ...question.data.payload,
+          state: "answered",
+          attended_answer: answer,
+        },
+        body: "The stakeholder supplied the exact answer.\n",
+      }],
+      completionEvidence: { summary: "The stakeholder fixed the product intent." },
+    };
+    const suppliedFixedField = structuredClone(authorValues);
+    Object.assign(suppliedFixedField.outputs[0]!.payload, {
+      effective_scope: "$proposal.updated_question.revision_id",
+    });
+    const fixedFieldRejected = await compiledCommand(repository, [
+      "assignment", "submit-proposal", "-", "--authority", "stakeholder", "--json",
+    ], `${JSON.stringify(suppliedFixedField)}\n`);
+    expect(fixedFieldRejected.status).toBe(1);
+    expect(JSON.parse(fixedFieldRejected.stdout)).toMatchObject({
+      command: "assignment.submit-proposal",
+      diagnostics: expect.arrayContaining([expect.objectContaining({
+        code: "assignment-author-values-fixed-payload",
+        path: "authorValues.outputs.decision.payload.effective_scope",
+      })]),
+    });
+
+    const accepted = await compiledCommand(repository, [
+      "assignment", "submit-proposal", "-", "--authority", "stakeholder", "--json",
+    ], `${JSON.stringify(authorValues)}\n`);
+    expect(accepted.status, `${accepted.stderr}${accepted.stdout}`).toBe(0);
+    const outcome = JSON.parse(accepted.stdout) as JsonObject;
+    const updatedQuestion = outcome.receipt.publications.find(
+      (publication: JsonObject) => publication.handle === "updated_question",
+    );
+    const decision = outcome.receipt.publications.find(
+      (publication: JsonObject) => publication.handle === "decision",
+    );
+    const shownDecision = await command(
+      repository,
+      ["show", decision.revisionId, "--json"],
+    );
+    expect(shownDecision.status, JSON.stringify(shownDecision.value)).toBe(0);
+    expect(shownDecision.value.lifecycleDatum.datum.payload.effective_scope)
+      .toBe(updatedQuestion.revisionId);
   }, 30_000);
 
   it("rejects a stale lease before saving or submitting derived response bytes", async () => {
