@@ -532,7 +532,7 @@ it("routes assessed and unsuitable pilots without replay", async () => {
       independence_mode: "source-blind",
       authoring_input_refs: [inputRevision("activity")],
       prohibited_inputs_observed: independence.prohibited_inputs,
-      activity_bindings: ["known-good", "known-bad"],
+      activity_bindings: ["known_good", "known_bad"],
       prototype_control_bindings: prototypeBindings(inputRevision("activity")),
       target_behavior: {
         supported: ["The good case exits zero."],

@@ -67,19 +67,21 @@ async function focusedPackage(parent: string): Promise<string> {
     await fs.writeFile(obligationPath, stringify(obligation));
   }
 
-  const runObligationPath = path.join(
-    root,
-    "obligations/verification-run-required.yaml",
-  );
-  const runObligation = parse(await fs.readFile(runObligationPath, "utf8"));
-  runObligation.status_rules = [{
-    status: "ready",
-    priority: 2_000_000,
-    when: "true",
-    reason: "The focused pilot inputs permit one execution.",
-  }];
-  runObligation.default_status = "blocked";
-  await fs.writeFile(runObligationPath, stringify(runObligation));
+  for (const id of [
+    "verification-run-required",
+    "pilot-control-verification-run-required",
+  ]) {
+    const runObligationPath = path.join(root, `obligations/${id}.yaml`);
+    const runObligation = parse(await fs.readFile(runObligationPath, "utf8"));
+    runObligation.status_rules = [{
+      status: "ready",
+      priority: 2_000_000,
+      when: "true",
+      reason: "The focused pilot inputs permit one execution.",
+    }];
+    runObligation.default_status = "blocked";
+    await fs.writeFile(runObligationPath, stringify(runObligation));
+  }
 
   const seedScenario = {
     kind: "scenario-definition",
@@ -148,11 +150,11 @@ async function focusedPackage(parent: string): Promise<string> {
     phases: ["phase-1-product-assurance"],
     for_each: "[phase]",
     subject_as: "required_phase",
-    satisfied_when: 'exists("pilot-verification-implementations-requiring-run@1", {})',
+    satisfied_when: 'exists("verification-implementations-requiring-run@1", {})',
     status_rules: [{
       status: "ready",
       priority: 3_000_000,
-      when: 'none("pilot-verification-implementations-requiring-run@1", {})',
+      when: 'none("verification-implementations-requiring-run@1", {})',
       reason: "Publish the focused pilot inputs.",
     }],
     default_status: "blocked",
@@ -174,7 +176,7 @@ async function focusedPackage(parent: string): Promise<string> {
   return root;
 }
 
-function fillSeed(packet: Json): Json {
+function fillSeed(packet: Json, controlled = true): Json {
   const response = structuredClone(packet.responseScaffold);
   const ref = (output: string) => ({ output });
   const controls = {
@@ -306,6 +308,71 @@ function fillSeed(packet: Json): Json {
       },
     },
   };
+  if (!controlled) {
+    const exactBytes = { encoding: "base64", bytes: "" };
+    payloads.target = {
+      title: "Registered public-interface pilot",
+      kind: "prototype",
+      repository_ref: `git:${"3".repeat(40)}`,
+      supported_behavior: ["The good control exits zero."],
+      unsupported_behavior: ["The bad control exits nonzero."],
+      evidence_refs: ["inline:registered-pilot"],
+      public_interface: {
+        repository_locator: "focused-product-repository",
+        command: [
+          { literal: "node" },
+          { checkout_path: "pilot.mjs" },
+          { extra_argument: { raw: { encoding: "utf-8", value: "unexpected" } } },
+        ],
+        argument_cases: [{
+          id: "normal",
+          kind: "normal",
+          expected_observation: {
+            classification: "success",
+            exit_status: 0,
+            stdout: exactBytes,
+            stderr: exactBytes,
+          },
+        }, {
+          id: "argument-bearing",
+          kind: "extra-argument",
+          expected_observation: {
+            classification: "automatic-rejection",
+            exit_status: 2,
+            stdout: exactBytes,
+            stderr: exactBytes,
+          },
+        }],
+        working_directory: "fresh-temporary-directory",
+      },
+    };
+    payloads.implementation = {
+      title: "Registered public-interface pilot procedure",
+      rationale: "Execute the exact public interface.",
+      kind: "pilot",
+      implementation_ref: implementationRef,
+      independence_mode: "source-blind",
+      authoring_input_refs: [ref("activity"), ref("environment"), ref("target")],
+      prohibited_inputs_observed: prohibitedInputs,
+      activity_bindings: ["normal", "argument-bearing"],
+      target_behavior: {
+        supported: ["The good control exits zero."],
+        intentionally_unsupported: ["The bad control exits nonzero."],
+      },
+      execution_procedure: {
+        deadlines_ms: { checkout: 1000, environment_check: 1000, product_case: 1000 },
+        deadline_scope: "infrastructure-safety-only",
+        timeout: {
+          termination: "process-group-sigterm-then-sigkill",
+          force_after_ms: 100,
+          reaping: "all-descendants",
+          capture_partial_raw_observation: true,
+        },
+        cleanup: "guaranteed",
+        aggregation: "continue-through-all-cases",
+      },
+    };
+  }
   for (const output of response.proposal.outputs) {
     output.payload = payloads[output.handle];
     output.body = `Focused ${output.handle}.\n`;
@@ -368,7 +435,9 @@ it("projects fixed pilot RUN fields through author-only submission", async () =>
     const next = mdlm(repository, "next", "--json");
     expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
     const packet = JSON.parse(next.stdout).assignment.packet;
-    expect(packet.scenario.reference).toBe("execute-verification-run@2");
+    expect(packet.scenario.reference).toBe(
+      "execute-pilot-control-verification-run@1",
+    );
     const run = packet.responseScaffold.proposal.outputs.find(
       (output: Json) => output.handle === "run",
     );
@@ -470,6 +539,44 @@ it("projects fixed pilot RUN fields through author-only submission", async () =>
           known_bad: { artifact_ref: target, activity_ref: activity },
         },
       });
+  } finally {
+    await fs.rm(parent, { recursive: true, force: true });
+  }
+}, 45_000);
+
+it("leaves public-interface pilot observations to the author", async () => {
+  const parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-run-projection-"));
+  try {
+    const repository = path.join(parent, "repository");
+    await fs.mkdir(repository);
+    await selectProcessPackageFixture(repository, await focusedPackage(parent));
+
+    const seedNext = mdlm(repository, "next", "--json");
+    expect(seedNext.status, `${seedNext.stderr}${seedNext.stdout}`).toBe(0);
+    const seedPacket = JSON.parse(seedNext.stdout).assignment.packet;
+    const seeded = mdlmWithInput(
+      repository,
+      `${JSON.stringify(fillSeed(seedPacket, false))}\n`,
+      "scenario", "submit", "-", "--json",
+    );
+    expect(seeded.status, `${seeded.stderr}${seeded.stdout}`).toBe(0);
+    commit(repository);
+
+    const next = mdlm(repository, "next", "--json");
+    expect(next.status, `${next.stderr}${next.stdout}`).toBe(0);
+    const packet = JSON.parse(next.stdout).assignment.packet;
+    expect(packet.scenario.reference).toBe("execute-verification-run@2");
+    const run = packet.responseScaffold.proposal.outputs.find(
+      (output: Json) => output.handle === "run",
+    );
+    expect(run.payload).toMatchObject({
+      kind: "pilot",
+      runner_ref: implementationRef,
+      activities_expected: ["normal", "argument-bearing"],
+      execution_target: { ref: inputRevision(packet, "execution_target") },
+    });
+    expect(run.payload.execution_target).not.toHaveProperty("kind");
+    expect(run.payload).not.toHaveProperty("control_observations");
   } finally {
     await fs.rm(parent, { recursive: true, force: true });
   }
