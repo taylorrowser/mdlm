@@ -196,16 +196,18 @@ function canonicalizeSourcePaths(value: unknown, sourceRoot: string): unknown {
   return value;
 }
 
+/** The key covers the package, the loader source, and the locked dependencies. */
 async function fixtureKey(repositoryRoot: string): Promise<FixtureKey> {
-  const [packageDigest, loaderDigest] = await Promise.all([
+  const [packageDigest, loaderDigest, lockfile] = await Promise.all([
     processPackageDigest(path.join(repositoryRoot, CANONICAL_PROCESS_ROOT)),
     processPackageDigest(path.join(repositoryRoot, LOADER_ROOT)),
+    fs.readFile(path.join(repositoryRoot, "package-lock.json")),
   ]);
   return {
     packageDigest,
     loaderDigest,
     cacheKey: createHash("sha256")
-      .update(`${packageDigest}\n${loaderDigest}\n`)
+      .update(`${packageDigest}\n${loaderDigest}\n${sha256(lockfile)}\n`)
       .digest("hex"),
   };
 }
