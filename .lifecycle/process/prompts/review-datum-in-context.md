@@ -65,6 +65,14 @@ binding or a VER that tests different observable behavior is a primary blocking
 finding against the VER and requires `outcome: fail`. Use the exact package
 evidence to determine the correction.
 
+For a completion DWP whose `target_child_type` is `DES`, compare the exact DES
+context members with their exact CMP parents. Fail the coherent set if its DES
+members only rename or restate their CMP parents without adding at least one
+concrete implementable technical choice, such as an algorithm, state or data
+flow, buffering, error behavior, or another product-relevant design constraint.
+This criterion does not permit source files, symbols, product code, unit tests,
+or verification implementation in DES.
+
 A candidate linked through `changed-under` additionally receives
 the bounded CHG and attended disposition; a replacement STK receives the same
 change context so its judgment is scoped to the approved change.

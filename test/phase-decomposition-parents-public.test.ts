@@ -135,6 +135,25 @@ async function focusedPackage(parent: string, phase: typeof phases[number]): Pro
     } },
     waiver_policy_ref: "waiver-applicability@1",
   });
+  if (phase.id !== "phase-2-system-definition") {
+    await writeYaml(root, "obligations/phase-decomposition-execution-required.yaml", {
+      kind: "obligation-definition", id: "phase-decomposition-execution-required", version: 1,
+      description: "The focused route exposes the exact lower-level decomposition Assignment.",
+      phases: [phase.id], for_each: "[phase]", subject_as: "required_phase",
+      satisfied_when: "false",
+      status_rules: [{ status: "ready", priority: 10_000,
+        when: 'exists("phase-decomposition-new-plans@1", {})',
+        reason: "Expose the exact target-specific authoring guidance." }],
+      default_status: "blocked",
+      resolve_with: { scenario: "execute-lower-level-decomposition-work-package@1", inputs: {
+        plan: 'one("phase-decomposition-new-plans@1", {})',
+        parents: 'select("lower-level-decomposition-parents-for@1", {plan: one("phase-decomposition-new-plans@1", {})})',
+        architecture: 'one("architectures-for-decomposition@1", {plan: one("phase-decomposition-new-plans@1", {})})',
+        interfaces: 'select("interfaces-for-decomposition@1", {plan: one("phase-decomposition-new-plans@1", {})})',
+      } },
+      waiver_policy_ref: "waiver-applicability@1",
+    });
+  }
 
   const seededSelector = (id: string, type: string, alias: string) => ({
     kind: "selector-definition", id, version: 1,
@@ -199,7 +218,7 @@ function commit(repository: string): void {
   expect(result.status, `${result.stderr}${result.stdout}`).toBe(0);
 }
 
-it("gives decomposition planning only the active phase parent type", async () => {
+it("gives decomposition planning the active parent and Phase 4 target guidance", async () => {
   for (const phase of phases) {
     const parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-phase-parents-"));
     try {
@@ -257,6 +276,24 @@ it("gives decomposition planning only the active phase parent type", async () =>
         expect(accepted.receipt.publications).toEqual([
           expect.objectContaining({ handle: "plan", revisionId: expect.stringMatching(/^DWP-/) }),
         ]);
+        commit(repository);
+
+        const executionPacket = json(mdlm(repository, "next", "--json")).assignment.packet;
+        expect(executionPacket.scenario.reference)
+          .toBe("execute-lower-level-decomposition-work-package@1");
+        const exactPlan = executionPacket.exactInputs[0].inputs.find(
+          (input: Json) => input.name === "plan",
+        ).values[0];
+        expect(exactPlan.data.payload.target_child_type).toBe("DES");
+        expect(executionPacket.scenario.prompt.content).toContain(
+          "When the exact plan's `target_child_type` is `CMP`, keep each requirement solution-independent",
+        );
+        expect(executionPacket.scenario.prompt.content).toContain(
+          "When the exact plan's `target_child_type` is `DES`, add at least one concrete implementable technical choice beyond renaming or restating its parent CMP",
+        );
+        expect(executionPacket.scenario.prompt.content).toContain(
+          "Do not name source files or symbols, include product code or unit tests, or expose verification implementation.",
+        );
       }
     } finally {
       await fs.rm(parent, { recursive: true, force: true });
