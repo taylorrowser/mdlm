@@ -20,7 +20,7 @@ status_rules:
       && exists("stale-reviews-for@1", {subject: subject})
     reason: Prior Phase 2 Review evidence exists but its subject or atomic context changed.
     blocked_by:
-      - obligation: phase-2-atomic-review-required@1
+      - obligation: review-context-required@2
         subjects: '[subject]'
   - status: stale
     priority: 300
@@ -36,9 +36,9 @@ status_rules:
     when: >-
       phase.id == "phase-2-system-definition"
       && none("valid-review-contexts-for@1", {subject: subject})
-    reason: Phase 2 product-definition Review waits for one atomic exact context-and-Review transaction.
+    reason: Phase 2 product-definition Review waits for its exact frozen context.
     blocked_by:
-      - obligation: phase-2-atomic-review-required@1
+      - obligation: review-context-required@2
         subjects: '[subject]'
   - status: blocked
     priority: 200

@@ -10,5 +10,6 @@ query:
   where: >-
     !every("review-required-revisions@1", {}, required => required != subject)
     && every("phase-1-assurance-review-required-revisions@1", {}, assurance => assurance != subject)
+    && none("planning-dwp-matching-subject@1", {subject: subject})
   distinct: true
   order_by: [identity.type, identity.id, identity.revision]
