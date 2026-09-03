@@ -72,6 +72,18 @@ async function focusedPackage(parent: string): Promise<string> {
     await fs.writeFile(otherPath, stringify(other));
   }
 
+  const runScenarioPath = path.join(root, "scenarios/execute-verification-run.yaml");
+  const runScenario = parse(await fs.readFile(runScenarioPath, "utf8"));
+  const resultOutput = runScenario.outputs.find(
+    (output: Json) => output.name === "result",
+  );
+  resultOutput.required_links.push({
+    link: "verifies-revision",
+    target: { input: "requirement" },
+  });
+  resultOutput.permitted_links = [];
+  await fs.writeFile(runScenarioPath, stringify(runScenario));
+
   for (const entry of await fs.readdir(path.join(root, "obligations"))) {
     const obligationPath = path.join(root, "obligations", entry);
     const obligation = parse(await fs.readFile(obligationPath, "utf8"));
@@ -90,7 +102,7 @@ async function focusedPackage(parent: string): Promise<string> {
     kind: "scenario-definition",
     id: "seed-runner-identity-route",
     version: 1,
-    description: "Publish the minimum exact qualification-run inputs.",
+    description: "Publish the minimum exact formal-run inputs.",
     phases: ["phase-1-product-assurance"],
     inputs: [],
     outputs: [
@@ -122,9 +134,10 @@ async function focusedPackage(parent: string): Promise<string> {
         cardinality: "one",
         required_links: [
           { link: "governed-by", target: { output: "strategy" } },
-          { link: "qualifies", target: { output: "environment" } },
+          { link: "verifies-revision", target: { output: "requirement" } },
         ],
       },
+      { name: "artifact", types: ["ART"], cardinality: "one", required_links: [] },
       {
         name: "implementation",
         types: ["VAI"],
@@ -132,7 +145,7 @@ async function focusedPackage(parent: string): Promise<string> {
         required_links: [
           { link: "realizes", target: { output: "activity" } },
           { link: "uses", target: { output: "environment" } },
-          { link: "targets", target: { output: "environment" } },
+          { link: "targets", target: { output: "artifact" } },
         ],
       },
     ],
@@ -211,11 +224,69 @@ async function focusedPackage(parent: string): Promise<string> {
       order_by: ["identity.revision_id"],
     },
   };
+  const acceptedRequirementSelector = {
+    kind: "selector-definition",
+    id: "phase-6-accepted-requirements-for-formal-implementation",
+    version: 1,
+    description: "The exact requirement bound to the focused formal implementation.",
+    parameters: [{ name: "implementation", kind: "revision", types: ["VAI"] }],
+    result_kind: "revision",
+    query: {
+      from: {
+        selector: "requirements-for-pilot-activity@1",
+        arguments: {
+          activity:
+            'one("verification-activities-for-implementation@1", {implementation: implementation})',
+        },
+      },
+      as: "requirement",
+      distinct: true,
+      order_by: ["identity.revision_id"],
+    },
+  };
+  const qualifiedEnvironmentSelector = {
+    kind: "selector-definition",
+    id: "phase-6-qualified-environments-for-formal-implementation",
+    version: 1,
+    description: "The exact environment bound to the focused formal implementation.",
+    parameters: [{ name: "implementation", kind: "revision", types: ["VAI"] }],
+    result_kind: "revision",
+    query: {
+      from: {
+        selector: "environments-for-implementation@1",
+        arguments: { implementation: "implementation" },
+      },
+      as: "environment",
+      distinct: true,
+      order_by: ["identity.revision_id"],
+    },
+  };
+  const controlledArtifactSelector = {
+    kind: "selector-definition",
+    id: "phase-6-controlled-artifacts-for-formal-implementation",
+    version: 1,
+    description: "The exact artifact bound to the focused formal implementation.",
+    parameters: [{ name: "implementation", kind: "revision", types: ["VAI"] }],
+    result_kind: "revision",
+    query: {
+      from: {
+        selector: "execution-targets-for-implementation@1",
+        arguments: { implementation: "implementation" },
+      },
+      as: "artifact",
+      where: 'artifact.identity.type == "ART"',
+      distinct: true,
+      order_by: ["identity.revision_id"],
+    },
+  };
   for (const [relative, value] of [
     ["scenarios/seed-runner-identity-route.yaml", seedScenario],
     ["obligations/seed-runner-identity-route-required.yaml", seedObligation],
     ["obligations/focused-runner-identity-required.yaml", runObligation],
     ["selectors/focused-runner-implementations.yaml", selector],
+    ["selectors/phase-6-accepted-requirements-for-formal-implementation.yaml", acceptedRequirementSelector],
+    ["selectors/phase-6-qualified-environments-for-formal-implementation.yaml", qualifiedEnvironmentSelector],
+    ["selectors/phase-6-controlled-artifacts-for-formal-implementation.yaml", controlledArtifactSelector],
   ] as [string, unknown][]) {
     await fs.writeFile(path.join(root, relative), stringify(value));
   }
@@ -256,7 +327,7 @@ function submit(repository: string, response: Json) {
   );
 }
 
-it("rejects a verification RUN that names a runner other than its exact VAI", async () => {
+it("rejects a formal pass unless its runner and observations match", async () => {
   const parent = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-runner-binding-"));
   try {
     const repository = path.join(parent, "repository");
@@ -318,27 +389,52 @@ it("rejects a verification RUN that names a runner other than its exact VAI", as
         },
       },
       activity: {
-        title: "Qualify the focused process environment",
-        rationale: "Check the declared process capability.",
-        kind: "qualification",
+        title: "Verify the focused requirement",
+        rationale: "Check the declared behavior and its discrimination case.",
+        kind: "formal",
         method: "test",
         assessment_mode: "automatic",
         claim: {
-          kind: "qualification",
-          scope: "environment-capability",
-          formal_evidence_eligible: false,
+          kind: "formal",
+          scope: "requirement",
+          formal_evidence_eligible: true,
         },
         acceptance_criteria: ["The exact procedure completes."],
         evidence_requirements: ["Retain the exact runner identity."],
         expected_success_activity: "The capability probe succeeds.",
         expected_discrimination_activity: "The negative probe is rejected.",
+        expected_observations: {
+          "capability-probe": {
+            stdin_base64: "",
+            stdout_base64: "b2sK",
+            stderr_base64: "",
+            exit_status: 0,
+            timed_out: false,
+            truncated: false,
+          },
+          "negative-control": {
+            stdin_base64: "YmFk",
+            stdout_base64: "",
+            stderr_base64: "ZXJyb3IK",
+            exit_status: 2,
+            timed_out: false,
+            truncated: false,
+          },
+        },
+      },
+      artifact: {
+        title: "Focused controlled product build",
+        kind: "prototype",
+        repository_ref: `git:${"0".repeat(40)}`,
+        supported_behavior: ["The capability probe succeeds."],
+        unsupported_behavior: ["The negative probe is rejected."],
       },
       implementation: {
-        title: "Exact qualification procedure",
-        rationale: "Implement the exact capability check.",
-        kind: "qualification",
+        title: "Exact formal procedure",
+        rationale: "Implement the exact requirement check.",
+        kind: "formal",
         implementation_ref: implementationRef,
-        independence_mode: "environment-capability",
+        independence_mode: "source-blind",
         authoring_input_refs: [
           "$proposal.activity.revision_id",
           "$proposal.environment.revision_id",
@@ -374,32 +470,50 @@ it("rejects a verification RUN that names a runner other than its exact VAI", as
       },
     }));
     expect(seedResult.status, `${seedResult.stderr}${seedResult.stdout}`).toBe(0);
-    commit(repository, "Seed exact qualification inputs");
+    commit(repository, "Seed exact formal inputs");
 
     const run = nextPacket(repository, "execute-verification-run@2");
     const runInput = run.exactInputs[0].inputs;
     const revision = (name: string) =>
       runInput.find((input: Json) => input.name === name).values[0].identity.revision_id;
     const runPayload = {
-      title: "Focused qualification run",
-      kind: "qualification",
+      title: "Focused formal run",
+      kind: "formal",
       started_at: "2026-09-02T00:00:00Z",
       completed_at: "2026-09-02T00:00:01Z",
       execution_state: "completed",
-      execution_target: { kind: "environment", ref: revision("environment") },
-      runner_ref: `procedure:sha256:${"2".repeat(64)}`,
+      execution_target: { kind: "product-build", ref: revision("execution_target") },
+      runner_ref: implementationRef,
       configuration_refs: [revision("implementation"), revision("activity")],
       activities_expected: ["capability-probe", "negative-control"],
       activities_invoked: ["capability-probe", "negative-control"],
-      evidence_locations: ["inline:focused-qualification"],
+      evidence_locations: ["inline:focused-formal"],
+      actual_observations: {
+        "capability-probe": {
+          stdin_base64: "",
+          stdout_base64: "b2sK",
+          stderr_base64: "",
+          exit_status: 0,
+          timed_out: false,
+          truncated: false,
+        },
+        "different-negative-control": {
+          stdin_base64: "YmFk",
+          stdout_base64: "b2sK",
+          stderr_base64: "",
+          exit_status: 0,
+          timed_out: false,
+          truncated: false,
+        },
+      },
     };
     const resultPayload = {
-      title: "Passing focused qualification",
+      title: "Passing focused formal result",
       claim: {
-        kind: "qualification",
-        scope: "environment-capability",
+        kind: "formal",
+        scope: "requirement",
         outcome: "pass",
-        formal_evidence_eligible: false,
+        formal_evidence_eligible: true,
       },
       assessment_state: "recorded",
       observations: {
@@ -407,20 +521,57 @@ it("rejects a verification RUN that names a runner other than its exact VAI", as
         expected_discrimination_observed: true,
         details: "Both declared qualification activities completed.",
       },
-      evidence_refs: ["inline:focused-qualification"],
+      evidence_refs: ["inline:focused-formal"],
       assessor_ref: implementationRef,
     };
-    const mismatched = submit(repository, proposal(run, {
+    const runnerMismatch = submit(repository, proposal(run, {
+      run: {
+        ...runPayload,
+        runner_ref: `procedure:sha256:${"2".repeat(64)}`,
+      },
+      result: resultPayload,
+    }));
+    expect(runnerMismatch.status).toBe(1);
+    expect(runnerMismatch.stdout).toContain("scenario-completion-failed");
+
+    const mismatchedProposal = proposal(run, {
       run: runPayload,
       result: resultPayload,
-    }));
+    });
+    const mismatched = submit(repository, mismatchedProposal);
     expect(mismatched.status).toBe(1);
     expect(mismatched.stdout).toContain("scenario-completion-failed");
-
-    const accepted = submit(repository, proposal(run, {
-      run: { ...runPayload, runner_ref: implementationRef },
-      result: resultPayload,
+    expect(JSON.parse(mismatched.stdout)).toEqual(expect.objectContaining({
+      retryable: true,
+      correctionConsumed: false,
     }));
+    expect(git(repository, "status", "--short").stdout).toBe("");
+
+    const correctedProposal = proposal(run, {
+      run: {
+        ...runPayload,
+        actual_observations: {
+          "capability-probe": {
+            stdin_base64: "",
+            stdout_base64: "b2sK",
+            stderr_base64: "",
+            exit_status: 0,
+            timed_out: false,
+            truncated: false,
+          },
+          "negative-control": {
+            stdin_base64: "YmFk",
+            stdout_base64: "",
+            stderr_base64: "ZXJyb3IK",
+            exit_status: 2,
+            timed_out: false,
+            truncated: false,
+          },
+        },
+      },
+      result: resultPayload,
+    });
+    const accepted = submit(repository, correctedProposal);
     expect(accepted.status, `${accepted.stderr}${accepted.stdout}`).toBe(0);
     expect(JSON.parse(accepted.stdout).receipt.publications).toEqual(
       expect.arrayContaining([

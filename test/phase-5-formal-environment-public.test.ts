@@ -133,7 +133,7 @@ function response(packet: Json, ambiguous: boolean): Json {
     governing_environment: environmentPayload("$proposal.governing_strategy.revision_id", "governing-profile"),
     unrelated_environment: environmentPayload("$proposal.unrelated_strategy.revision_id", "unrelated-profile"),
     ...(ambiguous ? { ambiguous_environment: environmentPayload("$proposal.governing_strategy.revision_id", "governing-profile") } : {}),
-    activity: { title: "Verify echo", rationale: "Judge the exact requirement.", kind: "formal", method: "test", assessment_mode: "automatic", claim: { kind: "formal", scope: "requirement", formal_evidence_eligible: true }, acceptance_criteria: ["Output matches input."], evidence_requirements: ["Retain output."], expected_success_activity: "Matching output passes.", expected_discrimination_activity: "Different output fails." },
+    activity: { title: "Verify echo", rationale: "Judge the exact requirement.", kind: "formal", method: "test", assessment_mode: "automatic", claim: { kind: "formal", scope: "requirement", formal_evidence_eligible: true }, acceptance_criteria: ["Output matches input."], evidence_requirements: ["Retain output."], expected_success_activity: "Matching output passes.", expected_discrimination_activity: "Different output fails.", expected_observations: { "echo-case": { stdin_base64: "ZWNobw==", stdout_base64: "ZWNobw==", stderr_base64: "", exit_status: 0, timed_out: false, truncated: false } } },
   };
   value.proposal.outputs = value.proposal.outputs.map((output: Json) => ({
     ...output,

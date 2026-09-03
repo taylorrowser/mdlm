@@ -28,7 +28,7 @@ outputs:
       - {link: assessed-in, target: {input: environment}}
     permitted_links:
       - {link: verifies-revision, target: {input: requirement}}
-prompt_ref: prompts/execute-verification-run.md@4
+prompt_ref: prompts/execute-verification-run.md@5
 review_policy_ref: review-applicability@1
 completion: >-
   execution.integrity.contract_valid == true
@@ -68,6 +68,8 @@ completion: >-
     && result.payload.claim.kind == "formal"
     && result.payload.claim.scope == "requirement"
     && result.payload.claim.formal_evidence_eligible == true
+    && (result.payload.claim.outcome != "pass"
+      || run.payload.actual_observations == activity.payload.expected_observations)
     && count("requirements-for-formal-result@1", {result: result}) == 1
     && one("requirements-for-formal-result@1", {result: result}) == requirement
     && ((run.payload.execution_state == "completed"

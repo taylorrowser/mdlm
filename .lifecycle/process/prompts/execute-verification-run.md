@@ -1,6 +1,6 @@
 ---
 id: execute-verification-run
-version: 4
+version: 5
 scenario: execute-verification-run
 ---
 
@@ -42,6 +42,15 @@ immutable formal RUN and one formal RES in the same transaction. Link the RES to
 the exact requirement with `verifies-revision`. A deterministic result uses
 `assessment_state: recorded`; an analysis, inspection, or witnessed result uses
 `assessment_state: assessment-required` and awaits independent Review.
+
+For every formal activity, record its machine-readable expected cases in
+`VER.payload.expected_observations`. Record the attempted cases under the same
+keys in `RUN.payload.actual_observations`, retaining exact base64 stdin, stdout,
+and stderr, exit status or signal, timeout state, and truncation state. A formal
+RES may claim `pass` only when the two maps have exactly the same keys and values.
+Missing, extra, renamed, or different observations require `fail` or
+`inconclusive` as the evidence warrants. This correspondence checks submitted
+Lifecycle Data; it does not prove that a process produced the submitted values.
 
 Distinguish execution failure from infrastructure error. If mandatory setup fails,
 the target safely refuses execution, or every product case is not launched, retain

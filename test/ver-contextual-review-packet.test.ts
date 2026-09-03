@@ -207,6 +207,16 @@ it("gives a formal VER reviewer the exact requirement and mismatch rule", async 
         evidence_requirements: ["Retain stderr and exit status."],
         expected_success_activity: "Invoke with one supported argument.",
         expected_discrimination_activity: "Invoke with an extra argument.",
+        expected_observations: {
+          "extra-argument": {
+            stdin_base64: "",
+            stdout_base64: "",
+            stderr_base64: "VVNBR0U=",
+            exit_status: 2,
+            timed_out: false,
+            truncated: false,
+          },
+        },
       },
     }),
   );
