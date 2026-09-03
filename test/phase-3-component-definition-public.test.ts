@@ -756,7 +756,7 @@ function formalExecutionOutputs(
         execution_target: { kind: "product-build", ref: productArtifact },
         runner_ref: implementationRef,
         configuration_refs: [implementation, activity.identity.revision_id, environment, requirement],
-        activities_expected: [activity.identity.revision_id],
+        activities_expected: exactInputs(packet, "implementation")[0]!.data.payload.activity_bindings,
         activities_invoked: completed ? [activity.identity.revision_id] : [],
         evidence_locations: [`inline:formal-${index}`],
         actual_observations: completed
