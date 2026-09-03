@@ -1,7 +1,7 @@
 kind: selector-definition
-id: pilot-verification-implementations-requiring-run
+id: pilot-control-verification-implementations-requiring-run
 version: 1
-description: Current valid public-interface pilot implementations whose execution obligations are evaluated.
+description: Current valid prototype-control pilot implementations whose execution obligations are evaluated.
 parameters: []
 result_kind: revision
 query:
@@ -9,6 +9,6 @@ query:
   as: implementation
   where: >-
     implementation.payload.kind == "pilot"
-    && !present(implementation.payload.prototype_control_bindings)
+    && present(implementation.payload.prototype_control_bindings)
   distinct: true
   order_by: [identity.revision_id]

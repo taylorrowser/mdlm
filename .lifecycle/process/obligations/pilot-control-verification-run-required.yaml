@@ -1,0 +1,74 @@
+kind: obligation-definition
+id: pilot-control-verification-run-required
+version: 1
+description: Prototype-control pilot implementations require their bounded control execution evidence.
+phases: [phase-1-product-assurance, phase-2-system-definition, phase-3-component-definition, phase-4-design-definition]
+for_each: 'select("pilot-control-verification-implementations-requiring-run@1", {})'
+subject_as: implementation
+satisfied_when: 'exists("exercised-pilot-runs-for-implementation@2", {implementation: implementation})'
+status_rules:
+  - status: awaiting-review
+    priority: 900
+    when: >-
+      exists("pilot-results-awaiting-assessment-for-implementation@1",
+        {implementation: implementation})
+    reason: The accepted immutable pilot execution awaits its declared independent result assessment and must not be replayed.
+    blocked_by:
+      - obligation: pilot-result-assessment-required@1
+        subjects: '[implementation]'
+  - status: blocked
+    priority: 500
+    when: >-
+      exists("unfavorable-pilot-results-for-implementation@1",
+        {implementation: implementation})
+      && none("pilot-result-corrections-for-implementation@1",
+        {implementation: implementation})
+    reason: Accepted unfavorable pilot evidence requires bounded causal correction before this exact implementation can execute again.
+    blocked_by:
+      - obligation: pilot-vai-result-correction-required@1
+        subjects: '[implementation]'
+  - status: blocked
+    priority: 400
+    when: >-
+      none("passing-qualification-results-for@1",
+        {environment: one("environments-for-implementation@1", {implementation: implementation})})
+    reason: Pilot execution is blocked until an exact passing environment-capability qualification result exists.
+    blocked_by:
+      - obligation: qualification-verification-run-required@1
+        subjects: >-
+          select("qualification-implementations-for-environment@1",
+            {environment: one("environments-for-implementation@1", {implementation: implementation})})
+  - status: awaiting-review
+    priority: 300
+    when: >-
+      none("passing-reviews-for@1",
+        {subject: one("environments-for-implementation@1", {implementation: implementation})})
+    reason: The qualified environment must pass contextual review before pilot use.
+    blocked_by:
+      - obligation: phase-1-assurance-review-required@1
+        subjects: 'select("environments-for-implementation@1", {implementation: implementation})'
+  - status: awaiting-review
+    priority: 200
+    when: >-
+      none("passing-reviews-for@1", {subject: implementation})
+      || none("passing-reviews-for@1",
+        {subject: one("verification-activities-for-implementation@1", {implementation: implementation})})
+    reason: The source-independent pilot activity and its implementation require independent review before execution.
+    blocked_by:
+      - obligation: phase-1-assurance-review-required@1
+        subjects: '[implementation]'
+      - obligation: phase-1-assurance-review-required@1
+        subjects: 'select("verification-activities-for-implementation@1", {implementation: implementation})'
+  - status: ready
+    priority: 100
+    when: 'true'
+    reason: Exact activity, environment, target, and independence provenance permit a bounded prototype-control execution.
+default_status: blocked
+resolve_with:
+  scenario: execute-pilot-control-verification-run@1
+  inputs:
+    implementation: implementation
+    activity: 'one("verification-activities-for-implementation@1", {implementation: implementation})'
+    environment: 'one("environments-for-required-run@1", {implementation: implementation})'
+    execution_target: 'one("execution-targets-for-required-run@1", {implementation: implementation})'
+waiver_policy_ref: waiver-applicability@1
