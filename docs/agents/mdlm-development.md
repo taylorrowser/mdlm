@@ -100,6 +100,11 @@ Rank fixes by operational effect:
 
 Reproduce the observed failure once, add the smallest regression that fails for that reason, make the narrow fix, run focused tests and checks to green outside an active exact quiet-window reservation, and obtain one fresh-context review PASS. The one fresh reviewer performs the whole review directly and returns the sole verdict, without spawning standards or ticket subreviewers. Return to a demo after review. Broader hardening belongs in a separate nonblocking issue.
 
+Before editing the Process Package for a defect, classify it against the
+defect classes in `docs/process-package-learnings.md` and name the class in the
+issue. Apply that class's rule and check instead of a one-off patch. When no
+class fits, add one with its rule and check in the same change.
+
 ### Integration qualification
 
 Keep one rolling integration lane separate from feature and fix writers. It tests only the exact candidate commit and tree recorded in `/home/ubuntu/git/mdlm-successor-demos/operations/releases.json`. Every command and result names that identity. If assembly changes either identity, preserve the old result and start qualification again on the replacement candidate.
