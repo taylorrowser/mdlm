@@ -646,6 +646,52 @@ export interface AssignmentResponseSkeleton {
   };
 }
 
+/** Render the active exact Assignment's existing response scaffold without mutation. */
+export async function inspectActiveAssignmentResponseScaffold(
+  repositoryRoot: string,
+): Promise<AssignmentResult<AssignmentResponseSkeleton>> {
+  const persisted = await readLease(repositoryRoot);
+  if (!persisted.ok) return persisted;
+  const lease = persisted.value;
+  if (!lease || lease.disposition !== "active") {
+    return failure(
+      "assignment-unavailable",
+      "No active Assignment is available for a response scaffold",
+    );
+  }
+  const pending = await readPendingSettlement(repositoryRoot, lease.id);
+  if (pending) {
+    return failure(
+      "submission-settlement-required",
+      "The active Assignment has uncertain publication closure; inspect settlement and do not replay it",
+      pending.execution,
+    );
+  }
+  const exact = await exactAssignment(repositoryRoot);
+  if (!exact.ok) return exact;
+  if (!sameAssignment(lease, exact.value)) {
+    return failure(
+      "assignment-stale",
+      `Assignment '${lease.id}' no longer matches the current exact repository state`,
+      lease.id,
+    );
+  }
+  const current = await readLease(repositoryRoot);
+  if (!current.ok) return current;
+  if (!exactActiveLease(current.value, lease)) {
+    return failure(
+      "assignment-unavailable",
+      `Assignment '${lease.id}' is no longer the active Assignment`,
+      lease.id,
+    );
+  }
+  return {
+    ok: true,
+    value: packet(exact.value, lease).responseScaffold,
+    diagnostics: [],
+  };
+}
+
 type AssignmentResult<T> =
   | { ok: true; value: T; diagnostics: [] }
   | { ok: false; diagnostics: ProcessDiagnostic[] };

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { constants as fsConstants, promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -21,6 +22,7 @@ import {
 import { selectedRepositoryPackage } from "../src/selected-package.js";
 
 type JsonObject = Record<string, any>;
+const mdlmExecutable = path.join(process.cwd(), "dist/mdlm.js");
 
 async function command(repository: string, arguments_: string[], input?: string) {
   const result = await executeCommandApplication(arguments_, repository, input);
@@ -180,6 +182,89 @@ function filledResponse(next: JsonObject): JsonObject {
 }
 
 describe("focused v2 fault-injection gate", () => {
+  it("emits the exact active response file for one successful submission", async () => {
+    const next = await command(repository, ["next", "--json"]);
+    expect(next.status).toBe(0);
+    const leasePath = path.join(
+      repository,
+      ".lifecycle/work/active-assignment.json",
+    );
+    const leaseBefore = await fs.readFile(leasePath, "utf8");
+    const responsePath = path.join(
+      repository,
+      ".lifecycle/work/assignment-response.json",
+    );
+    const emitted = spawnSync(
+      "bash",
+      [
+        "-c",
+        'node "$1" assignment response --json > .lifecycle/work/assignment-response.json',
+        "mdlm-test",
+        mdlmExecutable,
+      ],
+      { cwd: repository, encoding: "utf8" },
+    );
+    expect(emitted.status, emitted.stderr).toBe(0);
+    expect(emitted.stdout).toBe("");
+    const scaffoldSource = await fs.readFile(responsePath, "utf8");
+    const scaffold = JSON.parse(scaffoldSource) as JsonObject;
+    expect(scaffold).toEqual(next.value.assignment.packet.responseScaffold);
+    expect(scaffold).toMatchObject({
+      contract: "mdlm-assignment-response@2",
+      assignment: next.value.assignment.id,
+    });
+    expect(await fs.readFile(leasePath, "utf8")).toBe(leaseBefore);
+
+    const payloads: Record<string, Record<string, unknown>> = {
+      map: {
+        title: "Response file map",
+        purpose: "Prove submission of the emitted response file.",
+        frontier: ["product-intent", "questions"],
+      },
+      product_intent: {
+        title: "Response file product intent",
+        kind: "preferential",
+        intent_scope: "product",
+        question: "Which product should this repository build?",
+        state: "open",
+        blocking_impact: "The product specification waits for an answer.",
+      },
+      questions: {
+        title: "Response file evidence question",
+        kind: "empirical",
+        question: "Which evidence bounds the product?",
+        state: "open",
+        blocking_impact: "No evidence claim should be inferred without an answer.",
+      },
+    };
+    scaffold.proposal.outputs = scaffold.proposal.outputs.map((output: JsonObject) => ({
+      ...output,
+      payload: payloads[output.handle],
+      body: `# ${output.handle}\n`,
+    }));
+    scaffold.proposal.completionEvidence = {
+      summary: "The initial decision frontier is explicit.",
+    };
+    await fs.writeFile(responsePath, `${JSON.stringify(scaffold, null, 2)}\n`);
+
+    const submitted = spawnSync(
+      process.execPath,
+      [
+        mdlmExecutable,
+        "scenario",
+        "submit",
+        ".lifecycle/work/assignment-response.json",
+        "--json",
+      ],
+      { cwd: repository, encoding: "utf8" },
+    );
+    expect(submitted.status, submitted.stderr).toBe(0);
+    expect(JSON.parse(submitted.stdout)).toMatchObject({
+      outcome: "accepted",
+      assignment: { id: next.value.assignment.id },
+    });
+  });
+
   let foundationParent: string;
   let foundationRepository: string;
   let parent: string;
@@ -699,7 +784,7 @@ describe("focused v2 fault-injection gate", () => {
         }),
       ]),
     );
-    expect(attended.value.operatorInstructions.commands[0]).toBe(
+    expect(attended.value.operatorInstructions.commands[1]).toBe(
       "mdlm scenario submit <response-file> --authority stakeholder --json",
     );
     const attendedResponse = filledResponse(attended.value);
