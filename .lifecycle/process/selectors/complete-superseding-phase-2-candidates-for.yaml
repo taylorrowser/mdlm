@@ -20,14 +20,14 @@ query:
     && every("candidate-definition-members@1", {candidate: candidate}, member =>
       exists("candidate-members-matching@1",
         {candidate: replacement, required_member: member})
-      || !every("gate-rejection-blocked-members-for-candidate@1",
+      || !every("gate-rejected-requirement-members-for-candidate@1",
         {candidate: candidate}, blocked => blocked != member))
     && every("candidate-definition-members@1", {candidate: replacement}, member =>
       exists("candidate-members-matching@1",
         {candidate: candidate, required_member: member})
-      || !every("gate-rejection-replacement-members-for-candidate@1",
-        {candidate: candidate, replacement: replacement}, corrected => corrected != member))
-    && every("gate-rejection-blocked-members-for-candidate@1",
+      || !every("reviewed-gate-rejection-corrections-for-candidate-members@1",
+        {candidate: candidate}, corrected => corrected != member))
+    && every("gate-rejected-requirement-members-for-candidate@1",
       {candidate: candidate}, blocked =>
         !exists("candidate-members-matching@1",
           {candidate: replacement, required_member: blocked}))
@@ -41,9 +41,11 @@ query:
         {baseline: candidate, subject: evidence})
       || !every("gate-rejection-replacement-review-evidence-for-candidate@1",
         {candidate: candidate, replacement: replacement}, fresh_review => fresh_review != evidence))
-    && every("gate-rejection-replacement-members-for-candidate@1",
-      {candidate: candidate, replacement: replacement}, corrected =>
-        every("passing-reviews-for@1", {subject: corrected}, review =>
+    && every("reviewed-gate-rejection-corrections-for-candidate-members@1",
+      {candidate: candidate}, corrected =>
+        exists("candidate-members-matching@1",
+          {candidate: replacement, required_member: corrected})
+        && every("passing-reviews-for@1", {subject: corrected}, review =>
           exists("baseline-contains-evidence@1",
             {baseline: replacement, subject: review})))
     && count("cited-failing-reviews-by-correction@1",

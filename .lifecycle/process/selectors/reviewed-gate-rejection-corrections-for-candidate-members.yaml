@@ -1,0 +1,20 @@
+kind: selector-definition
+id: reviewed-gate-rejection-corrections-for-candidate-members
+version: 1
+description: Fresh reviewed same-lineage corrections for exact candidate requirement members blocked by any reviewed gate rejection.
+parameters:
+  - {name: candidate, kind: baseline, types: [BSL]}
+result_kind: revision
+query:
+  from: {collection: revisions, types: [SYS, CMP, DES]}
+  as: replacement
+  where: >-
+    state(replacement, "validity") == "valid"
+    && exists("passing-reviews-for@1", {subject: replacement})
+    && none("failing-reviews-for@1", {subject: replacement})
+    && !every("gate-rejected-requirement-members-for-candidate@1",
+      {candidate: candidate}, member =>
+      every("gate-rejection-corrections-for-subject@1", {subject: member}, correction =>
+        correction != replacement))
+  distinct: true
+  order_by: [identity.type, identity.id, identity.revision]

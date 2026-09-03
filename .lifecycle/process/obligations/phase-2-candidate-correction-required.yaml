@@ -7,6 +7,16 @@ for_each: 'select("failed-phase-2-candidates@1", {})'
 subject_as: candidate
 satisfied_when: 'exists("complete-superseding-phase-2-candidates-for@1", {candidate: candidate})'
 status_rules:
+  - status: blocked
+    priority: 300
+    when: >-
+      exists("gate-rejected-requirement-members-for-candidate@1", {candidate: candidate})
+      && none("reviewed-gate-rejection-corrections-for-candidate-members@1",
+        {candidate: candidate})
+    reason: Gate-rejected requirement members need same-lineage passing-reviewed corrections before candidate replacement.
+    blocked_by:
+      - obligation: gate-rejected-design-requirement-correction-required@1
+        subjects: 'select("gate-rejected-requirement-members-for-candidate@1", {candidate: candidate})'
   - status: ready
     priority: 200
     when: >-
@@ -25,6 +35,8 @@ resolve_with:
     definition_members: 'select("candidate-definition-members@1", {candidate: candidate})'
     evidence: 'select("baseline-evidence@1", {baseline: candidate})'
     rejected_members: 'select("gate-rejection-blocked-members-for-candidate@1", {candidate: candidate})'
+    corrected_members: 'select("reviewed-gate-rejection-corrections-for-candidate-members@1", {candidate: candidate})'
+    corrected_member_reviews: 'select("passing-reviews-for-gate-corrected-candidate-members@1", {candidate: candidate})'
     failed_reviews: 'select("failing-reviews-for@1", {subject: candidate})'
     gate_rejections: 'select("reviewed-gate-rejections-for-candidate@1", {candidate: candidate})'
 waiver_policy_ref: waiver-applicability@1

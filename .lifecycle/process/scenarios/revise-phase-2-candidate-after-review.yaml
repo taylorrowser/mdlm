@@ -8,6 +8,8 @@ inputs:
   - {name: definition_members, types: [SYS, CMP, DES, ASP, ICSP, DWP, VSP, VER], cardinality: one-or-more, identity: revision}
   - {name: evidence, types: [REV, DEC, ENV, ART, VAI, RUN, RES], cardinality: zero-or-more, identity: revision}
   - {name: rejected_members, types: [MAP, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, VER], cardinality: zero-or-more, identity: revision}
+  - {name: corrected_members, types: [SYS, CMP, DES], cardinality: zero-or-more, identity: revision}
+  - {name: corrected_member_reviews, types: [REV], cardinality: zero-or-more, identity: revision}
   - {name: failed_reviews, types: [REV], cardinality: zero-or-more, identity: revision}
   - {name: gate_rejections, types: [DEC], cardinality: zero-or-more, identity: revision}
 outputs:

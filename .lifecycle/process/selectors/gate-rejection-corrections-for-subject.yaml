@@ -3,7 +3,7 @@ id: gate-rejection-corrections-for-subject
 version: 1
 description: Same-lineage replacements citing every reviewed gate rejection that implicated the exact prior subject.
 parameters:
-  - {name: subject, kind: revision, types: [MAP, PSP, STK]}
+  - {name: subject, kind: revision, types: [MAP, PSP, STK, SYS, CMP, DES]}
 result_kind: revision
 query:
   from: {relation: revisions, of: subject, emit: entity}
