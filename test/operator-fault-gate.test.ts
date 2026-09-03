@@ -181,6 +181,51 @@ function filledResponse(next: JsonObject): JsonObject {
   return response;
 }
 
+async function advanceToFoundationReview(repository: string): Promise<JsonObject> {
+  for (let step = 0; step < 12; step += 1) {
+    const next = await command(repository, ["next", "--json"]);
+    expect(next.status, JSON.stringify(next.value)).toBe(0);
+    const scenario = next.value.assignment?.packet.scenario.reference;
+    if (scenario === "review-phase-0-foundation@1") return next.value;
+    const submitted = await command(
+      repository,
+      [
+        "scenario",
+        "submit",
+        "-",
+        ...(next.value.outcome === "attention-required"
+          ? ["--authority", "stakeholder"]
+          : []),
+        "--json",
+      ],
+      `${JSON.stringify(filledResponse(next.value))}\n`,
+    );
+    expect(submitted.status, JSON.stringify(submitted.value)).toBe(0);
+  }
+  throw new Error("Foundation Review Assignment was not reached");
+}
+
+function foundationReviewAuthorValues(review: JsonObject): JsonObject {
+  const subject = review.assignment.packet.exactInputs[0].inputs.find(
+    (input: JsonObject) => input.name === "subject",
+  ).values[0];
+  return {
+    outputs: [{
+      slot: "review",
+      payload: {
+        title: `Review ${subject.identity.revision_id}`,
+        reviewer: "independent-reviewer",
+        summary: "The exact subject is observable and consistent with its frozen context.",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
+        findings: [],
+        outcome: "pass",
+      },
+      body: "The independent judgment uses the exact materialized Context.\n",
+    }],
+    completionEvidence: { outcome: "pass" },
+  };
+}
+
 describe("focused v2 fault-injection gate", () => {
   it("emits the exact active response file for one successful submission", async () => {
     const next = await command(repository, ["next", "--json"]);
@@ -263,6 +308,130 @@ describe("focused v2 fault-injection gate", () => {
       outcome: "accepted",
       assignment: { id: next.value.assignment.id },
     });
+  });
+
+  it("submits only authored Review values while preserving fixed fields and Context", async () => {
+    const review = await advanceToFoundationReview(repository);
+    const authorValues = foundationReviewAuthorValues(review);
+    const authorValuesPath = path.join(
+      repository,
+      ".lifecycle/work/author-values.json",
+    );
+    await fs.writeFile(authorValuesPath, `${JSON.stringify(authorValues)}\n`);
+
+    const submitted = spawnSync(
+      process.execPath,
+      [
+        mdlmExecutable,
+        "assignment",
+        "submit-proposal",
+        ".lifecycle/work/author-values.json",
+        "--json",
+      ],
+      { cwd: repository, encoding: "utf8" },
+    );
+    expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
+    const outcome = JSON.parse(submitted.stdout) as JsonObject;
+    const responsePath = path.join(
+      repository,
+      ".lifecycle/work/assignment-response.json",
+    );
+    const responseSource = await fs.readFile(responsePath, "utf8");
+    const response = JSON.parse(responseSource) as JsonObject;
+    expect(outcome).toMatchObject({
+      contract: "mdlm-submission-outcome@1",
+      outcome: "accepted",
+      assignment: { id: review.assignment.id },
+      responseDigest: `sha256:${createHash("sha256").update(responseSource).digest("hex")}`,
+    });
+    expect(response).toMatchObject({
+      contract: "mdlm-assignment-response@2",
+      assignment: review.assignment.id,
+      kind: "proposal",
+      proposal: {
+        outputs: [{
+          handle: "context",
+          type: "BSL",
+          payload: {
+            title: expect.stringContaining("Review context for "),
+            kind: "review-context",
+            role: "review-context",
+            scope: expect.any(String),
+            group: "DEFAULT",
+            definition_members: expect.any(Array),
+            evidence: expect.any(Array),
+          },
+          links: [],
+          body: "",
+        }, {
+          handle: "review",
+          type: "REV",
+          payload: {
+            review_kind: "phase-0-foundation",
+            outcome: "pass",
+          },
+        }],
+      },
+    });
+    expect(JSON.stringify(authorValues)).not.toContain("review_kind");
+    expect(JSON.stringify(authorValues)).not.toContain("review-context");
+  }, 30_000);
+
+  it("rejects a stale lease before saving or submitting derived response bytes", async () => {
+    const next = await command(repository, ["next", "--json"]);
+    expect(next.status, JSON.stringify(next.value)).toBe(0);
+    const fullResponse = responseFrom(next.value);
+    const authorValues = {
+      outputs: fullResponse.proposal.outputs.map((output: JsonObject) => {
+        const scaffold = next.value.assignment.packet.responseScaffold.proposal.outputs
+          .find((candidate: JsonObject) => candidate.handle === output.handle);
+        return {
+          slot: output.handle,
+          payload: Object.fromEntries(Object.entries(output.payload).filter(([key]) =>
+            scaffold.payload?.[key] === null || !(key in (scaffold.payload ?? {}))
+          )),
+          body: output.body,
+        };
+      }),
+      completionEvidence: fullResponse.proposal.completionEvidence,
+    };
+    const authorValuesPath = path.join(
+      repository,
+      ".lifecycle/work/author-values.json",
+    );
+    const responsePath = path.join(
+      repository,
+      ".lifecycle/work/assignment-response.json",
+    );
+    await fs.writeFile(
+      authorValuesPath,
+      `${JSON.stringify(authorValues)}\n`,
+    );
+    await fs.writeFile(responsePath, "preserved-before-stale-check\n");
+    await fs.appendFile(path.join(repository, "MDLM.md"), "\nChanged after lease.\n");
+    const dataBefore = await filesDigest(path.join(repository, ".lifecycle/data"));
+
+    const rejected = spawnSync(
+      process.execPath,
+      [
+        mdlmExecutable,
+        "assignment",
+        "submit-proposal",
+        ".lifecycle/work/author-values.json",
+        "--json",
+      ],
+      { cwd: repository, encoding: "utf8" },
+    );
+    expect(rejected.status).toBe(1);
+    expect(JSON.parse(rejected.stdout)).toMatchObject({
+      command: "assignment.submit-proposal",
+      diagnostics: expect.arrayContaining([
+        expect.objectContaining({ code: "assignment-stale" }),
+      ]),
+    });
+    expect(await fs.readFile(responsePath, "utf8"))
+      .toBe("preserved-before-stale-check\n");
+    expect(await filesDigest(path.join(repository, ".lifecycle/data"))).toBe(dataBefore);
   });
 
   let foundationParent: string;
@@ -784,8 +953,8 @@ describe("focused v2 fault-injection gate", () => {
         }),
       ]),
     );
-    expect(attended.value.operatorInstructions.commands[1]).toBe(
-      "mdlm scenario submit <response-file> --authority stakeholder --json",
+    expect(attended.value.operatorInstructions.commands[0]).toBe(
+      "mdlm assignment submit-proposal <author-values-file|-> --authority stakeholder --json",
     );
     const attendedResponse = filledResponse(attended.value);
     const suppliedOutOfBand = await command(

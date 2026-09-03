@@ -649,6 +649,20 @@ export interface AssignmentResponseSkeleton {
   };
 }
 
+interface AssignmentAuthorValues {
+  outputs: {
+    slot: string;
+    handle?: string;
+    payload: Record<string, unknown>;
+    body: string;
+  }[];
+  completionEvidence: unknown;
+}
+
+export interface CompiledAssignmentProposal {
+  source: string;
+}
+
 /** Render the active exact Assignment's existing response scaffold without mutation. */
 export async function inspectActiveAssignmentResponseScaffold(
   repositoryRoot: string,
@@ -693,6 +707,70 @@ export async function inspectActiveAssignmentResponseScaffold(
     value: packet(exact.value, lease).responseScaffold,
     diagnostics: [],
   };
+}
+
+/** Compile transient author-owned values into the active exact response envelope. */
+export async function compileActiveAssignmentProposal(
+  repositoryRoot: string,
+  authorValuesSource: string,
+): Promise<AssignmentResult<CompiledAssignmentProposal>> {
+  const authored = parseAssignmentAuthorValues(authorValuesSource);
+  if (!authored.ok) return authored;
+  const persisted = await readLease(repositoryRoot);
+  if (!persisted.ok) return persisted;
+  const lease = persisted.value;
+  if (!lease || lease.disposition !== "active") {
+    return failure(
+      "assignment-unavailable",
+      "No active Assignment is available for proposal submission",
+    );
+  }
+  const pending = await readPendingSettlement(repositoryRoot, lease.id);
+  if (pending) {
+    return failure(
+      "submission-settlement-required",
+      "The active Assignment has uncertain publication closure; inspect settlement and do not replay it",
+      pending.execution,
+    );
+  }
+  const exact = await exactAssignment(repositoryRoot);
+  if (!exact.ok) return exact;
+  if (!sameAssignment(lease, exact.value)) {
+    return failure(
+      "assignment-stale",
+      `Assignment '${lease.id}' no longer matches the current exact repository state`,
+      lease.id,
+    );
+  }
+  const current = await readLease(repositoryRoot);
+  if (!current.ok) return current;
+  if (!exactActiveLease(current.value, lease)) {
+    return failure(
+      "assignment-unavailable",
+      `Assignment '${lease.id}' is no longer the active Assignment`,
+      lease.id,
+    );
+  }
+  const compiled = assignmentResponseFromAuthorValues(
+    exact.value,
+    lease,
+    authored.value,
+  );
+  if (!compiled.ok) return compiled;
+  const source = `${JSON.stringify(compiled.value)}\n`;
+  const parsed = parseAssignmentResponse(source);
+  if (!parsed.ok) return parsed;
+  if (parsed.value.kind !== "proposal") {
+    return failure(
+      "assignment-author-values-invalid",
+      "Author values must compile to a proposal response",
+      "authorValues",
+    );
+  }
+  const projected = scenarioProposalFromResponse(exact.value, lease, parsed.value);
+  return projected.ok
+    ? { ok: true, value: { source }, diagnostics: [] }
+    : projected;
 }
 
 type AssignmentResult<T> =
@@ -2613,6 +2691,276 @@ function parseAssignmentResponse(
   return {
     ok: true,
     value: value as AssignmentResponse,
+    diagnostics: [],
+  };
+}
+
+const validateAssignmentAuthorValues = new Ajv2020({ allErrors: true, strict: false })
+  .compile({
+    type: "object",
+    additionalProperties: false,
+    required: ["outputs", "completionEvidence"],
+    properties: {
+      outputs: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["slot", "payload", "body"],
+          properties: {
+            slot: { type: "string", pattern: "^[A-Za-z][A-Za-z0-9_-]*$" },
+            handle: { type: "string", pattern: "^[A-Za-z][A-Za-z0-9_-]*$" },
+            payload: { type: "object" },
+            body: { type: "string" },
+          },
+        },
+      },
+      completionEvidence: {},
+    },
+  });
+
+function parseAssignmentAuthorValues(
+  source: string,
+): AssignmentResult<AssignmentAuthorValues> {
+  let value: unknown;
+  try {
+    value = JSON.parse(source);
+  } catch (error) {
+    return failure(
+      "assignment-author-values-invalid",
+      `Author values must contain one JSON object: ${error instanceof Error ? error.message : String(error)}`,
+      "authorValues",
+    );
+  }
+  if (!validateAssignmentAuthorValues(value)) {
+    return {
+      ok: false,
+      diagnostics: (validateAssignmentAuthorValues.errors ?? []).map((error) => ({
+        code: "assignment-author-values-invalid",
+        path: error.instancePath.length > 0
+          ? `authorValues${error.instancePath}`
+          : "authorValues",
+        message: `${error.instancePath || "/"} ${error.message ?? "is invalid"}`,
+      })),
+    };
+  }
+  return { ok: true, value: value as AssignmentAuthorValues, diagnostics: [] };
+}
+
+function payloadPaths(value: Record<string, unknown>, prefix = ""): string[] {
+  return Object.entries(value).flatMap(([key, child]) => {
+    const current = prefix ? `${prefix}.${key}` : key;
+    const nested = object(child);
+    return nested ? [current, ...payloadPaths(nested, current)] : [current];
+  });
+}
+
+function nonNullPayloadPaths(
+  value: Record<string, unknown>,
+  prefix = "",
+): string[] {
+  return Object.entries(value).flatMap(([key, child]) => {
+    const current = prefix ? `${prefix}.${key}` : key;
+    const nested = object(child);
+    if (nested) {
+      const paths = nonNullPayloadPaths(nested, current);
+      return paths.length > 0 ? paths : [current];
+    }
+    return child === null ? [] : [current];
+  });
+}
+
+function protectedPayloadPath(candidate: string, protectedPath: string): boolean {
+  return candidate === protectedPath || candidate.startsWith(`${protectedPath}.`);
+}
+
+function mergePayloadValues(
+  base: Record<string, unknown>,
+  authored: Record<string, unknown>,
+): Record<string, unknown> {
+  const merged = structuredClone(base);
+  for (const [key, authoredValue] of Object.entries(authored)) {
+    const authoredObject = object(authoredValue);
+    const baseObject = object(merged[key]);
+    merged[key] = authoredObject && baseObject
+      ? mergePayloadValues(baseObject, authoredObject)
+      : structuredClone(authoredValue);
+  }
+  return merged;
+}
+
+function assignmentResponseFromAuthorValues(
+  exact: ExactAssignment,
+  lease: AssignmentLease,
+  authored: AssignmentAuthorValues,
+): AssignmentResult<ProposalAssignmentResponse> {
+  const scaffold = assignmentResponseSkeleton(exact, lease);
+  if (!scaffold) {
+    return failure(
+      "assignment-response-scaffold-unavailable",
+      "The exact Scenario cannot be represented by the v2 symbolic response contract",
+      exact.lease.scenario,
+    );
+  }
+  const assignmentPacket = packet(exact, lease);
+  const materialization = exactBaselineMaterializationContract(exact.scenario);
+  const templates = scaffold.proposal.outputs;
+  const templateBySlot = new Map(templates.map((output) => [output.handle, output]));
+  const suppliedBySlot = new Map<string, AssignmentAuthorValues["outputs"]>();
+  const diagnostics: ProcessDiagnostic[] = [];
+
+  for (const output of authored.outputs) {
+    const template = templateBySlot.get(output.slot);
+    if (!template) {
+      diagnostics.push({
+        code: "assignment-author-values-slot-invalid",
+        path: `authorValues.outputs.${output.slot}`,
+        message: `Authored output slot '${output.slot}' is not present in the active Assignment`,
+      });
+      continue;
+    }
+    const route = template.output ?? template.handle;
+    const contract = assignmentPacket.outputs.find((candidate) =>
+      candidate.handle === route
+    );
+    const isMaterialized = materialization?.output === contract?.name;
+    if (isMaterialized) {
+      diagnostics.push({
+        code: "assignment-author-values-kernel-output",
+        path: `authorValues.outputs.${output.slot}`,
+        message: `Output slot '${output.slot}' is materialized by the kernel and cannot be supplied`,
+      });
+      continue;
+    }
+    const repeated = contract && ["one-or-more", "zero-or-more"].includes(
+      contract.cardinality,
+    );
+    if (repeated && !output.handle) {
+      diagnostics.push({
+        code: "assignment-author-values-handle-required",
+        path: `authorValues.outputs.${output.slot}.handle`,
+        message: `Repeated output slot '${output.slot}' requires a response-local handle`,
+      });
+    } else if (!repeated && output.handle) {
+      diagnostics.push({
+        code: "assignment-author-values-handle-forbidden",
+        path: `authorValues.outputs.${output.slot}.handle`,
+        message: `Output slot '${output.slot}' has a fixed response handle`,
+      });
+    }
+    suppliedBySlot.set(output.slot, [
+      ...(suppliedBySlot.get(output.slot) ?? []),
+      output,
+    ]);
+  }
+
+  const resultOutputs: SymbolicProposalOutput[] = [];
+  for (const template of templates) {
+    const route = template.output ?? template.handle;
+    const contract = assignmentPacket.outputs.find((candidate) =>
+      candidate.handle === route
+    );
+    if (!contract) continue;
+    const supplied = suppliedBySlot.get(template.handle) ?? [];
+    const repeated = ["one-or-more", "zero-or-more"].includes(contract.cardinality);
+    if (!repeated && supplied.length > 1) {
+      diagnostics.push({
+        code: "assignment-author-values-slot-duplicate",
+        path: `authorValues.outputs.${template.handle}`,
+        message: `Authored output slot '${template.handle}' may appear only once`,
+      });
+      continue;
+    }
+    if (materialization?.output === contract.name) {
+      const invocation = template.invocation ?? 0;
+      const subject = inputEntities(exact, materialization.subjectInput, invocation)[0];
+      const materialized = subject?.identity.revision_id
+        ? exactBaselineProposal(
+            template.type,
+            subject,
+            inputEntities(exact, materialization.supportInput, invocation),
+            materialization,
+            invocation,
+          ).outputs[0]
+        : undefined;
+      if (!materialized) {
+        diagnostics.push({
+          code: "kernel-materialization-input-invalid",
+          path: `proposal.outputs.${template.handle}`,
+          message: `Kernel could not materialize output slot '${template.handle}' from the active Assignment`,
+        });
+        continue;
+      }
+      resultOutputs.push({
+        ...template,
+        payload: materialized.lifecycleDatum.payload,
+        body: materialized.lifecycleDatum.body,
+      });
+      continue;
+    }
+    if (supplied.length === 0) {
+      if (contract.cardinality.startsWith("zero-")) {
+        resultOutputs.push(template);
+      } else {
+        diagnostics.push({
+          code: "assignment-author-values-slot-required",
+          path: `authorValues.outputs.${template.handle}`,
+          message: `Authored output slot '${template.handle}' is required by the active Assignment`,
+        });
+      }
+      continue;
+    }
+    for (const value of supplied) {
+      const fixed = [...new Set([
+        ...Object.keys(contract.payloadSummary.requiredValues ?? {}),
+        ...nonNullPayloadPaths(template.payload ?? {}),
+      ])];
+      const managed = contract.payloadSummary.kernelManaged;
+      for (const suppliedPath of payloadPaths(value.payload)) {
+        const fixedPath = fixed.find((candidate) =>
+          protectedPayloadPath(suppliedPath, candidate)
+        );
+        const managedPath = managed.find((candidate) =>
+          protectedPayloadPath(suppliedPath, candidate)
+        );
+        if (fixedPath || managedPath) {
+          diagnostics.push({
+            code: fixedPath
+              ? "assignment-author-values-fixed-payload"
+              : "assignment-author-values-kernel-payload",
+            path: `authorValues.outputs.${value.slot}.payload.${suppliedPath}`,
+            message: fixedPath
+              ? `Payload '${fixedPath}' is fixed by the active Scenario and cannot be supplied`
+              : `Payload '${managedPath}' is managed by the kernel and cannot be supplied`,
+          });
+        }
+      }
+      resultOutputs.push({
+        ...template,
+        handle: repeated ? value.handle! : template.handle,
+        payload: mergePayloadValues(template.payload ?? {}, value.payload),
+        body: value.body,
+      });
+    }
+  }
+  const handles = resultOutputs.map((output) => output.handle);
+  if (new Set(handles).size !== handles.length) {
+    diagnostics.push({
+      code: "assignment-author-values-handle-duplicate",
+      path: "authorValues.outputs",
+      message: "Authored response-local handles must be unique",
+    });
+  }
+  if (diagnostics.length > 0) return { ok: false, diagnostics };
+  return {
+    ok: true,
+    value: {
+      ...scaffold,
+      proposal: {
+        outputs: resultOutputs,
+        completionEvidence: authored.completionEvidence,
+      },
+    },
     diagnostics: [],
   };
 }

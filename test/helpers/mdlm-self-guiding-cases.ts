@@ -189,7 +189,7 @@ describe("self-guiding public CLI", () => {
       action: "execute-assignment",
       disposition: "continuation",
       commands: expect.arrayContaining([
-        "mdlm scenario submit <response-file> --json",
+        "mdlm assignment submit-proposal <author-values-file|-> --json",
         "mdlm doctor --json",
         "mdlm next --json",
       ]),
@@ -218,6 +218,7 @@ describe("self-guiding public CLI", () => {
       "mdlm init <destination>",
       "mdlm start [--json]",
       "mdlm next [--json]",
+      "mdlm assignment submit-proposal <author-values-file|-> [--authority <authority-id>] --json",
       "mdlm scenario submit [response-file|-] [--authority <authority-id>] [--json]",
       "mdlm doctor [--json]",
     ]) expect(help.stdout).toContain(command);

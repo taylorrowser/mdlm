@@ -29,9 +29,9 @@ one loop:
    `MDLM.md` guide, exact repository identity, and Git cleanliness;
 3. require a clean ordinary Git boundary, then run `mdlm next --json` once;
 4. when `mdlm-next@2` includes an `mdlm-assignment-packet@3`, let the harness
-   perform that exact packet and fill its response scaffold;
-5. return one complete `mdlm-assignment-response@2` with
-   `mdlm scenario submit [response-file|-] --json`;
+   perform that exact packet and write only its authored values;
+5. run `mdlm assignment submit-proposal <author-values-file|-> --json`; MDLM
+   derives, saves, and strictly submits one complete `mdlm-assignment-response@2`;
 6. handle the `mdlm-submission-outcome@1` result;
 7. after acceptance, validate with `mdlm doctor --json`, inspect and commit the
    Lifecycle Data diff with ordinary Git; and
@@ -68,8 +68,8 @@ cd ./example-repository
 mdlm start --json
 mdlm next --json > .lifecycle/work/outcome.json
 
-# The harness performs the included packet and writes its complete response.
-mdlm scenario submit .lifecycle/work/assignment-response.json --json
+# The harness performs the included packet and writes only authored values.
+mdlm assignment submit-proposal .lifecycle/work/author-values.json --json
 mdlm doctor --json
 
 git status --short
