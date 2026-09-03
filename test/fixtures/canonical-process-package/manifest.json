@@ -11,11 +11,11 @@
   "processPackage": {
     "root": ".lifecycle/process",
     "reference": "mdlm-bootstrap@0.143.0",
-    "digest": "sha256:21e1bc6d083d72c7865493f32c018b4da54618f4e7b3f505ec96108db8b47d39",
+    "digest": "sha256:d6ad1dd8b8a83631cbc31ea1a71fa509a3aadb64b96e3cf84c6a402c2a9126e7",
     "definitionCount": 811
   },
   "provenance": {
-    "sourceTree": "4d6661d6747df348efe61137f257b42c3a137a5f",
+    "sourceTree": "38a450517d7826804a5761f68d9d615757717cee",
     "captureCommand": "npm run process-fixture:refresh"
   }
 }
