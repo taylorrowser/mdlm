@@ -1185,23 +1185,6 @@ export async function runPlanningDwpProductReviewProjection(): Promise<void> {
     await fs.mkdir(repository);
     const processRoot = await phaseTwoOnlyPackage(parent);
 
-    const reviewContextPath = path.join(
-      processRoot,
-      "obligations/review-context-required.yaml",
-    );
-    const reviewContext = parse(await fs.readFile(reviewContextPath, "utf8"));
-    reviewContext.phases.push("phase-2-system-definition");
-    await fs.writeFile(reviewContextPath, stringify(reviewContext));
-
-    const atomicSubjectsPath = path.join(
-      processRoot,
-      "selectors/phase-2-atomic-review-required-revisions.yaml",
-    );
-    const atomicSubjects = parse(await fs.readFile(atomicSubjectsPath, "utf8"));
-    atomicSubjects.query.where +=
-      ' && none("planning-dwp-matching-subject@1", {subject: subject})';
-    await fs.writeFile(atomicSubjectsPath, stringify(atomicSubjects));
-
     const retainedObligations = new Set([
       "decomposition-planning-required",
       "passing-review-required",
@@ -1322,8 +1305,8 @@ export async function runPlanningDwpProductReviewProjection(): Promise<void> {
       }
       expect(outcome.assignment, projected.stdout).toBeDefined();
       const packet = outcome.assignment.packet as Packet;
-      if (packet.scenario.reference === "review-datum-in-context@3") {
-        reviewPacket(repository, packet);
+      if (packet.scenario.reference === "review-phase-2-datum@1") {
+        reviewPhaseTwoPacket(repository, packet);
         ordinaryContextualReviewAccepted = true;
         continue;
       }
