@@ -8,6 +8,7 @@ import { frozenLifecycleRecord } from "./helpers/lifecycle-scenarios.js";
 import {
   runPhaseTwoAssuranceReviewRoute,
   runPhaseTwoDefinitionConsistencyFailureSubmission,
+  runPlanningDwpProductReviewProjection,
   runPhaseTwoSiblingSystemReviewBatch,
 } from
   "./helpers/proportional-phase-2-routes.js";
@@ -23,6 +24,10 @@ import { runPhaseTwoGateReviewCorrection } from
   "./phase-2-gate-review-correction.js";
 
 const processRef = "mdlm-bootstrap@0.74.0#coherent-phase-2-readiness";
+
+it("projects the planning-DWP Review kind before author-only submission", async () => {
+  await runPlanningDwpProductReviewProjection();
+}, 120_000);
 
 function datum(
   type: string,
