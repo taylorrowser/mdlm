@@ -396,6 +396,8 @@ async function definitionConsistencyPackage(parent: string): Promise<string> {
     "obligations/seed-failed-phase-2-review-required.yaml",
     "scenarios/seed-failed-phase-2-review.yaml",
     "prompts/seed-failed-phase-2-review.md",
+    "selectors/seeded-phase-2-correction-context.yaml",
+    "selectors/seeded-phase-2-reviews-for.yaml",
   ]) {
     await fs.rm(path.join(packageRoot, relative));
   }

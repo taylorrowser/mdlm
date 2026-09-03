@@ -707,6 +707,54 @@ function validateTemplateCycles(
   return diagnostics;
 }
 
+/**
+ * Report Selectors that no other declaration references.
+ *
+ * A Selector exists because a declaration outside `selectors/` needs it or
+ * because two Selectors share it. References are versioned `id@n` strings in
+ * any definition field, including compiled expression source text, so plain
+ * reference fields and expressions count alike. A Selector that references
+ * only itself is a cycle and is reported elsewhere.
+ */
+export function validateUnreferencedSelectors(
+  manifest: unknown,
+  definitions: DefinitionCatalogs,
+): ProcessDiagnostic[] {
+  const selectorIds = new Set(Object.keys(definitions.selectors));
+  const referenced = new Set<string>();
+  const pattern = /([a-z0-9][a-z0-9-]*)@[1-9][0-9]*/g;
+  const collect = (value: unknown, owner?: string): void => {
+    if (typeof value === "string") {
+      for (const match of value.matchAll(pattern)) {
+        const id = match[1]!;
+        if (id !== owner && selectorIds.has(id)) referenced.add(id);
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach((item) => collect(item, owner));
+      return;
+    }
+    if (typeof value === "object" && value !== null) {
+      Object.values(value).forEach((item) => collect(item, owner));
+    }
+  };
+  collect(manifest);
+  for (const [catalog, entries] of Object.entries(definitions)) {
+    for (const [id, definition] of Object.entries(entries)) {
+      collect(definition, catalog === "selectors" ? id : undefined);
+    }
+  }
+  return [...selectorIds]
+    .filter((id) => !referenced.has(id))
+    .sort()
+    .map((id) => ({
+      code: "unreferenced-selector",
+      path: `selectors/${id}`,
+      message: `Selector '${id}' is not referenced by any other declaration`,
+    }));
+}
+
 export function validateDefinitionGraph(
   manifest: unknown,
   definitions: DefinitionCatalogs,

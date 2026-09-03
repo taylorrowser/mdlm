@@ -443,19 +443,6 @@ async function phaseTwoOnlyPackage(
       atomicReviewSelectorPath,
       stringify(atomicReviewSelector),
     );
-
-    const activeStrategiesPath = path.join(
-      root,
-      "selectors/current-phase-2-verification-strategies.yaml",
-    );
-    const activeStrategies = parse(
-      await fs.readFile(activeStrategiesPath, "utf8"),
-    );
-    activeStrategies.query.where =
-      'strategy.provenance.scenario == "seed-public-phase-2-definitions@1"' +
-      ' && state(strategy, "disposition") == "active"' +
-      ' && none("newer-revisions-for@1", {subject: strategy})';
-    await fs.writeFile(activeStrategiesPath, stringify(activeStrategies));
   }
 
   const seedDefinitions = {
@@ -1204,6 +1191,9 @@ export async function runPlanningDwpProductReviewProjection(): Promise<void> {
       obligation.satisfied_when = "true";
       await fs.writeFile(file, stringify(obligation));
     }
+    await fs.rm(
+      path.join(processRoot, "selectors/complete-phase-0-intent-candidates.yaml"),
+    );
 
     await selectProcessPackageFixture(repository, processRoot);
     const seeded = await seedPublicPhaseTwoEntry(repository, [{
