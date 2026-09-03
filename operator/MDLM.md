@@ -8,26 +8,36 @@ mdlm next --json > .lifecycle/work/outcome.json
 ```
 
 Follow `operatorInstructions` in every `mdlm next` result. Own the loop: complete
-the exact returned Assignment, emit its response file, fill only the proposal
-values, submit it, and run `mdlm next --json` again. A Review, commit, or Phase
-change does not end the loop.
+the exact returned Assignment, write only the authored proposal values, submit
+them, and run `mdlm next --json` again. A Review, commit, or Phase change does
+not end the loop.
 
 On Attention Required, ask the authority named in `authorityRequirement` using
 only the returned attention context. Resume the exact Assignment after the
 answer. Never invent or self-supply authority.
 
-Submit responses from ignored work storage:
+Submit authored values from ignored work storage:
 
 ```bash
-mdlm assignment response --json > .lifecycle/work/assignment-response.json
-# Edit only proposal values. Keep the emitted contract and Assignment ID.
-mdlm scenario submit .lifecycle/work/assignment-response.json --json
+mdlm assignment submit-proposal .lifecycle/work/author-values.json --json
 ```
+
+The file contains one `outputs` array and `completionEvidence`. Each output names
+the packet's emitted `slot` and supplies only its authored `payload` and `body`.
+Do not copy Assignment identity, type, route, fixed payload values, or
+kernel-materialized outputs into this file. Repeated output slots also require a
+unique response-local `handle`.
+
+MDLM derives and saves the exact full response at
+`.lifecycle/work/assignment-response.json` before strict submission. Use
+`mdlm assignment response --json` and
+`mdlm scenario submit <response-file> --json` only for typed inability or
+response diagnostics.
 
 - on `accepted`, run `mdlm doctor --json`, inspect and commit only the Lifecycle
   Data transaction, then run `mdlm next --json`;
-- on retryable `rejected`, correct the response against the same active
-  Assignment; and
+- on retryable `rejected`, use the diagnostics to correct the same author-values
+  file and invoke the command once more against the same active Assignment; and
 - on `settlement-required`, call
   `mdlm scenario settlement <assignment-or-execution-id> --json` and never replay
   submission after uncertain closure.

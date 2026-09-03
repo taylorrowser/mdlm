@@ -71,12 +71,14 @@ import {
 } from "./process-package-fixtures.js";
 import { initializeBundledRepository } from "./repository-initialization.js";
 import { repositoryGitEnvironment } from "./git-environment.js";
+import { withRepositoryLock } from "./repository-lock.js";
 import {
   operatorInstructions,
   type OperatorInstructions,
 } from "./operator-instructions.js";
 import {
   claimNextWork,
+  compileActiveAssignmentProposal,
   inspectActiveAssignmentResponseScaffold,
   inspectAssignmentState,
   inspectOperatorStatus,
@@ -236,6 +238,7 @@ type CommandResult = CommandResultBase;
 
 const executeFile = promisify(execFile);
 const operatorGuidePath = "MDLM.md";
+const proposalSubmissionLockRef = "refs/mdlm/assignment-proposal-submit-lock";
 
 const help = `Usage: mdlm <command> [--json]
 
@@ -244,6 +247,7 @@ Agent-guided lifecycle commands:
   mdlm start [--json]
   mdlm next [--json]
   mdlm assignment response [--json]
+  mdlm assignment submit-proposal <author-values-file|-> [--authority <authority-id>] --json
   mdlm scenario submit [response-file|-] [--authority <authority-id>] [--json]
   mdlm scenario settlement <assignment-or-execution-id> [--json]
   mdlm doctor [--json]`;
@@ -1370,6 +1374,109 @@ async function submitExactAssignment(
   };
 }
 
+async function atomicWriteResponse(
+  repositoryRoot: string,
+  source: string,
+): Promise<string> {
+  const responsePath = path.join(
+    repositoryRoot,
+    ".lifecycle/work/assignment-response.json",
+  );
+  const temporaryPath = `${responsePath}.${randomUUID()}.tmp`;
+  await fs.mkdir(path.dirname(responsePath), { recursive: true });
+  try {
+    await fs.writeFile(temporaryPath, source);
+    await fs.rename(temporaryPath, responsePath);
+  } finally {
+    await fs.rm(temporaryPath, { force: true });
+  }
+  return responsePath;
+}
+
+async function submitAssignmentProposal(
+  repositoryRoot: string,
+  authorValuesPath: string,
+  standardInput: string | undefined,
+  authoritySupplies: string[],
+): Promise<CommandResult> {
+  let authorValuesSource: string;
+  if (authorValuesPath !== "-") {
+    try {
+      authorValuesSource = await fs.readFile(
+        path.resolve(repositoryRoot, authorValuesPath),
+        "utf8",
+      );
+    } catch (error) {
+      return {
+        ...failure(
+          "assignment-author-values-read-failed",
+          `Could not read author values '${authorValuesPath}': ${error instanceof Error ? error.message : String(error)}`,
+          authorValuesPath,
+        ),
+        command: "assignment.submit-proposal",
+      };
+    }
+  } else if (standardInput !== undefined && standardInput.length > 0) {
+    authorValuesSource = standardInput;
+  } else {
+    return {
+      ...failure(
+        "assignment-author-values-required",
+        "Expected an author-values file or one JSON object on standard input",
+      ),
+      command: "assignment.submit-proposal",
+    };
+  }
+  return withRepositoryLock(
+    repositoryRoot,
+    proposalSubmissionLockRef,
+    async () => {
+      const compiled = await compileActiveAssignmentProposal(
+        repositoryRoot,
+        authorValuesSource,
+      );
+      if (!compiled.ok) {
+        return {
+          ok: false,
+          command: "assignment.submit-proposal",
+          diagnostics: compiled.diagnostics,
+        };
+      }
+      try {
+        await atomicWriteResponse(repositoryRoot, compiled.value.source);
+      } catch (error) {
+        return {
+          ...failure(
+            "assignment-response-write-failed",
+            `Could not save the derived Assignment Response: ${error instanceof Error ? error.message : String(error)}`,
+            ".lifecycle/work/assignment-response.json",
+          ),
+          command: "assignment.submit-proposal",
+        };
+      }
+      const submitted = await submitAssignmentResponse(
+        repositoryRoot,
+        compiled.value.source,
+        authoritySupplies,
+      );
+      if (!submitted.ok) {
+        return {
+          ok: false,
+          command: "assignment.submit-proposal",
+          ...(submitted.value ?? submitted.disposition ?? {}),
+          diagnostics: submitted.diagnostics,
+        };
+      }
+      return {
+        ok: true,
+        command: "assignment.submit-proposal",
+        ...submitted.value,
+        diagnostics: [],
+      };
+    },
+  );
+}
+
 async function showScenarioExecution(
   repositoryRoot: string,
   executionId: string,
@@ -2133,6 +2240,23 @@ async function dispatchCommand(
             "Expected 'mdlm assignment response' without operands",
           ),
           command: "assignment.response",
+        };
+  }
+  if (operands[0] === "assignment" && operands[1] === "submit-proposal") {
+    return operands.length === 3 && operands[2] &&
+        (operands[2] === "-" || !operands[2].startsWith("--"))
+      ? submitAssignmentProposal(
+          repositoryRoot,
+          operands[2],
+          standardInput,
+          optionValues(arguments_, "--authority"),
+        )
+      : {
+          ...failure(
+            "assignment-submit-proposal-arguments-invalid",
+            "Expected 'mdlm assignment submit-proposal <author-values-file|->'",
+          ),
+          command: "assignment.submit-proposal",
         };
   }
   if (operands[0] === "scenario" && operands[1] === "submit") {

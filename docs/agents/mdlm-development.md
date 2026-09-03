@@ -22,12 +22,14 @@ The host operating policy at `/home/ubuntu/git/mdlm-successor-demos/operations/O
 ## Operator-contract work
 
 Keep the ordinary public path to one `mdlm next --json` call and one
-`mdlm scenario submit --json` call. `mdlm-next@2` includes the complete
-`mdlm-assignment-packet@3`; the harness returns
-`mdlm-assignment-response@2`; submission returns
-`mdlm-submission-outcome@1`. Keep `deriveOperatorOutcome` pure. Keep repository
-authentication and exact lease recovery in `claimNextWork`, and canonical
-validation plus atomic publication in `submitAssignmentResponse`.
+`mdlm assignment submit-proposal --json` call. `mdlm-next@2` includes the
+complete `mdlm-assignment-packet@3`; the harness returns only transient authored
+values; MDLM derives the exact `mdlm-assignment-response@2` and submits it through
+`submitAssignmentResponse`; submission returns `mdlm-submission-outcome@1`.
+Retain `mdlm scenario submit` for exact-response diagnostics and typed inability.
+Keep `deriveOperatorOutcome` pure. Keep repository authentication and exact lease
+recovery in `claimNextWork`, and canonical validation plus atomic publication in
+`submitAssignmentResponse`.
 
 The kernel owns integrity, identity, authority binding, atomicity, terminal
 precedence, and no-replay settlement. The Process Package owns process-specific
