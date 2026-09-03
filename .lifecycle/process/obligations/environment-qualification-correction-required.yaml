@@ -9,6 +9,13 @@ satisfied_when: >-
   exists("corrected-environment-qualification-revisions-for@1",
     {environment: environment})
 status_rules:
+  - status: blocked
+    priority: 200
+    when: 'environment.storage.editable == true'
+    reason: The failed ENV must enter an exact evidence-bearing Review Context before same-lineage replacement.
+    blocked_by:
+      - obligation: phase-1-assurance-review-required@1
+        subjects: '[environment]'
   - status: ready
     priority: 100
     when: 'true'

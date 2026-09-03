@@ -18,8 +18,9 @@ status_rules:
     when: >-
       subject.identity.type == "ENV"
       && (none("complete-environment-assurance-for-environment@1", {environment: subject})
-        || none("complete-environment-qualification-for-environment@1", {environment: subject}))
-    reason: An ENV Review waits for exact realization and qualification evidence.
+        || none("complete-environment-qualification-for-environment-review-context@1",
+          {environment: subject}))
+    reason: An ENV Review waits for exact realization and completed qualification evidence.
     blocked_by:
       - obligation: verification-run-required@2
         subjects: 'select("qualification-implementations-for-environment@1", {environment: subject})'
