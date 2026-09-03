@@ -1176,6 +1176,211 @@ export async function reconstructZeroInterfacePhaseTwoRouteForCapture(): Promise
   }
 }
 
+export async function runPlanningDwpProductReviewProjection(): Promise<void> {
+  const parent = await fs.mkdtemp(
+    path.join(os.tmpdir(), "mdlm-public-planning-dwp-review-"),
+  );
+  try {
+    const repository = path.join(parent, "repository");
+    await fs.mkdir(repository);
+    const processRoot = await phaseTwoOnlyPackage(parent);
+
+    const retainedObligations = new Set([
+      "decomposition-planning-required",
+      "passing-review-required",
+      "phase-2-atomic-review-required",
+      "planning-dwp-product-definition-review-required",
+      "public-phase-2-acceptance-required",
+      "public-phase-2-definitions-required",
+      "review-context-required",
+      "system-architecture-required",
+    ]);
+    const obligationsRoot = path.join(processRoot, "obligations");
+    for (const entry of await fs.readdir(obligationsRoot)) {
+      if (!entry.endsWith(".yaml")) continue;
+      const file = path.join(obligationsRoot, entry);
+      const obligation = parse(await fs.readFile(file, "utf8"));
+      if (retainedObligations.has(obligation.id)) continue;
+      obligation.satisfied_when = "true";
+      await fs.writeFile(file, stringify(obligation));
+    }
+
+    await selectProcessPackageFixture(repository, processRoot);
+    const seeded = await seedPublicPhaseTwoEntry(repository, [{
+      statement: "Accept one client request",
+      systemContext: "client",
+    }], "stakeholder");
+    const requirement = seeded.requirements[0]!.datum.revision_id;
+
+    const architecturePacket = prepare(
+      repository,
+      "define-system-architecture@3",
+    );
+    const architectureExecution = submit(repository, architecturePacket, [{
+      localId: "architecture",
+      name: "architecture",
+      invocation: 0,
+      lifecycleDatum: {
+        type: "ASP",
+        payload: {
+          title: "Client responsibility architecture",
+          rationale: "One responsibility owns the observable behavior.",
+          level: "system",
+          elements: [{
+            id: "AEL-0C1ENT5350",
+            alias: "CLIENT",
+            title: "Client responsibility",
+            responsibilities: ["Own the client behavior"],
+          }],
+          internal_interactions: [],
+          controlled_boundaries: [],
+          constraints: ["Remain solution-independent"],
+          nominated_risks: ["The client behavior could be omitted"],
+        },
+        links: [{ type: "governs", target: requirement }],
+        body: "One responsibility with no controlled internal boundary.\n",
+      },
+    }, {
+      localId: "questions",
+      name: "questions",
+      invocation: 0,
+      lifecycleDatum: { type: "QST", payload: null, links: [], body: null },
+    }]);
+    const architecture = submittedRevision(
+      architectureExecution,
+      "architecture",
+    );
+    commit(repository, "Publish client architecture");
+
+    const planPacket = prepareScenarioAfterReviews(
+      repository,
+      "define-decomposition-work-package@4",
+    );
+    const planExecution = submit(repository, planPacket, [{
+      localId: "plan",
+      name: "plan",
+      invocation: 0,
+      lifecycleDatum: {
+        type: "DWP",
+        payload: {
+          title: "Client behavior slice",
+          rationale: "Keep the client behavior independently verifiable.",
+          architecture_element: "AEL-0C1ENT5350",
+          target_child_type: "SYS",
+          behavioral_slice: "Define the exact client system behavior.",
+          expected_coverage: ["One exact stakeholder behavior"],
+          exclusions: ["Implementation design"],
+          dependencies: [],
+          required_review_policy: "review-applicability@1",
+          stage: "planning",
+        },
+        links: [
+          { type: "decomposes", target: requirement },
+          { type: "allocated-to", target: architecture },
+          {
+            type: "verified-under",
+            target: seeded.strategy.datum.revision_id,
+          },
+        ],
+        body: "One cohesive decomposition slice.\n",
+      },
+    }, {
+      localId: "questions",
+      name: "questions",
+      invocation: 0,
+      lifecycleDatum: { type: "QST", payload: null, links: [], body: null },
+    }]);
+    const plan = submittedRevision(planExecution, "plan");
+    commit(repository, "Publish client decomposition plan");
+
+    let planningReviewPacket: Packet | undefined;
+    let ordinaryContextualReviewAccepted = false;
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const projected = mdlm(repository, "next", "--json");
+      expect(projected.status, `${projected.stderr}${projected.stdout}`).toBe(0);
+      const outcome = JSON.parse(projected.stdout);
+      if (outcome.outcome === "publication-required") {
+        commit(repository, "Publish planning DWP Review Context");
+        continue;
+      }
+      expect(outcome.assignment, projected.stdout).toBeDefined();
+      const packet = outcome.assignment.packet as Packet;
+      if (packet.scenario.reference === "review-phase-2-datum@1") {
+        reviewPhaseTwoPacket(repository, packet);
+        ordinaryContextualReviewAccepted = true;
+        continue;
+      }
+      planningReviewPacket = packet;
+      break;
+    }
+
+    expect(ordinaryContextualReviewAccepted).toBe(true);
+    expect(planningReviewPacket?.scenario.reference).toBe(
+      "review-planning-dwp-product-definition@1",
+    );
+    expect(exactInputs(planningReviewPacket!, "subject")).toEqual([plan]);
+    expect(planningReviewPacket!.responseScaffold.proposal.outputs).toEqual([
+      expect.objectContaining({
+        handle: "review",
+        type: "REV",
+        payload: expect.objectContaining({
+          review_kind: "simplification-product-definition",
+        }),
+      }),
+    ]);
+
+    const authorValues = {
+      outputs: [{
+        slot: "review",
+        payload: {
+          title: "Product-definition Review of the client behavior slice",
+          reviewer: "independent-reviewer",
+          summary: "The plan is bounded by its exact product-definition support.",
+          rubric_ref: "policies/rubrics/bootstrap-review.md@3",
+          outcome: "pass",
+        },
+        body: "The exact frozen context supports the bounded planning judgment.\n",
+      }],
+      completionEvidence: {
+        summary: "Reviewed the exact planning DWP product definition.",
+      },
+    };
+    expect(JSON.stringify(authorValues)).not.toContain("review_kind");
+    const submitted = mdlmWithInput(
+      repository,
+      `${JSON.stringify(authorValues)}\n`,
+      "assignment",
+      "submit-proposal",
+      "-",
+      "--authority",
+      "independent-reviewer",
+      "--json",
+    );
+    expect(submitted.status, `${submitted.stderr}${submitted.stdout}`).toBe(0);
+    expect(JSON.parse(submitted.stdout)).toMatchObject({
+      command: "assignment.submit-proposal",
+      outcome: "accepted",
+      assignment: { id: planningReviewPacket!.assignment.id },
+    });
+
+    const compiled = JSON.parse(await fs.readFile(
+      path.join(repository, ".lifecycle/work/assignment-response.json"),
+      "utf8",
+    ));
+    expect(compiled.proposal.outputs).toEqual([
+      expect.objectContaining({
+        handle: "review",
+        payload: expect.objectContaining({
+          review_kind: "simplification-product-definition",
+          outcome: "pass",
+        }),
+      }),
+    ]);
+  } finally {
+    await fs.rm(parent, { recursive: true, force: true });
+  }
+}
+
 async function runPhaseTwoSiblingSystemReviewRoute(
   definitionConsistencyFailure: boolean,
 ): Promise<void> {
