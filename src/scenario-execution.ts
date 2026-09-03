@@ -31,7 +31,10 @@ import {
   type ScenarioDryRun,
   type ScenarioDryRunInvocation,
 } from "./scenario-dry-run.js";
-import { scenarioInputRevisionReference } from "./scenario-payload-reference.js";
+import {
+  scenarioInputPayloadReference,
+  scenarioInputRevisionReference,
+} from "./scenario-payload-reference.js";
 
 export interface PackageExecutionIdentity {
   reference: string;
@@ -224,13 +227,14 @@ export function scenarioOutputContractDiagnostics(
         for (const [payloadPath, expected] of Object.entries(requiredPayload ?? {})) {
           const actual = valueAtPath(value.lifecycleDatum.payload, payloadPath);
           const inputName = scenarioInputRevisionReference(expected);
-          const inputIdentity = inputName
-            ? invocations[invocation]?.inputs.find((input) =>
-              input.name === inputName
-            )?.values[0]?.identity
-            : undefined;
+          const inputPayload = scenarioInputPayloadReference(expected);
+          const inputValue = invocations[invocation]?.inputs.find((input) =>
+            input.name === (inputName ?? inputPayload?.input)
+          )?.values[0];
           const resolvedExpected = inputName
-            ? inputIdentity?.revision_id
+            ? inputValue?.identity.revision_id
+            : inputPayload
+            ? valueAtPath(inputValue?.data.payload, inputPayload.path)
             : expected;
           if (JSON.stringify(actual) !== JSON.stringify(resolvedExpected)) {
             diagnostics.push({

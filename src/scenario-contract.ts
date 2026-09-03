@@ -7,7 +7,10 @@ import type {
   ProcessDiagnostic,
   VersionedDefinition,
 } from "./index.js";
-import { scenarioInputRevisionReference } from "./scenario-payload-reference.js";
+import {
+  scenarioInputPayloadReference,
+  scenarioInputRevisionReference,
+} from "./scenario-payload-reference.js";
 
 interface ScenarioContractCatalogs {
   obligations: Record<string, VersionedDefinition>;
@@ -21,6 +24,25 @@ function record(value: unknown): Record<string, unknown> | undefined {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? value as Record<string, unknown>
     : undefined;
+}
+
+function scalarPayloadSchema(
+  schema: Record<string, unknown> | undefined,
+): boolean {
+  if (!schema) return false;
+  const scalarTypes = new Set(["string", "number", "integer", "boolean", "null"]);
+  const types = Array.isArray(schema.type) ? schema.type : [schema.type];
+  if (
+    types.length > 0 &&
+    types.every((type) => typeof type === "string" && scalarTypes.has(type))
+  ) {
+    return true;
+  }
+  const scalarValue = (value: unknown) =>
+    value === null || ["string", "number", "boolean"].includes(typeof value);
+  return schema.const !== undefined
+    ? scalarValue(schema.const)
+    : Array.isArray(schema.enum) && schema.enum.every(scalarValue);
 }
 
 function referencedScenario(
@@ -165,7 +187,9 @@ export function validateScenarioContracts(
       const typeFrom = record(output?.type_from);
       const requiredPayload = record(output?.required_payload) ?? {};
       for (const [payloadPath, value] of Object.entries(requiredPayload)) {
-        const inputName = scenarioInputRevisionReference(value);
+        const inputPayload = scenarioInputPayloadReference(value);
+        const inputName = scenarioInputRevisionReference(value) ??
+          inputPayload?.input;
         if (!inputName) {
           if (typeof value === "string" && value.startsWith("$input.")) {
             diagnostics.push({
@@ -192,8 +216,25 @@ export function validateScenarioContracts(
             code: "incompatible-required-payload-input",
             path:
               `scenarios.${scenario.id}.outputs[${outputIndex}].required_payload.${payloadPath}`,
-            message: `Scenario '${scenario.id}' output '${outputName}' payload reference '${value}' requires one exact Revision input`,
-          });
+              message: `Scenario '${scenario.id}' output '${outputName}' payload reference '${value}' requires one exact Revision input`,
+            });
+        } else if (inputPayload) {
+          for (const inputType of Array.isArray(input.types) ? input.types : []) {
+            if (typeof inputType !== "string") continue;
+            const pathSchema = effectivePayloadPathSchema(
+              inputType,
+              inputPayload.path,
+              catalogs,
+            );
+            if (!scalarPayloadSchema(pathSchema)) {
+              diagnostics.push({
+                code: "invalid-required-payload-input-path",
+                path:
+                  `scenarios.${scenario.id}.outputs[${outputIndex}].required_payload.${payloadPath}`,
+                message: `Scenario '${scenario.id}' output '${outputName}' payload reference '${value}' must select a scalar payload field on input type ${inputType}`,
+              });
+            }
+          }
         }
       }
       if (identityFrom && typeFrom) {

@@ -20,6 +20,9 @@ outputs:
   - name: accepted
     types: [BSL]
     cardinality: one
+    required_payload:
+      scope: $input.candidate.payload.scope
+      group: $input.candidate.payload.group
     required_links:
       - {link: promotes, target: {input: candidate}}
 prompt_ref: prompts/accept-phase-2-system.md@1

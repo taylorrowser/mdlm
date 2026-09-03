@@ -12,6 +12,9 @@ outputs:
   - name: accepted
     types: [BSL]
     cardinality: one
+    required_payload:
+      scope: $input.component_candidate.payload.scope
+      group: $input.component_candidate.payload.group
     required_links:
       - {link: promotes, target: {input: component_candidate}}
 prompt_ref: prompts/promote-component-after-design-gate.md@1
