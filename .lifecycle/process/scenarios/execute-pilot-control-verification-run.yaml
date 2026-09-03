@@ -13,7 +13,7 @@ inputs:
       && present(implementation.payload.prototype_control_bindings)
   - {name: activity, types: [VER], cardinality: one, identity: revision}
   - {name: environment, types: [ENV], cardinality: one, identity: revision}
-  - {name: execution_target, types: [ENV, ART], cardinality: one, identity: revision}
+  - {name: execution_target, types: [ART], cardinality: one, identity: revision}
 outputs:
   - name: run
     types: [RUN]
@@ -60,6 +60,12 @@ completion: >-
     && run.payload.control_observations.known_bad.activity_ref == activity.identity.revision_id
     && run.payload.control_observations.known_good.argv == implementation.payload.prototype_control_bindings.known_good.argv
     && run.payload.control_observations.known_bad.argv == implementation.payload.prototype_control_bindings.known_bad.argv
+    && run.payload.control_observations.known_good.exit_status == execution_target.payload.prototype_controls.known_good.expected_observation.exit_status
+    && run.payload.control_observations.known_bad.exit_status == execution_target.payload.prototype_controls.known_bad.expected_observation.exit_status
+    && run.payload.control_observations.known_good.stdout == execution_target.payload.prototype_controls.known_good.expected_observation.stdout
+    && run.payload.control_observations.known_bad.stdout == execution_target.payload.prototype_controls.known_bad.expected_observation.stdout
+    && run.payload.control_observations.known_good.stderr == execution_target.payload.prototype_controls.known_good.expected_observation.stderr
+    && run.payload.control_observations.known_bad.stderr == execution_target.payload.prototype_controls.known_bad.expected_observation.stderr
     && run.payload.control_observations.known_good.timed_out == false
     && run.payload.control_observations.known_bad.timed_out == false
     && run.payload.control_observations.known_good.truncated == false

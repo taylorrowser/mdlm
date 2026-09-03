@@ -70,5 +70,5 @@ resolve_with:
     implementation: implementation
     activity: 'one("verification-activities-for-implementation@1", {implementation: implementation})'
     environment: 'one("environments-for-required-run@1", {implementation: implementation})'
-    execution_target: 'one("execution-targets-for-required-run@1", {implementation: implementation})'
+    execution_target: 'one("pilot-art-targets-for-implementation@1", {implementation: implementation})'
 waiver_policy_ref: waiver-applicability@1
