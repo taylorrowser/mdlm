@@ -23,6 +23,7 @@ query:
       && run.payload.control_observations.known_bad.activity_ref == implementation.payload.prototype_control_bindings.activity_ref
       && run.payload.control_observations.known_good.argv == implementation.payload.prototype_control_bindings.known_good.argv
       && run.payload.control_observations.known_bad.argv == implementation.payload.prototype_control_bindings.known_bad.argv
+      && exists("pilot-control-observations-match-target@1", {run: run})
       && run.payload.control_observations.known_good.timed_out == false
       && run.payload.control_observations.known_bad.timed_out == false
       && run.payload.control_observations.known_good.truncated == false

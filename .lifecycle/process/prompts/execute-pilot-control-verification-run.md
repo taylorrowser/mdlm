@@ -20,8 +20,9 @@ permit them.
 
 For a suitable result, both controls must complete without timeout or
 truncation. The known-good control must pass and the known-bad control must
-fail. Missing or partial observations support only an unsuitable or
-inconclusive result.
+fail. Their exit status, stdout bytes, and stderr bytes must exactly match each
+control's expected observation in the supplied ART. Missing, partial, or
+mismatched observations support only an unsuitable or inconclusive result.
 
 Keep execution timestamps, state, invoked activities, observations, evidence
 locations, result judgment, and assessor evidence faithful to the execution.

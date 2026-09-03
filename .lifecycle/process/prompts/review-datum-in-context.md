@@ -64,6 +64,9 @@ requirement Revision linked through `verifies-revision`. A wrong requirement
 binding or a VER that tests different observable behavior is a primary blocking
 finding against the VER and requires `outcome: fail`. Use the exact package
 evidence to determine the correction.
+Inventory every explicit behavior, case, edge category, and quantity in each
+linked requirement before judging coverage. If the VER activities omit any
+item, record a primary blocking finding and require `outcome: fail`.
 
 For a completion DWP whose `target_child_type` is `DES`, compare the exact DES
 context members with their exact CMP parents. Fail the coherent set if its DES

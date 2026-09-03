@@ -30,9 +30,11 @@ unresolved question.
 - **Pilot or formal VER:** its observable behavior, claim scope, acceptance
   criteria, expected success and discrimination activities, and evidence
   requirements match the statement and verification intent of every exact
-  requirement Revision linked through `verifies-revision`. A wrong binding or
-  different observable behavior is a primary blocking finding against the VER,
-  requires `outcome: fail`, and uses the exact package evidence for correction.
+  requirement Revision linked through `verifies-revision`. Inventory every
+  explicit behavior, case, edge category, and quantity before judging coverage.
+  A wrong binding, different observable behavior, or omitted inventory item is
+  a primary blocking finding against the VER, requires `outcome: fail`, and uses
+  the exact package evidence for correction.
 - **Implementation ART:** exact immutable Git commit, runnable controlled public
   interface, every and only candidate DES link and path-mapping key, every mapped
   path present at that commit, and no substantive changed path left unjustified.

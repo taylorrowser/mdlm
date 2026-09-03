@@ -259,6 +259,9 @@ it("gives a formal VER reviewer the exact requirement and mismatch rule", async 
   });
   expect(packet.scenario.prompt.content).toContain("For a pilot or formal VER");
   expect(packet.scenario.prompt.content).toContain("linked through `verifies-revision`");
+  expect(packet.scenario.prompt.content).toContain(
+    "Inventory every explicit behavior, case, edge category, and quantity",
+  );
   expect(packet.scenario.prompt.content).toContain("requires `outcome: fail`");
   expect(JSON.stringify(packet.policies)).toContain("A wrong binding or");
   expect(JSON.stringify(packet.policies)).toContain("different observable behavior");
