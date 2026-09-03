@@ -473,9 +473,17 @@ export function assignmentPayloadScaffold(
     field,
     Object.hasOwn(requiredPayload, field) ? requiredPayload[field] : null,
   ]));
-  for (const [pathValue, value] of Object.entries(requiredPayload)) {
+  return nestedPayloadValues(requiredPayload, payload);
+}
+
+/** Expand dotted `required_payload` paths into nested payload objects. */
+function nestedPayloadValues(
+  flat: Record<string, unknown>,
+  into: Record<string, unknown> = {},
+): Record<string, unknown> {
+  for (const [pathValue, value] of Object.entries(flat)) {
     const segments = pathValue.split(".");
-    let parent = payload;
+    let parent = into;
     for (const segment of segments.slice(0, -1)) {
       const child = object(parent[segment]);
       parent[segment] = child ?? {};
@@ -483,7 +491,7 @@ export function assignmentPayloadScaffold(
     }
     parent[segments.at(-1)!] = value;
   }
-  return payload;
+  return into;
 }
 
 /** Surface authored payload obligations without choosing a conditional schema branch. */
@@ -3021,7 +3029,10 @@ function assignmentResponseFromAuthorValues(
         ...template,
         handle: repeated ? value.handle! : template.handle,
         payload: mergePayloadValues(
-          mergePayloadValues(template.payload ?? {}, fixedPayload),
+          mergePayloadValues(
+            template.payload ?? {},
+            nestedPayloadValues(fixedPayload),
+          ),
           value.payload,
         ),
         body: value.body,
