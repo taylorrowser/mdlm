@@ -1,7 +1,7 @@
 kind: selector-definition
 id: complete-environment-qualification-for-environment-review-context
 version: 1
-description: The exact structurally complete qualification implementation for one environment Review Context.
+description: The exact structurally complete qualification implementation with one passing or failing result for an environment Review Context.
 parameters:
   - {name: environment, kind: revision, types: [ENV]}
 result_kind: revision
@@ -18,7 +18,13 @@ query:
       == one("qualification-activities-for-environment-review-context@1", {environment: environment})
     && count("completed-runs-for-implementation@1", {implementation: implementation}) == 1
     && every("completed-runs-for-implementation@1", {implementation: implementation}, run =>
-      count("passing-qualification-results-for-run-and-environment@1",
-        {run: run, environment: environment}) == 1)
+      (count("passing-qualification-results-for-run-and-environment@1",
+        {run: run, environment: environment}) == 1
+        && none("failed-qualification-results-for-run-and-environment@1",
+          {run: run, environment: environment}))
+      || (count("failed-qualification-results-for-run-and-environment@1",
+        {run: run, environment: environment}) == 1
+        && none("passing-qualification-results-for-run-and-environment@1",
+          {run: run, environment: environment})))
   distinct: true
   order_by: [identity.revision_id]

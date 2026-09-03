@@ -32,7 +32,10 @@ async function updateYaml(
   await fs.writeFile(file, stringify(document));
 }
 
-async function prepareFocusedPackage(packageRoot: string): Promise<void> {
+async function prepareFocusedPackage(
+  packageRoot: string,
+  failedQualification = false,
+): Promise<void> {
   await fs.cp(processRoot, packageRoot, { recursive: true });
   await updateYaml(packageRoot, "phases/phase-0-wayfinding.yaml", (phase) => {
     phase.routing.status_order = [
@@ -89,6 +92,22 @@ async function prepareFocusedPackage(packageRoot: string): Promise<void> {
             { link: "targets", target: { output: "environment" } },
           ],
         },
+        ...(failedQualification ? [{
+          name: "result",
+          types: ["RES"],
+          cardinality: "one",
+          required_links: [{ link: "assessed-in", target: { output: "environment" } }],
+        }, {
+          name: "run",
+          types: ["RUN"],
+          cardinality: "one",
+          required_links: [
+            { link: "executes", target: { output: "qualification_implementation" } },
+            { link: "uses", target: { output: "environment" } },
+            { link: "targets", target: { output: "environment" } },
+            { link: "produces", target: { output: "result" } },
+          ],
+        }] : []),
       ];
       scenario.completion = "execution.integrity.contract_valid == true";
     },
@@ -98,6 +117,10 @@ async function prepareFocusedPackage(packageRoot: string): Promise<void> {
     "obligations/environment-review-correction-required.yaml",
     "scenarios/review-phase-1-assurance.yaml",
     "scenarios/revise-environment-assurance-after-review.yaml",
+    ...(failedQualification ? [
+      "obligations/environment-qualification-correction-required.yaml",
+      "scenarios/revise-environment-after-failed-qualification.yaml",
+    ] : []),
   ]) {
     await updateYaml(packageRoot, relativePath, (definition) => {
       definition.phases.push("phase-0-wayfinding");
@@ -107,9 +130,11 @@ async function prepareFocusedPackage(packageRoot: string): Promise<void> {
     packageRoot,
     "obligations/phase-1-assurance-review-required.yaml",
     (obligation) => {
-      obligation.status_rules = obligation.status_rules.filter(
-        (rule: JsonObject) => rule.status !== "blocked",
-      );
+      if (!failedQualification) {
+        obligation.status_rules = obligation.status_rules.filter(
+          (rule: JsonObject) => rule.status !== "blocked",
+        );
+      }
       obligation.status_rules.find(
         (rule: JsonObject) => rule.status === "awaiting-review",
       ).status = "stale";
@@ -195,6 +220,38 @@ const qualificationActivityPayload = {
   expected_discrimination_activity: "Compare changed executable bytes.",
 };
 
+const failedQualificationResultPayload = {
+  title: "Failed environment qualification",
+  claim: {
+    kind: "qualification",
+    scope: "environment-capability",
+    outcome: "fail",
+    formal_evidence_eligible: false,
+  },
+  assessment_state: "recorded",
+  assessor_ref: "fixture-assessor@1",
+  observations: {
+    expected_success_observed: true,
+    expected_discrimination_observed: false,
+    details: "The negative-control inputs were byte-identical.",
+  },
+  evidence_refs: ["inline:byte-identical-negative-control"],
+};
+
+const failedQualificationRunPayload = {
+  title: "Completed failed environment qualification",
+  kind: "qualification",
+  started_at: "2026-09-03T00:00:00Z",
+  completed_at: "2026-09-03T00:00:01Z",
+  execution_state: "completed",
+  execution_target: { kind: "environment", ref: "$proposal.environment.revision_id" },
+  runner_ref: "fixture-runner@1",
+  configuration_refs: ["fixture:configuration@1"],
+  activities_expected: ["positive", "negative-control"],
+  activities_invoked: ["positive", "negative-control"],
+  evidence_locations: ["inline:byte-identical-negative-control"],
+};
+
 function qualificationImplementationPayload(activity: string) {
   return {
     title: "Literal qualification implementation",
@@ -213,6 +270,19 @@ function qualificationImplementationPayload(activity: string) {
     target_behavior: {
       supported: ["Literal argv execution with exact executable bytes."],
       intentionally_unsupported: ["Mutable executable aliases."],
+    },
+    execution_procedure: {
+      content: "Run the positive and negative environment capability controls.",
+      deadlines_ms: { checkout: 1000, environment_check: 1000, product_case: 1000 },
+      deadline_scope: "infrastructure-safety-only",
+      timeout: {
+        termination: "process-group-sigterm-then-sigkill",
+        force_after_ms: 100,
+        reaping: "all-descendants",
+        capture_partial_raw_observation: true,
+      },
+      cleanup: "guaranteed",
+      aggregation: "continue-through-all-cases",
     },
   };
 }
@@ -385,4 +455,131 @@ it("publishes an ENV Review correction in the exact environment lineage", async 
   expect(advanced.value.assignment.id).not.toBe(correction.value.assignment.id);
   expect(advanced.value.assignment.packet.scenario.reference)
     .not.toBe("revise-environment-assurance-after-review@2");
+});
+
+it("freezes a failed ENV before accepting its qualification correction", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-env-qualification-correction-"));
+  temporaryRoots.push(root);
+  const repository = path.join(root, "repository");
+  const packageRoot = path.join(root, "package");
+  await prepareFocusedPackage(packageRoot, true);
+  const initialized = await initializeRepositoryFromProcessPackage(repository, packageRoot);
+  expect(initialized.ok, initialized.ok ? "" : JSON.stringify(initialized.diagnostics))
+    .toBe(true);
+  if (!initialized.ok) return;
+
+  const initial = await claimNextWork(repository);
+  expect(initial.ok, initial.ok ? "" : JSON.stringify(initial.diagnostics)).toBe(true);
+  if (!initial.ok || initial.value.outcome !== "assignment") return;
+  const created = await submitAssignmentResponse(
+    repository,
+    authoredResponse(initial.value.assignment.packet, {
+      product: {
+        title: "Literal command product",
+        rationale: "Define one observable command behavior.",
+        problem: "Users need deterministic command output.",
+        users: ["command-line user"],
+        goals: ["Return the exact result."],
+        non_goals: [],
+        success_measures: ["The exact output bytes are observable."],
+      },
+      requirement: {
+        title: "Return the exact result",
+        rationale: "The output is the product boundary.",
+        statement: "The product shall return the exact result.",
+        verification_intent: "Observe exact output bytes.",
+        stakeholder: "command-line user",
+        priority: "must",
+        system_context: "literal-command",
+      },
+      strategy: {
+        title: "Black-box literal command strategy",
+        rationale: "The command boundary is externally observable.",
+        level: "stakeholder",
+        permitted_methods: ["test"],
+        independence: {
+          boundary: "black-box",
+          prohibited_inputs: [
+            "product source code",
+            "product unit tests",
+            "private implementation details",
+            "uncontrolled implementation shortcuts",
+          ],
+        },
+        evidence_policy: "Record exact command bytes.",
+        assessment_policy: "Compare observations byte for byte.",
+        environment_profile: {
+          id: "literal-cli",
+          purpose: "Run one literal command.",
+          capabilities,
+        },
+      },
+      environment: environmentPayload,
+      qualification_activity: qualificationActivityPayload,
+      qualification_implementation: qualificationImplementationPayload(
+        "$proposal.qualification_activity.revision_id",
+      ),
+      result: failedQualificationResultPayload,
+      run: failedQualificationRunPayload,
+    }),
+  );
+  expect(created.ok, created.ok ? "" : JSON.stringify(created.diagnostics)).toBe(true);
+  if (!created.ok || created.value.outcome !== "accepted") return;
+  const environment = created.value.receipt.publications.find(
+    (publication) => publication.handle === "environment",
+  )!;
+
+  const review = await claimNextWork(repository);
+  expect(review.ok, review.ok ? "" : JSON.stringify(review.diagnostics)).toBe(true);
+  if (!review.ok || review.value.outcome !== "assignment") return;
+  expect(review.value.assignment.packet.scenario.reference)
+    .toBe("review-phase-1-assurance@1");
+  const reviewed = await submitAssignmentResponse(
+    repository,
+    authoredResponse(review.value.assignment.packet, {
+      context: {},
+      review: {
+        title: "Failed qualification Review",
+        review_kind: "phase-1-assurance",
+        reviewer: "independent-reviewer",
+        summary: "The negative control used byte-identical inputs.",
+        rubric_ref: "policies/rubrics/bootstrap-review.md@3",
+        findings: [],
+        correction_authority: "package-evidence",
+        outcome: "fail",
+      },
+    }),
+  );
+  expect(reviewed.ok, reviewed.ok ? "" : JSON.stringify(reviewed.diagnostics)).toBe(true);
+  if (!reviewed.ok || reviewed.value.outcome !== "accepted") return;
+
+  const correction = await claimNextWork(repository);
+  expect(correction.ok, correction.ok ? "" : JSON.stringify(correction.diagnostics))
+    .toBe(true);
+  if (!correction.ok || correction.value.outcome !== "assignment") return;
+  const packet = correction.value.assignment.packet;
+  expect(packet.scenario.reference).toBe("revise-environment-after-failed-qualification@1");
+  const submitted = await submitAssignmentResponse(
+    repository,
+    authoredResponse(packet, {
+      replacement: {
+        ...environmentPayload,
+        strategy_revision: packet.exactInputs[0]!.inputs.find(
+          (input) => input.name === "strategy",
+        )!.values[0]!.identity.revision_id,
+      },
+      qualification_activity: qualificationActivityPayload,
+      qualification_implementation: qualificationImplementationPayload(
+        "$proposal.qualification_activity.revision_id",
+      ),
+    }),
+  );
+  expect(submitted.ok, submitted.ok ? "" : JSON.stringify(submitted.diagnostics)).toBe(true);
+  if (!submitted.ok || submitted.value.outcome !== "accepted") return;
+  expect(submitted.value.receipt.publications.find(
+    (publication) => publication.handle === "replacement",
+  )).toEqual(expect.objectContaining({
+    stableId: environment.stableId,
+    revisionId: `${environment.stableId}-r00002`,
+  }));
 });

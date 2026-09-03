@@ -1,7 +1,7 @@
 kind: selector-definition
 id: environment-assurance-context-matches
 version: 1
-description: One frozen Review Context containing the exact VSP and ENV definitions plus qualification VER, VAI, RUN, and passing RES evidence.
+description: One frozen Review Context containing the exact VSP and ENV definitions plus qualification VER, VAI, RUN, and one passing or failing RES.
 parameters:
   - {name: environment, kind: revision, types: [ENV]}
   - {name: context, kind: revision, types: [BSL]}
@@ -39,9 +39,19 @@ query:
       && every("completed-runs-for-implementation@1", {implementation: implementation}, run =>
         exists("context-contains-evidence@1",
           {context: context, subject: run})
-        && count("passing-qualification-results-for-run-and-environment@1",
+        && ((count("passing-qualification-results-for-run-and-environment@1",
           {run: run, environment: environment}) == 1
+          && none("failed-qualification-results-for-run-and-environment@1",
+            {run: run, environment: environment}))
+          || (count("failed-qualification-results-for-run-and-environment@1",
+            {run: run, environment: environment}) == 1
+          && none("passing-qualification-results-for-run-and-environment@1",
+            {run: run, environment: environment})))
         && every("passing-qualification-results-for-run-and-environment@1",
+          {run: run, environment: environment}, result =>
+          exists("context-contains-evidence@1",
+            {context: context, subject: result}))
+        && every("failed-qualification-results-for-run-and-environment@1",
           {run: run, environment: environment}, result =>
           exists("context-contains-evidence@1",
             {context: context, subject: result}))))
