@@ -8,4 +8,4 @@ version: 1
 
 Fix the implementation against the unchanged requirements. Publish a new revision in the same IMP lineage with the new exact source commit, preserving the failed result. Rerun all acceptance cases before independent Review.
 
-Use the Assignment response schema. The CLI supplies identities, exact required links and publication markers. Submit only authored fields. Keep the body empty when the structured payload contains the whole claim.
+Fill the Assignment authorValuesScaffold using authorValuesSchema and submit it with mdlm assignment submit-proposal. The full responseSchema and responseScaffold are only for response diagnostics. The CLI supplies identities, exact required links and publication markers. Submit only authored fields. Keep the body empty when the structured payload contains the whole claim.

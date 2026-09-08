@@ -48,7 +48,7 @@ Obligations are `inconclusive` unless declared non-gating.
 ## 3. The packet and the schema come from one declaration
 
 Issues: #493, #508, #509, #540, #547, #616, #622, #637, #642, #644, #650,
-#662, #676, #679, #689, #694, #696.
+#662, #676, #679, #689, #694, #696, #725.
 
 Pattern: the Assignment Packet, the author-only response schema, the
 Scenario-fixed projected values, and cross-output references are assembled by
@@ -56,8 +56,11 @@ separate code paths. A fix to one path regresses another. Issues #679, #689,
 #694, and #696 form one chain of regressions in the same seam.
 
 Rule: fixed values, author-authored fields, and response-local references are
-projected from one compiled Scenario contract. Fixed fields never appear in the
-author schema. Every response-local reference resolves at the canonical
+projected from one compiled Scenario contract. Fixed fields are excluded from
+the authorable properties. The ordinary next/submit-proposal path emits
+`authorValuesSchema` and `authorValuesScaffold` from the same field-ownership
+rules used by submission. Prompts point to those fields; full response templates
+remain diagnostic. Every response-local reference resolves at the canonical
 final-proposal boundary.
 
 Check: one package-neutral test compiles every Scenario in the selected

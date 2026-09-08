@@ -22,8 +22,10 @@ Submit authored values from ignored work storage:
 mdlm assignment submit-proposal .lifecycle/work/author-values.json --json
 ```
 
-The file contains one `outputs` array and `completionEvidence`. Each output names
-the packet's emitted `slot` and supplies only its authored `payload` and `body`.
+Copy the packet's `authorValuesScaffold` into this file and fill it using
+`authorValuesSchema`. It contains `outputs` and `completionEvidence`. Each output
+names its emitted `slot` and supplies only its authored `payload` and `body`.
+The full `responseSchema` and `responseScaffold` are for response diagnostics.
 Do not copy Assignment identity, type, route, fixed payload values, or
 kernel-materialized outputs into this file. Repeated output slots also require a
 unique response-local `handle`.
