@@ -241,7 +241,7 @@ function validateKernelCapabilityBindings(
 ): ProcessDiagnostic[] {
   return Object.entries(kernelCapabilities).flatMap(([reference, binding]) => {
     const path = `manifest.kernel_capabilities.${reference}.type`;
-    if (reference !== exactBaselineCapability.reference) {
+    if (reference !== exactBaselineCapability.reference && reference !== "docker-verification@1") {
       return [{
         code: "unknown-kernel-capability",
         path,
@@ -271,6 +271,12 @@ function validateKernelCapabilities(
     const resolved = resolveType(processPackage, binding.type);
     if (!resolved.ok) {
       diagnostics.push(...resolved.diagnostics);
+      continue;
+    }
+    if (reference === "docker-verification@1") {
+      for (const field of ["outcome", "receipt"]) {
+        if (!resolved.type.kernelManagedPayloadPaths.includes(field)) diagnostics.push({code: "incompatible-kernel-capability", path: bindingPath, message: `Docker verification requires kernel-managed '${field}'`});
+      }
       continue;
     }
     const properties = resolved.type.payloadSchema.properties;

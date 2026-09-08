@@ -8,7 +8,7 @@ Process Package. Pi, Codex, and other harnesses operate that contract.
 
 The default tiny Process Package uses one requirement level. Its normal route is
 requirements, independent requirement review, implementation, executable
-verification performed by the harness, independent implementation review, and
+verification run by the CLI in Docker, independent implementation review, and
 stakeholder acceptance.
 Requirements carry product intent and acceptance examples together. Tiny products
 do not need separate system, component, architecture, or design records.
@@ -16,8 +16,8 @@ do not need separate system, component, architecture, or design records.
 The CLI validates structure, references, fixed values, and declared mechanical
 constraints before atomic publication. Reviewers judge whether requirements and
 examples express the intended product and whether implementation and evidence
-justify acceptance. The CLI checks reported results for consistency; it does not
-authenticate execution. A structurally valid proposal can still be wrong.
+justify acceptance. The CLI captures script output and classifies its exit status.
+Reviewers check whether the script proves the intended behavior.
 
 ## Operator contract
 
@@ -29,7 +29,8 @@ one loop:
    `MDLM.md` guide, exact repository identity, and Git cleanliness;
 3. require a clean ordinary Git boundary, then run `mdlm next --json` once;
 4. when `mdlm-next@2` includes an `mdlm-assignment-packet@3`, let the harness
-   perform that exact packet and write only its authored values;
+   perform that exact packet and write only its authored values. For an execution
+   Assignment, run `mdlm assignment run --json` and inspect its receipt first;
 5. run `mdlm assignment submit-proposal <author-values-file|-> --json`; MDLM
    derives, saves, and strictly submits one complete `mdlm-assignment-response@2`;
 6. handle the `mdlm-submission-outcome@1` result;

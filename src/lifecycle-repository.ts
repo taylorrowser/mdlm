@@ -131,7 +131,7 @@ export interface ParsedDatum {
 }
 
 export interface KernelFinalizedScenarioOutput {
-  capability: "exact-baseline@1";
+  capability: "exact-baseline@1" | "docker-verification@1";
   datum: DatumEnvelope;
 }
 

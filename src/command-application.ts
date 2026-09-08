@@ -77,6 +77,7 @@ import {
   type OperatorInstructions,
 } from "./operator-instructions.js";
 import {
+  runAssignmentVerification,
   claimNextWork,
   compileActiveAssignmentProposal,
   inspectActiveAssignmentResponseScaffold,
@@ -247,6 +248,7 @@ Agent-guided lifecycle commands:
   mdlm start [--json]
   mdlm next [--json]
   mdlm assignment response [--json]
+  mdlm assignment run [--retry] --json
   mdlm assignment submit-proposal <author-values-file|-> [--authority <authority-id>] --json
   mdlm scenario submit [response-file|-] [--authority <authority-id>] [--json]
   mdlm scenario settlement <assignment-or-execution-id> [--json]
@@ -2241,6 +2243,10 @@ async function dispatchCommand(
           ),
           command: "assignment.response",
         };
+  }
+  if (operands[0] === "assignment" && operands[1] === "run") {
+    const result = await runAssignmentVerification(repositoryRoot, arguments_.includes("--retry"));
+    return {...result, command: "assignment.run"};
   }
   if (operands[0] === "assignment" && operands[1] === "submit-proposal") {
     return operands.length === 3 && operands[2] &&

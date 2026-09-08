@@ -1,7 +1,7 @@
 kind: scenario-definition
 id: execute-verification
 version: 1
-description: Capture executable verification observations
+description: Run committed Docker verification
 phases:
 - phase-0-tiny-product
 inputs:
@@ -29,14 +29,18 @@ outputs:
       input: requirements
   required_payload:
     publication: recorded
-    title: Verification observations
+    title: Verification result
 prompt_ref: prompts/execute-verification.md@1
 review_policy_ref: review-applicability@1
+kernel_execution:
+  kind: docker-verification@1
+  implementation_input: implementation
+  requirements_input: requirements
+  output: result
 completion: 'execution.integrity.contract_valid == true && (exists("requirements-for@1", {implementation: implementation})
   && every("requirements-for@1", {implementation: implementation}, req => req.identity.revision_id == requirements.identity.revision_id)
-  && ((result.payload.observations == requirements.payload.cases && result.payload.correction_target == "none")
-  || (result.payload.observations != requirements.payload.cases && result.payload.correction_target != "none")))
-  && array_fields_equal(requirements.payload.cases, result.payload.observations, ["id", "stdin"])'
+  && ((result.payload.outcome == "pass" && result.payload.correction_target == "none")
+  || (result.payload.outcome != "pass" && result.payload.correction_target != "none")))'
 resolves:
 - verification-required
 prohibited_inputs: []

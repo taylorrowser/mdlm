@@ -152,6 +152,15 @@ export function validateScenarioContracts(
       }),
     );
     const outputNames = new Set(outputsByName.keys());
+    const kernelExecution = record(scenario.kernel_execution);
+    if (kernelExecution?.kind === "docker-verification@1") {
+      for (const field of ["implementation_input", "requirements_input"] as const) {
+        const input = inputsByName.get(String(kernelExecution[field]));
+        if (!input || input.cardinality !== "one" || input.identity !== "revision") diagnostics.push({code: "kernel-execution-input-invalid", path: `scenarios.${scenario.id}.kernel_execution.${field}`, message: "Docker verification requires a declared single exact-revision input"});
+      }
+      const output = outputsByName.get(String(kernelExecution.output));
+      if (!output || output.cardinality !== "one") diagnostics.push({code: "kernel-execution-output-invalid", path: `scenarios.${scenario.id}.kernel_execution.output`, message: "Docker verification requires one declared output"});
+    }
     const kernelMaterialization = record(scenario.kernel_materialization);
     if (kernelMaterialization?.kind === "exact-baseline@1") {
       const output = kernelMaterialization.output;

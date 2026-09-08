@@ -8,6 +8,7 @@ export default defineConfig({
       "test/author-values-scaffold-public.test.ts",
       "test/tiny-process-package.test.ts",
       "test/tiny-process-journey.test.ts",
+      "test/docker-verification-receipt.test.ts",
       "test/operator-contract-v2.test.ts",
       "test/operator-outcome-classification.test.ts",
       "test/release-candidate-gate.test.ts",

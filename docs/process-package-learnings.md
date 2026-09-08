@@ -140,3 +140,27 @@ not once per subject type.
 Check: package load rejects an unreferenced Selector. Correction routes are
 generated from a compact per-type declaration, so adding a reviewable type
 cannot omit its route.
+
+## 9. The CLI captures execution evidence
+
+Issue: #727.
+
+Pattern: run243 accepted matching agent-authored expected and observed strings
+that contained literal backslash-n while the product emitted newline bytes.
+Both content Reviews missed the transcription error.
+
+Rule: a verification Scenario declares the kernel execution capability. The CLI
+runs the committed script in its declared Docker image, captures raw output and
+exit status, and binds its immutable receipt to the exact Assignment, inputs and
+source. Publication derives outcome and receipt from that capture; authored
+values and diagnostic submission cannot replace them. The script owns assertions
+and distinguishes assertion failure from execution error. The existing content
+Review judges assertion coverage, and the author briefly assesses the captured
+run. Script correction creates a new implementation revision and fresh capture.
+
+Check: one public CLI Docker journey preserves a literal-backslash-n assertion
+failure, distinguishes execution error, corrects the script, and records a fresh
+passing receipt. At that same publication interface, authored outcome or receipt
+substitution cannot create passing verification. Keep this check at the real
+execution and publication boundary rather than adding another prose claim or
+repeating the journey across test layers.

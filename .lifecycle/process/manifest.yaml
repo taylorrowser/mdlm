@@ -24,7 +24,9 @@ references:
   obligation_instance: <obligation>@<version>:<exact-subject>:<process-ref>
 language:
   expressions: mdlm-expression@1
-kernel_capabilities: {}
+kernel_capabilities:
+  docker-verification@1:
+    type: RES
 compatibility:
   minimum_kernel: 0.2.0
   meta_schema_version: 3
