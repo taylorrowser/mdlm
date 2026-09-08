@@ -46,6 +46,8 @@ const expressionOperators = [
 
 const expressionHostFunctions = [
   "array_has_field",
+  "array_fields_equal",
+  "array_unique_field",
   "count",
   "every",
   "exists",
@@ -161,7 +163,22 @@ interface ArrayHasFieldNode extends NodeBase {
   expected: ExpressionNode;
 }
 
+interface ArrayFieldsEqualNode extends NodeBase {
+  kind: "array-fields-equal";
+  left: ExpressionNode;
+  right: ExpressionNode;
+  fields: string[];
+}
+
+interface ArrayUniqueFieldNode extends NodeBase {
+  kind: "array-unique-field";
+  array: ExpressionNode;
+  field: string;
+}
+
 type ExpressionNode =
+  | ArrayFieldsEqualNode
+  | ArrayUniqueFieldNode
   | ArrayHasFieldNode
   | ArrayNode
   | ComparisonNode
@@ -491,6 +508,12 @@ class ExpressionParser {
     if (token.kind === "identifier" && token.text === "array_has_field") {
       return this.parseArrayHasFieldCall();
     }
+    if (token.kind === "identifier" && token.text === "array_fields_equal") {
+      return this.parseArrayFieldsEqualCall();
+    }
+    if (token.kind === "identifier" && token.text === "array_unique_field") {
+      return this.parseArrayUniqueFieldCall();
+    }
     if (
       token.kind === "identifier" &&
       ["count", "exists", "first", "none", "one", "select"].includes(token.text)
@@ -545,6 +568,62 @@ class ExpressionParser {
       array,
       field: String(fieldToken.value),
       expected,
+      valueType: "boolean",
+      span: { start: functionToken.span.start, end: closing.span.end },
+    };
+  }
+
+  private parseArrayFieldsEqualCall(): ArrayFieldsEqualNode {
+    const functionToken = this.take("identifier", "Expected 'array_fields_equal'");
+    this.take("left-parenthesis", "Expected '(' after 'array_fields_equal'");
+    const left = this.parseOr();
+    this.take("comma", "Expected ',' after first array operand");
+    const right = this.parseOr();
+    for (const operand of [left, right]) {
+      if (!["array", "unknown"].includes(operand.valueType)) {
+        throw new ExpressionFailure(
+          "expression-type",
+          `array_fields_equal requires array operands, received ${operand.valueType}`,
+          operand.span,
+        );
+      }
+    }
+    this.take("comma", "Expected ',' before object field names");
+    const fields = this.parseArray();
+    if (fields.elements.length === 0 || fields.elements.some((element) =>
+      element.kind !== "literal" || typeof element.value !== "string"
+    )) {
+      throw new ExpressionFailure(
+        "expression-type",
+        "array_fields_equal requires a nonempty literal array of object field name strings",
+        fields.span,
+      );
+    }
+    const closing = this.take("right-parenthesis", "Expected ')' after array_fields_equal");
+    return {
+      kind: "array-fields-equal", left, right,
+      fields: fields.elements.map((element) => String((element as LiteralNode).value)),
+      valueType: "boolean",
+      span: { start: functionToken.span.start, end: closing.span.end },
+    };
+  }
+
+  private parseArrayUniqueFieldCall(): ArrayUniqueFieldNode {
+    const functionToken = this.take("identifier", "Expected 'array_unique_field'");
+    this.take("left-parenthesis", "Expected '(' after 'array_unique_field'");
+    const array = this.parseOr();
+    if (!["array", "unknown"].includes(array.valueType)) {
+      throw new ExpressionFailure(
+        "expression-type",
+        `array_unique_field requires an array operand, received ${array.valueType}`,
+        array.span,
+      );
+    }
+    this.take("comma", "Expected ',' after array operand");
+    const field = this.take("string", "Expected an object field name string");
+    const closing = this.take("right-parenthesis", "Expected ')' after array_unique_field");
+    return {
+      kind: "array-unique-field", array, field: String(field.value),
       valueType: "boolean",
       span: { start: functionToken.span.start, end: closing.span.end },
     };
@@ -2252,6 +2331,11 @@ function expressionReferencesBinding(
   switch (node.kind) {
     case "literal":
       return false;
+    case "array-fields-equal":
+      return expressionReferencesBinding(node.left, binding) ||
+        expressionReferencesBinding(node.right, binding);
+    case "array-unique-field":
+      return expressionReferencesBinding(node.array, binding);
     case "array-has-field":
       return expressionReferencesBinding(node.array, binding) ||
         expressionReferencesBinding(node.expected, binding);
@@ -2298,6 +2382,10 @@ function expressionDependencies(node: ExpressionNode): ExpressionDependency[] {
     case "path":
     case "variable":
       return [];
+    case "array-fields-equal":
+      return [...expressionDependencies(node.left), ...expressionDependencies(node.right)];
+    case "array-unique-field":
+      return expressionDependencies(node.array);
     case "array-has-field":
       return [
         ...expressionDependencies(node.array),
@@ -2680,6 +2768,15 @@ export function compiledExpressionFacts(
     }
     if (node.kind === "not") return;
     if (node.kind === "present") return;
+    if (node.kind === "array-fields-equal") {
+      visit(node.left);
+      visit(node.right);
+      return;
+    }
+    if (node.kind === "array-unique-field") {
+      visit(node.array);
+      return;
+    }
     if (node.kind === "array-has-field") {
       visit(node.array);
       visit(node.expected);
@@ -2771,6 +2868,31 @@ function evaluateNode(
 ): unknown {
   switch (node.kind) {
     case "literal": return node.value;
+    case "array-fields-equal": {
+      const left = evaluateNode(node.left, context, host);
+      const right = evaluateNode(node.right, context, host);
+      return Array.isArray(left) && Array.isArray(right) &&
+        left.length === right.length && left.every((item, index) => {
+          const other = right[index];
+          return typeof item === "object" && item !== null && !Array.isArray(item) &&
+            typeof other === "object" && other !== null && !Array.isArray(other) &&
+            node.fields.every((field) => Object.hasOwn(item, field) &&
+              Object.hasOwn(other, field) && expressionValuesEqual(item[field], other[field]));
+        });
+    }
+    case "array-unique-field": {
+      const array = evaluateNode(node.array, context, host);
+      if (!Array.isArray(array)) return false;
+      const values: unknown[] = [];
+      for (const item of array) {
+        if (typeof item !== "object" || item === null || Array.isArray(item) ||
+          !Object.hasOwn(item, node.field)) return false;
+        const value = item[node.field];
+        if (values.some((previous) => expressionValuesEqual(previous, value))) return false;
+        values.push(value);
+      }
+      return true;
+    }
     case "array-has-field": {
       const array = evaluateNode(node.array, context, host);
       const expected = evaluateNode(node.expected, context, host);
