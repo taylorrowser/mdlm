@@ -1,0 +1,64 @@
+
+> mdlm@0.0.0 test
+> npm run test:fast
+
+
+> mdlm@0.0.0 test:fast
+> node scripts/cutover-tests.mjs fast
+
+TINY_TEST command=npm run typecheck
+
+> mdlm@0.0.0 typecheck
+> tsc --noEmit
+
+TINY_TEST command=npm run typecheck:mdlm-pi
+
+> mdlm@0.0.0 typecheck:mdlm-pi
+> npm run typecheck --workspace=mdlm-pi
+
+
+> mdlm-pi@0.0.0 typecheck
+> tsc --noEmit
+
+TINY_TEST command=npm run build
+
+> mdlm@0.0.0 build
+> tsc -p tsconfig.build.json
+
+TINY_TEST command=./node_modules/.bin/vitest run --config vitest.cutover.config.ts
+
+ RUN  v4.1.10 /home/ubuntu/git/mdlm-worktrees/tiny-process-integration
+
+TINY_JOURNEY {"mode":"happy","sourceCommit":"cd8c5f547995b5cdf33003d99e5cd809db5d1485","initialSourceCommit":"cd8c5f547995b5cdf33003d99e5cd809db5d1485","failedObservations":0,"elapsedMs":21356,"assignments":6,"publications":6,"executions":2,"malformedRejections":3,"installed":false,"trace":[{"scenario":"draft-requirements@1","types":["REQ"],"assignment":"5c5473b5-742c-4b4a-86ff-565753898fa1"},{"scenario":"review-requirements@1","types":["REV"],"assignment":"17f9905e-4dfa-466a-8703-4b20ea3e3d3a"},{"scenario":"implement-product@1","types":["IMP"],"assignment":"9915a955-4ab9-41ca-82c2-2379e95c293e"},{"scenario":"execute-verification@1","types":["RES"],"assignment":"67d7b4bb-87ad-493e-8773-b74292ddaae7"},{"scenario":"review-implementation@1","types":["REV"],"assignment":"b411caf2-f54f-413f-a577-dcea9cfa8fbc"},{"scenario":"accept-product@1","types":["ACC"],"assignment":"8fdadcb6-0613-4cb6-ad6c-8a08eddfab35"}]}
+TINY_JOURNEY {"mode":"wrong-code","sourceCommit":"27a654176a6a1142c6a30e0d33d2769323d720d1","initialSourceCommit":"2428873a6d7d6c097f6fa803ce38f7a04e297aa9","failedObservations":1,"elapsedMs":22593,"assignments":8,"publications":8,"executions":4,"malformedRejections":1,"installed":false,"trace":[{"scenario":"draft-requirements@1","types":["REQ"],"assignment":"ce331b23-6bc9-442c-8105-083a7e48d2e9"},{"scenario":"review-requirements@1","types":["REV"],"assignment":"51c5ce29-5c82-4e4b-8130-5a785ea4cb59"},{"scenario":"implement-product@1","types":["IMP"],"assignment":"248f98dd-c096-4886-ad40-ed6f3c0ebf93"},{"scenario":"execute-verification@1","types":["RES"],"assignment":"1f93362c-850b-44a7-8fa1-d122f7ee54e8"},{"scenario":"correct-product@1","types":["IMP"],"assignment":"a937e8e4-76c0-481a-b605-897ea1bd4162"},{"scenario":"execute-verification@1","types":["RES"],"assignment":"761b12f4-ef9e-41e1-89de-22a26c96f933"},{"scenario":"review-implementation@1","types":["REV"],"assignment":"24a4180b-4b68-4cff-bbce-44de268f2629"},{"scenario":"accept-product@1","types":["ACC"],"assignment":"c795d638-2467-413f-b5f0-c32ea4638be8"}]}
+TINY_JOURNEY {"mode":"wrong-expectation","sourceCommit":"489beadd9c68951167a1fcc430393ce36cef3ad6","initialSourceCommit":"489beadd9c68951167a1fcc430393ce36cef3ad6","failedObservations":1,"elapsedMs":27513,"assignments":10,"publications":10,"executions":4,"malformedRejections":1,"installed":false,"trace":[{"scenario":"draft-requirements@1","types":["REQ"],"assignment":"713a94a0-ef07-4762-b144-21485a691e13"},{"scenario":"review-requirements@1","types":["REV"],"assignment":"6c5a4967-57bf-44cb-9400-e3d815fdde30"},{"scenario":"implement-product@1","types":["IMP"],"assignment":"30f02b9a-86d6-4575-87ca-cff8744ee0ad"},{"scenario":"execute-verification@1","types":["RES"],"assignment":"241b172e-fe13-438a-b3a2-3ec393dc284b"},{"scenario":"correct-expectations@1","types":["REQ"],"assignment":"f70196a3-006d-4119-8ddc-ece1c49abaf0"},{"scenario":"review-requirements@1","types":["REV"],"assignment":"a084122f-80b2-46b0-9365-8f7a62b16a24"},{"scenario":"rebind-product@1","types":["IMP"],"assignment":"6c5f2437-afb3-41de-b141-501c934f212b"},{"scenario":"execute-verification@1","types":["RES"],"assignment":"6d343faa-b6ea-4a25-bde8-91bf958103fe"},{"scenario":"review-implementation@1","types":["REV"],"assignment":"274e77c9-8fc7-4d40-ad2a-85a014bf29cf"},{"scenario":"accept-product@1","types":["ACC"],"assignment":"b895e28c-d109-4404-935c-e9a8c4987614"}]}
+TINY_JOURNEY {"mode":"review-correction","sourceCommit":"9eab8dd60f2cf6acea31d098a5717e3e46f37e55","initialSourceCommit":"9eab8dd60f2cf6acea31d098a5717e3e46f37e55","failedObservations":0,"elapsedMs":21875,"assignments":8,"publications":8,"executions":2,"malformedRejections":1,"installed":false,"trace":[{"scenario":"draft-requirements@1","types":["REQ"],"assignment":"64700042-8d5b-4853-b0c1-c6be4df54651"},{"scenario":"review-requirements@1","types":["REV"],"assignment":"f2ff2eea-d4cf-4cb8-94b1-8ad0a16aa45a"},{"scenario":"correct-requirements-after-review@1","types":["REQ"],"assignment":"bf61178c-71a7-47d4-8366-8a044e16a3dc"},{"scenario":"review-requirements@1","types":["REV"],"assignment":"79d209b0-33dd-4a82-b3c9-235318f949c5"},{"scenario":"implement-product@1","types":["IMP"],"assignment":"6ca562fd-b6a6-47e6-a6c4-193728a91fac"},{"scenario":"execute-verification@1","types":["RES"],"assignment":"dbc61f03-3811-4e46-9d2d-5f3ffab4da61"},{"scenario":"review-implementation@1","types":["REV"],"assignment":"627e4801-0609-4adf-bb48-da29971ebd32"},{"scenario":"accept-product@1","types":["ACC"],"assignment":"8894634d-c724-4f09-acff-b57d1df74d9e"}]}
+
+ Test Files  7 passed (7)
+      Tests  22 passed (22)
+   Start at  19:14:49
+   Duration  97.46s (transform 350ms, setup 0ms, import 781ms, tests 95.88s, environment 1ms)
+
+	Command being timed: "timeout 240 npm test"
+	User time (seconds): 135.07
+	System time (seconds): 26.18
+	Percent of CPU this job got: 148%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:48.83
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 683684
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 5142898
+	Voluntary context switches: 564524
+	Involuntary context switches: 1240
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 30096
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

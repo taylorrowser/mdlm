@@ -11,6 +11,7 @@ export default defineConfig({
       "test/operator-outcome-classification.test.ts",
       "test/release-candidate-gate.test.ts",
       "test/lifecycle-schema-diagnostics.test.ts",
+      "test/array-expression.test.ts",
     ],
     maxWorkers: 1,
     testTimeout: 45_000,

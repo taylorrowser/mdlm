@@ -46,7 +46,7 @@ function response(packet: Json, payloads: Record<string, Json>): Json {
 // This uses the public executable and real product observations. It is source
 // integration evidence, not release qualification or an autonomous-agent demo.
 describe("tiny public CLI journey", () => {
-  it.each(["happy", "wrong-code", "wrong-expectation", "review-correction"])("delivers a reviewed, executed tiny product: %s", async (mode) => {
+  it.each(process.env.MDLM_TINY_INSTALLED === "1" ? ["happy"] : ["happy", "wrong-code", "wrong-expectation", "review-correction"])("delivers a reviewed, executed tiny product: %s", async (mode) => {
     const started = performance.now();
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-tiny-journey-"));
     const repository = path.join(root, "lifecycle");
