@@ -37,6 +37,8 @@ const base = {
   guidePath: "MDLM.md" as const,
 };
 
+const authoringReminder = "Fill packet.authorValuesScaffold using packet.authorValuesSchema, then submit those author values. The full responseSchema and responseScaffold are diagnostic interfaces.";
+
 const loopReminder = "Own the lifecycle loop. For continuing outcomes, complete and submit the exact Assignment, then run mdlm next --json again. On Attention Required, ask the named authority. Stop only when this outcome or an integrity boundary says to stop.";
 
 /** Project the immediate safe operator boundary without changing the outcome. */
@@ -64,7 +66,7 @@ export function operatorInstructions(
         "mdlm doctor --json",
         "mdlm next --json",
       ],
-      text: `${loopReminder} Begin this Assignment now within its exact authority and no-replay boundaries.`,
+      text: `${loopReminder} Begin this Assignment now within its exact authority and no-replay boundaries. ${authoringReminder}`,
     };
   }
 
@@ -79,7 +81,7 @@ export function operatorInstructions(
         "mdlm doctor --json",
         "mdlm next --json",
       ],
-      text: `${loopReminder} Ask authorityRequirement.authority using only the returned attention context, then resume this exact Assignment. Never invent or self-supply authority.`,
+      text: `${loopReminder} Ask authorityRequirement.authority using only the returned attention context, then resume this exact Assignment. Never invent or self-supply authority. ${authoringReminder}`,
     };
   }
 

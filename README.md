@@ -42,7 +42,8 @@ repository and Process Package, derives one of the six Operator Outcome
 families, and leases work only when it can advance. Assignment and Attention
 Required outcomes include the complete packet: prompt, skills, exact inputs,
 schemas, Policies, participation, authority requirements, outputs, completion
-conditions, response schema, and response scaffold. The included packet replaces
+conditions, authorValuesSchema, and authorValuesScaffold. Full response schema and
+scaffold remain available for diagnostics. The included packet replaces
 the ordinary prepare step.
 
 Initialization installs one package-neutral `MDLM.md` operator guide. `mdlm start`

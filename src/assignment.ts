@@ -634,6 +634,10 @@ export interface AssignmentPacket {
     payloadSummary: AssignmentPayloadSummary;
   })[];
   completion: ScenarioDryRun["completion"];
+  /** New packets emit these; optional for historical v3 packet readers/fixtures.
+   * Ordinary submit-proposal input. Payload semantics are checked at submission. */
+  authorValuesSchema?: Record<string, unknown>;
+  authorValuesScaffold?: AssignmentAuthorValues;
   responseSchema: Record<string, unknown>;
   responseScaffold: AssignmentResponseSkeleton;
   checkpointConversation?: CheckpointConversation;
@@ -2703,8 +2707,7 @@ function parseAssignmentResponse(
   };
 }
 
-const validateAssignmentAuthorValues = new Ajv2020({ allErrors: true, strict: false })
-  .compile({
+const assignmentAuthorValuesSchema = {
     type: "object",
     additionalProperties: false,
     required: ["outputs", "completionEvidence"],
@@ -2725,7 +2728,10 @@ const validateAssignmentAuthorValues = new Ajv2020({ allErrors: true, strict: fa
       },
       completionEvidence: {},
     },
-  });
+  };
+
+const validateAssignmentAuthorValues = new Ajv2020({ allErrors: true, strict: false })
+  .compile<AssignmentAuthorValues>(assignmentAuthorValuesSchema);
 
 function parseAssignmentAuthorValues(
   source: string,
@@ -2780,6 +2786,108 @@ function nonNullPayloadPaths(
 
 function protectedPayloadPath(candidate: string, protectedPath: string): boolean {
   return candidate === protectedPath || candidate.startsWith(`${protectedPath}.`);
+}
+
+/** Shared ownership rules for author guidance and canonical submission. */
+function authorPayloadOwnership(
+  contract: AssignmentPacket["outputs"][number],
+  template: SymbolicProposalOutput,
+): { fixed: string[]; managed: string[] } {
+  return {
+    fixed: [...new Set([
+      ...Object.keys(contract.payloadSummary.requiredValues ?? {}),
+      ...nonNullPayloadPaths(template.payload ?? {}),
+    ])],
+    managed: contract.payloadSummary.kernelManaged,
+  };
+}
+
+function authorPayloadSchema(
+  schema: Record<string, unknown>,
+  excluded: string[],
+): Record<string, unknown> {
+  // This is the authoring shape. Conditional and cross-output semantics still
+  // use the original payload schema and Scenario at canonical submission.
+  const properties = Object.fromEntries(Object.entries(object(schema.properties) ?? {})
+    .filter(([key]) => !excluded.includes(key))
+    .map(([key, value]) => {
+      const nested = excluded.filter((entry) => entry.startsWith(`${key}.`))
+        .map((entry) => entry.slice(key.length + 1));
+      return [key, nested.length > 0
+        ? authorPayloadSchema(object(value) ?? {}, nested)
+        : structuredClone(value)];
+    }));
+  return {
+    type: "object",
+    additionalProperties: schema.additionalProperties ?? true,
+    properties,
+    ...((excluded.some((entry) => !entry.includes("."))) ? {
+      allOf: excluded.filter((entry) => !entry.includes("."))
+        .map((entry) => ({ not: { required: [entry] } })),
+    } : {}),
+    required: (Array.isArray(schema.required) ? schema.required : [])
+      .filter((key) => typeof key === "string" && !excluded.includes(key)),
+  };
+}
+
+function authorPayloadScaffold(
+  payload: Record<string, unknown>,
+  excluded: string[],
+  prefix = "",
+): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(payload).flatMap(([key, value]) => {
+    const current = prefix ? `${prefix}.${key}` : key;
+    if (excluded.some((field) => protectedPayloadPath(current, field))) return [];
+    const nested = object(value);
+    return [[key, nested ? authorPayloadScaffold(nested, excluded, current) : value]];
+  }));
+}
+
+function authorValuesContract(
+  packet: AssignmentPacket,
+  materializedOutput: string | undefined,
+): { schema: Record<string, unknown>; scaffold: AssignmentAuthorValues } {
+  const variants: Record<string, unknown>[] = [];
+  const outputs: AssignmentAuthorValues["outputs"] = [];
+  for (const template of packet.responseScaffold.proposal.outputs) {
+    const contract = packet.outputs.find((output) =>
+      output.handle === (template.output ?? template.handle))!;
+    if (contract.name === materializedOutput) continue;
+    const { fixed, managed } = authorPayloadOwnership(contract, template);
+    const payloadSchema = authorPayloadSchema(packet.schemas[template.type]!.payload,
+      [...fixed, ...managed]);
+    const repeated = ["one-or-more", "zero-or-more"].includes(contract.cardinality);
+    const base = assignmentAuthorValuesSchema.properties.outputs.items;
+    variants.push({
+      ...base,
+      required: [...base.required, ...(repeated ? ["handle"] : [])],
+      properties: {
+        slot: { const: template.handle },
+        ...(repeated ? { handle: base.properties.handle } : {}),
+        payload: payloadSchema,
+        body: base.properties.body,
+      },
+    });
+    if (!contract.cardinality.startsWith("zero-")) {
+      outputs.push({
+        slot: template.handle,
+        ...(repeated ? { handle: `${template.handle}-1` } : {}),
+        payload: authorPayloadScaffold(template.payload ?? {}, [...fixed, ...managed]),
+        body: "",
+      });
+    }
+  }
+  return {
+    schema: {
+      ...assignmentAuthorValuesSchema,
+      description: "Author values for assignment submit-proposal. The CLI checks the full payload schema and Scenario after deriving fixed fields.",
+      properties: {
+        ...assignmentAuthorValuesSchema.properties,
+        outputs: { type: "array", items: variants.length ? { oneOf: variants } : false },
+      },
+    },
+    scaffold: { outputs, completionEvidence: null },
+  };
 }
 
 function mergePayloadValues(
@@ -3001,11 +3109,7 @@ function assignmentResponseFromAuthorValues(
           templateHandleByInvocationAndOutput.get(`${invocation}:${output}`) ??
           output,
       );
-      const fixed = [...new Set([
-        ...Object.keys(contract.payloadSummary.requiredValues ?? {}),
-        ...nonNullPayloadPaths(template.payload ?? {}),
-      ])];
-      const managed = contract.payloadSummary.kernelManaged;
+      const { fixed, managed } = authorPayloadOwnership(contract, template);
       for (const suppliedPath of payloadPaths(value.payload)) {
         const fixedPath = fixed.find((candidate) =>
           protectedPayloadPath(suppliedPath, candidate)
@@ -3816,6 +3920,9 @@ function packet(
         }
       : {}),
   };
+  const authorValues = authorValuesContract(rendered, materialization?.output);
+  rendered.authorValuesSchema = authorValues.schema;
+  rendered.authorValuesScaffold = authorValues.scaffold;
   assertAssignmentPacketV3(rendered);
   return rendered;
 }

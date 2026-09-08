@@ -5,6 +5,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     include: [
+      "test/author-values-scaffold-public.test.ts",
       "test/tiny-process-package.test.ts",
       "test/tiny-process-journey.test.ts",
       "test/operator-contract-v2.test.ts",
