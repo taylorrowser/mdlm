@@ -1,0 +1,23 @@
+kind: selector-definition
+id: acceptances-for
+version: 1
+description: acceptances for
+parameters:
+- name: implementation
+  kind: revision
+  types:
+  - IMP
+result_kind: revision
+query:
+  from:
+    relation: incoming-links
+    of: implementation
+    link: accepts
+    emit: source
+    types:
+    - ACC
+  as: item
+  where: state(item, "validity") == "valid" && item.integrity.scenario_execution_valid == true
+  distinct: true
+  order_by:
+  - identity.revision_id

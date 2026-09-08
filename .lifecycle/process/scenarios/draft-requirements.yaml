@@ -1,0 +1,23 @@
+kind: scenario-definition
+id: draft-requirements
+version: 1
+description: Write one small requirement set
+phases:
+- phase-0-tiny-product
+inputs: []
+outputs:
+- name: requirements
+  types:
+  - REQ
+  cardinality: one
+  required_links: []
+  required_payload:
+    publication: recorded
+prompt_ref: prompts/draft-requirements.md@1
+review_policy_ref: review-applicability@1
+completion: execution.integrity.contract_valid == true && (true) && count("current-requirements@1", {}) == 1 &&
+  array_unique_field(requirements.payload.cases, "id")
+resolves:
+- requirements-required
+prohibited_inputs: []
+batching: single

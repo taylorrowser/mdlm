@@ -1,0 +1,57 @@
+kind: scenario-definition
+id: accept-product
+version: 1
+description: Accept the working tiny product
+phases:
+- phase-0-tiny-product
+inputs:
+- name: implementation
+  types:
+  - IMP
+  cardinality: one
+  identity: revision
+- name: result
+  types:
+  - RES
+  cardinality: one
+  identity: revision
+- name: requirements
+  types:
+  - REQ
+  cardinality: one
+  identity: revision
+outputs:
+- name: acceptance
+  types:
+  - ACC
+  cardinality: one
+  required_links:
+  - link: accepts
+    target:
+      input: implementation
+  - link: uses-evidence
+    target:
+      input: result
+  - link: confirms
+    target:
+      input: requirements
+  required_payload:
+    publication: recorded
+    decision: accept
+prompt_ref: prompts/accept-product.md@1
+review_policy_ref: review-applicability@1
+completion: 'execution.integrity.contract_valid == true && (exists("pass-reviews@1", {subject: implementation})
+  && none("fail-reviews@1", {subject: implementation}) && exists("passing-results@1", {implementation: implementation})
+  && every("passing-results@1", {implementation: implementation}, passed => passed.identity.revision_id == result.identity.revision_id)
+  && every("requirements-for@1", {implementation: implementation}, req => req.identity.revision_id == requirements.identity.revision_id))'
+resolves:
+- acceptance-required
+prohibited_inputs: []
+batching: single
+participation:
+  policy_ref: stakeholder-acceptance@1
+  arguments:
+    subject: implementation
+authority_evidence:
+  output: acceptance
+  type: ACC

@@ -1,28 +1,17 @@
 kind: state-definition
 id: validity
-version: 2
-description: Structural integrity and conservative dependency freshness for an exact revision.
+version: 1
+description: Kernel integrity and package identity.
 subject_as: subject
 cardinality: exactly-one
 default: valid
-values: [invalid, stale, valid]
+values:
+- valid
+- invalid
 rules:
-  - value: invalid
-    priority: 300
-    when: >-
-      subject.integrity.parseable == false
-      || subject.integrity.schema_valid == false
-      || subject.integrity.identity_valid == false
-      || subject.integrity.references_valid == false
-      || subject.integrity.hash_valid == false
-    explanation: Parseability, schema, identity, reference, or frozen-byte integrity is broken.
-  - value: stale
-    priority: 250
-    when: 'exists("implemented-changes-impacting-revision@2", {subject: subject})'
-    explanation: An implemented reviewed Change Request derives this exact Revision as affected from its accepted requirement roots and prevents silent reuse.
-    explanation_evidence: 'select("implemented-changes-impacting-revision@2", {subject: subject})'
-  - value: stale
-    priority: 200
-    when: 'policy("dependency-reassessment@1", {subject: subject}).required == true'
-    explanation: Package Policy requires reassessment for at least one classified dependency change.
-    explanation_evidence: 'select("staleness-relevant-dependency-changes-for@1", {subject: subject})'
+- value: invalid
+  priority: 100
+  when: subject.integrity.parseable == false || subject.integrity.schema_valid == false || subject.integrity.identity_valid
+    == false || subject.integrity.references_valid == false || subject.integrity.hash_valid == false || subject.provenance.process_ref
+    != process.current_ref
+  explanation: Invalid integrity or a different Process Package identity.

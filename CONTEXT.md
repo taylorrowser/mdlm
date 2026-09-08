@@ -184,8 +184,8 @@ _Avoid_: Chat-based progression, redundant approval by default
 ## Definition and decomposition
 
 **Accepted Requirement Revision**:
-An exact requirement Revision included in an Accepted Baseline; Review alone does not make a requirement accepted, and later substantive revision follows package-declared change control.
-_Avoid_: Reviewed requirement, latest requirement
+An exact requirement Revision accepted under its selected Process Package. A package may require an Accepted Baseline; the tiny package uses its exact requirement Review before implementation. Later substantive revision follows the selected package's correction or change rules.
+_Avoid_: Latest requirement, acceptance inferred without the selected package's rule
 
 **Decomposition Work Package (DWP)**:
 The durable planning and completion lineage for one bounded many-to-many decomposition from exact parent requirement Revisions to exact child requirement Revisions.

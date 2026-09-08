@@ -1,251 +1,56 @@
 kind: type-definition
 id: REV
-version: 9
-name: Review
-description: Immutable judgment about one exact primary subject in one exact frozen context.
+version: 1
+description: Independent content Review
+name: Independent content Review
 extends: titled-datum@1
 lifecycle:
   authorship: authored
   freeze_when: terminal-outcome
-  terminal_payload_field: outcome
-  terminal_values: [pass, fail, cancelled]
+  terminal_payload_field: publication
+  terminal_values:
+  - recorded
 payload_schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
-  required: [rubric_ref, outcome]
+  required:
+  - publication
+  - outcome
+  - findings
   properties:
-    review_kind: {enum: [phase-0-foundation, phase-0-candidate, phase-1-assurance, contextual, simplification-product-definition, simplification-architecture-interfaces, cross-group, gate]}
-    reviewer: {type: string, minLength: 1}
-    summary: {type: string, minLength: 1}
-    decomposition_plan_revision: {type: string, pattern: '^DWP-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
-    rubric_ref: {type: string, pattern: '^policies/rubrics/.+\.md@[1-9][0-9]*$'}
+    publication:
+      const: recorded
+    outcome:
+      enum:
+      - pass
+      - fail
     findings:
-      type: array
-      uniqueItems: true
-      items:
-        type: object
-        additionalProperties: false
-        required: [id, target, relationship, severity, summary]
-        properties:
-          id: {type: string, pattern: '^F-[0-9]{3,}$'}
-          target: {type: string, pattern: '^[A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
-          relationship: {enum: [primary, collateral]}
-          severity: {enum: [blocking, needs-triage, advisory]}
-          summary: {type: string, minLength: 1}
-          criterion: {type: string, minLength: 1}
-          evidence: {type: string, minLength: 1}
-          material_consequence: {type: string, minLength: 1}
-        allOf:
-          - if:
-              properties:
-                severity: {const: blocking}
-              required: [severity]
-            then: {required: [criterion, evidence, material_consequence]}
-    simplification:
-      description: One exact correction target with every blocking Phase 0 or planning-DWP simplification finding that applies to it.
-      type: object
-      additionalProperties: false
-      required: [target, findings]
-      properties:
-        target: {type: string, pattern: '^[A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
-        findings:
-          type: array
-          minItems: 1
-          uniqueItems: true
-          items:
-            type: object
-            additionalProperties: false
-            required: [id, severity, summary, criterion, evidence, material_consequence]
-            properties:
-              id: {type: string, pattern: '^F-[0-9]{3,}$'}
-              severity: {const: blocking}
-              summary: {type: string, minLength: 1}
-              criterion: {type: string, minLength: 1}
-              evidence: {type: string, minLength: 1}
-              material_consequence: {type: string, minLength: 1}
-    definition_simplification:
-      description: Exact Phase 2 subject or declared definition-consistency set selected by blocking simplification findings.
-      type: object
-      additionalProperties: false
-      required: [primary_target, correction_set, primary_findings]
-      properties:
-        primary_target: {type: string, pattern: '^(SYS|CMP|ASP|ICSP|DWP|VSP)-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$'}
-        correction_set: {enum: [subject, definition-consistency]}
-        primary_findings:
-          description: Every blocking Finding owned by the declared exact primary target.
-          type: array
-          minItems: 1
-          uniqueItems: true
-          items:
-            type: object
-            additionalProperties: false
-            required: [id, severity, summary, criterion, evidence, material_consequence]
-            properties:
-              id: {type: string, pattern: '^F-[0-9]{3,}$'}
-              severity: {const: blocking}
-              summary: {type: string, minLength: 1}
-              criterion: {type: string, minLength: 1}
-              evidence: {type: string, minLength: 1}
-              material_consequence: {type: string, minLength: 1}
-        collateral_findings:
-          description: Findings owned collectively by the exact canonical blockers of a declared definition-consistency set.
-          type: array
-          uniqueItems: true
-          items:
-            type: object
-            additionalProperties: false
-            required: [id, severity, summary]
-            properties:
-              id: {type: string, pattern: '^F-[0-9]{3,}$'}
-              severity: {enum: [blocking, needs-triage, advisory]}
-              summary: {type: string, minLength: 1}
-              criterion: {type: string, minLength: 1}
-              evidence: {type: string, minLength: 1}
-              material_consequence: {type: string, minLength: 1}
-            allOf:
-              - if:
-                  properties:
-                    severity: {const: blocking}
-                  required: [severity]
-                then: {required: [criterion, evidence, material_consequence]}
-        scope_reduction:
-          description: Rationale for exact SYS outputs named by this Review's removes links.
-          type: object
-          additionalProperties: false
-          required: [rationale]
-          properties:
-            rationale: {type: string, minLength: 1}
-      allOf:
-        - if:
-            properties: {correction_set: {const: subject}}
-            required: [correction_set]
-          then:
-            not:
-              anyOf:
-                - {required: [collateral_findings]}
-                - {required: [scope_reduction]}
-    correction_authority:
-      description: Classifies whether a failed Review needs stakeholder judgment or can be corrected from exact package evidence.
-      enum: [stakeholder, package-evidence]
-    outcome: {enum: [open, pass, fail, cancelled]}
-    cancellation_reason: {type: string, minLength: 1}
-  allOf:
-    - if:
-        properties:
-          outcome: {const: fail}
-        required: [outcome]
-      then: {required: [correction_authority]}
-      else: {not: {required: [correction_authority]}}
-    - if:
-        properties:
-          review_kind: {enum: [phase-0-foundation, phase-0-candidate, phase-1-assurance]}
-        required: [review_kind]
-      then: {required: [reviewer, summary, findings]}
-    - if:
-        properties:
-          findings:
-            contains:
-              type: object
-              required: [relationship, severity]
-              properties:
-                relationship: {const: primary}
-                severity: {const: blocking}
-        required: [findings]
-      then:
-        properties: {outcome: {const: fail}}
-        required: [outcome]
-    - if:
-        properties:
-          review_kind: {const: simplification-product-definition}
-        required: [review_kind]
-      then:
-        not: {required: [findings]}
-        allOf:
-          - if:
-              properties:
-                outcome: {const: fail}
-              required: [outcome]
-            then: {required: [simplification]}
-          - if:
-              properties:
-                outcome: {const: pass}
-              required: [outcome]
-            then: {not: {required: [simplification]}}
-      else:
-        not: {required: [simplification]}
-    - if:
-        properties:
-          review_kind: {const: simplification-architecture-interfaces}
-        required: [review_kind]
-      then:
-        allOf:
-          - not: {required: [findings]}
-          - if:
-              properties:
-                outcome: {const: fail}
-              required: [outcome]
-            then: {required: [definition_simplification]}
-          - if:
-              properties:
-                outcome: {enum: [pass, cancelled]}
-              required: [outcome]
-            then: {not: {required: [definition_simplification]}}
-      else:
-        not: {required: [definition_simplification]}
-    - if:
-        properties:
-          review_kind:
-            enum: [simplification-product-definition, simplification-architecture-interfaces]
-        required: [review_kind]
-      else: {required: [findings]}
+      type: string
+      minLength: 1
 outgoing_links:
-  - id: reviews
-    description: The one exact primary artifact revision judged by this review.
-    targets:
-      - {kind: datum, types: [MAP, ART, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, BSL, DEC, PRB, CHG, PAS], identity: revision}
-    cardinality: {minimum: 1, maximum: 1}
-    freeze_resolution: already-exact
-    inverse_label: reviewed-by
-  - id: contextualizes
-    description: Exact frozen review-context baseline used for judgment.
-    targets:
-      - {kind: datum, types: [BSL], identity: revision}
-    cardinality: {minimum: 1, maximum: 1}
-    freeze_resolution: already-exact
-    inverse_label: context-for
-  - id: depends-on
-    description: Stable claim dependency used only to decide whether this exact historical Review remains reusable after change.
-    targets:
-      - {kind: datum, types: [MAP, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, ENV, VER, VAI, RUN, RES, BSL, DEC, PRB, CHG, PAS], identity: stable}
-    cardinality: {minimum: 0, maximum: many}
-    freeze_resolution: exact-revision
-    inverse_label: review-dependency
-  - id: blocks
-    description: Canonical exact candidate, member, or Phase 2 definition set selected by blocking simplification findings.
-    targets:
-      - {kind: datum, types: [MAP, PSP, STK, SYS, CMP, DES, ASP, ICSP, DWP, VSP, BSL], identity: revision}
-    cardinality: {minimum: 0, maximum: many}
-    freeze_resolution: already-exact
-    inverse_label: blocked-by-review
-  - id: flags
-    description: Exact Phase 2 definition subjects selected by collateral Review Findings for local correction or attended escalation.
-    targets:
-      - {kind: datum, types: [SYS, CMP, ASP, ICSP, DWP, VSP], identity: revision}
-    cardinality: {minimum: 0, maximum: many}
-    freeze_resolution: already-exact
-    inverse_label: flagged-by-review
-  - id: removes
-    description: Exact SYS outputs removed from current scope by observed Phase 2 simplification evidence.
-    targets:
-      - {kind: datum, types: [SYS], identity: revision}
-    cardinality: {minimum: 0, maximum: many}
-    freeze_resolution: already-exact
-    inverse_label: removed-by-review
-  - id: changed-under
-    description: Exact approved Change Request requiring this replacement review evidence.
-    targets:
-      - {kind: datum, types: [CHG], identity: revision}
-    cardinality: {minimum: 0, maximum: 1}
-    freeze_resolution: already-exact
-    inverse_label: changed-review
+- id: reviews
+  description: reviews
+  targets:
+  - kind: datum
+    types:
+    - REQ
+    - IMP
+    identity: revision
+  cardinality:
+    minimum: 1
+    maximum: 1
+  freeze_resolution: already-exact
+  inverse_label: incoming-reviews
+- id: uses-evidence
+  description: uses evidence
+  targets:
+  - kind: datum
+    types:
+    - RES
+    identity: revision
+  cardinality:
+    minimum: 0
+    maximum: 1
+  freeze_resolution: already-exact
+  inverse_label: incoming-uses-evidence
 kernel_managed_payload_paths: []

@@ -1,0 +1,39 @@
+kind: scenario-definition
+id: rebind-product
+version: 1
+description: Bind unchanged or corrected product to revised expectations
+phases:
+- phase-0-tiny-product
+inputs:
+- name: requirements
+  types:
+  - REQ
+  cardinality: one
+  identity: revision
+  conditions: 'exists("pass-reviews@1", {subject: requirements}) && none("fail-reviews@1", {subject: requirements})'
+- name: prior
+  types:
+  - IMP
+  cardinality: one
+  identity: revision
+outputs:
+- name: implementation
+  types:
+  - IMP
+  cardinality: one
+  required_links:
+  - link: implements
+    target:
+      input: requirements
+  required_payload:
+    publication: recorded
+  identity_from:
+    input: prior
+prompt_ref: prompts/rebind-product.md@1
+review_policy_ref: review-applicability@1
+completion: 'execution.integrity.contract_valid == true && (true) && count("implementations-for@1", {requirements:
+  requirements}) == 1'
+resolves:
+- product-rebinding-required
+prohibited_inputs: []
+batching: single

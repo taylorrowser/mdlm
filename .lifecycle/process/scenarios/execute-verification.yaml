@@ -1,0 +1,43 @@
+kind: scenario-definition
+id: execute-verification
+version: 1
+description: Capture executable verification observations
+phases:
+- phase-0-tiny-product
+inputs:
+- name: implementation
+  types:
+  - IMP
+  cardinality: one
+  identity: revision
+- name: requirements
+  types:
+  - REQ
+  cardinality: one
+  identity: revision
+outputs:
+- name: result
+  types:
+  - RES
+  cardinality: one
+  required_links:
+  - link: executes
+    target:
+      input: implementation
+  - link: verifies
+    target:
+      input: requirements
+  required_payload:
+    publication: recorded
+    title: Verification observations
+prompt_ref: prompts/execute-verification.md@1
+review_policy_ref: review-applicability@1
+completion: 'execution.integrity.contract_valid == true && (exists("requirements-for@1", {implementation: implementation})
+  && every("requirements-for@1", {implementation: implementation}, req => req.identity.revision_id == requirements.identity.revision_id)
+  && ((result.payload.observations == requirements.payload.cases && result.payload.correction_target == "none")
+  || (result.payload.observations != requirements.payload.cases && result.payload.correction_target != "none")))
+  && array_fields_equal(requirements.payload.cases, result.payload.observations, ["id", "stdin"])'
+resolves:
+- verification-required
+prohibited_inputs: []
+batching: single

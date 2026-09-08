@@ -162,11 +162,21 @@ function schemaDiagnostics(
   pathPrefix: string,
   code: string,
 ): ProcessDiagnostic[] {
-  return (errors ?? []).map((error) => ({
-    code,
-    path: `${pathPrefix}${error.instancePath}`,
-    message: `${error.instancePath || "/"} ${error.message ?? "is invalid"}`,
-  }));
+  return (errors ?? []).map((error) => {
+    const property = error.keyword === "additionalProperties"
+      ? error.params.additionalProperty
+      : error.keyword === "required"
+        ? error.params.missingProperty
+        : undefined;
+    const fieldPath = typeof property === "string"
+      ? `/${property.replaceAll("~", "~0").replaceAll("/", "~1")}`
+      : "";
+    return {
+      code,
+      path: `${pathPrefix}${error.instancePath}${fieldPath}`,
+      message: `${error.instancePath || "/"} ${error.message ?? "is invalid"}`,
+    };
+  });
 }
 
 export function renderLifecycleDatum(datum: DatumEnvelope): string {

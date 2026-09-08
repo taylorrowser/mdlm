@@ -1,0 +1,1911 @@
+[
+  {
+    "mode": "happy",
+    "sourceCommit": "cd8c5f547995b5cdf33003d99e5cd809db5d1485",
+    "initialSourceCommit": "cd8c5f547995b5cdf33003d99e5cd809db5d1485",
+    "failedObservations": 0,
+    "elapsedMs": 21356,
+    "assignments": 6,
+    "publications": 6,
+    "executions": 2,
+    "malformedRejections": 3,
+    "installed": false,
+    "trace": [
+      {
+        "scenario": "draft-requirements@1",
+        "types": [
+          "REQ"
+        ],
+        "assignment": "5c5473b5-742c-4b4a-86ff-565753898fa1"
+      },
+      {
+        "scenario": "review-requirements@1",
+        "types": [
+          "REV"
+        ],
+        "assignment": "17f9905e-4dfa-466a-8703-4b20ea3e3d3a"
+      },
+      {
+        "scenario": "implement-product@1",
+        "types": [
+          "IMP"
+        ],
+        "assignment": "9915a955-4ab9-41ca-82c2-2379e95c293e"
+      },
+      {
+        "scenario": "execute-verification@1",
+        "types": [
+          "RES"
+        ],
+        "assignment": "67d7b4bb-87ad-493e-8773-b74292ddaae7"
+      },
+      {
+        "scenario": "review-implementation@1",
+        "types": [
+          "REV"
+        ],
+        "assignment": "b411caf2-f54f-413f-a577-dcea9cfa8fbc"
+      },
+      {
+        "scenario": "accept-product@1",
+        "types": [
+          "ACC"
+        ],
+        "assignment": "8fdadcb6-0613-4cb6-ad6c-8a08eddfab35"
+      }
+    ],
+    "preservedRoot": "/tmp/mdlm-tiny-journey-SZWjTX",
+    "program": "const fs = require(\"node:fs\");\nconst input = fs.readFileSync(0);\nconsole.log([...input].filter(byte => byte === 32).length);\n",
+    "lifecycleData": [
+      {
+        "path": ".lifecycle/data/.transactions/f1278719-4df1-4000-8b8c-e7c8def22697/IMP/IMP-7S47QAMTV8/r00001.md",
+        "datum": {
+          "id": "IMP-7S47QAMTV8",
+          "revision": 1,
+          "revision_id": "IMP-7S47QAMTV8-r00001",
+          "type": "IMP",
+          "payload": {
+            "command": [
+              "/home/ubuntu/.local/share/mise/installs/node/24.19.0/bin/node",
+              "/tmp/mdlm-tiny-journey-SZWjTX/source/count-spaces.cjs"
+            ],
+            "product_files": [
+              "/tmp/mdlm-tiny-journey-SZWjTX/source/count-spaces.cjs"
+            ],
+            "publication": "recorded",
+            "source_commit": "cd8c5f547995b5cdf33003d99e5cd809db5d1485",
+            "title": "ASCII space counter"
+          },
+          "links": [
+            {
+              "type": "implements",
+              "target": "REQ-0RF8B6XZAV-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "implement-product@1",
+            "prompt_ref": "prompts/implement-product.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/eb6d447a-5c49-4c84-8259-423615979961/ACC/ACC-DQV44FY8C0/r00001.md",
+        "datum": {
+          "id": "ACC-DQV44FY8C0",
+          "revision": 1,
+          "revision_id": "ACC-DQV44FY8C0-r00001",
+          "type": "ACC",
+          "payload": {
+            "decision": "accept",
+            "publication": "recorded",
+            "rationale": "The reviewed implementation and fresh execution satisfy the exact requirement.",
+            "title": "Accepted ASCII space counter"
+          },
+          "links": [
+            {
+              "type": "accepts",
+              "target": "IMP-7S47QAMTV8-r00001"
+            },
+            {
+              "type": "uses-evidence",
+              "target": "RES-GG9GEW0P9T-r00001"
+            },
+            {
+              "type": "confirms",
+              "target": "REQ-0RF8B6XZAV-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "accept-product@1",
+            "prompt_ref": "prompts/accept-product.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "stakeholder-acceptance@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/d8e9c8b7-bee2-472b-89cc-4f653acd5770/REQ/REQ-0RF8B6XZAV/r00001.md",
+        "datum": {
+          "id": "REQ-0RF8B6XZAV",
+          "revision": 1,
+          "revision_id": "REQ-0RF8B6XZAV-r00001",
+          "type": "REQ",
+          "payload": {
+            "cases": [
+              {
+                "id": "empty",
+                "stdin": "",
+                "stdout": "0\n",
+                "stderr": "",
+                "exit_code": 0
+              },
+              {
+                "id": "spaces",
+                "stdin": "a b  c\n",
+                "stdout": "3\n",
+                "stderr": "",
+                "exit_code": 0
+              }
+            ],
+            "commitments": [
+              "Read standard input and print its ASCII space count followed by newline."
+            ],
+            "intent": "Count ASCII spaces in standard input.",
+            "publication": "recorded",
+            "source": "Integration stakeholder request: count ASCII spaces in standard input.",
+            "title": "ASCII space count"
+          },
+          "links": [],
+          "created_by": {
+            "scenario": "draft-requirements@1",
+            "prompt_ref": "prompts/draft-requirements.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/ecbd8607-de5a-4d32-8e8d-012c85c72e6e/REV/REV-9XBGT3FC7B/r00001.md",
+        "datum": {
+          "id": "REV-9XBGT3FC7B",
+          "revision": 1,
+          "revision_id": "REV-9XBGT3FC7B-r00001",
+          "type": "REV",
+          "payload": {
+            "findings": "The exact requirement and evidence support the tiny product claim.",
+            "outcome": "pass",
+            "publication": "recorded",
+            "title": "Independent tiny product judgment"
+          },
+          "links": [
+            {
+              "type": "reviews",
+              "target": "IMP-7S47QAMTV8-r00001"
+            },
+            {
+              "type": "uses-evidence",
+              "target": "RES-GG9GEW0P9T-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "review-implementation@1",
+            "prompt_ref": "prompts/review-implementation.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "independent-review@1",
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/60ea8f25-38cd-43cb-8866-f444ecb5472a/REV/REV-F6AW8D4R1G/r00001.md",
+        "datum": {
+          "id": "REV-F6AW8D4R1G",
+          "revision": 1,
+          "revision_id": "REV-F6AW8D4R1G-r00001",
+          "type": "REV",
+          "payload": {
+            "findings": "The exact requirement and evidence support the tiny product claim.",
+            "outcome": "pass",
+            "publication": "recorded",
+            "title": "Independent tiny product judgment"
+          },
+          "links": [
+            {
+              "type": "reviews",
+              "target": "REQ-0RF8B6XZAV-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "review-requirements@1",
+            "prompt_ref": "prompts/review-requirements.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "independent-review@1",
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/14536522-0b05-4aad-8247-601e4a54a444/RES/RES-GG9GEW0P9T/r00001.md",
+        "datum": {
+          "id": "RES-GG9GEW0P9T",
+          "revision": 1,
+          "revision_id": "RES-GG9GEW0P9T-r00001",
+          "type": "RES",
+          "payload": {
+            "correction_target": "none",
+            "evidence": "/tmp/mdlm-tiny-journey-SZWjTX/observations-2.json",
+            "observations": [
+              {
+                "id": "empty",
+                "stdin": "",
+                "stdout": "0\n",
+                "stderr": "",
+                "exit_code": 0
+              },
+              {
+                "id": "spaces",
+                "stdin": "a b  c\n",
+                "stdout": "3\n",
+                "stderr": "",
+                "exit_code": 0
+              }
+            ],
+            "publication": "recorded",
+            "title": "Verification observations"
+          },
+          "links": [
+            {
+              "type": "executes",
+              "target": "IMP-7S47QAMTV8-r00001"
+            },
+            {
+              "type": "verifies",
+              "target": "REQ-0RF8B6XZAV-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "execute-verification@1",
+            "prompt_ref": "prompts/execute-verification.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "mode": "wrong-code",
+    "sourceCommit": "27a654176a6a1142c6a30e0d33d2769323d720d1",
+    "initialSourceCommit": "2428873a6d7d6c097f6fa803ce38f7a04e297aa9",
+    "failedObservations": 1,
+    "elapsedMs": 22593,
+    "assignments": 8,
+    "publications": 8,
+    "executions": 4,
+    "malformedRejections": 1,
+    "installed": false,
+    "trace": [
+      {
+        "scenario": "draft-requirements@1",
+        "types": [
+          "REQ"
+        ],
+        "assignment": "ce331b23-6bc9-442c-8105-083a7e48d2e9"
+      },
+      {
+        "scenario": "review-requirements@1",
+        "types": [
+          "REV"
+        ],
+        "assignment": "51c5ce29-5c82-4e4b-8130-5a785ea4cb59"
+      },
+      {
+        "scenario": "implement-product@1",
+        "types": [
+          "IMP"
+        ],
+        "assignment": "248f98dd-c096-4886-ad40-ed6f3c0ebf93"
+      },
+      {
+        "scenario": "execute-verification@1",
+        "types": [
+          "RES"
+        ],
+        "assignment": "1f93362c-850b-44a7-8fa1-d122f7ee54e8"
+      },
+      {
+        "scenario": "correct-product@1",
+        "types": [
+          "IMP"
+        ],
+        "assignment": "a937e8e4-76c0-481a-b605-897ea1bd4162"
+      },
+      {
+        "scenario": "execute-verification@1",
+        "types": [
+          "RES"
+        ],
+        "assignment": "761b12f4-ef9e-41e1-89de-22a26c96f933"
+      },
+      {
+        "scenario": "review-implementation@1",
+        "types": [
+          "REV"
+        ],
+        "assignment": "24a4180b-4b68-4cff-bbce-44de268f2629"
+      },
+      {
+        "scenario": "accept-product@1",
+        "types": [
+          "ACC"
+        ],
+        "assignment": "c795d638-2467-413f-b5f0-c32ea4638be8"
+      }
+    ],
+    "preservedRoot": "/tmp/mdlm-tiny-journey-uTwotK",
+    "program": "const fs = require(\"node:fs\");\nconst input = fs.readFileSync(0);\nconsole.log([...input].filter(byte => byte === 32).length);\n",
+    "lifecycleData": [
+      {
+        "path": ".lifecycle/data/.transactions/b0cb551a-8fcf-4923-8207-9622b3509084/REV/REV-9ZES9RTXWW/r00001.md",
+        "datum": {
+          "id": "REV-9ZES9RTXWW",
+          "revision": 1,
+          "revision_id": "REV-9ZES9RTXWW-r00001",
+          "type": "REV",
+          "payload": {
+            "findings": "The exact requirement and evidence support the tiny product claim.",
+            "outcome": "pass",
+            "publication": "recorded",
+            "title": "Independent tiny product judgment"
+          },
+          "links": [
+            {
+              "type": "reviews",
+              "target": "REQ-4ZMX348B7R-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "review-requirements@1",
+            "prompt_ref": "prompts/review-requirements.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "independent-review@1",
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/41f9a693-f277-4897-8083-d7c4b112f6c4/REV/REV-1G8WXM7SHE/r00001.md",
+        "datum": {
+          "id": "REV-1G8WXM7SHE",
+          "revision": 1,
+          "revision_id": "REV-1G8WXM7SHE-r00001",
+          "type": "REV",
+          "payload": {
+            "findings": "The exact requirement and evidence support the tiny product claim.",
+            "outcome": "pass",
+            "publication": "recorded",
+            "title": "Independent tiny product judgment"
+          },
+          "links": [
+            {
+              "type": "reviews",
+              "target": "IMP-9WBSNY3ADT-r00002"
+            },
+            {
+              "type": "uses-evidence",
+              "target": "RES-P6VNW8MPJJ-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "review-implementation@1",
+            "prompt_ref": "prompts/review-implementation.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "independent-review@1",
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/6b0486cb-e675-4c00-8c54-4b32e769375e/RES/RES-P6VNW8MPJJ/r00001.md",
+        "datum": {
+          "id": "RES-P6VNW8MPJJ",
+          "revision": 1,
+          "revision_id": "RES-P6VNW8MPJJ-r00001",
+          "type": "RES",
+          "payload": {
+            "correction_target": "none",
+            "evidence": "/tmp/mdlm-tiny-journey-uTwotK/observations-4.json",
+            "observations": [
+              {
+                "id": "empty",
+                "stdin": "",
+                "stdout": "0\n",
+                "stderr": "",
+                "exit_code": 0
+              },
+              {
+                "id": "spaces",
+                "stdin": "a b  c\n",
+                "stdout": "3\n",
+                "stderr": "",
+                "exit_code": 0
+              }
+            ],
+            "publication": "recorded",
+            "title": "Verification observations"
+          },
+          "links": [
+            {
+              "type": "executes",
+              "target": "IMP-9WBSNY3ADT-r00002"
+            },
+            {
+              "type": "verifies",
+              "target": "REQ-4ZMX348B7R-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "execute-verification@1",
+            "prompt_ref": "prompts/execute-verification.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/15ebd3b7-5572-487c-86c1-aaf9bc45c7e9/IMP/IMP-9WBSNY3ADT/r00002.md",
+        "datum": {
+          "id": "IMP-9WBSNY3ADT",
+          "revision": 2,
+          "revision_id": "IMP-9WBSNY3ADT-r00002",
+          "type": "IMP",
+          "payload": {
+            "command": [
+              "/home/ubuntu/.local/share/mise/installs/node/24.19.0/bin/node",
+              "/tmp/mdlm-tiny-journey-uTwotK/source/count-spaces.cjs"
+            ],
+            "product_files": [
+              "/tmp/mdlm-tiny-journey-uTwotK/source/count-spaces.cjs"
+            ],
+            "publication": "recorded",
+            "source_commit": "27a654176a6a1142c6a30e0d33d2769323d720d1",
+            "title": "ASCII space counter"
+          },
+          "links": [
+            {
+              "type": "implements",
+              "target": "REQ-4ZMX348B7R-r00001"
+            },
+            {
+              "type": "corrects",
+              "target": "RES-PZEH0H8K1H-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "correct-product@1",
+            "prompt_ref": "prompts/correct-product.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/caad6e3b-c7e9-4af0-81a3-60d71db311f5/REQ/REQ-4ZMX348B7R/r00001.md",
+        "datum": {
+          "id": "REQ-4ZMX348B7R",
+          "revision": 1,
+          "revision_id": "REQ-4ZMX348B7R-r00001",
+          "type": "REQ",
+          "payload": {
+            "cases": [
+              {
+                "id": "empty",
+                "stdin": "",
+                "stdout": "0\n",
+                "stderr": "",
+                "exit_code": 0
+              },
+              {
+                "id": "spaces",
+                "stdin": "a b  c\n",
+                "stdout": "3\n",
+                "stderr": "",
+                "exit_code": 0
+              }
+            ],
+            "commitments": [
+              "Read standard input and print its ASCII space count followed by newline."
+            ],
+            "intent": "Count ASCII spaces in standard input.",
+            "publication": "recorded",
+            "source": "Integration stakeholder request: count ASCII spaces in standard input.",
+            "title": "ASCII space count"
+          },
+          "links": [],
+          "created_by": {
+            "scenario": "draft-requirements@1",
+            "prompt_ref": "prompts/draft-requirements.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/7a073770-272b-46f1-85ec-aabba8e0cb0f/IMP/IMP-9WBSNY3ADT/r00001.md",
+        "datum": {
+          "id": "IMP-9WBSNY3ADT",
+          "revision": 1,
+          "revision_id": "IMP-9WBSNY3ADT-r00001",
+          "type": "IMP",
+          "payload": {
+            "command": [
+              "/home/ubuntu/.local/share/mise/installs/node/24.19.0/bin/node",
+              "/tmp/mdlm-tiny-journey-uTwotK/source/count-spaces.cjs"
+            ],
+            "product_files": [
+              "/tmp/mdlm-tiny-journey-uTwotK/source/count-spaces.cjs"
+            ],
+            "publication": "recorded",
+            "source_commit": "2428873a6d7d6c097f6fa803ce38f7a04e297aa9",
+            "title": "ASCII space counter"
+          },
+          "links": [
+            {
+              "type": "implements",
+              "target": "REQ-4ZMX348B7R-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "implement-product@1",
+            "prompt_ref": "prompts/implement-product.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/e1c80383-9c81-457b-88d3-940f0c896561/ACC/ACC-F7124T2DEQ/r00001.md",
+        "datum": {
+          "id": "ACC-F7124T2DEQ",
+          "revision": 1,
+          "revision_id": "ACC-F7124T2DEQ-r00001",
+          "type": "ACC",
+          "payload": {
+            "decision": "accept",
+            "publication": "recorded",
+            "rationale": "The reviewed implementation and fresh execution satisfy the exact requirement.",
+            "title": "Accepted ASCII space counter"
+          },
+          "links": [
+            {
+              "type": "accepts",
+              "target": "IMP-9WBSNY3ADT-r00002"
+            },
+            {
+              "type": "uses-evidence",
+              "target": "RES-P6VNW8MPJJ-r00001"
+            },
+            {
+              "type": "confirms",
+              "target": "REQ-4ZMX348B7R-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "accept-product@1",
+            "prompt_ref": "prompts/accept-product.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "stakeholder-acceptance@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/39f6f9b1-e9ef-4853-8887-0fa1b2258705/RES/RES-PZEH0H8K1H/r00001.md",
+        "datum": {
+          "id": "RES-PZEH0H8K1H",
+          "revision": 1,
+          "revision_id": "RES-PZEH0H8K1H-r00001",
+          "type": "RES",
+          "payload": {
+            "correction_target": "implementation",
+            "evidence": "/tmp/mdlm-tiny-journey-uTwotK/observations-2.json",
+            "observations": [
+              {
+                "id": "empty",
+                "stdin": "",
+                "stdout": "0\n",
+                "stderr": "",
+                "exit_code": 0
+              },
+              {
+                "id": "spaces",
+                "stdin": "a b  c\n",
+                "stdout": "0\n",
+                "stderr": "",
+                "exit_code": 0
+              }
+            ],
+            "publication": "recorded",
+            "title": "Verification observations"
+          },
+          "links": [
+            {
+              "type": "executes",
+              "target": "IMP-9WBSNY3ADT-r00001"
+            },
+            {
+              "type": "verifies",
+              "target": "REQ-4ZMX348B7R-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "execute-verification@1",
+            "prompt_ref": "prompts/execute-verification.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "mode": "wrong-expectation",
+    "sourceCommit": "489beadd9c68951167a1fcc430393ce36cef3ad6",
+    "initialSourceCommit": "489beadd9c68951167a1fcc430393ce36cef3ad6",
+    "failedObservations": 1,
+    "elapsedMs": 27513,
+    "assignments": 10,
+    "publications": 10,
+    "executions": 4,
+    "malformedRejections": 1,
+    "installed": false,
+    "trace": [
+      {
+        "scenario": "draft-requirements@1",
+        "types": [
+          "REQ"
+        ],
+        "assignment": "713a94a0-ef07-4762-b144-21485a691e13"
+      },
+      {
+        "scenario": "review-requirements@1",
+        "types": [
+          "REV"
+        ],
+        "assignment": "6c5a4967-57bf-44cb-9400-e3d815fdde30"
+      },
+      {
+        "scenario": "implement-product@1",
+        "types": [
+          "IMP"
+        ],
+        "assignment": "30f02b9a-86d6-4575-87ca-cff8744ee0ad"
+      },
+      {
+        "scenario": "execute-verification@1",
+        "types": [
+          "RES"
+        ],
+        "assignment": "241b172e-fe13-438a-b3a2-3ec393dc284b"
+      },
+      {
+        "scenario": "correct-expectations@1",
+        "types": [
+          "REQ"
+        ],
+        "assignment": "f70196a3-006d-4119-8ddc-ece1c49abaf0"
+      },
+      {
+        "scenario": "review-requirements@1",
+        "types": [
+          "REV"
+        ],
+        "assignment": "a084122f-80b2-46b0-9365-8f7a62b16a24"
+      },
+      {
+        "scenario": "rebind-product@1",
+        "types": [
+          "IMP"
+        ],
+        "assignment": "6c5f2437-afb3-41de-b141-501c934f212b"
+      },
+      {
+        "scenario": "execute-verification@1",
+        "types": [
+          "RES"
+        ],
+        "assignment": "6d343faa-b6ea-4a25-bde8-91bf958103fe"
+      },
+      {
+        "scenario": "review-implementation@1",
+        "types": [
+          "REV"
+        ],
+        "assignment": "274e77c9-8fc7-4d40-ad2a-85a014bf29cf"
+      },
+      {
+        "scenario": "accept-product@1",
+        "types": [
+          "ACC"
+        ],
+        "assignment": "b895e28c-d109-4404-935c-e9a8c4987614"
+      }
+    ],
+    "preservedRoot": "/tmp/mdlm-tiny-journey-3rIJ0i",
+    "program": "const fs = require(\"node:fs\");\nconst input = fs.readFileSync(0);\nconsole.log([...input].filter(byte => byte === 32).length);\n",
+    "lifecycleData": [
+      {
+        "path": ".lifecycle/data/.transactions/9dff3e45-e536-4f8e-86d0-79441e122a86/REV/REV-W8EEHCCRSQ/r00001.md",
+        "datum": {
+          "id": "REV-W8EEHCCRSQ",
+          "revision": 1,
+          "revision_id": "REV-W8EEHCCRSQ-r00001",
+          "type": "REV",
+          "payload": {
+            "findings": "The exact requirement and evidence support the tiny product claim.",
+            "outcome": "pass",
+            "publication": "recorded",
+            "title": "Independent tiny product judgment"
+          },
+          "links": [
+            {
+              "type": "reviews",
+              "target": "REQ-0M87D1Z6VB-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "review-requirements@1",
+            "prompt_ref": "prompts/review-requirements.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "independent-review@1",
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/78ebf297-57ea-4de1-8b49-9a95766aa2f0/RES/RES-Z1P92KSRAZ/r00001.md",
+        "datum": {
+          "id": "RES-Z1P92KSRAZ",
+          "revision": 1,
+          "revision_id": "RES-Z1P92KSRAZ-r00001",
+          "type": "RES",
+          "payload": {
+            "correction_target": "requirements",
+            "evidence": "/tmp/mdlm-tiny-journey-3rIJ0i/observations-2.json",
+            "observations": [
+              {
+                "id": "empty",
+                "stdin": "",
+                "stdout": "0\n",
+                "stderr": "",
+                "exit_code": 0
+              },
+              {
+                "id": "spaces",
+                "stdin": "a b  c\n",
+                "stdout": "3\n",
+                "stderr": "",
+                "exit_code": 0
+              }
+            ],
+            "publication": "recorded",
+            "title": "Verification observations"
+          },
+          "links": [
+            {
+              "type": "executes",
+              "target": "IMP-CZ9HWYP4TZ-r00001"
+            },
+            {
+              "type": "verifies",
+              "target": "REQ-0M87D1Z6VB-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "execute-verification@1",
+            "prompt_ref": "prompts/execute-verification.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/80940346-1a9b-4b6e-8980-a6c0746d712c/IMP/IMP-CZ9HWYP4TZ/r00002.md",
+        "datum": {
+          "id": "IMP-CZ9HWYP4TZ",
+          "revision": 2,
+          "revision_id": "IMP-CZ9HWYP4TZ-r00002",
+          "type": "IMP",
+          "payload": {
+            "command": [
+              "/home/ubuntu/.local/share/mise/installs/node/24.19.0/bin/node",
+              "/tmp/mdlm-tiny-journey-3rIJ0i/source/count-spaces.cjs"
+            ],
+            "product_files": [
+              "/tmp/mdlm-tiny-journey-3rIJ0i/source/count-spaces.cjs"
+            ],
+            "publication": "recorded",
+            "source_commit": "489beadd9c68951167a1fcc430393ce36cef3ad6",
+            "title": "ASCII space counter"
+          },
+          "links": [
+            {
+              "type": "implements",
+              "target": "REQ-0M87D1Z6VB-r00002"
+            }
+          ],
+          "created_by": {
+            "scenario": "rebind-product@1",
+            "prompt_ref": "prompts/rebind-product.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/40a3674b-3e35-45b3-8caa-240b923354bc/ACC/ACC-68WQDZ8G12/r00001.md",
+        "datum": {
+          "id": "ACC-68WQDZ8G12",
+          "revision": 1,
+          "revision_id": "ACC-68WQDZ8G12-r00001",
+          "type": "ACC",
+          "payload": {
+            "decision": "accept",
+            "publication": "recorded",
+            "rationale": "The reviewed implementation and fresh execution satisfy the exact requirement.",
+            "title": "Accepted ASCII space counter"
+          },
+          "links": [
+            {
+              "type": "accepts",
+              "target": "IMP-CZ9HWYP4TZ-r00002"
+            },
+            {
+              "type": "uses-evidence",
+              "target": "RES-GWW8X5TH9B-r00001"
+            },
+            {
+              "type": "confirms",
+              "target": "REQ-0M87D1Z6VB-r00002"
+            }
+          ],
+          "created_by": {
+            "scenario": "accept-product@1",
+            "prompt_ref": "prompts/accept-product.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "stakeholder-acceptance@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/b5e4983a-feb4-4314-8ef6-0ceed8b1d4e4/RES/RES-GWW8X5TH9B/r00001.md",
+        "datum": {
+          "id": "RES-GWW8X5TH9B",
+          "revision": 1,
+          "revision_id": "RES-GWW8X5TH9B-r00001",
+          "type": "RES",
+          "payload": {
+            "correction_target": "none",
+            "evidence": "/tmp/mdlm-tiny-journey-3rIJ0i/observations-4.json",
+            "observations": [
+              {
+                "id": "empty",
+                "stdin": "",
+                "stdout": "0\n",
+                "stderr": "",
+                "exit_code": 0
+              },
+              {
+                "id": "spaces",
+                "stdin": "a b  c\n",
+                "stdout": "3\n",
+                "stderr": "",
+                "exit_code": 0
+              }
+            ],
+            "publication": "recorded",
+            "title": "Verification observations"
+          },
+          "links": [
+            {
+              "type": "executes",
+              "target": "IMP-CZ9HWYP4TZ-r00002"
+            },
+            {
+              "type": "verifies",
+              "target": "REQ-0M87D1Z6VB-r00002"
+            }
+          ],
+          "created_by": {
+            "scenario": "execute-verification@1",
+            "prompt_ref": "prompts/execute-verification.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/b3f27122-cdb3-47d9-82ed-12995becf94b/REV/REV-4ADKVQDYC5/r00001.md",
+        "datum": {
+          "id": "REV-4ADKVQDYC5",
+          "revision": 1,
+          "revision_id": "REV-4ADKVQDYC5-r00001",
+          "type": "REV",
+          "payload": {
+            "findings": "The exact requirement and evidence support the tiny product claim.",
+            "outcome": "pass",
+            "publication": "recorded",
+            "title": "Independent tiny product judgment"
+          },
+          "links": [
+            {
+              "type": "reviews",
+              "target": "IMP-CZ9HWYP4TZ-r00002"
+            },
+            {
+              "type": "uses-evidence",
+              "target": "RES-GWW8X5TH9B-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "review-implementation@1",
+            "prompt_ref": "prompts/review-implementation.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "independent-review@1",
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/58af50a8-5ad2-4b17-80eb-0de910a22bb8/IMP/IMP-CZ9HWYP4TZ/r00001.md",
+        "datum": {
+          "id": "IMP-CZ9HWYP4TZ",
+          "revision": 1,
+          "revision_id": "IMP-CZ9HWYP4TZ-r00001",
+          "type": "IMP",
+          "payload": {
+            "command": [
+              "/home/ubuntu/.local/share/mise/installs/node/24.19.0/bin/node",
+              "/tmp/mdlm-tiny-journey-3rIJ0i/source/count-spaces.cjs"
+            ],
+            "product_files": [
+              "/tmp/mdlm-tiny-journey-3rIJ0i/source/count-spaces.cjs"
+            ],
+            "publication": "recorded",
+            "source_commit": "489beadd9c68951167a1fcc430393ce36cef3ad6",
+            "title": "ASCII space counter"
+          },
+          "links": [
+            {
+              "type": "implements",
+              "target": "REQ-0M87D1Z6VB-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "implement-product@1",
+            "prompt_ref": "prompts/implement-product.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/cb6e2c77-3957-43be-853d-9c8df44c6901/REV/REV-F2CM6DTR5N/r00001.md",
+        "datum": {
+          "id": "REV-F2CM6DTR5N",
+          "revision": 1,
+          "revision_id": "REV-F2CM6DTR5N-r00001",
+          "type": "REV",
+          "payload": {
+            "findings": "The exact requirement and evidence support the tiny product claim.",
+            "outcome": "pass",
+            "publication": "recorded",
+            "title": "Independent tiny product judgment"
+          },
+          "links": [
+            {
+              "type": "reviews",
+              "target": "REQ-0M87D1Z6VB-r00002"
+            }
+          ],
+          "created_by": {
+            "scenario": "review-requirements@1",
+            "prompt_ref": "prompts/review-requirements.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "independent-review@1",
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/6e3650ee-6f9e-47dc-895d-4cb6477473f1/REQ/REQ-0M87D1Z6VB/r00002.md",
+        "datum": {
+          "id": "REQ-0M87D1Z6VB",
+          "revision": 2,
+          "revision_id": "REQ-0M87D1Z6VB-r00002",
+          "type": "REQ",
+          "payload": {
+            "cases": [
+              {
+                "id": "empty",
+                "stdin": "",
+                "stdout": "0\n",
+                "stderr": "",
+                "exit_code": 0
+              },
+              {
+                "id": "spaces",
+                "stdin": "a b  c\n",
+                "stdout": "3\n",
+                "stderr": "",
+                "exit_code": 0
+              }
+            ],
+            "commitments": [
+              "Read standard input and print its ASCII space count followed by newline."
+            ],
+            "intent": "Count ASCII spaces in standard input.",
+            "publication": "recorded",
+            "source": "Integration stakeholder request: count ASCII spaces in standard input.",
+            "title": "ASCII space count"
+          },
+          "links": [
+            {
+              "type": "corrects",
+              "target": "RES-Z1P92KSRAZ-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "correct-expectations@1",
+            "prompt_ref": "prompts/correct-expectations.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/15393f0b-7320-4b4c-81e4-4608cd18e6c2/REQ/REQ-0M87D1Z6VB/r00001.md",
+        "datum": {
+          "id": "REQ-0M87D1Z6VB",
+          "revision": 1,
+          "revision_id": "REQ-0M87D1Z6VB-r00001",
+          "type": "REQ",
+          "payload": {
+            "cases": [
+              {
+                "id": "empty",
+                "stdin": "",
+                "stdout": "0\n",
+                "stderr": "",
+                "exit_code": 0
+              },
+              {
+                "id": "spaces",
+                "stdin": "a b  c\n",
+                "stdout": "30\n",
+                "stderr": "",
+                "exit_code": 0
+              }
+            ],
+            "commitments": [
+              "Read standard input and print its ASCII space count followed by newline."
+            ],
+            "intent": "Count ASCII spaces in standard input.",
+            "publication": "recorded",
+            "source": "Integration stakeholder request: count ASCII spaces in standard input.",
+            "title": "ASCII space count"
+          },
+          "links": [],
+          "created_by": {
+            "scenario": "draft-requirements@1",
+            "prompt_ref": "prompts/draft-requirements.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "mode": "review-correction",
+    "sourceCommit": "9eab8dd60f2cf6acea31d098a5717e3e46f37e55",
+    "initialSourceCommit": "9eab8dd60f2cf6acea31d098a5717e3e46f37e55",
+    "failedObservations": 0,
+    "elapsedMs": 21875,
+    "assignments": 8,
+    "publications": 8,
+    "executions": 2,
+    "malformedRejections": 1,
+    "installed": false,
+    "trace": [
+      {
+        "scenario": "draft-requirements@1",
+        "types": [
+          "REQ"
+        ],
+        "assignment": "64700042-8d5b-4853-b0c1-c6be4df54651"
+      },
+      {
+        "scenario": "review-requirements@1",
+        "types": [
+          "REV"
+        ],
+        "assignment": "f2ff2eea-d4cf-4cb8-94b1-8ad0a16aa45a"
+      },
+      {
+        "scenario": "correct-requirements-after-review@1",
+        "types": [
+          "REQ"
+        ],
+        "assignment": "bf61178c-71a7-47d4-8366-8a044e16a3dc"
+      },
+      {
+        "scenario": "review-requirements@1",
+        "types": [
+          "REV"
+        ],
+        "assignment": "79d209b0-33dd-4a82-b3c9-235318f949c5"
+      },
+      {
+        "scenario": "implement-product@1",
+        "types": [
+          "IMP"
+        ],
+        "assignment": "6ca562fd-b6a6-47e6-a6c4-193728a91fac"
+      },
+      {
+        "scenario": "execute-verification@1",
+        "types": [
+          "RES"
+        ],
+        "assignment": "dbc61f03-3811-4e46-9d2d-5f3ffab4da61"
+      },
+      {
+        "scenario": "review-implementation@1",
+        "types": [
+          "REV"
+        ],
+        "assignment": "627e4801-0609-4adf-bb48-da29971ebd32"
+      },
+      {
+        "scenario": "accept-product@1",
+        "types": [
+          "ACC"
+        ],
+        "assignment": "8894634d-c724-4f09-acff-b57d1df74d9e"
+      }
+    ],
+    "preservedRoot": "/tmp/mdlm-tiny-journey-bZcIRo",
+    "program": "const fs = require(\"node:fs\");\nconst input = fs.readFileSync(0);\nconsole.log([...input].filter(byte => byte === 32).length);\n",
+    "lifecycleData": [
+      {
+        "path": ".lifecycle/data/.transactions/cf0096a4-9f3c-4629-80b8-cc3bcf740877/REV/REV-SC2VHBK7JZ/r00001.md",
+        "datum": {
+          "id": "REV-SC2VHBK7JZ",
+          "revision": 1,
+          "revision_id": "REV-SC2VHBK7JZ-r00001",
+          "type": "REV",
+          "payload": {
+            "findings": "The exact requirement and evidence support the tiny product claim.",
+            "outcome": "pass",
+            "publication": "recorded",
+            "title": "Independent tiny product judgment"
+          },
+          "links": [
+            {
+              "type": "reviews",
+              "target": "REQ-VAV0M770V3-r00002"
+            }
+          ],
+          "created_by": {
+            "scenario": "review-requirements@1",
+            "prompt_ref": "prompts/review-requirements.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "independent-review@1",
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/ea4c56fd-64c8-4f98-8acb-4b2961a11707/REV/REV-9SSK163F39/r00001.md",
+        "datum": {
+          "id": "REV-9SSK163F39",
+          "revision": 1,
+          "revision_id": "REV-9SSK163F39-r00001",
+          "type": "REV",
+          "payload": {
+            "findings": "Specify the trailing newline in the output commitment rather than only in examples.",
+            "outcome": "fail",
+            "publication": "recorded",
+            "title": "Requirement needs one content correction"
+          },
+          "links": [
+            {
+              "type": "reviews",
+              "target": "REQ-VAV0M770V3-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "review-requirements@1",
+            "prompt_ref": "prompts/review-requirements.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "independent-review@1",
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/0d2aedc2-887a-4a91-886e-58ca4aefa076/REQ/REQ-VAV0M770V3/r00002.md",
+        "datum": {
+          "id": "REQ-VAV0M770V3",
+          "revision": 2,
+          "revision_id": "REQ-VAV0M770V3-r00002",
+          "type": "REQ",
+          "payload": {
+            "cases": [
+              {
+                "id": "empty",
+                "stdin": "",
+                "stdout": "0\n",
+                "stderr": "",
+                "exit_code": 0
+              },
+              {
+                "id": "spaces",
+                "stdin": "a b  c\n",
+                "stdout": "3\n",
+                "stderr": "",
+                "exit_code": 0
+              }
+            ],
+            "commitments": [
+              "Read standard input and print its ASCII space count followed by newline."
+            ],
+            "intent": "Count ASCII spaces in standard input.",
+            "publication": "recorded",
+            "source": "Integration stakeholder request: count ASCII spaces in standard input.",
+            "title": "ASCII space count"
+          },
+          "links": [
+            {
+              "type": "corrects",
+              "target": "REV-9SSK163F39-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "correct-requirements-after-review@1",
+            "prompt_ref": "prompts/correct-requirements-after-review.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/06572622-77bd-4b3c-85e5-e92c5fabcab0/REV/REV-DCNFFNYE8V/r00001.md",
+        "datum": {
+          "id": "REV-DCNFFNYE8V",
+          "revision": 1,
+          "revision_id": "REV-DCNFFNYE8V-r00001",
+          "type": "REV",
+          "payload": {
+            "findings": "The exact requirement and evidence support the tiny product claim.",
+            "outcome": "pass",
+            "publication": "recorded",
+            "title": "Independent tiny product judgment"
+          },
+          "links": [
+            {
+              "type": "reviews",
+              "target": "IMP-PV498QEJCV-r00001"
+            },
+            {
+              "type": "uses-evidence",
+              "target": "RES-KQPTHA0NKD-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "review-implementation@1",
+            "prompt_ref": "prompts/review-implementation.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "independent-review@1",
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/94dafdc3-4e7a-4e47-8ad4-d58b0626a3c4/IMP/IMP-PV498QEJCV/r00001.md",
+        "datum": {
+          "id": "IMP-PV498QEJCV",
+          "revision": 1,
+          "revision_id": "IMP-PV498QEJCV-r00001",
+          "type": "IMP",
+          "payload": {
+            "command": [
+              "/home/ubuntu/.local/share/mise/installs/node/24.19.0/bin/node",
+              "/tmp/mdlm-tiny-journey-bZcIRo/source/count-spaces.cjs"
+            ],
+            "product_files": [
+              "/tmp/mdlm-tiny-journey-bZcIRo/source/count-spaces.cjs"
+            ],
+            "publication": "recorded",
+            "source_commit": "9eab8dd60f2cf6acea31d098a5717e3e46f37e55",
+            "title": "ASCII space counter"
+          },
+          "links": [
+            {
+              "type": "implements",
+              "target": "REQ-VAV0M770V3-r00002"
+            }
+          ],
+          "created_by": {
+            "scenario": "implement-product@1",
+            "prompt_ref": "prompts/implement-product.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/f15d4af5-b779-4137-8d1c-a32ad8074f51/REQ/REQ-VAV0M770V3/r00001.md",
+        "datum": {
+          "id": "REQ-VAV0M770V3",
+          "revision": 1,
+          "revision_id": "REQ-VAV0M770V3-r00001",
+          "type": "REQ",
+          "payload": {
+            "cases": [
+              {
+                "id": "empty",
+                "stdin": "",
+                "stdout": "0\n",
+                "stderr": "",
+                "exit_code": 0
+              },
+              {
+                "id": "spaces",
+                "stdin": "a b  c\n",
+                "stdout": "3\n",
+                "stderr": "",
+                "exit_code": 0
+              }
+            ],
+            "commitments": [
+              "Read standard input and print its ASCII space count."
+            ],
+            "intent": "Count ASCII spaces in standard input.",
+            "publication": "recorded",
+            "source": "Integration stakeholder request: count ASCII spaces in standard input.",
+            "title": "ASCII space count"
+          },
+          "links": [],
+          "created_by": {
+            "scenario": "draft-requirements@1",
+            "prompt_ref": "prompts/draft-requirements.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/26b22c1c-b883-42fc-8417-66ee244be3a9/RES/RES-KQPTHA0NKD/r00001.md",
+        "datum": {
+          "id": "RES-KQPTHA0NKD",
+          "revision": 1,
+          "revision_id": "RES-KQPTHA0NKD-r00001",
+          "type": "RES",
+          "payload": {
+            "correction_target": "none",
+            "evidence": "/tmp/mdlm-tiny-journey-bZcIRo/observations-2.json",
+            "observations": [
+              {
+                "id": "empty",
+                "stdin": "",
+                "stdout": "0\n",
+                "stderr": "",
+                "exit_code": 0
+              },
+              {
+                "id": "spaces",
+                "stdin": "a b  c\n",
+                "stdout": "3\n",
+                "stderr": "",
+                "exit_code": 0
+              }
+            ],
+            "publication": "recorded",
+            "title": "Verification observations"
+          },
+          "links": [
+            {
+              "type": "executes",
+              "target": "IMP-PV498QEJCV-r00001"
+            },
+            {
+              "type": "verifies",
+              "target": "REQ-VAV0M770V3-r00002"
+            }
+          ],
+          "created_by": {
+            "scenario": "execute-verification@1",
+            "prompt_ref": "prompts/execute-verification.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/65162a91-e08e-408e-87c5-1a304c7ecba3/ACC/ACC-9S6FWKRMBC/r00001.md",
+        "datum": {
+          "id": "ACC-9S6FWKRMBC",
+          "revision": 1,
+          "revision_id": "ACC-9S6FWKRMBC-r00001",
+          "type": "ACC",
+          "payload": {
+            "decision": "accept",
+            "publication": "recorded",
+            "rationale": "The reviewed implementation and fresh execution satisfy the exact requirement.",
+            "title": "Accepted ASCII space counter"
+          },
+          "links": [
+            {
+              "type": "accepts",
+              "target": "IMP-PV498QEJCV-r00001"
+            },
+            {
+              "type": "uses-evidence",
+              "target": "RES-KQPTHA0NKD-r00001"
+            },
+            {
+              "type": "confirms",
+              "target": "REQ-VAV0M770V3-r00002"
+            }
+          ],
+          "created_by": {
+            "scenario": "accept-product@1",
+            "prompt_ref": "prompts/accept-product.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "stakeholder-acceptance@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "mode": "happy",
+    "sourceCommit": "0bde7ffb309d4e51a6de42aa7eba7acfd8a16bd5",
+    "initialSourceCommit": "0bde7ffb309d4e51a6de42aa7eba7acfd8a16bd5",
+    "failedObservations": 0,
+    "elapsedMs": 23215,
+    "assignments": 6,
+    "publications": 6,
+    "executions": 2,
+    "malformedRejections": 3,
+    "installed": true,
+    "trace": [
+      {
+        "scenario": "draft-requirements@1",
+        "types": [
+          "REQ"
+        ],
+        "assignment": "984f06e0-e7ca-41c0-ba20-84fb787b0a75"
+      },
+      {
+        "scenario": "review-requirements@1",
+        "types": [
+          "REV"
+        ],
+        "assignment": "bd508945-f3f7-4c34-85b7-e06a35fa3915"
+      },
+      {
+        "scenario": "implement-product@1",
+        "types": [
+          "IMP"
+        ],
+        "assignment": "b33ca1b3-26f3-4f32-80e5-068bba50f1d6"
+      },
+      {
+        "scenario": "execute-verification@1",
+        "types": [
+          "RES"
+        ],
+        "assignment": "e824f517-587c-4d77-8e34-da5c520a4c4f"
+      },
+      {
+        "scenario": "review-implementation@1",
+        "types": [
+          "REV"
+        ],
+        "assignment": "4edcf3aa-40d7-4d81-a1d7-f0a86ff3246a"
+      },
+      {
+        "scenario": "accept-product@1",
+        "types": [
+          "ACC"
+        ],
+        "assignment": "30ac05cc-1fdc-41ef-9305-b9f978f543ad"
+      }
+    ],
+    "preservedRoot": "/tmp/mdlm-tiny-journey-cPcNVt",
+    "program": "const fs = require(\"node:fs\");\nconst input = fs.readFileSync(0);\nconsole.log([...input].filter(byte => byte === 32).length);\n",
+    "lifecycleData": [
+      {
+        "path": ".lifecycle/data/.transactions/d83760a5-a07c-424e-8c65-d58614a67bba/IMP/IMP-JR8WVRZPKN/r00001.md",
+        "datum": {
+          "id": "IMP-JR8WVRZPKN",
+          "revision": 1,
+          "revision_id": "IMP-JR8WVRZPKN-r00001",
+          "type": "IMP",
+          "payload": {
+            "command": [
+              "/home/ubuntu/.local/share/mise/installs/node/24.19.0/bin/node",
+              "/tmp/mdlm-tiny-journey-cPcNVt/source/count-spaces.cjs"
+            ],
+            "product_files": [
+              "/tmp/mdlm-tiny-journey-cPcNVt/source/count-spaces.cjs"
+            ],
+            "publication": "recorded",
+            "source_commit": "0bde7ffb309d4e51a6de42aa7eba7acfd8a16bd5",
+            "title": "ASCII space counter"
+          },
+          "links": [
+            {
+              "type": "implements",
+              "target": "REQ-05YGGE89Y6-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "implement-product@1",
+            "prompt_ref": "prompts/implement-product.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/ed89eed7-c199-44dc-8402-00104f0bd59a/REV/REV-BKZ7ZFKTEJ/r00001.md",
+        "datum": {
+          "id": "REV-BKZ7ZFKTEJ",
+          "revision": 1,
+          "revision_id": "REV-BKZ7ZFKTEJ-r00001",
+          "type": "REV",
+          "payload": {
+            "findings": "The exact requirement and evidence support the tiny product claim.",
+            "outcome": "pass",
+            "publication": "recorded",
+            "title": "Independent tiny product judgment"
+          },
+          "links": [
+            {
+              "type": "reviews",
+              "target": "IMP-JR8WVRZPKN-r00001"
+            },
+            {
+              "type": "uses-evidence",
+              "target": "RES-7JS6D6A5G5-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "review-implementation@1",
+            "prompt_ref": "prompts/review-implementation.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "independent-review@1",
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/e54f1e61-b915-40f8-8f17-ca03dc9ae2f7/ACC/ACC-BXJ2331DQD/r00001.md",
+        "datum": {
+          "id": "ACC-BXJ2331DQD",
+          "revision": 1,
+          "revision_id": "ACC-BXJ2331DQD-r00001",
+          "type": "ACC",
+          "payload": {
+            "decision": "accept",
+            "publication": "recorded",
+            "rationale": "The reviewed implementation and fresh execution satisfy the exact requirement.",
+            "title": "Accepted ASCII space counter"
+          },
+          "links": [
+            {
+              "type": "accepts",
+              "target": "IMP-JR8WVRZPKN-r00001"
+            },
+            {
+              "type": "uses-evidence",
+              "target": "RES-7JS6D6A5G5-r00001"
+            },
+            {
+              "type": "confirms",
+              "target": "REQ-05YGGE89Y6-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "accept-product@1",
+            "prompt_ref": "prompts/accept-product.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "stakeholder-acceptance@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/e0a15547-241e-4c34-8665-eada9b788c1f/REQ/REQ-05YGGE89Y6/r00001.md",
+        "datum": {
+          "id": "REQ-05YGGE89Y6",
+          "revision": 1,
+          "revision_id": "REQ-05YGGE89Y6-r00001",
+          "type": "REQ",
+          "payload": {
+            "cases": [
+              {
+                "id": "empty",
+                "stdin": "",
+                "stdout": "0\n",
+                "stderr": "",
+                "exit_code": 0
+              },
+              {
+                "id": "spaces",
+                "stdin": "a b  c\n",
+                "stdout": "3\n",
+                "stderr": "",
+                "exit_code": 0
+              }
+            ],
+            "commitments": [
+              "Read standard input and print its ASCII space count followed by newline."
+            ],
+            "intent": "Count ASCII spaces in standard input.",
+            "publication": "recorded",
+            "source": "Integration stakeholder request: count ASCII spaces in standard input.",
+            "title": "ASCII space count"
+          },
+          "links": [],
+          "created_by": {
+            "scenario": "draft-requirements@1",
+            "prompt_ref": "prompts/draft-requirements.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/9e78e21a-ab90-4a96-8c5e-acf97f070560/REV/REV-A5A0SER9YY/r00001.md",
+        "datum": {
+          "id": "REV-A5A0SER9YY",
+          "revision": 1,
+          "revision_id": "REV-A5A0SER9YY-r00001",
+          "type": "REV",
+          "payload": {
+            "findings": "The exact requirement and evidence support the tiny product claim.",
+            "outcome": "pass",
+            "publication": "recorded",
+            "title": "Independent tiny product judgment"
+          },
+          "links": [
+            {
+              "type": "reviews",
+              "target": "REQ-05YGGE89Y6-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "review-requirements@1",
+            "prompt_ref": "prompts/review-requirements.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "independent-review@1",
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      },
+      {
+        "path": ".lifecycle/data/.transactions/c61acb53-f67e-447a-83da-f727ce946438/RES/RES-7JS6D6A5G5/r00001.md",
+        "datum": {
+          "id": "RES-7JS6D6A5G5",
+          "revision": 1,
+          "revision_id": "RES-7JS6D6A5G5-r00001",
+          "type": "RES",
+          "payload": {
+            "correction_target": "none",
+            "evidence": "/tmp/mdlm-tiny-journey-cPcNVt/observations-2.json",
+            "observations": [
+              {
+                "id": "empty",
+                "stdin": "",
+                "stdout": "0\n",
+                "stderr": "",
+                "exit_code": 0
+              },
+              {
+                "id": "spaces",
+                "stdin": "a b  c\n",
+                "stdout": "3\n",
+                "stderr": "",
+                "exit_code": 0
+              }
+            ],
+            "publication": "recorded",
+            "title": "Verification observations"
+          },
+          "links": [
+            {
+              "type": "executes",
+              "target": "IMP-JR8WVRZPKN-r00001"
+            },
+            {
+              "type": "verifies",
+              "target": "REQ-05YGGE89Y6-r00001"
+            }
+          ],
+          "created_by": {
+            "scenario": "execute-verification@1",
+            "prompt_ref": "prompts/execute-verification.md@1",
+            "process_ref": "mdlm-tiny@0.1.0#sha256:b9ee12f52455a473df665ce90ffb7fcf3867b7aab7ec4c28824679855a742175",
+            "loaded_skill_refs": [],
+            "policy_refs": [
+              "review-applicability@1",
+              "waiver-applicability@1"
+            ]
+          }
+        }
+      }
+    ],
+    "archive": {
+      "file": "mdlm-0.0.0.tgz",
+      "sha256": "8b16ca0fae88049c4bffdad7ffa1b3a6e1d883a858c03f4982a60e10772f4797"
+    }
+  }
+]

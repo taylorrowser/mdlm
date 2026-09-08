@@ -1,0 +1,39 @@
+kind: scenario-definition
+id: correct-expectations
+version: 1
+description: Correct a wrong acceptance expectation
+phases:
+- phase-0-tiny-product
+inputs:
+- name: failure
+  types:
+  - RES
+  cardinality: one
+  identity: revision
+- name: subject
+  types:
+  - REQ
+  cardinality: one
+  identity: revision
+outputs:
+- name: requirements
+  types:
+  - REQ
+  cardinality: one
+  required_links:
+  - link: corrects
+    target:
+      input: failure
+  required_payload:
+    publication: recorded
+  identity_from:
+    input: subject
+prompt_ref: prompts/correct-expectations.md@1
+review_policy_ref: review-applicability@1
+completion: 'execution.integrity.contract_valid == true && failure.payload.correction_target == "requirements" &&
+  !every("correction-subjects-for@1", {failure: failure}, corrected => corrected.identity.revision_id != subject.identity.revision_id)
+  && array_unique_field(requirements.payload.cases, "id")'
+resolves:
+- expectation-correction
+prohibited_inputs: []
+batching: single

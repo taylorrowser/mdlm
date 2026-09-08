@@ -10,6 +10,8 @@ import {
 } from "../src/index.js";
 import {
   compileDefinitionExpressions,
+  evaluateCompiledTextExpression,
+  isCompiledTextExpression,
   type ExpressionDefinitionCatalogs,
   validateExpressionDependencyCycles,
 } from "../src/expression.js";

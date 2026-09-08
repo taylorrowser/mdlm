@@ -1,6 +1,6 @@
 # MDLM development operations
 
-Operational data is the main development signal. Lifecycle completion and safe Phase transitions are the primary outcomes. Accepted publications are secondary and matter when they advance a lane or close a learning loop. Treat delay before the first demo and accepted publication as a velocity problem. Keep demos moving, preserve failures, fix what operation exposes, and release the smallest set of changes that unlocks more operation.
+Operational data is the main development signal. Measure correct accepted products and recovery from mistakes. Publications matter when they advance the product or close a learning loop. Preserve failures, fix what operation exposes, and release the smallest set of changes that unlocks useful operation.
 
 ## Read this first
 
@@ -76,14 +76,10 @@ another boundary explicitly owned by the host policy. After clearance, resume a
 preserved lane only when it still closes a named learning loop; otherwise use
 the capacity for the next qualified artifact.
 
-An operator-contract cutover may use a recorded stakeholder-authorized sprint
-exception instead. Preserve every lane at its authenticated boundary. After the
-cutover acceptance checks pass, launch one fresh disposable canary under exact
-source, Process Package, artifact, runner, model, and harness identities. Expand
-to the other targeted harness only after that canary completes Phase 0,
-including a rejected then corrected Review proposal, and enters the first Phase
-1 RUN/RES loop without a contract, authority-envelope, missing-input,
-generated-ID, or ambiguous-publication failure.
+A process replacement uses a fresh tiny-product journey to test its own declared
+route. Apply the host's exact qualification and launch rules. Earlier Phase 0,
+Phase 1 RUN/RES, and full-V canary requirements describe historical packages and
+are not prerequisites for the tiny package.
 
 Continue each lane through accepted Reviews, publications, qualification, and Phase entry. Its operational endpoint is the controller result `Lifecycle Complete` or `Profile Boundary Reached`, or a package-declared terminal outcome. The exact stop conditions in the host policy's linked recovery runbook mark the lane stopped or blocked, not complete.
 
@@ -222,45 +218,46 @@ Use these states plainly: active, attended, blocked, stopped, terminal, complete
 
 Keep release candidates separate from demo history. Demo records answer what happened. Release records answer what exact bundle should run next.
 
-## Scale ladder
+## Tiny products first
 
-Make simplifying how agents produce correct Lifecycle Data the first job. Choose
-each simplification from exact failures or authoring friction observed in real
-runs, change the smallest owning mechanism, and rerun the same tier. Judge the
-result across the full V-model. Prefer CLI-derived identities and relationships,
-compact authoring scaffolds, fewer manual copies, shared level-aware rules,
-reused unchanged evidence, grouped compatible review context, and artifacts that
-bind bounded sets of implementation paths. Agents author decisions and product
-meaning while the CLI supplies mechanical lifecycle structure. A simplification
-may increase the downstream lifecycle artifact count only after demo evidence
-shows that the added artifact is needed.
+Use the default tiny Process Package for new tiny products. Keep stakeholder
+intent, software commitments, and executable acceptance examples at one
+requirement level. Use its direct implementation and verification route.
+Historical V-model reports and decomposition levels describe the packages that
+produced them.
 
-Stay at the tiny tier until three consecutive fresh tiny demos on the current
-supported release lineage reach `Lifecycle Complete` without a kernel/package
-contradiction, false trace, false verification claim, or unbounded operator
-recovery. Record the exact consecutive count and every failure in the existing
-demo and release records. A failure resets the count and supplies the next
-learning loop; the gate keeps demos running. Existing healthy tiny demos and
-current qualification continue as operational evidence. This gate does not
-invalidate them.
+The CLI owns mechanical checks before publication: schema and field validity,
+exact references, fixed values, and declared executable-result constraints.
+Independent reviewers judge content, assumptions, acceptance adequacy, and whether
+the implementation and evidence support the claim. When a reviewer catches a
+mechanically decidable error, fix the owning CLI or package contract and retain
+one useful regression instead of adding another review instruction.
 
-Only after the gate passes, increase one complexity axis at a time. The first
-scaled tier is a slightly larger runnable project with multiple stakeholder
-requirements and real decomposition. If that tier exposes a process defect, fix
-or simplify the owning mechanism and run the same tier again before growing.
+The next learning loop is a correctly accepted tiny product and a preserved
+mistake followed by correction. Record exact source/package identities,
+requirements and implementation revisions, verification evidence, accepted
+product outcome, publications, elapsed time, and human interventions. Distinguish
+wrong code from a wrong expectation and state any unsupported correction path.
+Use the smallest public-CLI exercise that demonstrates the changed behavior.
+Source checks do not establish release qualification or authorize demo operation.
 
-End-to-end trace integrity is a demo and release acceptance condition. Account
-for every changed production line under an implementation or change artifact
-whose graph reaches a stakeholder requirement (`STK`) through design and
-decomposition. Every claimed behavior must have linked verification activity,
-observation, and result evidence. This is graph coverage, not a demand for one
-lifecycle artifact or source annotation per line. Unmapped production code, or
-verification whose trace cannot reach an `STK`, is a finding.
+Repeat until short runs recover reliably before adding one complexity dimension.
+Add a requirement level, planning artifact, or review when observed work needs a
+distinct decision or claim. Trace the implementation and verification evidence to
+the selected package's exact requirement revision. The tiny route does not need
+STK/SYS/CMP/DES decomposition or the historical Phase 2 expansion gate.
 
-After the targeted canary satisfies the Phase 0 and first Phase 1 RUN/RES
-acceptance boundary under [Targeted demos](#targeted-demos), keep Phase 3 and
-later Process Package work behind the two-product, same-identity Phase 2
-reliability gate owned by [issue
-#222](https://github.com/taylorrowser/mdlm/issues/222). Apply that issue's exact
-pass criteria. After the gate passes, add one complete operational slice at a
-time and run it before expanding the next Phase.
+## Make operational learning durable
+
+When a run exposes an inefficient instruction, review step, test, transport, or
+orchestration rule, change the smallest owning mechanism promptly. Update its
+owning instruction, runbook, skill, or command in the same work session. Keep this
+improve-and-record rule present so future agents continue the loop. If a safe fix
+cannot be made now, record one bounded follow-up issue and continue the simplest
+valid path.
+
+Keep evidence collection proportionate to the product. During the scheduled
+two-hour retrospective, check delivery, fresh operational data, and test/review
+cost. Apply at most three immediately useful improvements and update their owning
+instructions. The retrospective is not an approval gate and does not pause a
+healthy authorized lane.

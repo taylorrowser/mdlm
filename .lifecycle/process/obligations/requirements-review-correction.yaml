@@ -1,0 +1,21 @@
+kind: obligation-definition
+id: requirements-review-correction
+version: 1
+description: requirements review correction
+phases:
+- phase-0-tiny-product
+for_each: select("current-requirements@1", {})
+subject_as: subject
+satisfied_when: 'none("fail-reviews@1", {subject: subject})'
+status_rules:
+- status: ready
+  priority: 100
+  when: 'exists("fail-reviews@1", {subject: subject})'
+  reason: requirements review correction
+default_status: blocked
+resolve_with:
+  scenario: correct-requirements-after-review@1
+  inputs:
+    subject: subject
+    failure: 'one("fail-reviews@1", {subject: subject})'
+waiver_policy_ref: waiver-applicability@1

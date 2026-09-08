@@ -1,15 +1,8 @@
 kind: process-package-manifest
-id: mdlm-bootstrap
-version: 0.147.0
+id: mdlm-tiny
+version: 0.1.0
 status: experimental
-description: >-
-  Typed declarative MDLM bootstrap package for validating kernel-owned envelopes,
-  template-composed payloads, source-owned links, relational selectors,
-  machine-readable policies, computed states, obligations, Scenario routing, and
-  Phase 0 intent, Phase 1 qualification/pilot, Phase 2 system decomposition,
-  complete Phase 3 verification design, lean Phase 4 design definition, and
-  independent Phase 5 implementation, and bottom-up Phase 6 formal verification
-  with reviewed final product acceptance.
+description: The smallest useful one-level requirement-to-accepted-product example.
 kernel_contract:
   id: mdlm-kernel-process-interface
   version: 1
@@ -24,30 +17,28 @@ artifact_format:
   payload_field: payload
   encoding: utf-8
 references:
-  process_asset: '<path>@<positive-integer-version>'
-  definition: '<stable-definition-id>@<positive-integer-version>'
-  datum_stable: '<TYPE>-<Crockford-Base32-ID>'
-  datum_revision: '<stable-id>-r<five-digit-revision>'
-  obligation_instance: '<obligation>@<version>:<exact-subject>:<process-ref>'
+  process_asset: <path>@<positive-integer-version>
+  definition: <stable-definition-id>@<positive-integer-version>
+  datum_stable: <TYPE>-<Crockford-Base32-ID>
+  datum_revision: <stable-id>-r<five-digit-revision>
+  obligation_instance: <obligation>@<version>:<exact-subject>:<process-ref>
 language:
   expressions: mdlm-expression@1
-kernel_capabilities:
-  exact-baseline@1:
-    type: BSL
+kernel_capabilities: {}
 compatibility:
   minimum_kernel: 0.2.0
   meta_schema_version: 3
-  json_schema_draft: '2020-12'
+  json_schema_draft: 2020-12
   unknown_definition_fields: reject
   arbitrary_code_execution: forbidden
   template_inheritance: single-parent-additive
   repository_migration: fresh-only
 profiles:
-  default: bootstrap@62
+  default: tiny@1
   available:
-    - profiles/bootstrap.yaml@62
+  - profiles/tiny.yaml@1
 provenance:
-  source_document: mdlm-process-overview-v0.7.md
-  companion_reference: docs/mdlm-process-package-reference-v0.2.md
-  intent: validate-typed-process-model
+  source_document: docs/adr/0004-tiny-product-process-package.md
+  companion_reference: .lifecycle/process/README.md
+  intent: reliable-tiny-product-delivery
   normative_scope: this-package-only

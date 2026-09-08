@@ -1,0 +1,22 @@
+kind: selector-definition
+id: pass-reviews
+version: 1
+description: pass reviews
+parameters:
+- name: subject
+  kind: revision
+result_kind: revision
+query:
+  from:
+    relation: incoming-links
+    of: subject
+    link: reviews
+    emit: source
+    types:
+    - REV
+  as: item
+  where: state(item, "validity") == "valid" && item.integrity.scenario_execution_valid == true && item.payload.outcome
+    == "pass"
+  distinct: true
+  order_by:
+  - identity.revision_id

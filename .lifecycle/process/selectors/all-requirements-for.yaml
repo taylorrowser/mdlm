@@ -1,0 +1,23 @@
+kind: selector-definition
+id: all-requirements-for
+version: 1
+description: requirements for
+parameters:
+- name: implementation
+  kind: revision
+  types:
+  - IMP
+result_kind: revision
+query:
+  from:
+    relation: outgoing-links
+    of: implementation
+    link: implements
+    emit: target
+    types:
+    - REQ
+  as: item
+  where: state(item, "validity") == "valid"
+  distinct: true
+  order_by:
+  - identity.revision_id

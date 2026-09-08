@@ -1,0 +1,65 @@
+kind: type-definition
+id: ACC
+version: 1
+description: Stakeholder acceptance
+name: Stakeholder acceptance
+extends: titled-datum@1
+lifecycle:
+  authorship: authored
+  freeze_when: terminal-outcome
+  terminal_payload_field: publication
+  terminal_values:
+  - recorded
+payload_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  required:
+  - publication
+  - decision
+  - rationale
+  properties:
+    publication:
+      const: recorded
+    decision:
+      const: accept
+    rationale:
+      type: string
+      minLength: 1
+outgoing_links:
+- id: accepts
+  description: accepts
+  targets:
+  - kind: datum
+    types:
+    - IMP
+    identity: revision
+  cardinality:
+    minimum: 1
+    maximum: 1
+  freeze_resolution: already-exact
+  inverse_label: incoming-accepts
+- id: uses-evidence
+  description: uses evidence
+  targets:
+  - kind: datum
+    types:
+    - RES
+    identity: revision
+  cardinality:
+    minimum: 1
+    maximum: 1
+  freeze_resolution: already-exact
+  inverse_label: incoming-uses-evidence
+- id: confirms
+  description: confirms
+  targets:
+  - kind: datum
+    types:
+    - REQ
+    identity: revision
+  cardinality:
+    minimum: 1
+    maximum: 1
+  freeze_resolution: already-exact
+  inverse_label: incoming-confirms
+kernel_managed_payload_paths: []
