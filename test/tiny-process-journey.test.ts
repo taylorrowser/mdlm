@@ -33,19 +33,20 @@ async function digest(directory: string): Promise<string> {
 }
 
 function response(packet: Json, payloads: Record<string, Json>): Json {
-  const proposal = structuredClone(packet.responseScaffold);
-  for (const output of proposal.proposal.outputs) {
-    if (!(output.type in payloads)) throw new Error(`Unhandled output ${output.type}`);
-    output.payload = payloads[output.type];
-    output.body = `# ${output.type}\n\nTiny product integration evidence.\n`;
-  }
-  return proposal;
+  return {
+    outputs: packet.outputs.map((output: Json) => {
+      if (!(output.type in payloads)) throw new Error(`Unhandled output ${output.type}`);
+      return { slot: output.handle, payload: payloads[output.type],
+        body: `# ${output.type}\n\nTiny product integration evidence.\n` };
+    }),
+    completionEvidence: { summary: "The exact Assignment is complete." },
+  };
 }
 
 // This uses the public executable and real product observations. It is source
 // integration evidence, not release qualification or an autonomous-agent demo.
 describe("tiny public CLI journey", () => {
-  it.each(["happy", "wrong-code", "wrong-expectation"])("delivers a reviewed, executed tiny product: %s", async (mode) => {
+  it.each(["happy", "wrong-code", "wrong-expectation", "review-correction"])("delivers a reviewed, executed tiny product: %s", async (mode) => {
     const started = performance.now();
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-tiny-journey-"));
     const repository = path.join(root, "lifecycle");
@@ -74,10 +75,11 @@ describe("tiny public CLI journey", () => {
     let initialSourceCommit = "";
     let failedObservations = 0;
     let corrected = false;
+    let failedReview = false;
     const requirement = {
       intent: "Count ASCII spaces in standard input.",
       source: "Integration stakeholder request: count ASCII spaces in standard input.",
-      commitments: ["Read standard input and print its ASCII space count followed by newline."],
+      commitments: [mode === "review-correction" ? "Read standard input and print its ASCII space count." : "Read standard input and print its ASCII space count followed by newline."],
       cases: [
         { id: "empty", stdin: "", stdout: "0\n", stderr: "", exit_code: 0 },
         { id: "spaces", stdin: "a b  c\n", stdout: mode === "wrong-expectation" ? "30\n" : "3\n", stderr: "", exit_code: 0 },
@@ -104,6 +106,10 @@ describe("tiny public CLI journey", () => {
           corrected = true;
         }
         if (scenario === "correct-product") corrected = true;
+        if (scenario === "correct-requirements-after-review") {
+          requirement.commitments[0] = "Read standard input and print its ASCII space count followed by newline.";
+          corrected = true;
+        }
         const types = packet.outputs.map((output: Json) => output.type);
         const payloads: Record<string, Json> = {
           REQ: { title: "ASCII space count", ...requirement },
@@ -111,6 +117,11 @@ describe("tiny public CLI journey", () => {
           REV: { title: "Independent tiny product judgment", outcome: "pass", findings: "The exact requirement and evidence support the tiny product claim." },
           ACC: { title: "Accepted ASCII space counter", rationale: "The reviewed implementation and fresh execution satisfy the exact requirement." },
         };
+        if (mode === "review-correction" && scenario === "review-requirements" && !failedReview) {
+          payloads.REV = { title: "Requirement needs one content correction", outcome: "fail",
+            findings: "Specify the trailing newline in the output commitment rather than only in examples." };
+          failedReview = true;
+        }
         if (types.includes("IMP")) {
           const program = mode === "wrong-code" && !corrected
             ? 'console.log(0);\n'
@@ -141,33 +152,61 @@ describe("tiny public CLI journey", () => {
           payloads.RES = { observations, evidence, correction_target: passed ? "none" : mode === "wrong-expectation" ? "requirements" : "implementation" };
         }
         const proposal = response(packet, payloads);
-        const args = ["scenario", "submit", "-", "--json"];
+        const args = ["assignment", "submit-proposal", "-", "--json"];
         if (next.value.outcome === "attention-required") {
           args.push("--authority", next.value.authorityRequirement.authority);
         }
         if (types.includes("REQ") && !rejectedMalformed) {
           const malformed = structuredClone(proposal);
-          malformed.proposal.outputs.find((output: Json) => output.type === "REQ").payload.cases[0].exit_code = "zero";
+          malformed.outputs.find((output: Json) => output.slot === "requirements").payload.cases[0].exit_code = "zero";
           const before = await digest(path.join(repository, ".lifecycle/data"));
           const rejected = cli(args, malformed);
           expect(rejected.status).toBe(1);
           expect(JSON.stringify(rejected.value)).toContain("exit_code");
-          expect(rejected.value).toMatchObject({ outcome: "rejected", retryable: true, correctionConsumed: false });
+          expect(rejected.value.ok).toBe(false);
           expect(await digest(path.join(repository, ".lifecycle/data"))).toBe(before);
           expect(cli(["next", "--json"]).value.assignment.id).toBe(next.value.assignment.id);
           rejectedMalformed = true;
+        }
+        if (mode === "happy" && (types.includes("REQ") || types.includes("RES"))) {
+          const malformed = structuredClone(proposal);
+          if (types.includes("REQ")) {
+            const cases = malformed.outputs[0].payload.cases;
+            cases[1].id = cases[0].id;
+          } else {
+            malformed.outputs[0].payload.observations.pop();
+            malformed.outputs[0].payload.correction_target = "implementation";
+          }
+          const before = await digest(path.join(repository, ".lifecycle/data"));
+          const rejected = cli(args, malformed);
+          expect(rejected.status, JSON.stringify(rejected.value)).toBe(1);
+          expect(await digest(path.join(repository, ".lifecycle/data"))).toBe(before);
+          expect(cli(["next", "--json"]).value.assignment.id).toBe(next.value.assignment.id);
+        }
+        if (mode === "happy" && types.includes("ACC")) {
+          const before = await digest(path.join(repository, ".lifecycle/data"));
+          const unauthorized = cli(["assignment", "submit-proposal", "-", "--json"], proposal);
+          expect(unauthorized.status).toBe(1);
+          expect(unauthorized.value.outcome).toBe("rejected");
+          expect(await digest(path.join(repository, ".lifecycle/data"))).toBe(before);
         }
         const submitted = cli(args, proposal);
         expect(submitted.status, JSON.stringify(submitted.value)).toBe(0);
         expect(submitted.value.outcome).toBe("accepted");
         publications += submitted.value.receipt.publications.length;
+        const doctor = cli(["doctor", "--json"]);
+        expect(doctor.status, JSON.stringify(doctor.value)).toBe(0);
+        expect(run("git", ["add", ".lifecycle/data"], repository).status).toBe(0);
+        const committed = run("git", ["-c", "user.name=MDLM integration", "-c", "user.email=mdlm-test@localhost",
+          "-c", "commit.gpgSign=false", "commit", "--quiet", "--no-verify", "-m", `Publish ${scenario}`], repository);
+        expect(committed.status, committed.stderr).toBe(0);
         trace.push({ scenario: packet.scenario.reference, types, assignment: next.value.assignment.id });
       }
       expect(cli(["next", "--json"]).value.outcome).toBe("lifecycle-complete");
       expect(rejectedMalformed).toBe(true);
       expect(executions).toBeGreaterThan(0);
       expect(trace.some((entry) => entry.types.includes("ACC"))).toBe(true);
-      expect(failedObservations).toBe(mode === "happy" ? 0 : 1);
+      expect(failedObservations).toBe(["happy", "review-correction"].includes(mode) ? 0 : 1);
       expect(corrected).toBe(mode !== "happy");
       if (mode === "wrong-expectation") expect(sourceCommit).toBe(initialSourceCommit);
       if (mode === "wrong-code") expect(sourceCommit).not.toBe(initialSourceCommit);
@@ -185,16 +224,16 @@ describe("tiny public CLI journey", () => {
       const implementations = ofType("IMP");
       const results = ofType("RES");
       const acceptances = ofType("ACC");
-      expect(requirements).toHaveLength(mode === "wrong-expectation" ? 2 : 1);
-      expect(implementations).toHaveLength(mode === "happy" ? 1 : 2);
-      expect(results).toHaveLength(mode === "happy" ? 1 : 2);
+      expect(requirements).toHaveLength(["wrong-expectation", "review-correction"].includes(mode) ? 2 : 1);
+      expect(implementations).toHaveLength(["happy", "review-correction"].includes(mode) ? 1 : 2);
+      expect(results).toHaveLength(["happy", "review-correction"].includes(mode) ? 1 : 2);
       expect(acceptances).toHaveLength(1);
       const accepted = acceptances[0]!;
       expect(accepted.links).toEqual(expect.arrayContaining([
         { type: "accepts", target: implementations.at(-1)!.revision_id },
         { type: "confirms", target: requirements.at(-1)!.revision_id },
       ]));
-      if (mode !== "happy") {
+      if (["wrong-code", "wrong-expectation"].includes(mode)) {
         expect(implementations[0]!.id).toBe(implementations[1]!.id);
         const failure = results.find((result) => result.payload.correction_target !== "none")!;
         const success = results.find((result) => result.payload.correction_target === "none")!;
@@ -203,8 +242,14 @@ describe("tiny public CLI journey", () => {
         const replacement = mode === "wrong-expectation" ? requirements.at(-1)! : implementations.at(-1)!;
         expect(replacement.links).toContainEqual({ type: "corrects", target: failure.revision_id });
       }
+      if (mode === "review-correction") {
+        const failed = ofType("REV").find((review) => review.payload.outcome === "fail")!;
+        expect(failed).toBeDefined();
+        expect(requirements[0]!.id).toBe(requirements[1]!.id);
+        expect(requirements[1]!.links).toContainEqual({ type: "corrects", target: failed.revision_id });
+      }
       const evidence = { mode, sourceCommit, initialSourceCommit, failedObservations, elapsedMs: Math.round(performance.now() - started), assignments: trace.length,
-        publications, executions, malformedRejections: 1, installed: process.env.MDLM_TINY_INSTALLED === "1", trace };
+        publications, executions, malformedRejections: mode === "happy" ? 3 : 1, installed: process.env.MDLM_TINY_INSTALLED === "1", trace };
       process.stdout.write(`TINY_JOURNEY ${JSON.stringify(evidence)}\n`);
       if (process.env.MDLM_TINY_EVIDENCE) await fs.writeFile(`${process.env.MDLM_TINY_EVIDENCE}.${mode}.json`, `${JSON.stringify(evidence, null, 2)}\n`);
     } catch (error) {

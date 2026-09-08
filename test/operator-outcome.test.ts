@@ -1,3 +1,4 @@
+import { classifyOperatorOutcome } from "../src/operator-outcome.js";
 import { createHash, randomUUID } from "node:crypto";
 import { constants as fsConstants, promises as fs } from "node:fs";
 import os from "node:os";
