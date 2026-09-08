@@ -1,0 +1,37 @@
+kind: scenario-definition
+id: correct-expectations
+version: 1
+description: Correct a wrong acceptance expectation
+phases:
+- phase-0-tiny-product
+inputs:
+- name: failure
+  types:
+  - RES
+  cardinality: one
+  identity: revision
+- name: subject
+  types:
+  - REQ
+  cardinality: one
+  identity: revision
+outputs:
+- name: requirements
+  types:
+  - REQ
+  cardinality: one
+  required_links:
+  - link: corrects
+    target:
+      input: failure
+  required_payload:
+    publication: recorded
+  identity_from:
+    input: subject
+prompt_ref: prompts/correct-expectations.md@1
+review_policy_ref: review-applicability@1
+completion: execution.integrity.contract_valid == true && (true)
+resolves:
+- expectation-correction
+prohibited_inputs: []
+batching: single

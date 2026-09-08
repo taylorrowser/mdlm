@@ -1,0 +1,37 @@
+kind: scenario-definition
+id: correct-requirements-after-review
+version: 1
+description: Correct requirements after content Review
+phases:
+- phase-0-tiny-product
+inputs:
+- name: subject
+  types:
+  - REQ
+  cardinality: one
+  identity: revision
+- name: failure
+  types:
+  - REV
+  cardinality: one
+  identity: revision
+outputs:
+- name: requirements
+  types:
+  - REQ
+  cardinality: one
+  required_links:
+  - link: corrects
+    target:
+      input: failure
+  required_payload:
+    publication: recorded
+  identity_from:
+    input: subject
+prompt_ref: prompts/correct-requirements-after-review.md@1
+review_policy_ref: review-applicability@1
+completion: execution.integrity.contract_valid == true && (true)
+resolves:
+- requirements-review-correction
+prohibited_inputs: []
+batching: single

@@ -1,8 +1,8 @@
 kind: type-definition
-id: REV
+id: ACC
 version: 1
-description: Independent content Review
-name: Independent content Review
+description: Stakeholder acceptance
+name: Stakeholder acceptance
 extends: titled-datum@1
 lifecycle:
   authorship: authored
@@ -15,32 +15,29 @@ payload_schema:
   type: object
   required:
   - publication
-  - outcome
-  - findings
+  - decision
+  - rationale
   properties:
     publication:
       const: recorded
-    outcome:
-      enum:
-      - pass
-      - fail
-    findings:
+    decision:
+      const: accept
+    rationale:
       type: string
       minLength: 1
 outgoing_links:
-- id: reviews
-  description: reviews
+- id: accepts
+  description: accepts
   targets:
   - kind: datum
     types:
-    - REQ
     - IMP
     identity: revision
   cardinality:
     minimum: 1
     maximum: 1
   freeze_resolution: already-exact
-  inverse_label: incoming-reviews
+  inverse_label: incoming-accepts
 - id: uses-evidence
   description: uses evidence
   targets:
@@ -49,8 +46,20 @@ outgoing_links:
     - RES
     identity: revision
   cardinality:
-    minimum: 0
+    minimum: 1
     maximum: 1
   freeze_resolution: already-exact
   inverse_label: incoming-uses-evidence
+- id: confirms
+  description: confirms
+  targets:
+  - kind: datum
+    types:
+    - REQ
+    identity: revision
+  cardinality:
+    minimum: 1
+    maximum: 1
+  freeze_resolution: already-exact
+  inverse_label: incoming-confirms
 kernel_managed_payload_paths: []

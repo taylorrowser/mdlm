@@ -1,0 +1,38 @@
+kind: implementation-profile-definition
+id: tiny
+version: 1
+description: One-level tiny product lifecycle.
+status: experimental
+enabled:
+  types:
+  - REQ
+  - IMP
+  - RES
+  - REV
+  - ACC
+  phases:
+  - phase-0-tiny-product
+  obligation_statuses:
+  - ready
+  - blocked
+  - awaiting-review
+  - stale
+  - failed
+disabled_capabilities:
+- hierarchical requirement decomposition
+- architecture and interface definition
+- environment qualification
+- binary acceptance observations
+- long-running or interactive products
+terminal_outcomes:
+  lifecycle_complete:
+    condition: 'exists("current-requirements@1", {}) && every("current-requirements@1", {}, req => exists("implementations-for@1",
+      {requirements: req}) && every("implementations-for@1", {requirements: req}, imp => exists("acceptances-for@1",
+      {implementation: imp}) && exists("passing-results@1", {implementation: imp}) && exists("pass-reviews@1", {subject:
+      imp}) && none("fail-reviews@1", {subject: imp}))) && every("current-requirements@1", {}, req => exists("pass-reviews@1",
+      {subject: req}) && none("fail-reviews@1", {subject: req}))'
+    explanation: Every current requirement set has a passing independently reviewed implementation explicitly accepted
+      by the stakeholder.
+success_criteria:
+- A correct product is accepted after current exact verification and independent content Review.
+- Wrong expectations and wrong code receive reviewed corrective revisions preserving failed evidence.

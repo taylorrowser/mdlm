@@ -1,62 +1,24 @@
 kind: policy-definition
 id: review-applicability
 version: 1
-description: Determines whether an exact revision requires independent review and selects its rubric.
+description: review applicability
 parameters:
-  - {name: subject, kind: revision}
+- name: subject
+  kind: revision
 result_schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
-  additionalProperties: false
-  required: [required, rubric_ref]
+  required:
+  - required
+  - rubric_ref
   properties:
-    required: {type: boolean}
-    rubric_ref: {type: [string, 'null']}
+    required:
+      type: boolean
+    rubric_ref:
+      type:
+      - string
+      - 'null'
 default:
   required: false
   rubric_ref: null
-rules:
-  - priority: 550
-    when: >-
-      subject.identity.type == "RES"
-      && subject.payload.claim.kind in ["pilot", "formal"]
-      && subject.payload.assessment_state == "assessment-required"
-    result:
-      required: true
-      rubric_ref: policies/rubrics/bootstrap-review.md@3
-  - priority: 375
-    when: 'subject.identity.type == "ART" && subject.payload.kind == "implementation"'
-    result:
-      required: true
-      rubric_ref: policies/rubrics/bootstrap-review.md@3
-  - priority: 500
-    when: 'subject.identity.type == "CMP"'
-    result:
-      required: false
-      rubric_ref: null
-  - priority: 400
-    when: 'subject.identity.type in ["MAP", "PSP", "STK", "SYS", "ASP", "ICSP", "DWP", "VSP", "ENV", "CHG", "PAS"]'
-    result:
-      required: true
-      rubric_ref: policies/rubrics/bootstrap-review.md@3
-  - priority: 350
-    when: >-
-      subject.identity.type in ["VER", "VAI"]
-      && subject.payload.kind in ["pilot", "formal"]
-    result:
-      required: true
-      rubric_ref: policies/rubrics/bootstrap-review.md@3
-  - priority: 200
-    when: >-
-      subject.identity.type == "BSL"
-      && subject.payload.role == "candidate"
-    result:
-      required: true
-      rubric_ref: policies/rubrics/bootstrap-review.md@3
-  - priority: 100
-    when: >-
-      subject.identity.type == "DEC"
-      && subject.payload.kind in ["scope", "waiver", "deferral", "authority-delegation", "gate-signoff", "change-approval", "product-acceptance", "pilot-expansion", "retirement", "cancellation"]
-    result:
-      required: true
-      rubric_ref: policies/rubrics/bootstrap-review.md@3
+rules: []

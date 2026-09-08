@@ -1,0 +1,17 @@
+kind: selector-definition
+id: expectation-failures
+version: 1
+description: expectation failures
+parameters: []
+result_kind: revision
+query:
+  from:
+    collection: revisions
+    types:
+    - RES
+  as: item
+  where: 'state(item, "validity") == "valid" && item.payload.correction_target == "requirements" && exists("requirements-for-result@1",
+    {result: item}) && exists("implementation-for-result@1", {result: item})'
+  distinct: true
+  order_by:
+  - identity.revision_id

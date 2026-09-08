@@ -1,0 +1,45 @@
+kind: scenario-definition
+id: correct-product
+version: 1
+description: Correct a product verification failure
+phases:
+- phase-0-tiny-product
+inputs:
+- name: failure
+  types:
+  - RES
+  cardinality: one
+  identity: revision
+- name: subject
+  types:
+  - IMP
+  cardinality: one
+  identity: revision
+- name: requirements
+  types:
+  - REQ
+  cardinality: one
+  identity: revision
+outputs:
+- name: implementation
+  types:
+  - IMP
+  cardinality: one
+  required_links:
+  - link: implements
+    target:
+      input: requirements
+  - link: corrects
+    target:
+      input: failure
+  required_payload:
+    publication: recorded
+  identity_from:
+    input: subject
+prompt_ref: prompts/correct-product.md@1
+review_policy_ref: review-applicability@1
+completion: execution.integrity.contract_valid == true && (true)
+resolves:
+- product-correction
+prohibited_inputs: []
+batching: single

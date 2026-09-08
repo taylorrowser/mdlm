@@ -1,0 +1,21 @@
+kind: state-definition
+id: verification-outcome
+version: 1
+description: Compare captured observations with the exact reviewed acceptance cases.
+subject_as: subject
+cardinality: exactly-one
+default: not-applicable
+values:
+- not-applicable
+- pass
+- fail
+rules:
+- value: pass
+  priority: 100
+  when: 'subject.identity.type == "RES" && exists("requirements-for-result@1", {result: subject}) && every("requirements-for-result@1",
+    {result: subject}, req => req.payload.cases == subject.payload.observations)'
+  explanation: Every captured observation exactly matches the acceptance cases.
+- value: fail
+  priority: 50
+  when: 'subject.identity.type == "RES" && exists("requirements-for-result@1", {result: subject})'
+  explanation: Captured observations differ from the acceptance cases.

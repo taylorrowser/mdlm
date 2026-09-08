@@ -1,0 +1,37 @@
+kind: scenario-definition
+id: review-requirements
+version: 1
+description: Review requirements and acceptance examples
+phases:
+- phase-0-tiny-product
+inputs:
+- name: subject
+  types:
+  - REQ
+  cardinality: one
+  identity: revision
+outputs:
+- name: review
+  types:
+  - REV
+  cardinality: one
+  required_links:
+  - link: reviews
+    target:
+      input: subject
+  required_payload:
+    publication: recorded
+prompt_ref: prompts/review-requirements.md@1
+review_policy_ref: review-applicability@1
+completion: execution.integrity.contract_valid == true && (true)
+resolves:
+- requirements-review-required
+prohibited_inputs: []
+batching: single
+participation:
+  policy_ref: independent-review@1
+  arguments:
+    subject: subject
+authority_evidence:
+  output: review
+  type: REV

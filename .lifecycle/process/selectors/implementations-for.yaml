@@ -1,0 +1,23 @@
+kind: selector-definition
+id: implementations-for
+version: 1
+description: implementations for
+parameters:
+- name: requirements
+  kind: revision
+  types:
+  - REQ
+result_kind: revision
+query:
+  from:
+    relation: incoming-links
+    of: requirements
+    link: implements
+    emit: source
+    types:
+    - IMP
+  as: item
+  where: 'state(item, "validity") == "valid" && none("newer-revisions@1", {subject: item})'
+  distinct: true
+  order_by:
+  - identity.revision_id
