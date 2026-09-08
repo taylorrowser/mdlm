@@ -17,8 +17,7 @@ query:
     types:
     - RES
   as: item
-  where: 'state(item, "validity") == "valid" && exists("requirements-for-result@1", {result: item}) && every("requirements-for-result@1",
-    {result: item}, req => req.payload.cases == item.payload.observations)'
+  where: 'state(item, "validity") == "valid" && exists("requirements-for-result@1", {result: item}) && item.payload.outcome == "pass"'
   distinct: true
   order_by:
   - identity.revision_id

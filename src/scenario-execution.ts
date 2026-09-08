@@ -1,3 +1,4 @@
+import { verificationContract, verificationBinding, requireVerificationReceipt } from "./verification-receipt.js";
 import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -990,6 +991,18 @@ async function submitScenario(
   if (linkDiagnostics.length > 0) return { ok: false, diagnostics: linkDiagnostics };
 
   const kernelFinalizedOutputs: KernelFinalizedScenarioOutput[] = [];
+  const verificationType = processPackage.kernelCapabilities["docker-verification@1"]?.type;
+  for (const output of outputData) {
+    if (output.datum.type !== verificationType) continue;
+    const contract = verificationContract(scenario);
+    if (!contract || output.proposal.name !== contract.output || "outcome" in output.datum.payload || "receipt" in output.datum.payload) return {ok: false, diagnostics: [{code: "verification-machine-fields", message: "Verification outcome and receipt must be materialized by the declared execution capability"}]};
+    try {
+      const captured = await requireVerificationReceipt(repositoryRoot, verificationBinding(submittedResponse.assignment, packageIdentity, scenario, dryRun));
+      output.datum.payload.outcome = captured.outcome;
+      output.datum.payload.receipt = captured.receipt;
+      kernelFinalizedOutputs.push({capability: "docker-verification@1", datum: output.datum});
+    } catch (error) { return {ok: false, diagnostics: [{code: "verification-receipt-invalid", message: String(error)}]}; }
+  }
   const exactBaselineType = processPackage.kernelCapabilities["exact-baseline@1"]?.type;
   if (exactBaselineType) {
     for (const output of outputData) {

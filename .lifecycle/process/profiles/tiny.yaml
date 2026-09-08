@@ -22,7 +22,7 @@ disabled_capabilities:
 - hierarchical requirement decomposition
 - architecture and interface definition
 - environment qualification
-- binary acceptance observations
+- custom verification image builds
 - long-running or interactive products
 terminal_outcomes:
   lifecycle_complete:

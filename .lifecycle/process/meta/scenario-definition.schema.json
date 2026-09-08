@@ -11,6 +11,7 @@
     "version": {"type": "integer", "minimum": 1},
     "description": {"type": "string", "minLength": 1},
     "initiation": {"const": "explicit"},
+    "kernel_execution": {"type":"object","additionalProperties":false,"required":["kind","implementation_input","requirements_input","output"],"properties":{"kind":{"const":"docker-verification@1"},"implementation_input":{"type":"string"},"requirements_input":{"type":"string"},"output":{"type":"string"}}},
     "kernel_materialization": {"$ref": "#/$defs/kernelMaterialization"},
     "phases": {"type": "array", "items": {"type": "string", "pattern": "^phase-[0-9]+-[a-z0-9-]+$"}, "minItems": 1, "uniqueItems": true},
     "inputs": {"type": "array", "items": {"$ref": "#/$defs/input"}},

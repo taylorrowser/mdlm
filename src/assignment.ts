@@ -1,3 +1,4 @@
+import { verificationBinding, verificationContract, runVerificationReceipt } from "./verification-receipt.js";
 import { createHash, randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promises as fs } from "node:fs";
@@ -636,6 +637,7 @@ export interface AssignmentPacket {
   completion: ScenarioDryRun["completion"];
   /** New packets emit these; optional for historical v3 packet readers/fixtures.
    * Ordinary submit-proposal input. Payload semantics are checked at submission. */
+  execution?: { command: string[]; receipt: string };
   authorValuesSchema?: Record<string, unknown>;
   authorValuesScaffold?: AssignmentAuthorValues;
   responseSchema: Record<string, unknown>;
@@ -3404,7 +3406,7 @@ function assignmentResponseSkeleton(
         resolved.type.payloadSchema,
         materialization?.output === route.output
           ? Object.values(materialization.payloadFields)
-          : [],
+          : resolved.type.kernelManagedPayloadPaths,
       );
       const identityInput = object(outputDefinition?.identity_from)?.input;
       const identityPayload = typeof identityInput === "string"
@@ -3863,6 +3865,7 @@ function packet(
       prompt,
       skills,
     },
+    ...(verificationContract(exact.scenario) ? {execution: {command: ["mdlm", "assignment", "run", "--json"], receipt: "Read the returned immutable Git receipt; submit only assessment and diagnosis."}} : {}),
     exactInputs: exact.dryRun.invocations,
     schemas,
     policies: exact.dryRun.policies,
@@ -3893,6 +3896,7 @@ function packet(
       ) as Record<string, unknown>;
       const handle = outputHandles.get(output.name) ?? output.name;
       const type = scaffoldTypes.get(handle)!;
+      const resolved = resolveType(exact.processPackage, type);
       return {
         ...output,
         handle,
@@ -3904,7 +3908,7 @@ function packet(
           schemas[type]!.payload,
           materialization?.output === output.name
             ? Object.values(materialization.payloadFields)
-            : [],
+            : resolved.ok ? resolved.type.kernelManagedPayloadPaths : [],
           requiredPayload,
         ),
       };
@@ -4584,4 +4588,26 @@ export async function inspectSubmissionSettlement(
     },
     diagnostics: [],
   };
+}
+
+/** Execute only the active Scenario's declared Docker verification capability. */
+export async function runAssignmentVerification(repositoryRoot: string, retry = false): Promise<AssignmentResult<unknown>> {
+  const persisted = await readLease(repositoryRoot);
+  if (!persisted.ok) return persisted;
+  const lease = persisted.value;
+  if (!lease || lease.disposition !== "active") return failure("assignment-unavailable", "No active Assignment to run");
+  return withRepositoryLock(repositoryRoot, leaseLockRef, async (renew) => {
+    const current = await readLease(repositoryRoot);
+    if (!current.ok || !exactActiveLease(current.value, lease)) return failure("assignment-unavailable", "Active Assignment changed");
+    const exact = await exactAssignment(repositoryRoot);
+    if (!exact.ok || !sameAssignment(lease, exact.value)) return failure("assignment-stale", "Assignment inputs changed before verification");
+    if (!verificationContract(exact.value.scenario) || !exact.value.processPackage.kernelCapabilities["docker-verification@1"]) return failure("assignment-execution-unavailable", "This Assignment declares no Docker execution capability");
+    try {
+      await renew();
+      const value = await runVerificationReceipt(repositoryRoot, verificationBinding(lease.id, lease.package, exact.value.scenario, exact.value.dryRun), retry);
+      await renew();
+      const result = value.receipt.result;
+      return {ok: true, value: {...value, display: result ? {stdoutUtf8: Buffer.from(result.stdoutBase64, "base64").toString("utf8"), stderrUtf8: Buffer.from(result.stderrBase64, "base64").toString("utf8")} : null}, diagnostics: []};
+    } catch (error) { return failure("verification-execution-error", String(error)); }
+  });
 }

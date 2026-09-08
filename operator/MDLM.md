@@ -16,6 +16,11 @@ On Attention Required, ask the authority named in `authorityRequirement` using
 only the returned attention context. Resume the exact Assignment after the
 answer. Never invent or self-supply authority.
 
+When the packet advertises execution, run `mdlm assignment run --json` before
+submitting. Inspect the returned receipt and captured output, then write the
+brief assessment requested by the packet. The CLI supplies execution outcome and
+receipt fields. Repeated ordinary execution reuses a completed receipt; use `mdlm assignment run --retry --json` only after repairing a failed environment attempt.
+
 Submit authored values from ignored work storage:
 
 ```bash
@@ -48,3 +53,5 @@ Stop successfully only on Profile Boundary Reached or Lifecycle Complete. Stop
 unsuccessfully on Process Dead End or Invalid and preserve the exact blockers or
 diagnostics. Also stop on typed inability, stale or exhausted Assignment, failed
 doctor, unexpected Git state, unauthenticated settlement, or command failure.
+
+Verification receipts retain raw stdout and stderr as base64. The command also renders derived UTF-8 text for inspection. Completed execution errors remain evidence and can be submitted with a diagnosis for implementation correction. If execution never started, repair the environment and explicitly use `assignment run --retry --json` to create another preserved attempt. An ordinary repeated run returns the existing receipt.

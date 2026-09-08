@@ -22,7 +22,9 @@ The host operating policy at `/home/ubuntu/git/mdlm-successor-demos/operations/O
 ## Operator-contract work
 
 Keep the ordinary public path to one `mdlm next --json` call and one
-`mdlm assignment submit-proposal --json` call. `mdlm-next@2` includes the
+`mdlm assignment submit-proposal --json` call. An execution Assignment also uses
+`mdlm assignment run --json` to prepare Docker, capture the committed script and
+produce the receipt before the author assesses it. `mdlm-next@2` includes the
 complete `mdlm-assignment-packet@3`; the harness returns only transient authored
 values; MDLM derives the exact `mdlm-assignment-response@2` and submits it through
 `submitAssignmentResponse`; submission returns `mdlm-submission-outcome@1`.
@@ -227,10 +229,12 @@ Historical V-model reports and decomposition levels describe the packages that
 produced them.
 
 The CLI owns mechanical checks before publication: schema and field validity,
-exact references, fixed values, and declared executable-result constraints.
+exact references, fixed values, execution receipt bindings, and script exit
+classification. The CLI captures Docker execution; the committed script owns
+assertions and agents briefly assess the captured run.
 Independent reviewers judge content, assumptions, acceptance adequacy, and whether
-the implementation and evidence support the claim. When a reviewer catches a
-mechanically decidable error, fix the owning CLI or package contract and retain
+the product, verification script and captured evidence support the claim. When a
+reviewer catches a mechanically decidable error, fix the owning CLI or package contract and retain
 one useful regression instead of adding another review instruction.
 
 The next learning loop is a correctly accepted tiny product and a preserved
