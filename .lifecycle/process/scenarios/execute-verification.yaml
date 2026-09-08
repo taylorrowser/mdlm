@@ -35,7 +35,8 @@ review_policy_ref: review-applicability@1
 completion: 'execution.integrity.contract_valid == true && (exists("requirements-for@1", {implementation: implementation})
   && every("requirements-for@1", {implementation: implementation}, req => req.identity.revision_id == requirements.identity.revision_id)
   && ((result.payload.observations == requirements.payload.cases && result.payload.correction_target == "none")
-  || (result.payload.observations != requirements.payload.cases && result.payload.correction_target != "none")))'
+  || (result.payload.observations != requirements.payload.cases && result.payload.correction_target != "none")))
+  && array_fields_equal(requirements.payload.cases, result.payload.observations, ["id", "stdin"])'
 resolves:
 - verification-required
 prohibited_inputs: []

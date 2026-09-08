@@ -38,7 +38,8 @@ outputs:
     input: subject
 prompt_ref: prompts/correct-product.md@1
 review_policy_ref: review-applicability@1
-completion: execution.integrity.contract_valid == true && (true)
+completion: 'execution.integrity.contract_valid == true && failure.payload.correction_target == "implementation"
+  && !every("correction-subjects-for@1", {failure: failure}, corrected => corrected.identity.revision_id != subject.identity.revision_id)'
 resolves:
 - product-correction
 prohibited_inputs: []

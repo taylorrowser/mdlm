@@ -21,7 +21,8 @@ and evidence quality. The CLI checks schema, identities, exact links, publicatio
 contracts and the expected/actual comparison before accepting submissions.
 
 Each case is an object with `id`, `stdin`, `stdout`, `stderr`, and `exit_code`.
-Strings are plain UTF-8; JSON escapes represent newlines. Observations use the
+The CLI rejects duplicate case IDs, missing or extra observations, reordered IDs,
+and observations bound to the wrong stdin before publication. Strings are plain UTF-8; JSON escapes represent newlines. Observations use the
 same shape and order, with actual outputs. Complete array equality determines
 the computed `verification-outcome` state. No author supplies an outcome or a
 second factual prose summary. A mismatch requires the author to diagnose

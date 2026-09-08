@@ -30,7 +30,9 @@ outputs:
     input: subject
 prompt_ref: prompts/correct-expectations.md@1
 review_policy_ref: review-applicability@1
-completion: execution.integrity.contract_valid == true && (true)
+completion: 'execution.integrity.contract_valid == true && failure.payload.correction_target == "requirements" &&
+  !every("correction-subjects-for@1", {failure: failure}, corrected => corrected.identity.revision_id != subject.identity.revision_id)
+  && array_unique_field(requirements.payload.cases, "id")'
 resolves:
 - expectation-correction
 prohibited_inputs: []

@@ -30,7 +30,9 @@ outputs:
     input: subject
 prompt_ref: prompts/correct-requirements-after-review.md@1
 review_policy_ref: review-applicability@1
-completion: execution.integrity.contract_valid == true && (true)
+completion: 'execution.integrity.contract_valid == true && (true) && exists("fail-reviews@1", {subject: subject})
+  && every("fail-reviews@1", {subject: subject}, failed => failed.identity.revision_id == failure.identity.revision_id)
+  && array_unique_field(requirements.payload.cases, "id")'
 resolves:
 - requirements-review-correction
 prohibited_inputs: []

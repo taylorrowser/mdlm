@@ -15,7 +15,8 @@ outputs:
     publication: recorded
 prompt_ref: prompts/draft-requirements.md@1
 review_policy_ref: review-applicability@1
-completion: execution.integrity.contract_valid == true && (true) && count("current-requirements@1", {}) == 1
+completion: execution.integrity.contract_valid == true && (true) && count("current-requirements@1", {}) == 1 &&
+  array_unique_field(requirements.payload.cases, "id")
 resolves:
 - requirements-required
 prohibited_inputs: []
