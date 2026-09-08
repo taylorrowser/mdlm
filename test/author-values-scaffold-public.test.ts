@@ -24,7 +24,7 @@ it("fills the emitted author scaffold and submits it without structural repair",
     expect(authored).toBeDefined();
     expect(authored.outputs[0]).toEqual({
       slot: "requirements", payload: {
-        title: null, intent: null, source: null, commitments: null, cases: null,
+        title: null, intent: null, source: null, commitments: null,
       }, body: "",
     });
     Object.assign(authored.outputs[0].payload, {
@@ -32,7 +32,6 @@ it("fills the emitted author scaffold and submits it without structural repair",
       intent: "Count ASCII spaces in standard input.",
       source: "Stakeholder requests an ASCII space counter.",
       commitments: ["Print the ASCII space count followed by newline."],
-      cases: [{ id: "empty", stdin: "", stdout: "0\n", stderr: "", exit_code: 0 }],
     });
     authored.completionEvidence = { summary: "Requirements capture the stakeholder request." };
     const validate = new Ajv2020({ strict: false }).compile(packet.authorValuesSchema);

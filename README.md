@@ -10,12 +10,11 @@ The default tiny Process Package uses one requirement level. Its normal route is
 requirements, independent requirement review, implementation, executable
 verification run by the CLI in Docker, independent implementation review, and
 stakeholder acceptance.
-Requirements carry product intent and acceptance examples together. Tiny products
+Requirements carry product intent and observable commitments together. Tiny products
 do not need separate system, component, architecture, or design records.
 
 The CLI validates structure, references, fixed values, and declared mechanical
-constraints before atomic publication. Reviewers judge whether requirements and
-examples express the intended product and whether implementation and evidence
+constraints before atomic publication. Reviewers judge whether requirements express the intended product and whether implementation and evidence
 justify acceptance. The CLI captures script output and classifies its exit status.
 Reviewers check whether the script proves the intended behavior.
 
