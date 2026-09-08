@@ -1,23 +1,23 @@
 # Markdown Lifecycle Manager
 
-MDLM's product boundary is the `mdlm` CLI operating on Markdown Lifecycle Data
-and a declarative YAML Process Package. Any agent or harness can drive that
-contract. Pi, Codex, and other runners are adapters and sources of operational
-evidence, not part of the product boundary.
+MDLM helps agents deliver a small software product with durable requirements,
+independent review, and verification evidence. Each publication records exact
+revisions so another agent can continue the work and understand what was checked.
+The product is the `mdlm` CLI over Markdown Lifecycle Data and a declarative
+Process Package. Pi, Codex, and other harnesses operate that contract.
 
-The kernel remains process-neutral. The bundled Example Process Package provides
-a bounded software V-model profile without making its types, phases, or Policies
-core semantics.
+The default tiny Process Package uses one requirement level. Its normal route is
+requirements, independent requirement review, implementation, executable
+verification performed by the harness, independent implementation review, and
+stakeholder acceptance.
+Requirements carry product intent and acceptance examples together. Tiny products
+do not need separate system, component, architecture, or design records.
 
-## Current restoration gate
-
-The outcome-contract cutover deliberately stopped the demo fleet. Restore it
-through one fresh disposable canary built from exact source, runner, artifact,
-and Process Package identities. The canary must complete Phase 0, including one
-rejected then corrected Review proposal, and enter the first Phase 1 RUN/RES
-loop without a contract, authority-envelope, missing-input, generated-ID, or
-ambiguous-publication failure. Restore the one-Codex/two-Pi fleet only after that
-journey passes.
+The CLI validates structure, references, fixed values, and declared mechanical
+constraints before atomic publication. Reviewers judge whether requirements and
+examples express the intended product and whether implementation and evidence
+justify acceptance. The CLI checks reported results for consistency; it does not
+authenticate execution. A structurally valid proposal can still be wrong.
 
 ## Operator contract
 
@@ -163,13 +163,15 @@ uncertain closure are never replayed.
 - Canonical domain language: [`CONTEXT.md`](CONTEXT.md)
 - Pi SDK adapter: [`packages/mdlm-pi/README.md`](packages/mdlm-pi/README.md)
 - Pi prompt adapter: [`docs/mdlm-pi-operator.md`](docs/mdlm-pi-operator.md)
-- Current conformance report: [`docs/mdlm-v0.8-implementation-conformance.md`](docs/mdlm-v0.8-implementation-conformance.md)
+- Historical v0.8 conformance report: [`docs/mdlm-v0.8-implementation-conformance.md`](docs/mdlm-v0.8-implementation-conformance.md)
 - Phase-hardening proof: [`docs/clean-pilot-103.md`](docs/clean-pilot-103.md)
 - Zero-to-assessment evidence: [`docs/zero-to-assessment-pilot.md`](docs/zero-to-assessment-pilot.md)
 - Historical v0.8 design baseline: [`docs/mdlm-process-overview-v0.8.md`](docs/mdlm-process-overview-v0.8.md)
 
-The concept-validating profile is not a production-readiness or complete-V-model
-claim. Phase 3–6 breadth, production indexing, source isolation, brownfield
-support, formal compliance, and broader concurrency remain deferred. The reviewed
-Pilot Assessment recommendation is `change`: future breadth must reduce ceremony
-and demonstrate actual scope reduction.
+The kernel stays process-neutral. Broader Process Packages may define additional
+requirement levels and assurance work. The tiny route is the default while we
+measure correct accepted delivery, recovery from mistakes, publications, elapsed
+time, and human interventions. Add process when repeated runs reveal a need.
+See [the tiny-process decision](docs/adr/0005-start-tiny-products-with-one-requirement-level.md)
+and [development guidance](docs/agents/mdlm-development.md). Historical pilot and
+V-model reports above describe their recorded package versions.

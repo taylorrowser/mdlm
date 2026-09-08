@@ -1,0 +1,30 @@
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -14,8 +14,7 @@
+-Treat reliable, simpler Lifecycle Data authoring on tiny demos as the current
+-campaign. Before assigning a demo manager, apply the scale ladder in
+-`/home/ubuntu/git/mdlm/docs/agents/mdlm-development.md`. Keep demos at the tiny
+-tier until its durable reliability gate passes. For every demo, record its tier,
+-requirements and decomposition question, exact trace proof, exact verification
+-proof, and discriminating result. After the gate passes, add one complexity
+-dimension per tier. These records define the demo's acceptance proof; the
+-existing terminal-or-transfer rule still owns manager tenure.
++Treat reliable, simpler Lifecycle Data authoring on tiny products as the current
++campaign. Apply the tiny-product guidance in `docs/agents/mdlm-development.md`
++from the exact MDLM worktree or release candidate assigned to the work, and
++record its commit when coordinating a demo. Measure correct accepted delivery,
++correction recovery, publications, elapsed time, and human interventions before
++adding a complexity dimension. Use the selected package's requirement and
++evidence model. The existing terminal-or-transfer rule still owns manager tenure.
+@@ -32 +31,7 @@
+-Before any MDLM development, release, or demonstration work, read `/home/ubuntu/git/mdlm/docs/agents/mdlm-development.md` and `/home/ubuntu/git/mdlm-successor-demos/operations/OPERATING-POLICY.md`. The operating policy owns portfolio selection, progress measures, defect flow, release cadence, resources, and completion criteria.
++Before any MDLM development, release, or demonstration work, read
++`docs/agents/mdlm-development.md` from the exact assigned MDLM worktree or release
++candidate and `/home/ubuntu/git/mdlm-successor-demos/operations/OPERATING-POLICY.md`.
++The shared `/home/ubuntu/git/mdlm` checkout is non-authoritative reference state
++and must not supply current development rules. The operating policy owns
++portfolio selection, progress measures, defect flow, release cadence, resources,
++and completion criteria.
+@@ -36 +41 @@
+-- Before creating, claiming, triaging, or implementing an MDLM or runner issue, read `/home/ubuntu/git/mdlm/docs/agents/issue-tracker.md` and `/home/ubuntu/git/mdlm/docs/agents/triage-labels.md`. Claim implementation work with `agent:in-progress` before changing its worktree.
++- Before creating, claiming, triaging, or implementing an MDLM or runner issue, read `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md` from that exact assigned MDLM worktree or release candidate. Claim implementation work with `agent:in-progress` before changing its worktree.
