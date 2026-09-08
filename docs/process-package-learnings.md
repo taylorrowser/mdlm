@@ -143,7 +143,7 @@ cannot omit its route.
 
 ## 9. The CLI captures execution evidence
 
-Issue: #727.
+Issues: #727, #730.
 
 Pattern: run243 accepted matching agent-authored expected and observed strings
 that contained literal backslash-n while the product emitted newline bytes.
@@ -157,6 +157,9 @@ values and diagnostic submission cannot replace them. The script owns assertions
 and distinguishes assertion failure from execution error. The existing content
 Review judges assertion coverage, and the author briefly assesses the captured
 run. Script correction creates a new implementation revision and fresh capture.
+Requirements retain intent and observable commitments. Once the script owns
+executable expectations, remove duplicate structured expectation fields from
+requirements, prompts and fixtures instead of keeping two claims to reconcile.
 
 Check: one public CLI Docker journey preserves a literal-backslash-n assertion
 failure, distinguishes execution error, corrects the script, and records a fresh

@@ -7,8 +7,8 @@ UTF-8 input and output. Earlier package history remains in Git.
 The normal journey is six Assignments:
 
 1. Write one `REQ` containing the stakeholder request source, intent, observable
-   commitments, and readable acceptance cases.
-2. Independently review that content and the expected outputs in one `REV`.
+   commitments.
+2. Independently review that content in one `REV`.
 3. Implement the product and verification script, recording one `IMP` linked
    to the exact reviewed `REQ`.
 4. Run the committed verification script through the CLI in Docker and assess
@@ -22,11 +22,10 @@ review-context preparation or gate-signoff Assignments. Reviews judge meaning
 and evidence quality. The CLI checks schema, identities, exact links, publication
 contracts, execution receipts and script exit classification before publication.
 
-Requirement cases contain readable `id`, `stdin`, `stdout`, `stderr`, and
-`exit_code` examples. JSON escapes represent actual newlines. The CLI rejects
-duplicate case IDs. The committed script owns executable assertions, including
-argument or file checks outside the readable stdin examples. Its exit 0 means
-pass, exit 1 means assertion failure, and other exits mean execution error.
+Requirements state intent and observable commitments. Concrete examples may appear
+in prose when useful. The committed verification script is the only executable
+expectation format, including input, argument and file assertions. Its exit 0
+means pass, exit 1 means assertion failure, and other exits mean execution error.
 Handle unexpected script exceptions separately from assertion failures.
 
 The implementation records an absolute `repository_path`, exact `source_commit`,

@@ -1,7 +1,7 @@
 kind: scenario-definition
 id: review-requirements
 version: 1
-description: Review requirements and acceptance examples
+description: Review requirements
 phases:
 - phase-0-tiny-product
 inputs:

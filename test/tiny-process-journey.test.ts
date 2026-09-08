@@ -82,7 +82,6 @@ it("captures Docker script failure, error and corrected success without authored
           title: "Comma counter", intent: "Count ASCII commas from stdin.",
           source: "Stakeholder requests a comma count and rejects arguments.",
           commitments: ["Print the ASCII comma count and a newline.", "Reject arguments with exit 2, no stdout and usage on stderr."],
-          cases: [{ id: "commas", stdin: "a,b,c", stdout: "2\n", stderr: "", exit_code: 0 }],
         };
       } else if (type === "IMP") {
         // Stage zero reproduces the real demo's literal-backslash transcription.

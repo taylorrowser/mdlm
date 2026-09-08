@@ -223,8 +223,8 @@ Keep release candidates separate from demo history. Demo records answer what hap
 ## Tiny products first
 
 Use the default tiny Process Package for new tiny products. Keep stakeholder
-intent, software commitments, and executable acceptance examples at one
-requirement level. Use its direct implementation and verification route.
+intent and observable software commitments at one requirement level. Keep
+executable expectations in the committed verification script. Use its direct implementation and verification route.
 Historical V-model reports and decomposition levels describe the packages that
 produced them.
 

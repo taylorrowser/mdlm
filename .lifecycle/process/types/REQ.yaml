@@ -17,7 +17,6 @@ payload_schema:
   - publication
   - intent
   - commitments
-  - cases
   - source
   properties:
     publication:
@@ -29,30 +28,6 @@ payload_schema:
       type: array
       minItems: 1
       items: *id001
-    cases:
-      type: array
-      minItems: 1
-      items:
-        type: object
-        additionalProperties: false
-        required:
-        - id
-        - stdin
-        - stdout
-        - stderr
-        - exit_code
-        properties:
-          id: *id001
-          stdin:
-            type: string
-          stdout:
-            type: string
-          stderr:
-            type: string
-          exit_code:
-            type: integer
-            minimum: 0
-            maximum: 255
     source:
       type: string
       minLength: 1
