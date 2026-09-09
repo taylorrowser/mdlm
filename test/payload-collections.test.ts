@@ -1,106 +1,83 @@
-import path from "node:path";
-import { beforeAll, expect, test } from "vitest";
-import { Ajv2020 } from "ajv/dist/2020.js";
-import { loadProcessPackage, resolveType, type DatumEnvelope, type LifecycleRecord, type ProcessPackage, type ResolvedType } from "../src/index.js";
+import { expect, test } from "vitest";
+import { resolveType, type DatumEnvelope, type LifecycleRecord, type ProcessPackage } from "../src/index.js";
 import { renderPayloadViews, validatePayloadCollections, validatePayloadCollectionDefinitions } from "../src/payload-collections.js";
 
-let pkg: ProcessPackage;
-let reqType: ResolvedType;
-let impType: ResolvedType;
-beforeAll(async () => {
-  const loaded = await loadProcessPackage(path.join(process.cwd(), ".lifecycle/process"));
-  if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
-  pkg = loaded.package;
-  const req = resolveType(pkg, "REQ"), imp = resolveType(pkg, "IMP");
-  if (!req.ok || !imp.ok) throw new Error("Unresolved types");
-  reqType = req.type; impType = imp.type;
-});
-function requirements(): DatumEnvelope {
-  return { id: "REQ-0000000001", revision_id: "REQ-0000000001-r00001", revision: 1, type: "REQ", links: [], body: "", created_by: { process_ref: "test" },
-    payload: { title: "Tasks", publication: "recorded", intent: "Keep tasks", source: "stakeholder request", outcomes: [{ id: "O1", statement: "Keep unfinished tasks" }], commitments: [
-      { id: "R1", level: "software", outcome_ids: ["O1"], parent_ids: [], ears: { pattern: "event", event: "the user adds a task", system: "the task CLI", response: "persist the task" } },
-    ] } };
+// A package-neutral fixture. The tiny requirement graph no longer uses payload rows.
+const string = { type: "string" };
+const strings = { type: "array", items: string };
+const pkg: ProcessPackage = {
+  root: ".", manifest: { id: "collection-fixture", version: "1.0.0" },
+  kernelCapabilities: {}, envelopeSchema: {}, templates: {},
+  types: {
+    SET: {
+      kind: "type-definition", id: "SET", version: 1,
+      payload_schema: { properties: {
+        groups: { type: "array", items: { properties: { id: string } } },
+        entries: { type: "array", items: { properties: { id: string, role: string, group_ids: strings, parents: strings, label: string } } },
+      } },
+      payload_collections: [
+        { path: "groups", key: "id" },
+        { path: "entries", key: "id", references: [
+          { field: "group_ids", target: "groups", key: "id", covered: true, coverage_where: { field: "role", equals: "primary" } },
+          { field: "parents", target: "entries", key: "id", acyclic: true },
+        ] },
+      ],
+      payload_views: [{ title: "Entries", path: "entries", columns: [
+        { title: "ID", fragments: [{ field: "id" }] },
+        { title: "Description", fragments: [{ field: "label", prefix: "Item: ", suffix: "." }] },
+      ] }],
+    },
+    EVD: {
+      kind: "type-definition", id: "EVD", version: 1,
+      payload_schema: { properties: { mappings: { type: "array", items: { properties: { entry_id: string } } } } },
+      outgoing_links: [{ id: "maps", targets: [{ kind: "datum", types: ["SET"], identity: "revision" }], cardinality: { minimum: 1, maximum: 1 } }],
+      payload_collections: [{ path: "mappings", references: [{ field: "entry_id", target: "entries", key: "id", link: "maps", covered: true }] }],
+    },
+  },
+  policies: {}, states: {}, selectors: {}, obligations: {}, scenarios: {}, phases: {}, profiles: {}, aliases: {}, primitives: {},
+};
+function type(id: string, process = pkg) {
+  const resolved = resolveType(process, id);
+  if (!resolved.ok) throw new Error(JSON.stringify(resolved.diagnostics));
+  return resolved.type;
 }
-function record(datum: DatumEnvelope): LifecycleRecord {
-  return { datum, storage: { editable: false, frozen: true }, integrity: {} } as LifecycleRecord;
+function selection(): DatumEnvelope {
+  return { id: "SET-0000000001", revision_id: "SET-0000000001-r00001", revision: 1, type: "SET", links: [], body: "", created_by: { process_ref: "test" },
+    payload: { groups: [{ id: "G1" }], entries: [{ id: "E1", role: "primary", group_ids: ["G1"], parents: [], label: "First" }] } };
 }
-const rows = (datum: DatumEnvelope) => datum.payload.commitments as Record<string, any>[];
+const entries = (datum: DatumEnvelope) => datum.payload.entries as Record<string, any>[];
+const record = (datum: DatumEnvelope) => ({ datum, storage: { editable: false, frozen: true }, integrity: {} }) as LifecycleRecord;
 
-test("EARS schema rejects missing or incompatible guards and allows all patterns", () => {
-  const validate = new Ajv2020({ strict: false, allErrors: true }).compile(reqType.payloadSchema);
-  const datum = requirements();
-  for (const ears of [
-    { pattern: "ubiquitous" }, { pattern: "event", event: "a request arrives" },
-    { pattern: "state", state: "offline" }, { pattern: "optional", feature: "storage is configured" },
-    { pattern: "unwanted", unwanted: "storage is malformed" },
-    { pattern: "complex", state: "offline", event: "a request arrives" },
-  ]) {
-    rows(datum)[0]!.ears = { ...ears, system: "the product", response: "respond" };
-    expect(validate(datum.payload), JSON.stringify(validate.errors)).toBe(true);
-  }
-  for (const ears of [{ pattern: "event" }, { pattern: "ubiquitous", event: "request" }, { pattern: "complex", state: "offline" }, { pattern: "complex", event: "request", unwanted: "error" }]) {
-    rows(datum)[0]!.ears = { ...ears, system: "the product", response: "respond" };
-    expect(validate(datum.payload)).toBe(false);
-  }
-});
-
-test("local references reject missing outcomes, missing parents, uncovered outcomes and cycles", () => {
-  const mutations: [string, (datum: DatumEnvelope) => void][] = [
-    ["Unknown reference", (d) => { rows(d)[0]!.outcome_ids = ["missing"]; }],
-    ["Unknown reference", (d) => { rows(d)[0]!.parent_ids = ["missing"]; }],
-    ["No declared mapping", (d) => { (d.payload.outcomes as unknown[]).push({ id: "O2", statement: "Other outcome" }); }],
-    ["cycle", (d) => { rows(d).push({ ...rows(d)[0], id: "R2", level: "allocated", allocation: "storage", parent_ids: ["R3"] }, { ...rows(d)[0], id: "R3", level: "allocated", allocation: "storage", parent_ids: ["R2"] }); }],
+test("generic collections enforce keys, references, cycles and contributor coverage", () => {
+  expect(validatePayloadCollections(type("SET"), selection(), [])).toEqual([]);
+  const mutations: [string, (d: DatumEnvelope) => void][] = [
+    ["Duplicate local key", (d) => entries(d).push({ ...entries(d)[0] })],
+    ["Unknown reference", (d) => { entries(d)[0]!.group_ids = ["missing"]; }],
+    ["Unknown reference", (d) => { entries(d)[0]!.parents = ["missing"]; }],
+    ["cycle", (d) => { entries(d)[0]!.parents = ["E1"]; }],
+    ["No declared mapping", (d) => { entries(d)[0]!.role = "secondary"; }],
   ];
-  expect(validatePayloadCollections(reqType, requirements(), [])).toEqual([]);
   for (const [message, mutate] of mutations) {
-    const datum = requirements(); mutate(datum);
-    expect(validatePayloadCollections(reqType, datum, []).some((d) => d.message.includes(message))).toBe(true);
+    const datum = selection(); mutate(datum);
+    expect(validatePayloadCollections(type("SET"), datum, []).some((d) => d.message.includes(message))).toBe(true);
   }
 });
 
-test("each outcome requires software coverage, even when an allocated child cites it", () => {
-  const datum = requirements();
-  (datum.payload.outcomes as unknown[]).push({ id: "O2", statement: "Second stakeholder outcome" });
-  rows(datum).push({ id: "R2", level: "allocated", allocation: "storage", outcome_ids: ["O2"], parent_ids: ["R1"], ears: { pattern: "ubiquitous", system: "storage", response: "retain data" } });
-  const validate = new Ajv2020({ strict: false }).compile(reqType.payloadSchema);
-  expect(validate(datum.payload)).toBe(true);
-  expect(validatePayloadCollections(reqType, datum, []).some((d) => d.message.includes("No declared mapping covers 'O2'"))).toBe(true);
-  rows(datum).push({ ...rows(datum)[0], id: "R3", outcome_ids: ["O2"] });
-  expect(validatePayloadCollections(reqType, datum, [])).toEqual([]);
-  rows(datum)[1]!.outcome_ids = ["missing"];
-  expect(validatePayloadCollections(reqType, datum, []).some((d) => d.message.includes("Unknown reference 'missing'"))).toBe(true);
+test("generic linked coverage uses the exact revision and allows multiple mappings", () => {
+  const original = selection();
+  const newer = structuredClone(original); newer.revision = 2; newer.revision_id = "SET-0000000001-r00002"; entries(newer)[0]!.id = "E2";
+  const evidence: DatumEnvelope = { ...original, type: "EVD", links: [{ type: "maps", target: original.revision_id }], payload: { mappings: [{ entry_id: "E1" }, { entry_id: "E1" }] } };
+  expect(validatePayloadCollections(type("EVD"), evidence, [record(newer), record(original)])).toEqual([]);
+  evidence.payload.mappings = [{ entry_id: "E2" }];
+  const diagnostics = validatePayloadCollections(type("EVD"), evidence, [record(newer), record(original)]);
+  expect(diagnostics.some((d) => d.message.includes("Unknown reference 'E2'"))).toBe(true);
+  expect(diagnostics.some((d) => d.message.includes("No declared mapping covers 'E1'"))).toBe(true);
 });
 
-test("coverage resolves only the exact linked requirement revision and permits several evidence rows", () => {
-  const original = requirements();
-  const newer = structuredClone(original); newer.revision = 2; newer.revision_id = "REQ-0000000001-r00002"; rows(newer)[0]!.id = "R2";
-  const implementation: DatumEnvelope = { ...original, type: "IMP", links: [{ type: "implements", target: original.revision_id }], payload: { verification_coverage: [{ commitment_id: "R1", method: "test", file: "verify.py", locator: "add" }, { commitment_id: "R1", method: "inspection", file: "tasks.py", locator: "save" }] } };
-  expect(validatePayloadCollections(impType, implementation, [record(newer), record(original)])).toEqual([]);
-  (implementation.payload.verification_coverage as any[])[0].commitment_id = "R2";
-  expect(validatePayloadCollections(impType, implementation, [record(newer), record(original)]).some((d) => d.message.includes("Unknown reference 'R2'"))).toBe(true);
-  implementation.payload.verification_coverage = [];
-  expect(validatePayloadCollections(impType, implementation, [record(original)]).some((d) => d.message.includes("No declared mapping"))).toBe(true);
-});
-
-test("views derive EARS and evidence rows from fields without a second authored sentence", () => {
-  const datum = requirements();
-  const expected = [
-    [{ pattern: "ubiquitous" }, "the product shall respond."],
-    [{ pattern: "event", event: "a request arrives" }, "When a request arrives, the product shall respond."],
-    [{ pattern: "state", state: "offline" }, "While offline, the product shall respond."],
-    [{ pattern: "optional", feature: "storage is configured" }, "Where storage is configured, the product shall respond."],
-    [{ pattern: "unwanted", unwanted: "storage is malformed" }, "If storage is malformed, then the product shall respond."],
-    [{ pattern: "complex", state: "offline", event: "a request arrives" }, "While offline, When a request arrives, the product shall respond."],
-  ] as const;
-  for (const [ears, sentence] of expected) {
-    rows(datum)[0]!.ears = { ...ears, system: "the product", response: "respond" };
-    expect(renderPayloadViews(reqType, datum.payload)[1]!.rows[0]!.at(-1)).toBe(sentence);
-  }
-  expect(renderPayloadViews(impType, { verification_coverage: [{ commitment_id: "R1", method: "test", file: "verify.py", locator: "add" }] })[0]!.rows).toEqual([["R1", "test", "verify.py", "add"]]);
-});
-
-test("invalid declaration paths fail package contract checking", () => {
+test("generic views derive rows and bad declaration fields fail validation", () => {
+  expect(renderPayloadViews(type("SET"), selection().payload)[0]!.rows).toEqual([["E1", "Item: First."]]);
+  expect(validatePayloadCollectionDefinitions(pkg, (id) => type(id))).toEqual([]);
   const bad = structuredClone(pkg);
-  (bad.types.REQ!.payload_collections as any[])[1].references[0].field = "typo";
-  expect(validatePayloadCollectionDefinitions(bad, (id) => { const resolved = resolveType(bad, id); return resolved.ok ? resolved.type : undefined; }).some((d) => d.message.includes("typo"))).toBe(true);
+  (bad.types.SET!.payload_collections as any[])[1].references[0].field = "typo";
+  expect(validatePayloadCollectionDefinitions(bad, (id) => type(id, bad)).some((d) => d.message.includes("typo"))).toBe(true);
 });
