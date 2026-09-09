@@ -1,0 +1,185 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import type { DatumEnvelope, ProcessDiagnostic, ProcessPackage } from "./index.js";
+import { deriveSourceScopes, type SourceEntry } from "./source-scopes.js";
+
+const exec = promisify(execFile);
+export interface RequirementTraceBinding {
+  type: string;
+  requirement_type: string;
+  implementation_type: string;
+  scope_type: string;
+}
+export function requirementTraceBinding(pkg: ProcessPackage): RequirementTraceBinding | undefined {
+  const binding = pkg.kernelCapabilities["requirement-trace@1"];
+  return binding as RequirementTraceBinding | undefined;
+}
+export function latestRequirements(data: DatumEnvelope[], binding: RequirementTraceBinding): DatumEnvelope[] {
+  const latest = new Map<string, DatumEnvelope>();
+  for (const datum of data) {
+    if (datum.type !== binding.requirement_type) continue;
+    if ((latest.get(datum.id)?.revision ?? 0) < datum.revision) latest.set(datum.id, datum);
+  }
+  return [...latest.values()].sort((a, b) => a.revision_id.localeCompare(b.revision_id));
+}
+export interface SelectedRequirementGraph {
+  requirements: DatumEnvelope[];
+  leaves: Set<string>;
+  diagnostics: ProcessDiagnostic[];
+}
+export function selectedRequirementGraph(
+  data: DatumEnvelope[], set: DatumEnvelope, binding: RequirementTraceBinding, requireCurrent = false,
+): SelectedRequirementGraph {
+  const diagnostics: ProcessDiagnostic[] = [];
+  const fail = (code: string, message: string, path = set.revision_id) => diagnostics.push({ code, message, path });
+  const byRevision = new Map(data.map((d) => [d.revision_id, d]));
+  const targets = set.links.filter((l) => l.type === "contains").map((l) => l.target);
+  const requirements = targets.flatMap((id) => {
+    const datum = byRevision.get(id);
+    if (!datum || datum.type !== binding.requirement_type) {
+      fail("trace-requirement-reference", `Selected requirement '${id}' is not an exact requirement revision`);
+      return [];
+    }
+    return [datum];
+  });
+  if (!requirements.length) fail("trace-requirements-empty", "A requirement graph must contain stakeholder and software requirements");
+  if (new Set(requirements.map((d) => d.id)).size !== requirements.length) fail("trace-requirement-duplicate", "Select exactly one revision of each requirement");
+  const selected = new Map(requirements.map((d) => [d.revision_id, d]));
+  const parents = new Map(requirements.map((d) => [d.revision_id, d.links.filter((l) => l.type === "decomposes").map((l) => l.target)]));
+  const children = new Set<string>();
+  for (const requirement of requirements) {
+    const targets = parents.get(requirement.revision_id)!;
+    if (new Set(targets).size !== targets.length) fail("trace-decomposition-duplicate", "A decomposition parent may be linked only once", requirement.revision_id);
+    if (requirement.payload.kind === "stakeholder" && targets.length) fail("trace-stakeholder-parent", "Stakeholder roots cannot decompose another requirement", requirement.revision_id);
+    if (requirement.payload.kind === "software" && !targets.length) fail("trace-software-parent", "Software requirements must decompose at least one selected parent", requirement.revision_id);
+    for (const target of targets) {
+      if (!selected.has(target)) fail("trace-decomposition-outside-selection", `Parent '${target}' is outside the exact selected graph`, requirement.revision_id);
+      children.add(target);
+    }
+  }
+  const visited = new Set<string>();
+  const visiting = new Set<string>();
+  const rooted = new Map<string, boolean>();
+  function visit(id: string): boolean {
+    if (visiting.has(id)) { fail("trace-decomposition-cycle", `Decomposition cycle at '${id}'`); return false; }
+    if (visited.has(id)) return rooted.get(id) ?? false;
+    const datum = selected.get(id);
+    if (!datum) return false;
+    visiting.add(id);
+    const ancestry = (parents.get(id) ?? []).map(visit);
+    const hasRoot = datum.payload.kind === "stakeholder" || (ancestry.length > 0 && ancestry.every(Boolean));
+    visiting.delete(id); visited.add(id); rooted.set(id, hasRoot);
+    return hasRoot;
+  }
+  for (const requirement of requirements) if (!visit(requirement.revision_id)) fail("trace-stakeholder-unreachable", `Requirement '${requirement.revision_id}' has no complete decomposition path to a stakeholder root`);
+  if (requireCurrent) {
+    const expected = latestRequirements(data, binding).map((d) => d.revision_id);
+    if (JSON.stringify([...targets].sort()) !== JSON.stringify(expected)) fail("trace-selection-stale", "The selected graph must include every current requirement revision; publish a reassessed requirement set before implementation");
+  }
+  const leaves = new Set(requirements.filter((d) => d.payload.kind === "software" && !children.has(d.revision_id)).map((d) => d.revision_id));
+  for (const root of requirements.filter((d) => d.payload.kind === "stakeholder")) {
+    if (!children.has(root.revision_id)) fail("trace-stakeholder-uncovered", "Every stakeholder root must be decomposed into software behavior", root.revision_id);
+  }
+  if (!leaves.size) fail("trace-software-leaf-missing", "The graph must have a software leaf eligible for implementation");
+  return { requirements, leaves, diagnostics };
+}
+
+export function traceDatumDiagnostics(pkg: ProcessPackage, datum: DatumEnvelope, data: DatumEnvelope[]): ProcessDiagnostic[] {
+  const binding = requirementTraceBinding(pkg);
+  if (!binding) return [];
+  if (datum.type === binding.type) return selectedRequirementGraph(data, datum, binding).diagnostics;
+  if (datum.type !== binding.scope_type) return [];
+  const implementation = data.find((d) => d.revision_id === datum.links.find((l) => l.type === "belongs-to")?.target);
+  const set = data.find((d) => d.revision_id === implementation?.links.find((l) => l.type === "implements")?.target);
+  if (!set || set.type !== binding.type) return [{ code: "trace-scope-selection", path: datum.revision_id, message: "Source scope must belong to an implementation with an exact requirement set" }];
+  const graph = selectedRequirementGraph(data, set, binding);
+  const targets = datum.links.filter((l) => l.type === "implements" || l.type === "verifies");
+  if (!targets.some((l) => graph.leaves.has(l.target)) || targets.some((l) => !graph.requirements.some((r) => r.revision_id === l.target) || (l.type === "implements" && !graph.leaves.has(l.target)))) {
+    return [{ code: "trace-scope-target", path: datum.revision_id, message: "Every source scope needs a selected software leaf; implements may only target selected leaves" }];
+  }
+  return [];
+}
+
+export async function deriveImplementationScopes(
+  implementation: DatumEnvelope, data: DatumEnvelope[], binding: RequirementTraceBinding,
+) {
+  const diagnostics: ProcessDiagnostic[] = [];
+  const selection = data.find((d) => d.revision_id === implementation.links.find((l) => l.type === "implements")?.target && d.type === binding.type);
+  if (!selection) return { diagnostics: [{ code: "trace-selection-missing", message: "Implementation must bind one exact requirement graph" }], inventory: [], scopes: [] };
+  const graph = selectedRequirementGraph(data, selection, binding, true);
+  if (graph.diagnostics.length) return { diagnostics: graph.diagnostics, inventory: [], scopes: [] };
+  const cwd = String(implementation.payload.repository_path);
+  const commit = String(implementation.payload.source_commit);
+  if (!/^[0-9a-f]{40}$/.test(commit)) return { diagnostics: [{ code: "trace-source-commit", message: "Source commit must be an exact Git commit" }], inventory: [], scopes: [] };
+  try {
+    const { stdout } = await exec("git", ["ls-tree", "-rz", "--full-tree", commit], { cwd, encoding: "buffer", maxBuffer: 64 * 1024 * 1024 });
+    const roles = implementation.payload.file_roles as Record<string, SourceEntry["role"]> | undefined;
+    const entries: SourceEntry[] = [];
+    for (const record of stdout.toString("utf8").split("\0").filter(Boolean)) {
+      const match = /^(\d+) (\S+) ([0-9a-f]+)\t([\s\S]+)$/.exec(record)!;
+      const [, mode, kind, blob, file] = match as unknown as [string, string, string, string, string];
+      if (kind !== "blob") { diagnostics.push({ code: "trace-source-entry-unsupported", path: file, message: `Unsupported committed entry '${kind}'` }); continue; }
+      const role = roles?.[file];
+      if (!role) { diagnostics.push({ code: "trace-source-role-missing", path: file, message: "Every committed entry needs an explicit file role" }); continue; }
+      const { stdout: bytes } = await exec("git", ["cat-file", "blob", blob], { cwd, encoding: "buffer", maxBuffer: 64 * 1024 * 1024 });
+      entries.push({ path: file, mode, blob, bytes, role });
+    }
+    for (const file of Object.keys(roles ?? {})) if (!entries.some((e) => e.path === file) && !diagnostics.some((d) => d.path === file)) diagnostics.push({ code: "trace-source-role-unknown", path: file, message: "File role refers to no committed entry" });
+    if (diagnostics.length) return { diagnostics, inventory: [], scopes: [] };
+    const generated = deriveSourceScopes({ entries, selectedRequirements: graph.requirements.map((d) => ({ stableId: d.id, revisionId: d.revision_id, kind: d.payload.kind as "stakeholder" | "software", isLeaf: graph.leaves.has(d.revision_id) })) });
+    for (const leaf of graph.leaves) {
+      for (const relation of ["implements", "verifies"]) {
+        if (!generated.scopes.some((scope) => scope.links.some((link) => link.type === relation && link.target === leaf))) generated.diagnostics.push({code: "trace-requirement-uncovered", path: leaf, message: `Software leaf '${leaf}' has no source scope that '${relation}' it`});
+      }
+    }
+    return generated;
+  } catch (error) {
+    return { diagnostics: [{ code: "trace-source-unavailable", message: `Cannot read exact committed source: ${String(error)}` }], inventory: [], scopes: [] };
+  }
+}
+
+/** Added source lines are computed from Git, then intersected with inherited scopes. */
+export async function implementationSourceChanges(
+  implementation: DatumEnvelope, data: DatumEnvelope[], binding: RequirementTraceBinding,
+  scopes: {path: string; inherited: boolean; ranges: {start: number; end: number}[]}[],
+) {
+  const cwd = String(implementation.payload.repository_path);
+  const current = String(implementation.payload.source_commit);
+  const candidates: {datum: DatumEnvelope; distance: number}[] = [];
+  for (const datum of data) {
+    if (datum.type !== binding.implementation_type || datum.revision_id === implementation.revision_id || datum.payload.repository_path !== cwd) continue;
+    const commit = String(datum.payload.source_commit);
+    if (!/^[0-9a-f]{40}$/.test(commit)) continue;
+    try {
+      await exec("git", ["merge-base", "--is-ancestor", commit, current], {cwd});
+      const count = await exec("git", ["rev-list", "--count", `${commit}..${current}`], {cwd});
+      candidates.push({datum, distance: Number(count.stdout.trim())});
+    } catch { /* A different product history is not a comparison baseline. */ }
+  }
+  candidates.sort((a, b) => a.distance - b.distance || b.datum.revision - a.datum.revision || a.datum.revision_id.localeCompare(b.datum.revision_id));
+  const previous = candidates[0]?.datum;
+  const paths = [...new Set(scopes.map((s) => s.path))].sort();
+  const files = [];
+  for (const file of paths) {
+    const added: {start: number; end: number}[] = [];
+    if (previous) {
+      const result = await exec("git", ["diff", "--no-ext-diff", "--no-textconv", "--unified=0", String(previous.payload.source_commit), current, "--", file], {cwd, maxBuffer: 64 * 1024 * 1024});
+      for (const line of result.stdout.split("\n")) {
+        const match = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/.exec(line);
+        if (!match) continue;
+        const start = Number(match[1]), count = match[2] === undefined ? 1 : Number(match[2]);
+        if (count) added.push({start, end: start + count - 1});
+      }
+    } else {
+      const ranges = scopes.filter((s) => s.path === file).flatMap((s) => s.ranges);
+      const last = Math.max(0, ...ranges.map((r) => r.end));
+      if (last) added.push({start: 1, end: last});
+    }
+    const inherited = scopes.filter((s) => s.path === file && s.inherited).flatMap((s) => s.ranges);
+    files.push({path: file, added_ranges: added, inherited_added_ranges: added.flatMap((a) => inherited.flatMap((r) => {
+      const start = Math.max(a.start, r.start), end = Math.min(a.end, r.end);
+      return start <= end ? [{start, end}] : [];
+    }))});
+  }
+  return {baseline_implementation: previous?.revision_id ?? null, files};
+}

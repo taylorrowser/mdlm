@@ -1,3 +1,5 @@
+import { compareImplementationScopes } from "./requirement-trace-inspection.js";
+import { requirementTraceBinding, selectedRequirementGraph } from "./requirement-trace.js";
 import type { PayloadCollection, PayloadView } from "./payload-collections.js";
 import { verificationBinding, verificationContract, runVerificationReceipt } from "./verification-receipt.js";
 import { createHash, randomUUID } from "node:crypto";
@@ -98,6 +100,7 @@ interface MalformedAssignmentResponse {
 }
 
 interface AssignmentLease {
+  request?: {instance: string; subject: string};
   contract: "mdlm-assignment-lease@1";
   id: string;
   disposition: "active" | "abandoned" | "exhausted" | "stale";
@@ -601,7 +604,7 @@ export interface AssignmentPacket {
   repository: RepositoryFingerprint;
   phase: string;
   work: {
-    kind: "obligation" | "phase-progression";
+    kind: "obligation" | "phase-progression" | "explicit-request";
     instance: string;
     definition: string;
     subject: string;
@@ -645,6 +648,8 @@ export interface AssignmentPacket {
   execution?: { command: string[]; receipt: string };
   authorValuesSchema?: Record<string, unknown>;
   authorValuesScaffold?: AssignmentAuthorValues;
+  sourceScopes?: {implementation: string; scopes: {revision: string; payload: Record<string, unknown>; links: {type: string; target: string}[]}[]; changes: unknown; comparison: ReturnType<typeof compareImplementationScopes> | null}[];
+  requirementGraphs?: { selection: string; requirements: {id: string; revision: string; payload: Record<string, unknown>; links: {type: string; target: string}[]; leaf: boolean}[] }[];
   responseSchema: Record<string, unknown>;
   responseScaffold: AssignmentResponseSkeleton;
   checkpointConversation?: CheckpointConversation;
@@ -672,6 +677,8 @@ interface AssignmentAuthorValues {
   outputs: {
     slot: string;
     handle?: string;
+    links?: SymbolicProposalLink[];
+    revision_of?: string;
     payload: Record<string, unknown>;
     body: string;
   }[];
@@ -1118,6 +1125,8 @@ function assignmentLease(value: unknown): AssignmentLease | undefined {
     ? response === undefined && terminalDiagnosticsValid &&
       retry?.malformedResponseCorrection === 0
     : false;
+  const request = object(lease?.request);
+  const requestValid = obligation === undefined && progression === undefined && request !== undefined && typeof request.instance === "string" && typeof request.subject === "string" && request.instance === `change:${request.subject}`;
   const parsedObligation = typeof obligation?.instance === "string"
     ? parseObligationInstanceIdentity(obligation.instance)
     : undefined;
@@ -1146,7 +1155,7 @@ function assignmentLease(value: unknown): AssignmentLease | undefined {
       typeof repository.trackedState === "string" &&
       /^sha256:[0-9a-f]{64}$/.test(repository.trackedState) &&
       typeof lease.phase === "string" && lease.phase.length > 0 &&
-      (obligationValid || progressionValid) &&
+      (obligationValid || progressionValid || requestValid) &&
       typeof lease.scenario === "string" && lease.scenario.length > 0 &&
       Array.isArray(lease.bindings) &&
       Array.isArray(lease.participation) &&
@@ -1495,6 +1504,7 @@ function assignmentFromPreparedWork(
           subjects: work.progression.subjects,
         }
         : null,
+      ...(work.kind === "explicit-request" ? {request: {instance: work.instance, subject: work.subject}} : {}),
       scenario: work.scenario,
       bindings: bindings(prepared.dryRun.invocations),
       participation: prepared.dryRun.participation ?? [],
@@ -1591,6 +1601,30 @@ async function operatorStateFromSnapshot(
       prepared.value,
     );
   }
+  const trace = requirementTraceBinding(processPackage);
+  if (trace && classification.kind === "lifecycle-complete") {
+    const sets = snapshot.records.filter((r) => r.datum.type === trace.type);
+    const latest = sets.filter((r) => !sets.some((other) => other.datum.id === r.datum.id && other.datum.revision > r.datum.revision));
+    for (const selected of latest) {
+      const requestPath = path.join(repositoryRoot, ".lifecycle/work/change-requests", `${selected.datum.revision_id}.json`);
+      let request: {scenario: string; subject: string; process: string};
+      try { request = JSON.parse(await fs.readFile(requestPath, "utf8")); } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+        return failure("change-request-invalid", String(error), requestPath);
+      }
+      if (request.subject !== selected.datum.revision_id || request.process !== `${summary.reference}#${summary.digest}`) return failure("change-request-stale", "Change request identity does not match the exact selected requirement graph", requestPath);
+      const scenario = definition(processPackage.scenarios, request.scenario);
+      if (!scenario || scenario.initiation !== "explicit") return failure("change-scenario-unavailable", "Change request requires an explicitly initiable package Scenario");
+      const dryRun = await dryRunExplicitScenario(processPackage, snapshot, request.scenario, [{name: "subject", value: request.subject}]);
+      if (!dryRun.ok) return dryRun;
+      const work: OperatorWorkFacts = {kind: "explicit-request", phase: phaseReference(evaluation), instance: `change:${request.subject}`, definition: request.scenario, subject: request.subject, scenario: request.scenario, dispatchable: true, authorityRequirements: (dryRun.value.participation ?? []).map((p) => ({policy: p.policy, authorityRequirement: p.authorityRequirement, attentionSchedule: p.attentionSchedule})), explanation: "Explicitly requested revision of the accepted requirement graph", status: "ready", blockedBy: [], blockerChains: [], unresolvedBindings: []};
+      const explicitClassification = classifyOperatorOutcome([work], undefined, []);
+      if (explicitClassification.kind !== "assignment" && explicitClassification.kind !== "attention-required") return failure("change-request-not-dispatchable", "Package does not permit the requested revision");
+      state.classification = explicitClassification;
+      state.work = [work];
+      state.assignment = assignmentFromPreparedWork(summary, processPackage, inspection, transaction, evaluation, fingerprint, explicitClassification, {dryRun: dryRun.value, scenario, snapshot});
+    }
+  }
   const confirmed = await confirmRepositoryFingerprint(repositoryRoot, fingerprint);
   return confirmed.ok
     ? { ok: true, value: state, diagnostics: [] }
@@ -1682,7 +1716,8 @@ function sameAssignmentWork(
   return lease.phase === exact.lease.phase &&
     lease.scenario === exact.lease.scenario &&
     obligationMatches &&
-    isDeepStrictEqual(lease.progression, exact.lease.progression);
+    isDeepStrictEqual(lease.progression, exact.lease.progression) &&
+    isDeepStrictEqual(lease.request, exact.lease.request);
 }
 
 async function changedTrackedPaths(repositoryRoot: string): Promise<Set<string>> {
@@ -2290,6 +2325,28 @@ export function claimNextWork(
   );
 }
 
+/** Request a new package-declared revision; accepted lifecycle data stays immutable. */
+export async function requestRequirementChange(repositoryRoot: string, subject: string): Promise<AssignmentResult<AssignmentOutcome>> {
+  return withRepositoryLock(repositoryRoot, leaseLockRef, async (renew) => {
+    const state = await exactOperatorState(repositoryRoot);
+    if (!state.ok) return state;
+    const trace = requirementTraceBinding(state.value.processPackage);
+    if (!trace || state.value.classification.kind !== "lifecycle-complete") return failure("change-request-boundary", "A requirement change can start only after the current product is accepted and complete");
+    const datum = state.value.snapshot.records.find((r) => r.datum.revision_id === subject)?.datum;
+    if (!datum || datum.type !== trace.type || state.value.snapshot.records.some((r) => r.datum.id === datum.id && r.datum.revision > datum.revision)) return failure("change-request-subject", "Select the exact current requirement-set revision");
+    const scenarios = Object.values(state.value.processPackage.scenarios).filter((s) => s.initiation === "explicit" && Array.isArray(s.inputs) && s.inputs.some((i) => object(i)?.name === "subject" && (object(i)?.types as unknown[] | undefined)?.includes(trace.type)) && Array.isArray(s.outputs) && s.outputs.some((o) => (object(o)?.types as unknown[] | undefined)?.includes(trace.requirement_type)));
+    if (scenarios.length !== 1) return failure("change-scenario-unavailable", "The package must declare one explicit requirement revision Scenario");
+    const scenario = `${scenarios[0]!.id}@${scenarios[0]!.version}`;
+    const prepared = await dryRunExplicitScenario(state.value.processPackage, state.value.snapshot, scenario, [{name: "subject", value: subject}]);
+    if (!prepared.ok) return prepared;
+    const directory = path.join(repositoryRoot, ".lifecycle/work/change-requests");
+    await fs.mkdir(directory, {recursive: true});
+    try { await fs.writeFile(path.join(directory, `${subject}.json`), JSON.stringify({scenario, subject, process: `${state.value.summary.reference}#${state.value.summary.digest}`}) + "\n", {flag: "wx"}); }
+    catch (error) { return failure("change-request-exists", `Cannot create a second request for this exact requirement set: ${String(error)}`); }
+    return claimNextWorkLocked(repositoryRoot, renew);
+  });
+}
+
 async function recentTransaction(
   repositoryRoot: string,
 ): Promise<OperatorStatus["recentTransaction"]> {
@@ -2522,6 +2579,7 @@ interface SymbolicProposalLink {
 }
 
 interface SymbolicProposalOutput {
+  revision_of?: string;
   handle: string;
   output?: string;
   invocation?: number;
@@ -2634,6 +2692,7 @@ export function assignmentResponseSchema(
                     minimum: 0,
                     description: "Zero-based Scenario invocation index, not a repeated-output occurrence. Omit for one invocation.",
                   },
+                  revision_of: { type: "string" },
                   type: { type: "string", pattern: "^[A-Z]{3,8}$" },
                   payload: {
                     type: ["object", "null"],
@@ -2728,6 +2787,8 @@ const assignmentAuthorValuesSchema = {
           properties: {
             slot: { type: "string", pattern: "^[A-Za-z][A-Za-z0-9_-]*$" },
             handle: { type: "string", pattern: "^[A-Za-z][A-Za-z0-9_-]*$" },
+            revision_of: { type: "string" },
+            links: { type: "array", items: { type: "object", additionalProperties: false, required: ["type", "target"], properties: {type: {type: "string"}, target: {type: "object", additionalProperties: false, properties: {output: {type: "string"}, datum: {type: "string"}}, oneOf: [{required: ["output"]}, {required: ["datum"]}]}}}},
             payload: { type: "object" },
             body: { type: "string" },
           },
@@ -2853,13 +2914,14 @@ function authorPayloadScaffold(
 function authorValuesContract(
   packet: AssignmentPacket,
   materializedOutput: string | undefined,
+  trace: ReturnType<typeof requirementTraceBinding>,
 ): { schema: Record<string, unknown>; scaffold: AssignmentAuthorValues } {
   const variants: Record<string, unknown>[] = [];
   const outputs: AssignmentAuthorValues["outputs"] = [];
   for (const template of packet.responseScaffold.proposal.outputs) {
     const contract = packet.outputs.find((output) =>
       output.handle === (template.output ?? template.handle))!;
-    if (contract.name === materializedOutput) continue;
+    if (contract.name === materializedOutput || [trace?.type, trace?.scope_type].includes(template.type)) continue;
     const { fixed, managed } = authorPayloadOwnership(contract, template);
     const payloadSchema = authorPayloadSchema(packet.schemas[template.type]!.payload,
       [...fixed, ...managed]);
@@ -2871,6 +2933,7 @@ function authorValuesContract(
       properties: {
         slot: { const: template.handle },
         ...(repeated ? { handle: base.properties.handle } : {}),
+        ...(template.type === trace?.requirement_type ? { links: base.properties.links, revision_of: base.properties.revision_of } : {}),
         payload: payloadSchema,
         body: base.properties.body,
       },
@@ -3004,6 +3067,7 @@ function assignmentResponseFromAuthorValues(
     !("output" in link.target && omittedHandles.has(link.target.output)) &&
     !("payload" in link.target && omittedHandles.has(link.target.payload.output))
   );
+  const trace = requirementTraceBinding(exact.processPackage);
   const authoredHandleByTemplate = new Map<string, string>();
 
   const resultOutputs: SymbolicProposalOutput[] = [];
@@ -3013,7 +3077,12 @@ function assignmentResponseFromAuthorValues(
       candidate.handle === route
     );
     if (!contract) continue;
-    const supplied = suppliedBySlot.get(template.handle) ?? [];
+    let supplied = suppliedBySlot.get(template.handle) ?? [];
+    if ([trace?.type, trace?.scope_type].includes(template.type)) {
+      if (supplied.length) diagnostics.push({code: "trace-generated-output", message: "Requirement sets and source scopes are generated by the CLI"});
+      if (template.type === trace?.scope_type) continue;
+      supplied = [{slot: template.handle, payload: {}, body: ""}];
+    }
     const repeated = ["one-or-more", "zero-or-more"].includes(contract.cardinality);
     const definition = (Array.isArray(exact.scenario.outputs)
       ? exact.scenario.outputs.map(object)
@@ -3139,6 +3208,8 @@ function assignmentResponseFromAuthorValues(
       resultOutputs.push({
         ...template,
         handle: repeated ? value.handle! : template.handle,
+        ...(value.revision_of ? {revision_of: value.revision_of} : {}),
+        links: [...template.links, ...(value.links ?? [])],
         payload: mergePayloadValues(
           mergePayloadValues(
             template.payload ?? {},
@@ -3736,7 +3807,9 @@ function scenarioProposalFromResponse(
       activeLinks(expectedOutput.links.slice(requiredLinkCount))
         .map((link) => JSON.stringify(link)),
     );
-    const activeActual = activeLinks(output.links);
+    const trace = requirementTraceBinding(exact.processPackage);
+    const decomposition = output.type === trace?.requirement_type ? output.links.filter((l) => l.type === "decomposes") : [];
+    const activeActual = activeLinks(output.links.filter((l) => !decomposition.includes(l)));
     const permittedActual = activeActual
       .map((link) => JSON.stringify(link))
       .filter((link) => permittedExpected.has(link));
@@ -3744,7 +3817,7 @@ function scenarioProposalFromResponse(
       !permittedExpected.has(JSON.stringify(link))
     ));
     if (
-      output.links.some((link) => !declaredLinkTypes.has(link.type)) ||
+      output.links.some((link) => !decomposition.includes(link) && !declaredLinkTypes.has(link.type)) ||
       JSON.stringify(requiredActual) !== JSON.stringify(requiredExpected) ||
       new Set(permittedActual).size !== permittedActual.length ||
       permittedActual.some((link) => !permittedExpected.has(link))
@@ -3802,11 +3875,20 @@ function scenarioProposalFromResponse(
           invocation,
         ).outputs[0]?.lifecycleDatum.payload
       : undefined;
+    let revisionId: string | undefined;
+    if (output.revision_of) {
+      const previous = exact.snapshot.records.find((r) => r.datum.revision_id === output.revision_of)?.datum;
+      const inputs = invocationInputs.flatMap((i) => i.values.map((v) => v.identity.revision_id));
+      const selected = exact.snapshot.records.filter((r) => inputs.includes(r.datum.revision_id) && r.datum.type === trace?.type);
+      if (output.type !== trace?.requirement_type || !previous || !selected.some((r) => r.datum.links.some((l) => l.type === "contains" && l.target === previous.revision_id))) return failure("trace-revision-outside-selection", "revision_of must name an exact requirement in the Assignment's selected input graph");
+      revisionId = previous.id;
+    }
     outputs.push({
       localId: output.handle,
       name: outputContract.name,
       invocation,
       lifecycleDatum: {
+        ...(revisionId ? {id: revisionId} : {}),
         type: output.type,
         payload: kernelPayload ?? internalPayloadReferences(authoredPayload) as Record<string, unknown>,
         links: links as { type: string; target: string }[],
@@ -3855,6 +3937,8 @@ function packet(
   const materialization = exactBaselineMaterializationContract(exact.scenario);
   const work = exact.lease.obligation
     ? { kind: "obligation" as const, ...exact.lease.obligation }
+    : exact.lease.request
+    ? {kind: "explicit-request" as const, ...exact.lease.request, definition: exact.lease.scenario}
     : {
         kind: "phase-progression" as const,
         instance: exact.lease.progression!.instance,
@@ -3933,7 +4017,21 @@ function packet(
         }
       : {}),
   };
-  const authorValues = authorValuesContract(rendered, materialization?.output);
+  const traceBinding = requirementTraceBinding(exact.processPackage);
+  if (traceBinding) {
+    const data = exact.snapshot.records.map((r) => r.datum);
+    const inputIds = new Set(exact.dryRun.invocations.flatMap((i) => i.inputs.flatMap((input) => input.values.map((v) => v.identity.revision_id))));
+    const sets = data.filter((d) => d.type === traceBinding.type && (inputIds.has(d.revision_id) || data.some((i) => inputIds.has(i.revision_id) && i.links.some((l) => l.target === d.revision_id))));
+    rendered.sourceScopes = data.filter((d) => d.type === traceBinding.implementation_type && inputIds.has(d.revision_id)).map((implementation) => {
+      const baseline = object(implementation.payload.source_changes)?.baseline_implementation;
+      return {implementation: implementation.revision_id, scopes: data.filter((d) => d.type === traceBinding.scope_type && d.links.some((l) => l.type === "belongs-to" && l.target === implementation.revision_id)).map((d) => ({revision: d.revision_id, payload: d.payload, links: d.links})), changes: implementation.payload.source_changes ?? null, comparison: typeof baseline === "string" ? compareImplementationScopes(data, traceBinding, baseline, implementation.revision_id) : null};
+    });
+    rendered.requirementGraphs = sets.map((set) => {
+      const graph = selectedRequirementGraph(data, set, traceBinding);
+      return {selection: set.revision_id, requirements: graph.requirements.map((d) => ({id: d.id, revision: d.revision_id, payload: d.payload, links: d.links, leaf: graph.leaves.has(d.revision_id)}))};
+    });
+  }
+  const authorValues = authorValuesContract(rendered, materialization?.output, requirementTraceBinding(exact.processPackage));
   rendered.authorValuesSchema = authorValues.schema;
   rendered.authorValuesScaffold = authorValues.scaffold;
   assertAssignmentPacketV3(rendered);
@@ -4468,7 +4566,7 @@ export async function submitAssignmentResponse(
         settlement: { assignment: lease.id, execution: executionId },
         receipt: {
           publications: execution.outputs.map((output, index) => ({
-            handle: proposal.outputs[index]!.localId ?? output.name,
+            handle: output.handle ?? proposal.outputs[index]?.localId ?? output.name,
             stableId: output.lifecycleDatum.id,
             revisionId: output.lifecycleDatum.revisionId,
           })),

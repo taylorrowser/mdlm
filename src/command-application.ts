@@ -1,3 +1,5 @@
+import { requirementTraceBinding } from "./requirement-trace.js";
+import { inspectRequirementTrace } from "./requirement-trace-inspection.js";
 import { execFile } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
@@ -51,6 +53,7 @@ import {
   repositoryLifecycleSnapshot,
   showDatum,
   traceGraph,
+  readRepositoryData,
   type BacklinkInspection,
   type DatumHistory,
   type DatumProjections,
@@ -79,6 +82,7 @@ import {
 import {
   runAssignmentVerification,
   claimNextWork,
+  requestRequirementChange,
   compileActiveAssignmentProposal,
   inspectActiveAssignmentResponseScaffold,
   inspectAssignmentState,
@@ -230,6 +234,7 @@ interface CommandResultBase {
   reason?: Extract<SubmissionOutcome, { outcome: "settlement-required" }>["reason"];
   backlinks?: BacklinkInspection;
   trace?: GraphTrace;
+  requirementTrace?: ReturnType<typeof inspectRequirementTrace>;
   index?: RepositoryIndexSummary;
   report?: RepositoryReportSummary;
   diagnostics: ProcessDiagnostic[];
@@ -252,7 +257,10 @@ Agent-guided lifecycle commands:
   mdlm assignment submit-proposal <author-values-file|-> [--authority <authority-id>] --json
   mdlm scenario submit [response-file|-] [--authority <authority-id>] [--json]
   mdlm scenario settlement <assignment-or-execution-id> [--json]
-  mdlm doctor [--json]`;
+  mdlm doctor [--json]
+  mdlm trace why <path:line> --implementation <IMP-revision> [--json]
+  mdlm trace impact <REQ-id-or-revision> --implementation <IMP-revision> [--json]
+  mdlm change request --requirements <RQS-revision> [--json]`;
 
 function failure(
   code: string,
@@ -2169,6 +2177,20 @@ async function dispatchCommand(
   if (operands[0] === "backlinks" && operands[1]) {
     return showStoredBacklinks(repositoryRoot, operands[1]);
   }
+  if (operands[0] === "trace" && ["why", "impact"].includes(operands[1] ?? "")) {
+    const selected = await selectedRepositoryPackage(repositoryRoot);
+    if (!selected.ok) return {...failure("trace-package-unavailable", "Select a valid process package"), diagnostics: selected.diagnostics};
+    const binding = requirementTraceBinding(selected.processPackage);
+    const implementation = optionValue(arguments_, "--implementation");
+    if (!binding || !implementation || !operands[2]) return failure("trace-arguments-invalid", "Trace requires a supported package, query and --implementation exact revision");
+    const loaded = await readRepositoryData(repositoryRoot, selected.processPackage);
+    if (!loaded.ok) return {...loaded, command: "trace"};
+    const line = /^(.*):(\d+)$/.exec(operands[2]);
+    if (operands[1] === "why" && !line) return failure("trace-line-invalid", "Expected path:line");
+    const query = operands[1] === "why" ? {kind: "why" as const, path: line![1]!, line: Number(line![2])} : {kind: "impact" as const, requirement: operands[2]};
+    const result = inspectRequirementTrace(loaded.value.map((d) => d.lifecycleDatum.datum), binding, implementation, query);
+    return {ok: result.diagnostics.length === 0, command: "trace", requirementTrace: result, diagnostics: result.diagnostics};
+  }
   if (operands[0] === "trace" && operands[1]) {
     return showGraphTrace(repositoryRoot, operands[1], arguments_);
   }
@@ -2208,6 +2230,12 @@ async function dispatchCommand(
       optionValue(arguments_, "--snapshot"),
       optionValue(arguments_, "--phase"),
     );
+  }
+  if (operands[0] === "change" && operands[1] === "request") {
+    const subject = optionValue(arguments_, "--requirements");
+    if (!subject) return {...failure("change-requirements-required", "Expected mdlm change request --requirements <exact-RQS-revision>"), command: "change.request"};
+    const result = await requestRequirementChange(repositoryRoot, subject);
+    return {...result, command: "change.request"};
   }
   if (operands[0] === "next") {
     const nextArguments = arguments_.filter((argument) => argument !== "--json");

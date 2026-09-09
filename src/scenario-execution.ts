@@ -1,3 +1,4 @@
+import { requirementTraceBinding, latestRequirements, selectedRequirementGraph, deriveImplementationScopes, implementationSourceChanges } from "./requirement-trace.js";
 import { verificationContract, verificationBinding, requireVerificationReceipt } from "./verification-receipt.js";
 import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
@@ -982,6 +983,46 @@ async function submitScenario(
   if (proposalReferenceDiagnostics.length > 0) {
     return { ok: false, diagnostics: proposalReferenceDiagnostics };
   }
+  const kernelFinalizedOutputs: KernelFinalizedScenarioOutput[] = [];
+  const trace = requirementTraceBinding(processPackage);
+  if (trace) {
+    if (outputData.some((o) => o.datum.type === trace.scope_type)) return {ok: false, diagnostics: [{code: "trace-generated-output", message: "Source scopes are generated from committed source, never authored"}]};
+    const allData = [...snapshot.records.map((r) => r.datum), ...outputData.map((o) => o.datum)];
+    for (const output of outputData.filter((o) => o.datum.type === trace.type)) {
+      if (output.datum.links.some((l) => l.type === "contains")) return {ok: false, diagnostics: [{code: "trace-generated-selection", message: "The CLI selects the complete requirement graph"}]};
+      output.datum.payload.title = "Requirement graph";
+      output.datum.payload.publication = "recorded";
+      output.datum.links.push(...latestRequirements(allData, trace).map((d) => ({type: "contains", target: d.revision_id})));
+      const graph = selectedRequirementGraph(allData, output.datum, trace, true);
+      if (graph.diagnostics.length) return {ok: false, diagnostics: graph.diagnostics};
+      kernelFinalizedOutputs.push({capability: "requirement-trace@1", datum: output.datum});
+    }
+    for (const output of [...outputData].filter((o) => o.datum.type === trace.implementation_type)) {
+      if ("product_files" in output.datum.payload || "source_inventory" in output.datum.payload || "source_changes" in output.datum.payload) return {ok: false, diagnostics: [{code: "trace-generated-inventory", message: "The CLI derives product_files and source_inventory from the source commit"}]};
+      const generated = await deriveImplementationScopes(output.datum, allData, trace);
+      if (generated.diagnostics.length) return {ok: false, diagnostics: generated.diagnostics};
+      output.datum.payload.product_files = generated.inventory.map((entry) => entry.path);
+      output.datum.payload.source_inventory = generated.inventory;
+      try {
+        output.datum.payload.source_changes = await implementationSourceChanges(output.datum, allData, trace, generated.scopes);
+      } catch (error) { return {ok: false, diagnostics: [{code: "trace-source-diff-unavailable", message: String(error)}]}; }
+      kernelFinalizedOutputs.push({capability: "requirement-trace@1", datum: output.datum});
+      const definition = outputDefinitions.find((d) => Array.isArray(d?.types) && d.types.includes(trace.scope_type));
+      if (!definition || typeof definition.name !== "string") return {ok: false, diagnostics: [{code: "trace-scope-output-missing", message: "Implementation Scenario must declare a source-scope output"}]};
+      for (const scope of generated.scopes) {
+        const localId = `scope-${createHash("sha256").update(`${output.datum.revision_id}\0${scope.path}\0${scope.name}`).digest("hex").slice(0, 20)}`;
+        const id = stableProposalOutputId(trace.scope_type, submittedResponse.assignment, localId);
+        const datum: DatumEnvelope = {
+          id, revision: 1, revision_id: `${id}-r00001`, type: trace.scope_type,
+          payload: {title: `${scope.path}: ${scope.name}`, publication: "recorded", source_commit: output.datum.payload.source_commit, path: scope.path, blob: scope.blob, name: scope.name, role: scope.role, ranges: scope.ranges, inherited: scope.inherited},
+          links: [{type: "belongs-to", target: output.datum.revision_id}, ...scope.links],
+          created_by: {...output.datum.created_by}, body: "",
+        };
+        outputData.push({proposal: {localId, name: definition.name, invocation: output.proposal.invocation, lifecycleDatum: {type: datum.type, payload: {}, links: [], body: ""}}, datum});
+        kernelFinalizedOutputs.push({capability: "requirement-trace@1", datum});
+      }
+    }
+  }
   const linkDiagnostics = requiredLinkDiagnostics(
     processPackage,
     scenario,
@@ -990,7 +1031,6 @@ async function submitScenario(
   );
   if (linkDiagnostics.length > 0) return { ok: false, diagnostics: linkDiagnostics };
 
-  const kernelFinalizedOutputs: KernelFinalizedScenarioOutput[] = [];
   const verificationType = processPackage.kernelCapabilities["docker-verification@1"]?.type;
   for (const output of outputData) {
     if (output.datum.type !== verificationType) continue;

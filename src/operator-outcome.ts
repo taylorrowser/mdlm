@@ -20,7 +20,7 @@ export interface OperatorExactSubject {
 }
 
 export interface OperatorWorkFacts {
-  kind: "obligation" | "phase-progression";
+  kind: "obligation" | "phase-progression" | "explicit-request";
   phase: string;
   instance: string;
   definition: string;
