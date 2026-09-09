@@ -227,7 +227,9 @@ stakeholder or software requirement as an individual REQ. Decompose behavior
 through normal links to exact parent revisions wherever useful; do not impose
 fixed tiers. The CLI batches requirements, generates the requirement set and
 source scopes, and keeps one set-level review without per-node author or review
-turns. Keep executable expectations in the committed verification script and
+turns. Attribute every nonblank supported source line to an explicit named region;
+regions and software leaves use many-to-many normal links. The CLI derives
+coverage and exempt blank gaps, while review judges responsibility boundaries. Keep executable expectations in the committed verification script and
 use the direct implementation and verification route. Historical reports
 describe the packages that produced them.
 

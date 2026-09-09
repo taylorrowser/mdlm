@@ -100,6 +100,19 @@ payload_schema:
           lineCount:
             type: integer
             minimum: 0
+          blankRanges:
+            type: array
+            items:
+              type: object
+              additionalProperties: false
+              required: [start, end]
+              properties:
+                start:
+                  type: integer
+                  minimum: 1
+                end:
+                  type: integer
+                  minimum: 1
     source_changes:
       type: object
       additionalProperties: false

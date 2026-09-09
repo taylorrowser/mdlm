@@ -55,8 +55,8 @@ test("committed inventory cannot omit a file or leave a software leaf without im
   const git = (...args: string[]) => execFileSync("git", args, {cwd: rootPath, encoding: "utf8"}).trim();
   try {
     git("init", "-q");
-    await fs.writeFile(path.join(rootPath, "product.py"), `# mdlm:file main implements ${leaf.id}\nprint(1)\n`);
-    await fs.writeFile(path.join(rootPath, "verify.py"), `# mdlm:file check verifies ${leaf.id}\nassert True\n`);
+    await fs.writeFile(path.join(rootPath, "product.py"), `# mdlm:begin main implements ${leaf.id}\nprint(1)\n# mdlm:end main\n`);
+    await fs.writeFile(path.join(rootPath, "verify.py"), `# mdlm:begin check verifies ${leaf.id}\nassert True\n# mdlm:end check\n`);
     await fs.writeFile(path.join(rootPath, "README.md"), "Example product\n");
     git("add", ".");
     git("-c", "user.name=Test", "-c", "user.email=test@localhost", "-c", "commit.gpgSign=false", "commit", "-qm", "Source");

@@ -52,3 +52,16 @@ test("scope comparison distinguishes moved ranges, changed links and inherited c
   expect(result.differences.filter(d => d.status === "deleted")).toHaveLength(2);
   expect(result.exactAddedLinesKnown).toBe(false);
 });
+
+
+test("why distinguishes authenticated blank exemptions from missing source attribution", () => {
+  const data = fixture();
+  data[5]!.payload.source_inventory = [{ path: "tasks.py", lineCount: 15, blankRanges: [{ start: 13, end: 14 }] }];
+  const why = (line: number, path = "tasks.py") => inspectRequirementTrace(data, binding, "imp-r1", { kind: "why", path, line });
+  expect(why(13)).toMatchObject({ diagnostics: [], scopes: [], lineStatus: "blank-line-exempt" });
+  expect(why(3)).toMatchObject({ diagnostics: [], lineStatus: "mapped" });
+  for (const result of [why(15), why(16), why(13, "missing.py"), why(0)]) {
+    expect(result.diagnostics).not.toEqual([]);
+    expect(result.lineStatus).toBeNull();
+  }
+});

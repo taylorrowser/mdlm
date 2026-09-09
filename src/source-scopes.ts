@@ -30,6 +30,7 @@ export interface SourceInventoryEntry {
   blob: string;
   role: SourceRole | "unclassified";
   lineCount: number | null;
+  blankRanges?: SourceLineRange[];
 }
 export interface SourceScopeResult {
   diagnostics: SourceScopeDiagnostic[];
@@ -111,10 +112,10 @@ export function deriveSourceScopes(input: {
     const localStart = result.diagnostics.length;
     const scopes: SourceScope[] = [];
     const names = new Set<string>();
-    let fileScope: SourceScope | undefined;
+    inventory.blankRanges = [];
     let open: { scope: SourceScope; start: number } | undefined;
-    const overrides: { scope: SourceScope; start: number; end: number }[] = [];
-    const makeScope = (name: string, relation: "implements" | "verifies", targets: string[], line: number, inherited: boolean): SourceScope => {
+
+    const makeScope = (name: string, relation: "implements" | "verifies", targets: string[], line: number): SourceScope => {
       if (names.has(name)) report("source-scope-name", entry.path, `Duplicate scope name '${name}'.`, line);
       names.add(name);
       const expected = entry.role === "verification" ? "verifies" : "implements";
@@ -141,23 +142,33 @@ export function deriveSourceScopes(input: {
         links.push({ type: relation, target: requirement.revisionId });
       }
       if (!hasLeaf) report("source-scope-leaf", entry.path, `Scope '${name}' needs at least one selected software leaf target.`, line);
-      const scope: SourceScope = { name, path: entry.path, blob: entry.blob, role: entry.role!, inherited, ranges: [], links };
+      const scope: SourceScope = { name, path: entry.path, blob: entry.blob, role: entry.role!, inherited: false, ranges: [], links };
       scopes.push(scope);
       return scope;
     };
 
     lines.forEach((lineText, offset) => {
       const line = offset + 1;
-      if (!/^\s*#\s*mdlm:/.test(lineText)) return;
-      const declaration = /^\s*#\s*mdlm:(file|begin)\s+([A-Za-z][A-Za-z0-9_-]*)\s+(implements|verifies)\s+(\S+(?:[ \t]+\S+)*)\s*$/.exec(lineText);
+      if (!/^\s*#\s*mdlm:/.test(lineText)) {
+        if (!open) {
+          if (lineText.trim().length) report("source-line-unmapped", entry.path, "Nonblank source must belong to an explicit mapped region.", line);
+          else {
+            const previous = inventory.blankRanges!.at(-1);
+            if (previous?.end === line - 1) previous.end = line;
+            else inventory.blankRanges!.push({ start: line, end: line });
+          }
+        }
+        return;
+      }
+      if (/^\s*#\s*mdlm:file\b/.test(lineText)) {
+        report("source-file-default", entry.path, "File defaults are unsupported; use closed '# mdlm:begin NAME implements|verifies STABLE_ID ...' regions.", line);
+        return;
+      }
+      const declaration = /^\s*#\s*mdlm:begin\s+([A-Za-z][A-Za-z0-9_-]*)\s+(implements|verifies)\s+(\S+(?:[ \t]+\S+)*)\s*$/.exec(lineText);
       if (declaration) {
-        const [, kind, name, relation, targetText] = declaration;
-        const scope = makeScope(name!, relation as "implements" | "verifies", targetText!.trim().split(/\s+/), line, kind === "file");
-        if (kind === "file") {
-          if (fileScope) report("source-file-default", entry.path, "Exactly one file default is allowed.", line);
-          if (open) report("source-region-overlap", entry.path, "A file default cannot be declared inside a region.", line);
-          fileScope = scope;
-        } else if (open) {
+        const [, name, relation, targetText] = declaration;
+        const scope = makeScope(name!, relation as "implements" | "verifies", targetText!.trim().split(/\s+/), line);
+        if (open) {
           report("source-region-overlap", entry.path, `Region '${name}' overlaps open region '${open.scope.name}'; regions cannot nest.`, line);
         } else {
           open = { scope, start: line };
@@ -169,24 +180,16 @@ export function deriveSourceScopes(input: {
         if (!open || open.scope.name !== end[1]) {
           report("source-region-end", entry.path, `End '${end[1]}' must match the currently open region.`, line);
         } else {
-          overrides.push({ ...open, end: line });
+          open.scope.ranges.push({ start: open.start, end: line });
           open = undefined;
         }
         return;
       }
-      report("source-directive", entry.path, "Expected '# mdlm:file|begin NAME implements|verifies STABLE_ID ...' or '# mdlm:end NAME'.", line);
+      report("source-directive", entry.path, "Expected '# mdlm:begin NAME implements|verifies STABLE_ID ...' or '# mdlm:end NAME'.", line);
     });
     if (open) report("source-region-end", entry.path, `Region '${open.scope.name}' has no matching end.`, open.start);
-    if (!fileScope) report("source-file-default", entry.path, "Nonempty Python source requires exactly one '# mdlm:file NAME implements|verifies STABLE_ID ...' default.");
-    if (result.diagnostics.length !== localStart || !fileScope) continue;
+    if (result.diagnostics.length !== localStart) continue;
 
-    let next = 1;
-    for (const override of overrides) {
-      if (next < override.start) fileScope.ranges.push({ start: next, end: override.start - 1 });
-      override.scope.ranges.push({ start: override.start, end: override.end });
-      next = override.end + 1;
-    }
-    if (next <= lines.length) fileScope.ranges.push({ start: next, end: lines.length });
     result.scopes.push(...scopes);
   }
   return result;

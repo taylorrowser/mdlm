@@ -94,11 +94,13 @@ resulting diff and the ordinary Git commit.
 For the tiny package, author requirements in one batch using the packet's local
 handles and normal `decomposes` links. The CLI supplies stable requirement IDs in
 `requirementGraphs`. Source comments name those IDs, resolved only against the
-exact reviewed graph selected for the implementation. Use a file default and
-optional closed regions:
+exact reviewed graph selected for the implementation. Use explicit closed, nonnested regions for every nonblank source line:
 
 ```python
-# mdlm:file runtime implements REQ-0000000001
+# mdlm:begin runtime implements REQ-0000000001 REQ-0000000002
+import json
+# mdlm:end runtime
+
 # mdlm:begin loading implements REQ-0000000002
 def load_store(path):
     ...
@@ -107,8 +109,9 @@ def load_store(path):
 
 Replace the example IDs with the packet's published requirements. Verifier code
 uses `verifies` instead. Declare each committed file's role in `file_roles`.
-Submission derives the complete inventory, every code line's scope, normal
-requirement links and exact added lines inheriting defaults. Documentation stays
+Submission derives the complete inventory, regions, normal many-to-many
+requirement links and exact added lines. Blank gaps outside regions are exempt;
+imports and comments require a region. File defaults are rejected. Documentation stays
 in the inventory without line directives. Initially executable source uses
 Python comments; unsupported formats are rejected explicitly. Review judges
 whether the linked requirements actually explain the code.
