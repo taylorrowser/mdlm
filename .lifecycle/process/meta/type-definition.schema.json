@@ -70,7 +70,24 @@
                   "type": "string",
                   "minLength": 1
                 },
-                "covered": {
+                "coverage_where": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "field",
+                  "equals"
+                ],
+                "properties": {
+                  "field": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)*$"
+                  },
+                  "equals": {
+                    "type": "string"
+                  }
+                }
+              },
+              "covered": {
                   "type": "boolean"
                 },
                 "acyclic": {

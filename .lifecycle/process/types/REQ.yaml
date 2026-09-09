@@ -271,6 +271,9 @@ payload_collections:
     target: outcomes
     key: id
     covered: true
+    coverage_where:
+      field: level
+      equals: software
   - field: parent_ids
     target: commitments
     key: id

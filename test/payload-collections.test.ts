@@ -58,6 +58,19 @@ test("local references reject missing outcomes, missing parents, uncovered outco
   }
 });
 
+test("each outcome requires software coverage, even when an allocated child cites it", () => {
+  const datum = requirements();
+  (datum.payload.outcomes as unknown[]).push({ id: "O2", statement: "Second stakeholder outcome" });
+  rows(datum).push({ id: "R2", level: "allocated", allocation: "storage", outcome_ids: ["O2"], parent_ids: ["R1"], ears: { pattern: "ubiquitous", system: "storage", response: "retain data" } });
+  const validate = new Ajv2020({ strict: false }).compile(reqType.payloadSchema);
+  expect(validate(datum.payload)).toBe(true);
+  expect(validatePayloadCollections(reqType, datum, []).some((d) => d.message.includes("No declared mapping covers 'O2'"))).toBe(true);
+  rows(datum).push({ ...rows(datum)[0], id: "R3", outcome_ids: ["O2"] });
+  expect(validatePayloadCollections(reqType, datum, [])).toEqual([]);
+  rows(datum)[1]!.outcome_ids = ["missing"];
+  expect(validatePayloadCollections(reqType, datum, []).some((d) => d.message.includes("Unknown reference 'missing'"))).toBe(true);
+});
+
 test("coverage resolves only the exact linked requirement revision and permits several evidence rows", () => {
   const original = requirements();
   const newer = structuredClone(original); newer.revision = 2; newer.revision_id = "REQ-0000000001-r00002"; rows(newer)[0]!.id = "R2";

@@ -7,6 +7,7 @@ export interface PayloadReferenceRule {
   key: string;
   link?: string;
   covered?: boolean;
+  coverage_where?: { field: string; equals: string };
   acyclic?: boolean;
 }
 export interface PayloadCollection {
@@ -71,7 +72,7 @@ export function validatePayloadCollections(
       const covered = new Set<unknown>();
       rows.forEach((row, index) => values(at(row, rule.field)).forEach((reference) => {
         if (!keys.has(reference)) diagnostics.push(diagnostic(`${collection.path}[${index}].${rule.field}`, `Unknown reference '${String(reference)}' in '${rule.target}'`));
-        else covered.add(reference);
+        else if (!rule.coverage_where || at(row, rule.coverage_where.field) === rule.coverage_where.equals) covered.add(reference);
       }));
       if (rule.covered) for (const key of keys) {
         if (!covered.has(key)) diagnostics.push(diagnostic(collection.path, `No declared mapping covers '${String(key)}' in '${rule.target}'`));
@@ -136,6 +137,7 @@ export function validatePayloadCollectionDefinitions(
       for (const rule of collection.references ?? []) {
         const source = schemaAt(item, rule.field);
         if (!(source?.type === "string" || (source?.type === "array" && object(source.items)?.type === "string"))) bad("payload_collections", `Reference '${collection.path}.${rule.field}' must be a string or string array`);
+        if (rule.coverage_where && (!rule.covered || schemaAt(item, rule.coverage_where.field)?.type !== "string")) bad("payload_collections", "Coverage contributor filter requires covered=true and a declared string field");
         let targets = [type];
         if (rule.link) {
           const link = type.outgoingLinks.find((link) => link.id === rule.link);
