@@ -100,6 +100,46 @@ payload_schema:
           lineCount:
             type: integer
             minimum: 0
+    source_changes:
+      type: object
+      additionalProperties: false
+      required:
+      - baseline_implementation
+      - files
+      properties:
+        baseline_implementation:
+          type:
+          - string
+          - 'null'
+        files:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - path
+            - added_ranges
+            - inherited_added_ranges
+            properties:
+              path:
+                type: string
+                minLength: 1
+              added_ranges: &id002
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required:
+                  - start
+                  - end
+                  properties:
+                    start:
+                      type: integer
+                      minimum: 1
+                    end:
+                      type: integer
+                      minimum: 1
+              inherited_added_ranges: *id002
 outgoing_links:
 - id: implements
   description: implements
@@ -129,3 +169,4 @@ outgoing_links:
 kernel_managed_payload_paths:
 - product_files
 - source_inventory
+- source_changes
