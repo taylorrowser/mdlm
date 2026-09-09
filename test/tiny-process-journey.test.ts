@@ -81,7 +81,8 @@ it("captures Docker script failure, error and corrected success without authored
         output.payload = {
           title: "Comma counter", intent: "Count ASCII commas from stdin.",
           source: "Stakeholder requests a comma count and rejects arguments.",
-          commitments: ["Print the ASCII comma count and a newline.", "Reject arguments with exit 2, no stdout and usage on stderr."],
+          outcomes: [{ id: "O1", statement: "Count commas from stdin and reject arguments." }],
+          commitments: ["Print the ASCII comma count and a newline", "Reject arguments with exit 2, no stdout and usage on stderr"].map((response, i) => ({ id: `R${i + 1}`, level: "software", outcome_ids: ["O1"], parent_ids: [], ears: { pattern: "ubiquitous", system: "the counter", response } })),
         };
       } else if (type === "IMP") {
         // Stage zero reproduces the real demo's literal-backslash transcription.
@@ -109,7 +110,7 @@ it("captures Docker script failure, error and corrected success without authored
         commits.push(sourceCommit);
         output.payload = { title: "Comma counter and verification script", repository_path: source,
           source_commit: sourceCommit, command: ["python3", "count.py"], product_files: ["count.py"],
-          verification_image: image, verification_command: ["python3", "verify.py"], verification_script: "verify.py" };
+          verification_image: image, verification_command: ["python3", "verify.py"], verification_script: "verify.py", verification_coverage: ["R1", "R2"].map((commitment_id) => ({ commitment_id, method: "test", file: "verify.py", locator: "stdin and argv assertions" })) };
         implementation++;
       } else if (type === "RES") {
         output.payload = { assessment: "The intended committed script ran; inspected its captured streams and exit status.",

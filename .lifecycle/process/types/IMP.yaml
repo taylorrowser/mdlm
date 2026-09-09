@@ -22,6 +22,7 @@ payload_schema:
   - verification_image
   - verification_command
   - verification_script
+  - verification_coverage
   properties:
     publication:
       const: recorded
@@ -53,6 +54,34 @@ payload_schema:
       type: string
       minLength: 1
       pattern: ^(?!/)(?!.*(?:^|/)\.\.(?:/|$)).+$
+    verification_coverage:
+      type: array
+      minItems: 1
+      items:
+        type: object
+        additionalProperties: false
+        required:
+        - commitment_id
+        - method
+        - file
+        - locator
+        properties:
+          commitment_id:
+            type: string
+            minLength: 1
+            pattern: ^[A-Za-z][A-Za-z0-9_-]*$
+          method:
+            enum:
+            - test
+            - inspection
+            type: string
+          file:
+            type: string
+            minLength: 1
+            pattern: ^(?!/)(?!.*(?:^|/)\.\.(?:/|$)).+$
+          locator:
+            type: string
+            minLength: 1
 outgoing_links:
 - id: implements
   description: implements
@@ -80,3 +109,27 @@ outgoing_links:
   freeze_resolution: already-exact
   inverse_label: incoming-corrects
 kernel_managed_payload_paths: []
+payload_collections:
+- path: verification_coverage
+  references:
+  - field: commitment_id
+    target: commitments
+    key: id
+    link: implements
+    covered: true
+payload_views:
+- title: Declared evidence mapping, subject to content review
+  path: verification_coverage
+  columns:
+  - title: Commitment
+    fragments:
+    - field: commitment_id
+  - title: Method
+    fragments:
+    - field: method
+  - title: File
+    fragments:
+    - field: file
+  - title: Location
+    fragments:
+    - field: locator

@@ -3,7 +3,8 @@ id: review-implementation
 scenario: review-implementation
 version: 1
 skills:
-  - skills/product-quality.md@1
+- skills/product-quality.md@1
+- skills/typed-requirements.md@1
 ---
 
 # Review implementation and execution evidence

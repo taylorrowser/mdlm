@@ -3,7 +3,9 @@ id: implement-product
 scenario: implement-product
 version: 1
 skills:
-  - skills/product-quality.md@1
+- skills/product-quality.md@1
+- skills/typed-requirements.md@1
+- skills/verification-starter.md@1
 ---
 
 # Implement the tiny product

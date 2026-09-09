@@ -3,7 +3,9 @@ id: correct-implementation-after-review
 scenario: correct-implementation-after-review
 version: 1
 skills:
-  - skills/product-quality.md@1
+- skills/product-quality.md@1
+- skills/typed-requirements.md@1
+- skills/verification-starter.md@1
 ---
 
 # Correct implementation after content Review

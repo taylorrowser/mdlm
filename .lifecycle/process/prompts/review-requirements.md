@@ -3,7 +3,8 @@ id: review-requirements
 scenario: review-requirements
 version: 1
 skills:
-  - skills/product-quality.md@1
+- skills/product-quality.md@1
+- skills/typed-requirements.md@1
 ---
 
 # Review requirements
