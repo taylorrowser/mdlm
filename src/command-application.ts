@@ -1909,6 +1909,26 @@ function renderCommandResult(result: CommandResult): string {
       ),
     ].join("\n");
   }
+  if (result.requirementTrace) {
+    const trace = result.requirementTrace;
+    const label = (revision: string) => {
+      const requirement = trace.requirements.find((r) => r.revision === revision);
+      return `${revision}${requirement?.payload.title ? ` (${String(requirement.payload.title)})` : ""}`;
+    };
+    return [
+      `Implementation: ${trace.implementation}`,
+      `Requirement graph: ${trace.selection}`,
+      `Source commit: ${String(trace.source_commit)}`,
+      "Inspection locations; listed code does not necessarily need an edit.",
+      ...trace.scopes.flatMap((scope) => [
+        `${String(scope.path)}:${scope.ranges.map((r) => r.start === r.end ? r.start : `${r.start}-${r.end}`).join(",")} [${String(scope.role)}, ${scope.inherited ? "file default" : "explicit region"}]`,
+        ...scope.reasons.map((reason) => `  ${reason.reason}: ${reason.path.map(label).join(" -> ")}`),
+        ...scope.otherRequirements.map((other) => `  Also serves ${label(other.requirement)}: ${other.reason}`),
+      ]),
+      ...(!trace.scopes.length ? ["No linked source scopes."] : []),
+      ...trace.reassessment.map((item) => `Reassess ${label(item.requirement)}: ${item.supersededAncestors.map(label).join(", ")}`),
+    ].join("\n");
+  }
   if (result.trace) {
     return [
       `Trace: ${result.trace.root.identity} [${result.trace.root.identityKind.replace("-", " ")}]`,
@@ -2235,7 +2255,7 @@ async function dispatchCommand(
     const subject = optionValue(arguments_, "--requirements");
     if (!subject) return {...failure("change-requirements-required", "Expected mdlm change request --requirements <exact-RQS-revision>"), command: "change.request"};
     const result = await requestRequirementChange(repositoryRoot, subject);
-    return {...result, command: "change.request"};
+    return result.ok ? {ok: true, ...result.value, command: "change.request", diagnostics: []} : {...result, command: "change.request"};
   }
   if (operands[0] === "next") {
     const nextArguments = arguments_.filter((argument) => argument !== "--json");

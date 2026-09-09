@@ -74,8 +74,8 @@ it("captures Docker script failure, error and corrected success without authored
       const next = cli(["next", "--json"]);
       if (next.outcome === "lifecycle-complete") {
         if (!installedMode && !changed) {
-          const request = cli(["change", "request", "--requirements", currentSet, "--json"]);
-          expect(request.ok).toBe(true);
+          const request = cli(["change", "request", "--requirements", currentSet]);
+          expect(request.outcome).toBe("assignment");
           changed = true;
           continue;
         }
@@ -198,6 +198,15 @@ it("captures Docker script failure, error and corrected success without authored
     const why = cli(["trace", "why", "count.py:2", "--implementation", firstImplementation, "--json"]).requirementTrace;
     expect(why.scopes).toHaveLength(1);
     expect(why.scopes[0].reasons[0].path).toHaveLength(2);
+    const plainWhy = command(process.execPath, [executable, "trace", "why", "count.py:2", "--implementation", firstImplementation], lifecycle);
+    expect(plainWhy.status).toBe(0);
+    expect(plainWhy.stdout).toContain("count.py:");
+    expect(plainWhy.stdout).toContain(" -> ");
+    const need = why.requirements.find((r: Json) => r.payload.kind === "stakeholder").id;
+    const plainImpact = command(process.execPath, [executable, "trace", "impact", need, "--implementation", firstImplementation], lifecycle);
+    expect(plainImpact.status).toBe(0);
+    expect(plainImpact.stdout).toContain("count.py:");
+    expect(plainImpact.stdout).toContain("verify.py:");
     if (!installedMode) expect(why.reassessment).toHaveLength(2);
     const records: Json[] = [];
     const data = path.join(lifecycle, ".lifecycle/data");
