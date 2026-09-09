@@ -6,7 +6,7 @@ parameters:
 - name: requirements
   kind: revision
   types:
-  - REQ
+  - RQS
 result_kind: revision
 query:
   from:

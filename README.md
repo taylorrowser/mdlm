@@ -6,12 +6,14 @@ revisions so another agent can continue the work and understand what was checked
 The product is the `mdlm` CLI over Markdown Lifecycle Data and a declarative
 Process Package. Pi, Codex, and other harnesses operate that contract.
 
-The default tiny Process Package uses one requirement level. Its normal route is
+The default tiny Process Package reviews one requirement graph as a batch. Its normal route is
 requirements, independent requirement review, implementation, executable
 verification run by the CLI in Docker, independent implementation review, and
 stakeholder acceptance.
-Requirements carry product intent and observable commitments together. Tiny products
-do not need separate system, component, architecture, or design records.
+Each stakeholder need and software commitment has its own normal identity.
+Software requirements decompose their parents through exact links, with as many
+levels as the behavior needs. Software leaves are the code contracts. The CLI
+generates the requirement-set and source-scope records without extra agent turns.
 
 The CLI validates structure, references, fixed values, and declared mechanical
 constraints before atomic publication. Reviewers judge whether requirements express the intended product and whether implementation and evidence
@@ -86,6 +88,45 @@ mdlm next --json
 Start each transaction from a clean tree. Stop rather than absorb unrelated
 changes. MDLM owns Lifecycle Data publication; the operator owns review of the
 resulting diff and the ordinary Git commit.
+
+## Code traceability and requirement changes
+
+For the tiny package, author requirements in one batch using the packet's local
+handles and normal `decomposes` links. The CLI supplies stable requirement IDs in
+`requirementGraphs`. Source comments name those IDs, resolved only against the
+exact reviewed graph selected for the implementation. Use a file default and
+optional closed regions:
+
+```python
+# mdlm:file runtime implements REQ-0000000001
+# mdlm:begin loading implements REQ-0000000002
+def load_store(path):
+    ...
+# mdlm:end loading
+```
+
+Replace the example IDs with the packet's published requirements. Verifier code
+uses `verifies` instead. Declare each committed file's role in `file_roles`.
+Submission derives the complete inventory, every code line's scope, normal
+requirement links and exact added lines inheriting defaults. Documentation stays
+in the inventory without line directives. Initially executable source uses
+Python comments; unsupported formats are rejected explicitly. Review judges
+whether the linked requirements actually explain the code.
+
+```bash
+mdlm trace why tasks.py:42 --implementation <exact-IMP-revision> --json
+mdlm trace impact <REQ-id-or-revision> --implementation <exact-IMP-revision> --json
+mdlm change request --requirements <exact-current-RQS-revision> --json
+```
+
+Request a change only after the current product is accepted and complete. This
+opens the package's explicit revision assignment, then the normal next/submit
+loop resumes. Use `revision_of` to revise or reaffirm exact selected requirements
+in one batch and link descendants to the new parent revisions. Old requirements,
+source scopes and acceptance evidence remain immutable. Impact output identifies
+locations to inspect, including verification and shared scopes; it does not claim
+that every reported line must change. The implementation review packet includes
+`sourceScopes`, exact `source_changes`, and comparison against the prior source.
 
 ## Read-only inspection
 

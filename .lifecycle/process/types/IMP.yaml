@@ -22,7 +22,8 @@ payload_schema:
   - verification_image
   - verification_command
   - verification_script
-  - verification_coverage
+  - file_roles
+  - source_inventory
   properties:
     publication:
       const: recorded
@@ -54,41 +55,98 @@ payload_schema:
       type: string
       minLength: 1
       pattern: ^(?!/)(?!.*(?:^|/)\.\.(?:/|$)).+$
-    verification_coverage:
+    file_roles:
+      type: object
+      minProperties: 1
+      propertyNames:
+        pattern: ^(?!/)(?!.*(?:^|/)\.\.(?:/|$)).+$
+      additionalProperties:
+        type: string
+        enum:
+        - production
+        - verification
+        - documentation
+        - build
+        - configuration
+    source_inventory:
       type: array
-      minItems: 1
       items:
         type: object
         additionalProperties: false
         required:
-        - commitment_id
-        - method
-        - file
-        - locator
+        - path
+        - mode
+        - blob
+        - role
+        - lineCount
         properties:
-          commitment_id:
+          path:
             type: string
             minLength: 1
-            pattern: ^[A-Za-z][A-Za-z0-9_-]*$
-          method:
+          mode:
+            type: string
+            minLength: 1
+          blob:
+            type: string
+            pattern: ^[0-9a-f]{40}$
+          role:
+            type: string
             enum:
-            - test
-            - inspection
-            type: string
-          file:
-            type: string
-            minLength: 1
-            pattern: ^(?!/)(?!.*(?:^|/)\.\.(?:/|$)).+$
-          locator:
-            type: string
-            minLength: 1
+            - production
+            - verification
+            - documentation
+            - build
+            - configuration
+          lineCount:
+            type: integer
+            minimum: 0
+    source_changes:
+      type: object
+      additionalProperties: false
+      required:
+      - baseline_implementation
+      - files
+      properties:
+        baseline_implementation:
+          type:
+          - string
+          - 'null'
+        files:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - path
+            - added_ranges
+            - inherited_added_ranges
+            properties:
+              path:
+                type: string
+                minLength: 1
+              added_ranges: &id002
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required:
+                  - start
+                  - end
+                  properties:
+                    start:
+                      type: integer
+                      minimum: 1
+                    end:
+                      type: integer
+                      minimum: 1
+              inherited_added_ranges: *id002
 outgoing_links:
 - id: implements
   description: implements
   targets:
   - kind: datum
     types:
-    - REQ
+    - RQS
     identity: revision
   cardinality:
     minimum: 1
@@ -108,28 +166,7 @@ outgoing_links:
     maximum: many
   freeze_resolution: already-exact
   inverse_label: incoming-corrects
-kernel_managed_payload_paths: []
-payload_collections:
-- path: verification_coverage
-  references:
-  - field: commitment_id
-    target: commitments
-    key: id
-    link: implements
-    covered: true
-payload_views:
-- title: Declared evidence mapping, subject to content review
-  path: verification_coverage
-  columns:
-  - title: Commitment
-    fragments:
-    - field: commitment_id
-  - title: Method
-    fragments:
-    - field: method
-  - title: File
-    fragments:
-    - field: file
-  - title: Location
-    fragments:
-    - field: locator
+kernel_managed_payload_paths:
+- product_files
+- source_inventory
+- source_changes

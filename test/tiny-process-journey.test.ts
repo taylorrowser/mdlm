@@ -43,6 +43,9 @@ it("captures Docker script failure, error and corrected success without authored
   const commits: string[] = [];
   const installedMode = process.env.MDLM_TINY_INSTALLED === "1";
   let implementation = installedMode ? 2 : 0;
+  let changed = false;
+  let currentSet = "";
+  let firstImplementation = "";
   try {
     await fs.mkdir(source);
     git(["init", "--quiet"]);
@@ -67,23 +70,35 @@ it("captures Docker script failure, error and corrected success without authored
       executable = path.join(installRoot, "node_modules/mdlm/dist/mdlm.js");
     }
     packageIdentity = cli(["init", lifecycle, "--json"], undefined, 0, root).package;
-    for (let step = 0; step < 16; step++) {
+    for (let step = 0; step < 24; step++) {
       const next = cli(["next", "--json"]);
-      if (next.outcome === "lifecycle-complete") break;
+      if (next.outcome === "lifecycle-complete") {
+        if (!installedMode && !changed) {
+          const request = cli(["change", "request", "--requirements", currentSet]);
+          expect(request.outcome).toBe("assignment");
+          changed = true;
+          continue;
+        }
+        break;
+      }
       boundary = next;
       const packet = next.assignment.packet;
       const proposal = structuredClone(packet.authorValuesScaffold);
       proposal.completionEvidence = { summary: "Reviewed the exact assignment inputs and captured results." };
-      const output = proposal.outputs[0];
+      const output = proposal.outputs[0] ?? {};
       const type = packet.outputs[0].type;
       output.body = "Public Docker verification regression.\n";
       if (type === "REQ") {
-        output.payload = {
-          title: "Comma counter", intent: "Count ASCII commas from stdin.",
-          source: "Stakeholder requests a comma count and rejects arguments.",
-          outcomes: [{ id: "O1", statement: "Count commas from stdin and reject arguments." }],
-          commitments: ["Print the ASCII comma count and a newline", "Reject arguments with exit 2, no stdout and usage on stderr"].map((response, i) => ({ id: `R${i + 1}`, level: "software", outcome_ids: ["O1"], parent_ids: [], ears: { pattern: "ubiquitous", system: "the counter", response } })),
-        };
+        proposal.outputs = [
+          {slot: "requirements", handle: "need", payload: {title: "Count commas", kind: "stakeholder", statement: "Count ASCII commas from stdin; reject arguments."}, body: ""},
+          {slot: "requirements", handle: "count", payload: {title: "Count input", kind: "software", ears: {pattern: "ubiquitous", system: "the counter", response: "print the ASCII comma count plus newline for no arguments and reject arguments with exit 2 and usage on stderr"}}, links: [{type: "decomposes", target: {output: "need"}}], body: ""},
+        ];
+        if (changed) {
+          const requirements = packet.requirementGraphs[0].requirements;
+          proposal.outputs[0].revision_of = requirements.find((r: Json) => r.payload.kind === "stakeholder").revision;
+          proposal.outputs[0].payload.statement += " Preserve this behavior for later invocations.";
+          proposal.outputs[1].revision_of = requirements.find((r: Json) => r.leaf).revision;
+        }
       } else if (type === "IMP") {
         // Stage zero reproduces the real demo's literal-backslash transcription.
         // Stage one is an execution error; stage two checks stdin and argv.
@@ -103,18 +118,22 @@ it("captures Docker script failure, error and corrected success without authored
           "    sys.exit(2)",
           "print('PASS: stdin and argv assertions')", "",
         ].join("\n");
-        await fs.writeFile(path.join(source, "verify.py"), script);
+        const leaf = packet.requirementGraphs[0].requirements.find((r: Json) => r.leaf).id;
+        const countFile = path.join(source, "count.py");
+        const countSource = (await fs.readFile(countFile, "utf8")).replace(/^# mdlm:file[^\n]*\n/, "");
+        await fs.writeFile(countFile, `# mdlm:file runtime implements ${leaf}\n${countSource}`);
+        await fs.writeFile(path.join(source, "verify.py"), `# mdlm:file checks verifies ${leaf}\n${script}`);
         git(["add", "count.py", "verify.py"]);
-        git(["-c", "commit.gpgSign=false", "commit", "--quiet", "--no-verify", "-m", `Verification stage ${implementation}`]);
+        git(["-c", "commit.gpgSign=false", "commit", "--quiet", "--allow-empty", "--no-verify", "-m", `Verification stage ${implementation}`]);
         const sourceCommit = git(["rev-parse", "HEAD"]);
         commits.push(sourceCommit);
         output.payload = { title: "Comma counter and verification script", repository_path: source,
-          source_commit: sourceCommit, command: ["python3", "count.py"], product_files: ["count.py"],
-          verification_image: image, verification_command: ["python3", "verify.py"], verification_script: "verify.py", verification_coverage: ["R1", "R2"].map((commitment_id) => ({ commitment_id, method: "test", file: "verify.py", locator: "stdin and argv assertions" })) };
+          source_commit: sourceCommit, command: ["python3", "count.py"], file_roles: {"count.py": "production", "verify.py": "verification"},
+          verification_image: image, verification_command: ["python3", "verify.py"], verification_script: "verify.py" };
         implementation++;
       } else if (type === "RES") {
         output.payload = { assessment: "The intended committed script ran; inspected its captured streams and exit status.",
-          correction_target: implementation === 3 ? "none" : "implementation" };
+          correction_target: implementation >= 3 ? "none" : "implementation" };
         expect(proposal.outputs[0].payload).not.toHaveProperty("outcome");
         if (!installedMode && receipts.length === 0) {
           const missing = cli(["assignment", "submit-proposal", "-", "--json"], proposal, 1);
@@ -125,8 +144,8 @@ it("captures Docker script failure, error and corrected success without authored
         const result = execution.receipt.result;
         expect(result.started).toBe(true);
         expect(result.sourceCommit).toBe(commits.at(-1));
-        expect(result.outcome).toBe((installedMode ? ["pass"] : ["fail", "error", "pass"])[receipts.length - 1]);
-        expect(result.exitCode).toBe((installedMode ? [0] : [1, 2, 0])[receipts.length - 1]);
+        expect(result.outcome).toBe((installedMode ? ["pass"] : ["fail", "error", "pass", "pass"])[receipts.length - 1]);
+        expect(result.exitCode).toBe((installedMode ? [0] : [1, 2, 0, 0])[receipts.length - 1]);
         expect(execution.receipt.attempt).toBe(1);
         if (!installedMode) {
           expect(cli(["assignment", "run", "--json"]).value).toEqual(execution);
@@ -164,13 +183,31 @@ it("captures Docker script failure, error and corrected success without authored
       if (next.outcome === "attention-required") args.push("--authority", next.authorityRequirement.authority);
       const submitted = cli(args, proposal);
       expect(submitted.outcome).toBe("accepted");
+      for (const publication of submitted.receipt.publications) {
+        if (publication.stableId.startsWith("RQS-")) currentSet = publication.revisionId;
+        if (publication.stableId.startsWith("IMP-") && !firstImplementation) firstImplementation = publication.revisionId;
+      }
+      if (type === "IMP") expect(submitted.receipt.publications.filter((p: Json) => p.stableId.startsWith("SCP-"))).toHaveLength(2);
       acceptedTrace.push({ assignment: next.assignment.id, scenario: packet.scenario.reference, submitted });
       git(["add", ".lifecycle/data"], lifecycle);
       git(["-c", "user.name=MDLM test", "-c", "user.email=mdlm-test@localhost", "-c", "commit.gpgSign=false",
         "commit", "--quiet", "--no-verify", "-m", `Publish ${packet.scenario.reference}`], lifecycle);
     }
     expect(cli(["next", "--json"]).outcome).toBe("lifecycle-complete");
-    expect(receipts).toHaveLength(installedMode ? 1 : 3);
+    expect(receipts).toHaveLength(installedMode ? 1 : 4);
+    const why = cli(["trace", "why", "count.py:2", "--implementation", firstImplementation, "--json"]).requirementTrace;
+    expect(why.scopes).toHaveLength(1);
+    expect(why.scopes[0].reasons[0].path).toHaveLength(2);
+    const plainWhy = command(process.execPath, [executable, "trace", "why", "count.py:2", "--implementation", firstImplementation], lifecycle);
+    expect(plainWhy.status).toBe(0);
+    expect(plainWhy.stdout).toContain("count.py:");
+    expect(plainWhy.stdout).toContain(" -> ");
+    const need = why.requirements.find((r: Json) => r.payload.kind === "stakeholder").id;
+    const plainImpact = command(process.execPath, [executable, "trace", "impact", need, "--implementation", firstImplementation], lifecycle);
+    expect(plainImpact.status).toBe(0);
+    expect(plainImpact.stdout).toContain("count.py:");
+    expect(plainImpact.stdout).toContain("verify.py:");
+    if (!installedMode) expect(why.reassessment).toHaveLength(2);
     const records: Json[] = [];
     const data = path.join(lifecycle, ".lifecycle/data");
     for (const file of await fs.readdir(data, { recursive: true })) {
@@ -180,7 +217,7 @@ it("captures Docker script failure, error and corrected success without authored
       if (frontmatter) records.push(parse(frontmatter[1]!));
     }
     const results = records.filter(record => record.type === "RES");
-    expect(results.map(record => record.payload.outcome).sort()).toEqual(installedMode ? ["pass"] : ["error", "fail", "pass"]);
+    expect(results.map(record => record.payload.outcome).sort()).toEqual(installedMode ? ["pass"] : ["error", "fail", "pass", "pass"]);
     for (const receipt of receipts) {
       const retained = JSON.parse(git(["cat-file", "blob", receipt.oid], lifecycle));
       expect(retained).toEqual(receipt.receipt);

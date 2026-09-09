@@ -12,13 +12,20 @@ inputs:
   identity: revision
 - name: subject
   types:
-  - REQ
+  - RQS
   cardinality: one
   identity: revision
 outputs:
 - name: requirements
   types:
   - REQ
+  cardinality: one-or-more
+  required_links: []
+  required_payload:
+    publication: recorded
+- name: requirement_set
+  types:
+  - RQS
   cardinality: one
   required_links:
   - link: corrects

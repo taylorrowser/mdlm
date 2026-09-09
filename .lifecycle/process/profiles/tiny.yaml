@@ -1,12 +1,14 @@
 kind: implementation-profile-definition
 id: tiny
 version: 1
-description: One-level tiny product lifecycle.
+description: One-batch normal-link requirements and fully attributed Python product lifecycle.
 status: experimental
 enabled:
   types:
   - REQ
+  - RQS
   - IMP
+  - SCP
   - RES
   - REV
   - ACC
@@ -19,7 +21,6 @@ enabled:
   - stale
   - failed
 disabled_capabilities:
-- hierarchical requirement decomposition
 - architecture and interface definition
 - environment qualification
 - custom verification image builds

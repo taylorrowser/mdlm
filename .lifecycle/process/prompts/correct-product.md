@@ -6,6 +6,7 @@ skills:
 - skills/product-quality.md@1
 - skills/typed-requirements.md@1
 - skills/verification-starter.md@1
+- skills/source-trace.md@1
 ---
 
 # Correct a product verification failure

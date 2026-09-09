@@ -1,8 +1,8 @@
 kind: type-definition
 id: REQ
 version: 1
-description: Requirement set
-name: Requirement set
+description: Requirement statement
+name: Requirement statement
 extends: titled-datum@1
 lifecycle:
   authorship: authored
@@ -15,309 +15,197 @@ payload_schema:
   type: object
   required:
   - publication
-  - intent
-  - commitments
-  - source
-  - outcomes
+  - kind
   properties:
     publication:
       const: recorded
-    intent:
+    kind:
+      type: string
+      enum:
+      - stakeholder
+      - software
+    statement: &id002
       type: string
       minLength: 1
-    commitments:
-      type: array
-      minItems: 1
-      items:
-        type: object
-        additionalProperties: false
+    ears:
+      type: object
+      additionalProperties: false
+      required:
+      - pattern
+      - system
+      - response
+      properties:
+        pattern:
+          enum:
+          - ubiquitous
+          - event
+          - state
+          - optional
+          - unwanted
+          - complex
+          type: string
+        system:
+          type: string
+          minLength: 1
+          description: Complete grammatical subject, including an article if needed.
+        response: &id001
+          type: string
+          minLength: 1
+        feature: *id001
+        state: *id001
+        event: *id001
+        unwanted: *id001
+      allOf:
+      - if:
+          properties:
+            pattern:
+              const: ubiquitous
+          required:
+          - pattern
+        then:
+          required: []
+          not:
+            anyOf:
+            - required:
+              - feature
+            - required:
+              - state
+            - required:
+              - event
+            - required:
+              - unwanted
+      - if:
+          properties:
+            pattern:
+              const: event
+          required:
+          - pattern
+        then:
+          required:
+          - event
+          not:
+            anyOf:
+            - required:
+              - feature
+            - required:
+              - state
+            - required:
+              - unwanted
+      - if:
+          properties:
+            pattern:
+              const: state
+          required:
+          - pattern
+        then:
+          required:
+          - state
+          not:
+            anyOf:
+            - required:
+              - feature
+            - required:
+              - event
+            - required:
+              - unwanted
+      - if:
+          properties:
+            pattern:
+              const: optional
+          required:
+          - pattern
+        then:
+          required:
+          - feature
+          not:
+            anyOf:
+            - required:
+              - state
+            - required:
+              - event
+            - required:
+              - unwanted
+      - if:
+          properties:
+            pattern:
+              const: unwanted
+          required:
+          - pattern
+        then:
+          required:
+          - unwanted
+          not:
+            anyOf:
+            - required:
+              - feature
+            - required:
+              - state
+            - required:
+              - event
+      - if:
+          properties:
+            pattern:
+              const: complex
+          required:
+          - pattern
+        then:
+          anyOf:
+          - required:
+            - feature
+            - state
+          - required:
+            - feature
+            - event
+          - required:
+            - feature
+            - unwanted
+          - required:
+            - state
+            - event
+          - required:
+            - state
+            - unwanted
+          not:
+            required:
+            - event
+            - unwanted
+      examples:
+      - pattern: event
+        event: the user submits a valid request
+        system: the product
+        response: return the requested result
+    rationale: *id002
+    source: *id002
+  allOf:
+  - if:
+      properties:
+        kind:
+          const: stakeholder
+      required:
+      - kind
+    then:
+      required:
+      - statement
+      not:
         required:
-        - id
-        - level
-        - outcome_ids
-        - parent_ids
         - ears
-        properties:
-          id: &id001
-            type: string
-            minLength: 1
-            pattern: ^[A-Za-z][A-Za-z0-9_-]*$
-          level:
-            enum:
-            - software
-            - allocated
-            type: string
-          outcome_ids:
-            type: array
-            uniqueItems: true
-            items: *id001
-            minItems: 1
-          parent_ids:
-            type: array
-            uniqueItems: true
-            items: *id001
-          allocation: &id002
-            type: string
-            minLength: 1
-          derivation: *id002
-          ears:
-            type: object
-            additionalProperties: false
-            required:
-            - pattern
-            - system
-            - response
-            properties:
-              pattern:
-                enum:
-                - ubiquitous
-                - event
-                - state
-                - optional
-                - unwanted
-                - complex
-                type: string
-              system:
-                type: string
-                minLength: 1
-                description: Complete grammatical subject, including an article if needed.
-              response: *id002
-              feature: *id002
-              state: *id002
-              event: *id002
-              unwanted: *id002
-            allOf:
-            - if:
-                properties:
-                  pattern:
-                    const: ubiquitous
-                required:
-                - pattern
-              then:
-                required: []
-                not:
-                  anyOf:
-                  - required:
-                    - feature
-                  - required:
-                    - state
-                  - required:
-                    - event
-                  - required:
-                    - unwanted
-            - if:
-                properties:
-                  pattern:
-                    const: event
-                required:
-                - pattern
-              then:
-                required:
-                - event
-                not:
-                  anyOf:
-                  - required:
-                    - feature
-                  - required:
-                    - state
-                  - required:
-                    - unwanted
-            - if:
-                properties:
-                  pattern:
-                    const: state
-                required:
-                - pattern
-              then:
-                required:
-                - state
-                not:
-                  anyOf:
-                  - required:
-                    - feature
-                  - required:
-                    - event
-                  - required:
-                    - unwanted
-            - if:
-                properties:
-                  pattern:
-                    const: optional
-                required:
-                - pattern
-              then:
-                required:
-                - feature
-                not:
-                  anyOf:
-                  - required:
-                    - state
-                  - required:
-                    - event
-                  - required:
-                    - unwanted
-            - if:
-                properties:
-                  pattern:
-                    const: unwanted
-                required:
-                - pattern
-              then:
-                required:
-                - unwanted
-                not:
-                  anyOf:
-                  - required:
-                    - feature
-                  - required:
-                    - state
-                  - required:
-                    - event
-            - if:
-                properties:
-                  pattern:
-                    const: complex
-                required:
-                - pattern
-              then:
-                anyOf:
-                - required:
-                  - feature
-                  - state
-                - required:
-                  - feature
-                  - event
-                - required:
-                  - feature
-                  - unwanted
-                - required:
-                  - state
-                  - event
-                - required:
-                  - state
-                  - unwanted
-                not:
-                  required:
-                  - event
-                  - unwanted
-            examples:
-            - pattern: event
-              event: the user submits a valid request
-              system: the product
-              response: return the requested result
-        allOf:
-        - if:
-            properties:
-              level:
-                const: software
-            required:
-            - level
-          then:
-            properties:
-              parent_ids:
-                maxItems: 0
-            not:
-              required:
-              - allocation
-          else:
-            required:
-            - allocation
-            properties:
-              parent_ids:
-                minItems: 1
-    source:
-      type: string
-      minLength: 1
-    outcomes:
-      type: array
-      minItems: 1
-      items:
-        type: object
-        additionalProperties: false
+    else:
+      required:
+      - ears
+      not:
         required:
-        - id
         - statement
-        properties:
-          id: *id001
-          statement: *id002
-    assumptions:
-      type: array
-      items: *id002
-    examples:
-      type: array
-      items: *id002
 outgoing_links:
-- id: corrects
-  description: corrects
+- id: decomposes
+  description: decomposes
   targets:
   - kind: datum
     types:
-    - REV
-    - RES
+    - REQ
     identity: revision
   cardinality:
     minimum: 0
     maximum: many
   freeze_resolution: already-exact
-  inverse_label: incoming-corrects
+  inverse_label: incoming-decomposes
 kernel_managed_payload_paths: []
-payload_collections:
-- path: outcomes
-  key: id
-- path: commitments
-  key: id
-  references:
-  - field: outcome_ids
-    target: outcomes
-    key: id
-    covered: true
-    coverage_where:
-      field: level
-      equals: software
-  - field: parent_ids
-    target: commitments
-    key: id
-    acyclic: true
-payload_views:
-- title: Stakeholder outcomes
-  path: outcomes
-  columns:
-  - title: ID
-    fragments:
-    - field: id
-  - title: Outcome
-    fragments:
-    - field: statement
-- title: Software and allocated commitments
-  path: commitments
-  columns:
-  - title: ID
-    fragments:
-    - field: id
-  - title: Level
-    fragments:
-    - field: level
-  - title: Outcomes
-    fragments:
-    - field: outcome_ids
-  - title: Parents
-    fragments:
-    - field: parent_ids
-  - title: Requirement
-    fragments:
-    - field: ears.feature
-      prefix: 'Where '
-      suffix: ', '
-    - field: ears.state
-      prefix: 'While '
-      suffix: ', '
-    - field: ears.event
-      prefix: 'When '
-      suffix: ', '
-    - field: ears.unwanted
-      prefix: 'If '
-      suffix: ', then '
-    - field: ears.system
-      suffix: ' shall '
-    - field: ears.response
-      suffix: .

@@ -8,7 +8,7 @@ query:
   from:
     collection: revisions
     types:
-    - REQ
+    - RQS
   as: item
   where: 'state(item, "validity") == "valid" && none("newer-revisions@1", {subject: item})'
   distinct: true

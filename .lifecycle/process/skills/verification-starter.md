@@ -5,7 +5,7 @@ version: 1
 
 # Optional raw-byte verification starter
 
-Copy this example to verify.py in the product repository and replace the example case with assertions from the accepted requirements. Commit it with the product, declare it as verification_script, and use ["python3", "verify.py"] as verification_command with the selected pinned Python image. MDLM starts Docker; this script runs directly inside that container. Use another language when the chosen product environment requires it.
+Copy this example to verify.py in the product repository and replace the example case with assertions from the accepted requirements. Add file and region annotations from the source-trace skill using the selected published requirement IDs. Commit it with the product, declare it as verification_script, and use ["python3", "verify.py"] as verification_command with the selected pinned Python image. MDLM starts Docker; this script runs directly inside that container. Use another language when the chosen product environment requires it.
 
 ```python
 import subprocess

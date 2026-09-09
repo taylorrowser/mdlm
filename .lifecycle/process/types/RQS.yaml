@@ -1,11 +1,11 @@
 kind: type-definition
-id: REV
+id: RQS
 version: 1
-description: Independent content Review
-name: Independent content Review
+description: Requirement set
+name: Requirement set
 extends: titled-datum@1
 lifecycle:
-  authorship: authored
+  authorship: generated
   freeze_when: terminal-outcome
   terminal_payload_field: publication
   terminal_values:
@@ -15,42 +15,34 @@ payload_schema:
   type: object
   required:
   - publication
-  - outcome
-  - findings
   properties:
     publication:
       const: recorded
-    outcome:
-      enum:
-      - pass
-      - fail
-    findings:
-      type: string
-      minLength: 1
 outgoing_links:
-- id: reviews
-  description: reviews
+- id: contains
+  description: contains
   targets:
   - kind: datum
     types:
-    - RQS
-    - IMP
+    - REQ
     identity: revision
   cardinality:
     minimum: 1
-    maximum: 1
+    maximum: many
   freeze_resolution: already-exact
-  inverse_label: incoming-reviews
-- id: uses-evidence
-  description: uses evidence
+  inverse_label: incoming-contains
+- id: corrects
+  description: corrects
   targets:
   - kind: datum
     types:
+    - REV
     - RES
     identity: revision
   cardinality:
     minimum: 0
-    maximum: 1
+    maximum: many
   freeze_resolution: already-exact
-  inverse_label: incoming-uses-evidence
-kernel_managed_payload_paths: []
+  inverse_label: incoming-corrects
+kernel_managed_payload_paths:
+- title

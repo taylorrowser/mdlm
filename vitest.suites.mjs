@@ -15,6 +15,9 @@ export const mdlmPiTestFiles = [
 // unless the PR gate names one as a diff-focused regression. This source list is
 // exhaustive so verification can detect missing, duplicate, and stale entries.
 export const rootTestQualificationManifest = Object.freeze([
+  { file: "test/requirement-trace-inspection.test.ts", qualificationGate: "pr" },
+  { file: "test/source-scopes.test.ts", qualificationGate: "pr" },
+  { file: "test/requirement-trace.test.ts", qualificationGate: "pr" },
   { file: "test/load-process-package.test.ts", qualificationGate: "pr" },
   { file: "test/process-package-cases.test.ts", qualificationGate: "pr" },
   { file: "test/mdlm-assignment.test.ts", qualificationGate: "release" },

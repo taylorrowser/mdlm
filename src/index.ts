@@ -110,6 +110,9 @@ export interface VersionedDefinition {
 
 export interface KernelCapabilityBinding {
   type: string;
+  requirement_type?: string;
+  implementation_type?: string;
+  scope_type?: string;
 }
 
 export interface ProcessPackage {
@@ -244,7 +247,7 @@ function validateKernelCapabilityBindings(
 ): ProcessDiagnostic[] {
   return Object.entries(kernelCapabilities).flatMap(([reference, binding]) => {
     const path = `manifest.kernel_capabilities.${reference}.type`;
-    if (reference !== exactBaselineCapability.reference && reference !== "docker-verification@1") {
+    if (reference !== exactBaselineCapability.reference && reference !== "docker-verification@1" && reference !== "requirement-trace@1") {
       return [{
         code: "unknown-kernel-capability",
         path,
@@ -274,6 +277,12 @@ function validateKernelCapabilities(
     const resolved = resolveType(processPackage, binding.type);
     if (!resolved.ok) {
       diagnostics.push(...resolved.diagnostics);
+      continue;
+    }
+    if (reference === "requirement-trace@1") {
+      for (const field of ["requirement_type", "implementation_type", "scope_type"] as const) {
+        if (!binding[field] || !processPackage.types[binding[field]!]) diagnostics.push({code: "incompatible-kernel-capability", path: bindingPath, message: `Requirement trace requires a declared ${field}`});
+      }
       continue;
     }
     if (reference === "docker-verification@1") {
