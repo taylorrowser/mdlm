@@ -223,9 +223,33 @@ it("captures Docker script failure, error and corrected success without authored
       expect(retained).toEqual(receipt.receipt);
       expect(results.some(record => record.payload.receipt === `git-blob:${receipt.oid}`)).toBe(true);
     }
-    const accepted = records.find(record => record.type === "ACC")!;
-    const passed = results.find(record => record.payload.outcome === "pass")!;
-    expect(accepted.links).toContainEqual({ type: "uses-evidence", target: passed.revision_id });
+    const acceptances = records.filter(record => record.type === "ACC");
+    expect(acceptances).toHaveLength(installedMode ? 1 : 2);
+    const linked = (record: Json, type: string) => {
+      const links = record.links.filter((link: Json) => link.type === type);
+      expect(links).toHaveLength(1);
+      const target = records.find(candidate => candidate.revision_id === links[0].target);
+      expect(target).toBeDefined();
+      return target!;
+    };
+    const acceptedSets = new Set<string>();
+    const acceptedResults = new Set<string>();
+    for (const acceptance of acceptances) {
+      const passed = linked(acceptance, "uses-evidence");
+      const implementation = linked(acceptance, "accepts");
+      const requirements = linked(acceptance, "confirms");
+      expect(passed.type).toBe("RES");
+      expect(passed.payload.outcome).toBe("pass");
+      expect(implementation.type).toBe("IMP");
+      expect(requirements.type).toBe("RQS");
+      expect(linked(passed, "executes").revision_id).toBe(implementation.revision_id);
+      expect(linked(passed, "verifies").revision_id).toBe(requirements.revision_id);
+      expect(linked(implementation, "implements").revision_id).toBe(requirements.revision_id);
+      acceptedSets.add(requirements.revision_id);
+      acceptedResults.add(passed.revision_id);
+    }
+    expect(acceptedSets.size).toBe(acceptances.length);
+    expect(acceptedResults.size).toBe(acceptances.length);
   } catch (error) {
     failure = String(error);
     throw error;
