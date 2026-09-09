@@ -1,6 +1,6 @@
 # Tiny product Process Package
 
-`mdlm-tiny@0.1.1` is the default Example Process Package. It has one requirement
+`mdlm-tiny@0.2.0` is the default Example Process Package. It has one requirement
 level and one phase. It targets small, terminating command-line products with
 UTF-8 input and output. Earlier package history remains in Git.
 
@@ -65,3 +65,17 @@ mechanical field or avoidable review step, fix its owning schema, scenario,
 prompt or CLI contract in the same session. Keep the improvement here or in the
 owning instruction so the next agent receives it. Add lifecycle complexity only
 when a demonstrated product need earns its cost.
+
+## Structured requirements and evidence
+
+REQ stores stakeholder `outcomes` and EARS `commitments` in one publication. Local
+IDs connect outcomes, optional allocated parents and IMP `verification_coverage`.
+The CLI checks shape, uniqueness, reference existence, parent cycles and declared
+mapping coverage before publication. Content review judges whether the behaviors
+collectively meet the request and whether cited evidence establishes each claim.
+
+`mdlm show <exact-revision>` renders the package's outcome, commitment and evidence
+views. JSON output carries the same rows in `projections.views`. Assignment schemas
+include the collection declarations and display fields. The automatically loaded
+`skills/typed-requirements.md@1` explains authoring; implementation prompts also
+include `skills/verification-starter.md@1`, an optional raw-byte Python example.

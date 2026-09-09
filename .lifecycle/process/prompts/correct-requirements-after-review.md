@@ -3,7 +3,8 @@ id: correct-requirements-after-review
 scenario: correct-requirements-after-review
 version: 1
 skills:
-  - skills/product-quality.md@1
+- skills/product-quality.md@1
+- skills/typed-requirements.md@1
 ---
 
 # Correct requirements after content Review

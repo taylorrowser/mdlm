@@ -1,3 +1,4 @@
+import { validatePayloadCollections, renderPayloadViews, type RenderedPayloadView } from "./payload-collections.js";
 import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -80,6 +81,7 @@ export interface GraphTrace {
 }
 
 export interface DatumProjections {
+  views?: RenderedPayloadView[];
   backlinks: GraphLink[];
   states: Record<string, string | string[]>;
   obligations: ObligationEvaluation[];
@@ -619,6 +621,7 @@ function validateDatum(
       ? []
       : schemaDiagnostics(payloadValidator.errors, "payload", "datum-payload")),
   ];
+  if (diagnostics.length === 0) diagnostics.push(...validatePayloadCollections(resolved.type, datum, lifecycleData));
   if (
     !datum.id.startsWith(`${datum.type}-`) ||
     datum.revision_id !== `${datum.id}-r${String(datum.revision).padStart(5, "0")}`
@@ -1482,6 +1485,7 @@ function projectionsForLifecycleData(
       );
       const resolved = resolveType(processPackage, subject.datum.type);
       return [revisionId, {
+        ...(resolved.ok && resolved.type.payloadViews.length > 0 ? { views: renderPayloadViews(resolved.type, subject.datum.payload) } : {}),
         backlinks,
         states: statesByRevision.get(revisionId) ?? {},
         obligations: [...(obligationsByRevision.get(revisionId)?.values() ?? [])]

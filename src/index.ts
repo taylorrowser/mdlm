@@ -1,3 +1,4 @@
+import { validatePayloadCollectionDefinitions, type PayloadCollection, type PayloadView } from "./payload-collections.js";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import {
@@ -131,6 +132,8 @@ export interface ProcessPackage {
 }
 
 export interface ResolvedType {
+  payloadCollections: PayloadCollection[];
+  payloadViews: PayloadView[];
   id: string;
   version: number;
   name: string;
@@ -825,6 +828,10 @@ export async function loadProcessPackage(
       ...(constraintContract ? { constraintContract } : {}),
     };
     diagnostics.push(...validateKernelCapabilities(processPackage));
+    diagnostics.push(...validatePayloadCollectionDefinitions(processPackage, (id) => {
+      const result = resolveType(processPackage, id);
+      return result.ok ? result.type : undefined;
+    }));
     if (diagnostics.length > 0) return { ok: false, diagnostics };
 
     return {
@@ -980,6 +987,8 @@ export function resolveType(
   return {
     ok: true,
     type: {
+      payloadCollections: (typeDefinition.payload_collections ?? []) as PayloadCollection[],
+      payloadViews: (typeDefinition.payload_views ?? []) as PayloadView[],
       id: typeId,
       version: typeDefinition.version,
       name: String(typeDefinition.name),

@@ -34,6 +34,140 @@
       }
     },
     "outgoing_links": {"type": "array", "items": {"$ref": "link-contract.schema.json"}, "uniqueItems": true},
+    "payload_collections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)*$"
+          },
+          "key": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)*$"
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)*$"
+                },
+                "target": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)*$"
+                },
+                "key": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)*$"
+                },
+                "link": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "coverage_where": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "field",
+                  "equals"
+                ],
+                "properties": {
+                  "field": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)*$"
+                  },
+                  "equals": {
+                    "type": "string"
+                  }
+                }
+              },
+              "covered": {
+                  "type": "boolean"
+                },
+                "acyclic": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "field",
+                "target",
+                "key"
+              ]
+            }
+          }
+        },
+        "required": [
+          "path"
+        ]
+      }
+    },
+    "payload_views": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)*$"
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "fragments": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "field": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)*$"
+                      },
+                      "prefix": {
+                        "type": "string"
+                      },
+                      "suffix": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "field"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "title",
+                "fragments"
+              ]
+            }
+          }
+        },
+        "required": [
+          "title",
+          "path",
+          "columns"
+        ]
+      }
+    },
     "kernel_managed_payload_paths": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]*$"}, "uniqueItems": true}
   }
 }

@@ -1,3 +1,4 @@
+import type { PayloadCollection, PayloadView } from "./payload-collections.js";
 import { verificationBinding, verificationContract, runVerificationReceipt } from "./verification-receipt.js";
 import { createHash, randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
@@ -399,6 +400,8 @@ function compactAssignmentFieldSchema(
   const result: Record<string, unknown> = {};
   for (const key of [
     "type",
+    "description",
+    "examples",
     "enum",
     "const",
     "format",
@@ -614,6 +617,8 @@ export interface AssignmentPacket {
     envelope: Record<string, unknown>;
     payload: Record<string, unknown>;
     outgoingLinks: Record<string, unknown>[];
+    payloadCollections?: PayloadCollection[];
+    payloadViews?: PayloadView[];
   }>;
   policies: ScenarioDryRun["policies"];
   participation: NonNullable<ScenarioDryRun["participation"]>;
@@ -3199,6 +3204,8 @@ type ProjectedTypeSchema = {
   envelope: Record<string, unknown>;
   payload: Record<string, unknown>;
   outgoingLinks: Record<string, unknown>[];
+  payloadCollections?: PayloadCollection[];
+  payloadViews?: PayloadView[];
 };
 
 function projectedTypeSchemas(
@@ -3214,6 +3221,8 @@ function projectedTypeSchemas(
             envelope: resolved.type.envelopeSchema,
             payload: resolved.type.payloadSchema,
             outgoingLinks: resolved.type.outgoingLinks,
+            ...(resolved.type.payloadCollections.length ? { payloadCollections: resolved.type.payloadCollections } : {}),
+            ...(resolved.type.payloadViews.length ? { payloadViews: resolved.type.payloadViews } : {}),
           },
         ]
       : [];

@@ -184,3 +184,18 @@ evidence gap. Evidence methods fit the claim; optional improvements stay optiona
 Check: resolve that skill in each affected prompt, then inspect fresh lifecycle
 Review findings for consistent application. Structural checks do not prove that
 a reviewer applied the semantic standard.
+
+## Typed requirement mappings are mechanical declarations
+
+Issue #741 replaces tiny-package free-string commitments with typed EARS fields,
+local outcome/parent IDs and exact implementation evidence mappings. Canonical
+publication checks own shape and reference failures. Generated inspection views
+reuse the payload fields so authors do not maintain a second prose copy.
+
+A complete mapping does not prove complete behavior. Reviews still check parent
+coverage, appropriate allocation, relevant failures and whether cited evidence
+supports the claim. Keep collection validation as fixed package-neutral
+relations; retain package field names and sentence fragments in its declarations.
+Use the optional verification starter inside the CLI's existing container and
+compare raw bytes when required. Extend mechanics after a concrete operational
+miss, without replacing content judgment with wording or file-count heuristics.

@@ -1932,6 +1932,9 @@ function renderCommandResult(result: CommandResult): string {
       `Links: ${JSON.stringify(datum.links)}`,
       `Created By: ${JSON.stringify(datum.created_by)}`,
       `Body: ${datum.body}`,
+      ...(result.projections.views ?? []).flatMap((view) => [
+        view.title, view.columns.join(" | "), ...view.rows.map((row) => row.join(" | ")),
+      ]),
       `Storage: ${JSON.stringify(result.lifecycleDatum.storage)}`,
       `Integrity: ${JSON.stringify(result.lifecycleDatum.integrity)}`,
       ...Object.entries(result.projections.states).map(([dimension, value]) =>
