@@ -167,3 +167,20 @@ passing receipt. At that same publication interface, authored outcome or receipt
 substitution cannot create passing verification. Keep this check at the real
 execution and publication boundary rather than adding another prose claim or
 repeating the journey across test layers.
+
+## 10. Authors and reviewers share content expectations
+
+Issue: #739.
+
+Pattern: review demands process instructions in product requirements, unspecified
+exact wording, or additional checks without a concrete remaining evidence gap.
+Authors and fresh reviewers then work against different acceptance criteria.
+
+Rule: requirements, implementation, correction and review prompts load one shared
+versioned content standard. Separate product commitments from run constraints.
+Every blocking finding cites a commitment and a concrete mismatch or justified
+evidence gap. Evidence methods fit the claim; optional improvements stay optional.
+
+Check: resolve that skill in each affected prompt, then inspect fresh lifecycle
+Review findings for consistent application. Structural checks do not prove that
+a reviewer applied the semantic standard.

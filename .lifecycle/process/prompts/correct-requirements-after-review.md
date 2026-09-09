@@ -2,9 +2,13 @@
 id: correct-requirements-after-review
 scenario: correct-requirements-after-review
 version: 1
+skills:
+  - skills/product-quality.md@1
 ---
 
 # Correct requirements after content Review
+
+Apply the supplied shared product-quality skill before authoring or reviewing.
 
 Revise the same requirement-set lineage to address the exact failed Review. Keep stakeholder intent unless the stakeholder authorizes a change. Preserve prior evidence. The new revision receives a fresh independent Review.
 

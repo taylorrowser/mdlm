@@ -2,9 +2,13 @@
 id: review-requirements
 scenario: review-requirements
 version: 1
+skills:
+  - skills/product-quality.md@1
 ---
 
 # Review requirements
+
+Apply the supplied shared product-quality skill before authoring or reviewing.
 
 Independently judge whether intent and commitments match the stakeholder request, whether the scope is small enough, and whether the observable commitments are clear and sufficient to judge the product. Review content only. Report concrete semantic findings and pass or fail. Do not repeat schema checks.
 

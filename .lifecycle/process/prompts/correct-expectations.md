@@ -2,9 +2,13 @@
 id: correct-expectations
 scenario: correct-expectations
 version: 1
+skills:
+  - skills/product-quality.md@1
 ---
 
 # Correct a wrong acceptance expectation
+
+Apply the supplied shared product-quality skill before authoring or reviewing.
 
 Use the preserved failed run to correct wrong required behavior in a new revision of the same requirement-set lineage. Explain the semantic mistake in intent or commitments. Do not change the stakeholder commitment to make faulty code pass. Fresh requirement Review follows, then bind the unchanged or corrected product to that new exact requirement revision and rerun.
 
