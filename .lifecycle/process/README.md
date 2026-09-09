@@ -1,6 +1,6 @@
 # Tiny product Process Package
 
-`mdlm-tiny@0.1.0` is the default Example Process Package. It has one requirement
+`mdlm-tiny@0.1.1` is the default Example Process Package. It has one requirement
 level and one phase. It targets small, terminating command-line products with
 UTF-8 input and output. Earlier package history remains in Git.
 
