@@ -1,0 +1,111 @@
+kind: type-definition
+id: SCP
+version: 1
+description: Committed source scope
+name: Committed source scope
+extends: titled-datum@1
+lifecycle:
+  authorship: generated
+  freeze_when: terminal-outcome
+  terminal_payload_field: publication
+  terminal_values:
+  - recorded
+payload_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  required:
+  - publication
+  - path
+  - blob
+  - source_commit
+  - name
+  - role
+  - ranges
+  - inherited
+  properties:
+    publication:
+      const: recorded
+    path:
+      type: string
+      minLength: 1
+      pattern: ^(?!/)(?!.*(?:^|/)\.\.(?:/|$)).+$
+    blob:
+      type: string
+      pattern: ^[0-9a-f]{40}$
+    source_commit:
+      type: string
+      pattern: ^[0-9a-f]{40}$
+    name:
+      type: string
+      minLength: 1
+    role:
+      type: string
+      enum:
+      - production
+      - verification
+      - build
+      - configuration
+    ranges:
+      type: array
+      minItems: 1
+      items:
+        type: object
+        additionalProperties: false
+        required:
+        - start
+        - end
+        properties:
+          start:
+            type: integer
+            minimum: 1
+          end:
+            type: integer
+            minimum: 1
+    inherited:
+      type: boolean
+outgoing_links:
+- id: belongs-to
+  description: belongs-to
+  targets:
+  - kind: datum
+    types:
+    - IMP
+    identity: revision
+  cardinality:
+    minimum: 1
+    maximum: 1
+  freeze_resolution: already-exact
+  inverse_label: incoming-belongs-to
+- id: implements
+  description: implements
+  targets:
+  - kind: datum
+    types:
+    - REQ
+    identity: revision
+  cardinality:
+    minimum: 0
+    maximum: many
+  freeze_resolution: already-exact
+  inverse_label: incoming-implements
+- id: verifies
+  description: verifies
+  targets:
+  - kind: datum
+    types:
+    - REQ
+    identity: revision
+  cardinality:
+    minimum: 0
+    maximum: many
+  freeze_resolution: already-exact
+  inverse_label: incoming-verifies
+kernel_managed_payload_paths:
+- path
+- blob
+- source_commit
+- name
+- role
+- ranges
+- inherited
+- title

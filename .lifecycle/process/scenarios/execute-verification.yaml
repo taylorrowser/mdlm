@@ -12,7 +12,7 @@ inputs:
   identity: revision
 - name: requirements
   types:
-  - REQ
+  - RQS
   cardinality: one
   identity: revision
 outputs:

@@ -44,7 +44,7 @@ outgoing_links:
   targets:
   - kind: datum
     types:
-    - REQ
+    - RQS
     identity: revision
   cardinality:
     minimum: 1

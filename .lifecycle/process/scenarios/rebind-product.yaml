@@ -7,7 +7,7 @@ phases:
 inputs:
 - name: requirements
   types:
-  - REQ
+  - RQS
   cardinality: one
   identity: revision
   conditions: 'exists("pass-reviews@1", {subject: requirements}) && none("fail-reviews@1", {subject: requirements})'
@@ -29,6 +29,13 @@ outputs:
     publication: recorded
   identity_from:
     input: prior
+- name: source_scopes
+  types:
+  - SCP
+  cardinality: zero-or-more
+  required_links: []
+  required_payload:
+    publication: recorded
 prompt_ref: prompts/rebind-product.md@1
 review_policy_ref: review-applicability@1
 completion: 'execution.integrity.contract_valid == true && (true) && count("implementations-for@1", {requirements:

@@ -4,8 +4,25 @@
   "title": "MDLM Kernel Capability binding",
   "type": "object",
   "additionalProperties": false,
-  "required": ["type"],
+  "required": [
+    "type"
+  ],
   "properties": {
-    "type": {"type": "string", "pattern": "^[A-Z]{3,8}$"}
+    "type": {
+      "type": "string",
+      "pattern": "^[A-Z]{3,8}$"
+    },
+    "requirement_type": {
+      "type": "string",
+      "pattern": "^[A-Z]{3,8}$"
+    },
+    "implementation_type": {
+      "type": "string",
+      "pattern": "^[A-Z]{3,8}$"
+    },
+    "scope_type": {
+      "type": "string",
+      "pattern": "^[A-Z]{3,8}$"
+    }
   }
 }

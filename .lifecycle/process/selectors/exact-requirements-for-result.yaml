@@ -15,7 +15,7 @@ query:
     link: verifies
     emit: target
     types:
-    - REQ
+    - RQS
   as: item
   where: state(item, "validity") == "valid"
   distinct: true

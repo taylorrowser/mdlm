@@ -2,7 +2,7 @@ kind: process-package-manifest
 id: mdlm-tiny
 version: 0.2.0
 status: experimental
-description: The smallest useful one-level requirement-to-accepted-product example.
+description: Small products with batched normal-link requirements and complete source attribution.
 kernel_contract:
   id: mdlm-kernel-process-interface
   version: 1
@@ -27,6 +27,11 @@ language:
 kernel_capabilities:
   docker-verification@1:
     type: RES
+  requirement-trace@1:
+    type: RQS
+    requirement_type: REQ
+    implementation_type: IMP
+    scope_type: SCP
 compatibility:
   minimum_kernel: 0.2.0
   meta_schema_version: 3

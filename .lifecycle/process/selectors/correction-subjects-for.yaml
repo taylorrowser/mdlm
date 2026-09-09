@@ -15,7 +15,7 @@ query:
     of: failure
     emit: target
     types:
-    - REQ
+    - RQS
     - IMP
   as: item
   where: state(item, "validity") == "valid"

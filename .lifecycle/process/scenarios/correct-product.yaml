@@ -17,7 +17,7 @@ inputs:
   identity: revision
 - name: requirements
   types:
-  - REQ
+  - RQS
   cardinality: one
   identity: revision
 outputs:
@@ -36,6 +36,13 @@ outputs:
     publication: recorded
   identity_from:
     input: subject
+- name: source_scopes
+  types:
+  - SCP
+  cardinality: zero-or-more
+  required_links: []
+  required_payload:
+    publication: recorded
 prompt_ref: prompts/correct-product.md@1
 review_policy_ref: review-applicability@1
 completion: 'execution.integrity.contract_valid == true && failure.payload.correction_target == "implementation"

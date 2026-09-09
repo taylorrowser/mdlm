@@ -1,0 +1,39 @@
+kind: scenario-definition
+id: revise-requirements
+version: 1
+description: Revise or reaffirm the accepted requirement graph in one batch
+initiation: explicit
+phases:
+- phase-0-tiny-product
+inputs:
+- name: subject
+  types:
+  - RQS
+  cardinality: one
+  identity: revision
+  conditions: 'exists("pass-reviews@1", {subject: subject}) && none("fail-reviews@1", {subject: subject}) && exists("implementations-for@1",
+    {requirements: subject}) && every("implementations-for@1", {requirements: subject}, imp => exists("acceptances-for@1",
+    {implementation: imp}))'
+outputs:
+- name: requirements
+  types:
+  - REQ
+  cardinality: zero-or-more
+  required_links: []
+  required_payload:
+    publication: recorded
+- name: requirement_set
+  types:
+  - RQS
+  cardinality: one
+  required_links: []
+  required_payload:
+    publication: recorded
+  identity_from:
+    input: subject
+prompt_ref: prompts/revise-requirements.md@1
+review_policy_ref: review-applicability@1
+completion: execution.integrity.contract_valid == true
+resolves: []
+prohibited_inputs: []
+batching: single

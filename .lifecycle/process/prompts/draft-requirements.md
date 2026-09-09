@@ -11,7 +11,7 @@ skills:
 
 Apply the supplied shared product-quality skill before authoring or reviewing.
 
-Read the stakeholder request. Put its purpose in intent, stakeholder results in outcomes, and the smallest observable EARS commitments in commitments. Include a concrete example in prose when it clarifies behavior. The later verification script owns executable expectations. Use the selected requirement schema and the shared standard to keep decomposition proportionate. Check the commitments against the original stakeholder request.
+Read the stakeholder request. Write stakeholder and software REQ statements in one batch using the typed-requirements skill. Decompose behavior through ordinary links until software leaves are concrete enough to implement and verify. Include relevant state transitions, boundaries and failures without inventing obligations. The CLI generates the complete RQS grouping and the next independent Review judges the whole set.
 
 Fill the Assignment authorValuesScaffold using authorValuesSchema and submit it with mdlm assignment submit-proposal. The full responseSchema and responseScaffold are only for response diagnostics. The CLI supplies identities, exact required links and publication markers. Submit only authored fields. Keep the body empty when the structured payload contains the whole claim.
 

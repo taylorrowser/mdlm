@@ -7,7 +7,7 @@ phases:
 inputs:
 - name: subject
   types:
-  - REQ
+  - RQS
   cardinality: one
   identity: revision
 outputs:
