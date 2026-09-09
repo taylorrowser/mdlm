@@ -1,8 +1,16 @@
 ---
-status: accepted
+status: superseded
 ---
 
 # Start tiny products with one requirement level
+
+Superseded on 2026-09-09 by the tiny 0.3.0 requirement-graph workflow described
+in [Tiny products first](../agents/mdlm-development.md#tiny-products-first).
+Each stakeholder or software statement is an individual REQ, with normal links
+to exact parent revisions for useful decomposition instead of a fixed level
+limit. CLI-managed batching and generated source scopes preserve one set-level
+review and the direct implementation and verification route. The rationale and
+execution description below record the earlier package, not current guidance.
 
 The default Process Package for tiny products keeps intent, software commitments,
 and acceptance examples in one requirement set, followed by implementation,

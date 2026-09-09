@@ -222,20 +222,26 @@ Keep release candidates separate from demo history. Demo records answer what hap
 
 ## Tiny products first
 
-Use the default tiny Process Package for new tiny products. Keep stakeholder
-intent and observable software commitments at one requirement level. Keep
-executable expectations in the committed verification script. Use its direct implementation and verification route.
-Historical V-model reports and decomposition levels describe the packages that
-produced them.
+Use the default tiny Process Package for new tiny products. Record each
+stakeholder or software requirement as an individual REQ. Decompose behavior
+through normal links to exact parent revisions wherever useful; do not impose
+fixed tiers. The CLI batches requirements, generates the requirement set and
+source scopes, and keeps one set-level review without per-node author or review
+turns. Keep executable expectations in the committed verification script and
+use the direct implementation and verification route. Historical reports
+describe the packages that produced them.
 
 The CLI owns mechanical checks before publication: schema and field validity,
-exact references, fixed values, execution receipt bindings, and script exit
-classification. The CLI captures Docker execution; the committed script owns
-assertions and agents briefly assess the captured run.
-Independent reviewers judge content, assumptions, acceptance adequacy, and whether
-the product, verification script and captured evidence support the claim. When a
-reviewer catches a mechanically decidable error, fix the owning CLI or package contract and retain
-one useful regression instead of adding another review instruction.
+exact references, complete requirement graphs, source attribution, fixed values,
+execution receipt bindings, and script exit classification. The CLI captures
+Docker execution; the committed script owns assertions and agents briefly assess
+the captured run.
+Independent reviewers judge content, decomposition adequacy, assumptions,
+acceptance adequacy, and whether the product, verification script and captured
+evidence support the claim. Generated source coverage does not prove that code
+satisfies its linked requirements. When a reviewer catches a mechanically
+decidable error, fix the owning CLI or package contract and retain one useful
+regression instead of adding another review instruction.
 
 The next learning loop is a correctly accepted tiny product and a preserved
 mistake followed by correction. Record exact source/package identities,
@@ -246,10 +252,11 @@ Use the smallest public-CLI exercise that demonstrates the changed behavior.
 Source checks do not establish release qualification or authorize demo operation.
 
 Repeat until short runs recover reliably before adding one complexity dimension.
-Add a requirement level, planning artifact, or review when observed work needs a
-distinct decision or claim. Trace the implementation and verification evidence to
-the selected package's exact requirement revision. The tiny route does not need
-STK/SYS/CMP/DES decomposition or the historical Phase 2 expansion gate.
+Add planning artifacts or reviews when observed work needs a distinct decision
+or claim. Useful requirement decomposition stays within the batch. Trace
+implementation and verification evidence to exact requirement revisions in the
+selected set. The tiny route does not require STK/SYS/CMP/DES tiers or the
+historical Phase 2 expansion gate.
 
 ## Make operational learning durable
 
