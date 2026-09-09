@@ -1,6 +1,6 @@
 # Tiny product Process Package
 
-`mdlm-tiny@0.3.0` is the default Example Process Package. It targets small,
+`mdlm-tiny@0.4.0` is the default Example Process Package. It targets small,
 terminating Python command-line products with UTF-8 input and output. Requirements
 form an ordinary linked graph, authored and reviewed in one batch. Earlier
 package identities and accepted products retain their original history.
@@ -34,18 +34,19 @@ source_commit, product command argv, file_roles, digest-pinned verification_imag
 verification_command argv and relative verification_script. Declare every tracked
 entry's role. The CLI derives product_files and source_inventory, including empty
 files, from that commit. Documentation needs an inventory role; executable code,
-verification and build scripts need complete physical-line attribution. This
+verification and build scripts need complete nonblank-line attribution. This
 initial route supports Python annotations. Unsupported code formats, configuration
 that changes executable behavior, generated and vendored code require supported
 explicit treatment before an all-code claim.
 
-Annotations name selected published stable REQ IDs. A file default attributes
-support code, imports, comments, blanks and lines outside closed nonnested named
-regions. Regions override the default locally. The CLI resolves IDs only against
-the Assignment's exact graph and computes all ranges. It atomically creates SCPs
-with belongs-to IMP and implements/verifies REQ links. Authors maintain neither
-line numbers nor a second trace map. See the automatically supplied
-`skills/source-trace.md@1` for syntax and review expectations.
+Annotations name selected published stable REQ IDs inside explicit closed,
+nonnested named regions. Every nonblank source line, including imports and
+comments, must be in a region. Whitespace-only gaps are exempt and recorded in
+the generated inventory. File defaults are rejected. Regions may link several
+requirements; requirements may link several regions. The CLI computes all ranges
+and resolves IDs against the Assignment's exact graph. It atomically creates
+SCPs with belongs-to IMP and implements/verifies REQ links. See the automatically
+supplied `skills/source-trace.md@1` for syntax and review expectations.
 
 Every production or verifier scope requires a software leaf with ancestry to a
 stakeholder requirement. Verifier scopes may additionally verify upper-level

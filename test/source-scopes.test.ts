@@ -11,68 +11,68 @@ const R1 = selectedRequirements[0]!.stableId;
 const R2 = selectedRequirements[1]!.stableId;
 const R3 = selectedRequirements[2]!.stableId;
 const R4 = selectedRequirements[3]!.stableId;
-const defaultLine = `# mdlm:file runtime implements ${R1}`;
+const region = (targets = R1, name = "runtime", relation = "implements") => `# mdlm:begin ${name} ${relation} ${targets}\npass\n# mdlm:end ${name}`;
 function entry(text: string, overrides: Partial<SourceEntry> = {}): SourceEntry {
   return { path: "tasks.py", blob: "committed-blob", mode: "100644", bytes: new TextEncoder().encode(text), role: "production", ...overrides };
 }
 function derive(text: string) { return deriveSourceScopes({ entries: [entry(text)], selectedRequirements }); }
 
-test("file defaults and closed overrides partition every physical line at exact selected revisions", () => {
+test("explicit many-to-many regions cover content while committed blank gaps are exempt", () => {
   const result = derive([
-    "#!/usr/bin/env python3", defaultLine, "import json", "",
-    `# mdlm:begin load-store implements ${R2}`, "def load():", "    return []", "# mdlm:end load-store",
-    "", "print(load())", "",
+    "", `# mdlm:begin runtime implements ${R1} ${R2}`, "import json", "", "# mdlm:end runtime", " ",
+    `# mdlm:begin load-store implements ${R2}`, "def load():", "    return []", "# mdlm:end load-store", "", "",
   ].join("\r\n"));
   expect(result.diagnostics).toEqual([]);
-  expect(result.inventory).toEqual([{ path: "tasks.py", blob: "committed-blob", mode: "100644", role: "production", lineCount: 10 }]);
-  expect(result.scopes).toEqual([
-    { name: "runtime", path: "tasks.py", blob: "committed-blob", role: "production", inherited: true,
-      ranges: [{ start: 1, end: 4 }, { start: 9, end: 10 }], links: [{ type: "implements", target: "REQ-0000000001-r00002" }] },
-    { name: "load-store", path: "tasks.py", blob: "committed-blob", role: "production", inherited: false,
-      ranges: [{ start: 5, end: 8 }], links: [{ type: "implements", target: "REQ-0000000002-r00001" }] },
+  expect(result.inventory[0]).toMatchObject({ lineCount: 11, blankRanges: [{ start: 1, end: 1 }, { start: 6, end: 6 }, { start: 11, end: 11 }] });
+  expect(result.scopes.map(scope => ({ name: scope.name, inherited: scope.inherited, ranges: scope.ranges, links: scope.links }))).toEqual([
+    { name: "runtime", inherited: false, ranges: [{ start: 2, end: 5 }], links: [
+      { type: "implements", target: "REQ-0000000001-r00002" }, { type: "implements", target: "REQ-0000000002-r00001" }] },
+    { name: "load-store", inherited: false, ranges: [{ start: 7, end: 10 }], links: [{ type: "implements", target: "REQ-0000000002-r00001" }] },
   ]);
-  const grown = derive(`${defaultLine}\n# mdlm:begin load-store implements ${R2}\npass\n# mdlm:end load-store\nprint('new')`);
-  expect(grown.scopes[0]!.ranges).toEqual([{ start: 1, end: 1 }, { start: 5, end: 5 }]);
-  expect(grown.scopes[1]!.ranges).toEqual([{ start: 2, end: 4 }]);
 });
 
-test("malformed or ambiguous annotations prevent usable scopes", () => {
+test("uncovered content and malformed or ambiguous annotations prevent usable scopes", () => {
+  for (const text of ["print('unmapped')", "# comment", "import sys", "#!/usr/bin/env python3"]) {
+    const result = derive(`${region()}\n\n${text}`);
+    expect(result.diagnostics).toEqual([{ code: "source-line-unmapped", path: "tasks.py", line: 5,
+      message: "Nonblank source must belong to an explicit mapped region." }]);
+    expect(result.scopes).toEqual([]);
+  }
   for (const [text, code] of [
-    ["print('unmapped')", "source-file-default"],
-    [`${defaultLine}\n${defaultLine}`, "source-file-default"],
-    [`${defaultLine}\n# mdlm:begin missing implements ${R2}\npass`, "source-region-end"],
-    [`${defaultLine}\n# mdlm:end missing`, "source-region-end"],
-    [`${defaultLine}\n# mdlm:begin outer implements ${R2}\n# mdlm:begin inner implements ${R1}\n# mdlm:end outer`, "source-region-overlap"],
-    [`${defaultLine}\n# mdlm:begin runtime implements ${R2}\n# mdlm:end runtime`, "source-scope-name"],
-    [`${defaultLine}\n# mdlm:begin empty implements`, "source-directive"],
-    [`${defaultLine}\n# mdlm:unknown foo`, "source-directive"],
+    [`# mdlm:file runtime implements ${R1}`, "source-file-default"],
+    [`# mdlm:begin missing implements ${R2}\npass`, "source-region-end"],
+    ["# mdlm:end missing", "source-region-end"],
+    [`# mdlm:begin outer implements ${R2}\n# mdlm:begin inner implements ${R1}\n# mdlm:end outer`, "source-region-overlap"],
+    [`${region()}\n${region()}`, "source-scope-name"],
+    ["# mdlm:begin empty implements", "source-directive"],
+    ["# mdlm:unknown foo", "source-directive"],
   ]) {
     const result = derive(text!);
-    expect(result.diagnostics.map((d) => d.code), text).toContain(code);
+    expect(result.diagnostics.map(d => d.code), text).toContain(code);
     expect(result.scopes, text).toEqual([]);
   }
 });
 
 test("production targets are stable selected leaves and verification may also target higher requirements", () => {
   for (const target of ["REQ-missing", "REQ-0000000001-r00002", R3, R4, `${R1} ${R1}`]) {
-    expect(derive(`# mdlm:file runtime implements ${target}`).diagnostics.length).toBeGreaterThan(0);
+    expect(derive(region(target)).diagnostics.length).toBeGreaterThan(0);
   }
   const verification = (targets: string) => deriveSourceScopes({
-    entries: [entry(`# mdlm:file checks verifies ${targets}\nassert True\n`, { path: "verify.py", role: "verification" })], selectedRequirements,
+    entries: [entry(region(targets, "checks", "verifies"), { path: "verify.py", role: "verification" })], selectedRequirements,
   });
   expect(verification(`${R1} ${R3} ${R4}`).diagnostics).toEqual([]);
   expect(verification(`${R3} ${R4}`).diagnostics.map((d) => d.code)).toContain("source-scope-leaf");
-  expect(derive(`# mdlm:file runtime verifies ${R1}`).diagnostics.map((d) => d.code)).toContain("source-scope-relation");
-  expect(deriveSourceScopes({ entries: [entry(defaultLine)], selectedRequirements: [...selectedRequirements, selectedRequirements[0]!] }).diagnostics.map((d) => d.code)).toContain("source-requirement-selection");
+  expect(derive(region(R1, "runtime", "verifies")).diagnostics.map((d) => d.code)).toContain("source-scope-relation");
+  expect(deriveSourceScopes({ entries: [entry(region())], selectedRequirements: [...selectedRequirements, selectedRequirements[0]!] }).diagnostics.map((d) => d.code)).toContain("source-requirement-selection");
 });
 
 test("the inventory includes empty source and unannotated documentation while unsupported entries fail explicitly", () => {
   const unclassified = entry("", { path: "unclassified.py" });
   delete unclassified.role;
   const entries = [
-    entry("", { path: "empty.py" }),
+    entry(" \n\t\n", { path: "empty.py" }),
     entry("Run python3 tasks.py.\n", { path: "README.md", role: "documentation" }),
-    entry(defaultLine, { path: "build.py", role: "build" }),
+    entry(region(), { path: "build.py", role: "build" }),
     unclassified,
     entry("console.log(1)", { path: "app.js" }),
     entry("print(1)", { path: "README.py", role: "documentation" }),
@@ -85,7 +85,9 @@ test("the inventory includes empty source and unannotated documentation while un
   ];
   const result = deriveSourceScopes({ entries, selectedRequirements });
   expect(result.inventory.map((row) => row.path)).toEqual(entries.map((row) => row.path));
-  expect(result.inventory[0]!.lineCount).toBe(0);
+  expect(result.inventory[0]!.lineCount).toBe(2);
+  expect(result.inventory[0]!.blankRanges).toEqual([{ start: 1, end: 2 }]);
+  expect(derive("").inventory[0]!.lineCount).toBe(0);
   expect(result.inventory[1]!.lineCount).toBe(1);
   expect(result.scopes.map((scope) => scope.path)).toEqual(["build.py"]);
   expect(result.diagnostics.map((d) => d.path)).toEqual(entries.slice(3).map((row) => row.path));
@@ -93,11 +95,11 @@ test("the inventory includes empty source and unannotated documentation while un
 });
 
 test("trailing line terminators do not add phantom lines and duplicate paths are rejected", () => {
-  for (const [suffix, count] of [["", 1], ["\n", 1], ["\n\n", 2]] as const) {
-    const result = derive(defaultLine + suffix);
+  for (const [suffix, count] of [["", 3], ["\n", 3], ["\n\n", 4]] as const) {
+    const result = derive(region() + suffix);
     expect(result.diagnostics).toEqual([]);
     expect(result.inventory[0]!.lineCount).toBe(count);
-    expect(result.scopes[0]!.ranges).toEqual([{ start: 1, end: count }]);
+    expect(result.scopes[0]!.ranges).toEqual([{ start: 1, end: 3 }]);
   }
-  expect(deriveSourceScopes({ entries: [entry(defaultLine), entry(defaultLine)], selectedRequirements }).diagnostics.map((d) => d.code)).toContain("source-inventory");
+  expect(deriveSourceScopes({ entries: [entry(region()), entry(region())], selectedRequirements }).diagnostics.map((d) => d.code)).toContain("source-inventory");
 });

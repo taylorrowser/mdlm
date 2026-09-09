@@ -18,6 +18,7 @@ it("captures Docker script failure, error and corrected success without authored
   let executable = path.join(process.cwd(), "dist/mdlm.js");
   const evidenceFile = path.join(os.tmpdir(), "mdlm-docker-public-evidence", `${path.basename(root)}.json`);
   const acceptedTrace: Json[] = [];
+  const rejectedTrace: Json[] = [];
   let terminal: Json | undefined;
   let boundary: Json | undefined;
   let packageIdentity: Json | undefined;
@@ -120,9 +121,9 @@ it("captures Docker script failure, error and corrected success without authored
         ].join("\n");
         const leaf = packet.requirementGraphs[0].requirements.find((r: Json) => r.leaf).id;
         const countFile = path.join(source, "count.py");
-        const countSource = (await fs.readFile(countFile, "utf8")).replace(/^# mdlm:file[^\n]*\n/, "");
-        await fs.writeFile(countFile, `# mdlm:file runtime implements ${leaf}\n${countSource}`);
-        await fs.writeFile(path.join(source, "verify.py"), `# mdlm:file checks verifies ${leaf}\n${script}`);
+        const countSource = (await fs.readFile(countFile, "utf8")).replace(/^# mdlm:(?:begin|end)[^\n]*\n/gm, "").trim();
+        await fs.writeFile(countFile, `# mdlm:begin runtime implements ${leaf}\n${countSource}\n# mdlm:end runtime\n\n`);
+        await fs.writeFile(path.join(source, "verify.py"), `# mdlm:begin checks verifies ${leaf}\n${script}# mdlm:end checks\n`);
         git(["add", "count.py", "verify.py"]);
         git(["-c", "commit.gpgSign=false", "commit", "--quiet", "--allow-empty", "--no-verify", "-m", `Verification stage ${implementation}`]);
         const sourceCommit = git(["rev-parse", "HEAD"]);
@@ -130,6 +131,24 @@ it("captures Docker script failure, error and corrected success without authored
         output.payload = { title: "Comma counter and verification script", repository_path: source,
           source_commit: sourceCommit, command: ["python3", "count.py"], file_roles: {"count.py": "production", "verify.py": "verification"},
           verification_image: image, verification_command: ["python3", "verify.py"], verification_script: "verify.py" };
+        if (!installedMode && implementation === 0) {
+          // Reject an uncovered committed line without publishing any IMP/SCP.
+          await fs.appendFile(countFile, "# uncovered comment\n");
+          git(["add", "count.py"]);
+          git(["-c", "commit.gpgSign=false", "commit", "--quiet", "--no-verify", "-m", "Uncovered content regression"]);
+          const invalid = structuredClone(proposal);
+          invalid.outputs[0].payload.source_commit = git(["rev-parse", "HEAD"]);
+          const before = git(["status", "--porcelain", "--", ".lifecycle/data"], lifecycle);
+          const rejected = cli(["assignment", "submit-proposal", "-", "--json"], invalid, 1);
+          rejectedTrace.push({ assignment: next.assignment.id, sourceCommit: invalid.outputs[0].payload.source_commit, rejected });
+          expect(rejected.outcome).toBe("rejected");
+          expect(JSON.stringify(rejected)).toContain("source-line-unmapped");
+          expect(git(["status", "--porcelain", "--", ".lifecycle/data"], lifecycle)).toBe(before);
+          git(["checkout", sourceCommit, "--", "count.py"]);
+          git(["-c", "commit.gpgSign=false", "commit", "--quiet", "--no-verify", "-m", "Restore mapped source"]);
+          output.payload.source_commit = git(["rev-parse", "HEAD"]);
+          commits[commits.length - 1] = output.payload.source_commit;
+        }
         implementation++;
       } else if (type === "RES") {
         output.payload = { assessment: "The intended committed script ran; inspected its captured streams and exit status.",
@@ -198,6 +217,11 @@ it("captures Docker script failure, error and corrected success without authored
     const why = cli(["trace", "why", "count.py:2", "--implementation", firstImplementation, "--json"]).requirementTrace;
     expect(why.scopes).toHaveLength(1);
     expect(why.scopes[0].reasons[0].path).toHaveLength(2);
+    const blank = cli(["trace", "why", "count.py:8", "--implementation", firstImplementation, "--json"]).requirementTrace;
+    expect(blank).toMatchObject({ diagnostics: [], scopes: [], lineStatus: "blank-line-exempt" });
+    const plainBlank = command(process.execPath, [executable, "trace", "why", "count.py:8", "--implementation", firstImplementation], lifecycle);
+    expect(plainBlank.status).toBe(0);
+    expect(plainBlank.stdout).toContain("Blank line outside regions");
     const plainWhy = command(process.execPath, [executable, "trace", "why", "count.py:2", "--implementation", firstImplementation], lifecycle);
     expect(plainWhy.status).toBe(0);
     expect(plainWhy.stdout).toContain("count.py:");
@@ -261,7 +285,7 @@ it("captures Docker script failure, error and corrected success without authored
     const head = command("git", ["rev-parse", "HEAD"], lifecycle);
     await fs.mkdir(path.dirname(evidenceFile), { recursive: true });
     await fs.writeFile(evidenceFile, JSON.stringify({ outcome: failure ? "failed" : "passed", failure,
-      terminal, boundary, acceptedTrace, packageIdentity, lifecycle, product: source,
+      terminal, boundary, acceptedTrace, rejectedTrace, packageIdentity, lifecycle, product: source,
       lifecycleHead: head.status === 0 ? head.stdout.trim() : null,
       sourceCommits: commits, receipts, artifactDigests,
       installed: process.env.MDLM_TINY_INSTALLED === "1", repositoryPreservedForAudit: true,

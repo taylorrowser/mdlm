@@ -1925,7 +1925,7 @@ function renderCommandResult(result: CommandResult): string {
         ...scope.reasons.map((reason) => `  ${reason.reason}: ${reason.path.map(label).join(" -> ")}`),
         ...scope.otherRequirements.map((other) => `  Also serves ${label(other.requirement)}: ${other.reason}`),
       ]),
-      ...(!trace.scopes.length ? ["No linked source scopes."] : []),
+      ...(trace.lineStatus === "blank-line-exempt" ? ["Blank line outside regions: exempt from requirement mapping."] : !trace.scopes.length ? ["No linked source scopes."] : []),
       ...trace.reassessment.map((item) => `Reassess ${label(item.requirement)}: ${item.supersededAncestors.map(label).join(", ")}`),
     ].join("\n");
   }
