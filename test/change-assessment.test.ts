@@ -229,3 +229,45 @@ test("a changed parent statement can be the correction for a group with valid ch
   f.data.push(f.review);
   expect(assessRequirements(f.data, binding, f.set).correction).toEqual({requirements: [id(f.root)], groups: []});
 });
+test("closing a subtree retirement preserves exact intermediate groups but rejects new closed-change output", () => {
+  const f = fixture(); baseline(f);
+  const change = request(f, f.root);
+  const candidate = replace(f, change, f.root);
+  function failure(set: DatumEnvelope, name: string, child?: string, membership?: string): DatumEnvelope {
+    const work = assessRequirements(f.data, binding, set);
+    return d(name, {reviews: [id(set)]}, {outcome: "fail", requirement_assessments: work.requirements.map(requirement => ({requirement, disposition: "valid", rationale: "Correct."})), decomposition_assessments: work.groups.map(g => ({group: g.revision, children: g.children.map(requirement => ({requirement, disposition: requirement === child ? "needs-change" : "valid", rationale: "Assess against parent."})), disposition: g.revision === membership ? "needs-change" : "adequate", membership_action: g.revision === membership ? "revise-membership" : "none", rationale: "Resolve the allocation."}))});
+  }
+  const firstFailure = failure(candidate.set, "REV-parent-correction", id(f.parent));
+  expect(validateChangeDatum(f.data, binding, firstFailure)).toEqual([]); f.data.push(firstFailure);
+  const parent = d(f.parent.id, {"changes-under": [id(change)]}, {kind: "software"}, 2);
+  const top = d(f.top.id, {parent: [id(candidate.revision)], child: [id(parent), id(f.peer)], "changes-under": [id(change)]}, {}, 3);
+  const bottom = d(f.bottom.id, {parent: [id(parent)], child: [id(f.leaf)], "changes-under": [id(change)]}, {}, 2);
+  const middleSet = d(f.set.id, {contains: [candidate.revision, parent, f.leaf, f.peer].map(id), decomposition: [top, bottom].map(id), "changes-under": [id(change)]}, {}, 3);
+  f.data.push(parent, top, bottom);
+  expect(validateChangeDatum(f.data, binding, middleSet)).toEqual([]); f.data.push(middleSet);
+  const secondFailure = failure(middleSet, "REV-retirement", undefined, id(top));
+  expect(validateChangeDatum(f.data, binding, secondFailure)).toEqual([]); f.data.push(secondFailure);
+  const finalGroup = d(f.top.id, {parent: [id(candidate.revision)], child: [id(f.peer)], "changes-under": [id(change)]}, {}, 4);
+  const finalSet = d(f.set.id, {contains: [candidate.revision, f.peer].map(id), decomposition: [id(finalGroup)], retires: [id(parent), id(f.leaf)], "changes-under": [id(change)]}, {}, 4);
+  f.data.push(finalGroup);
+  expect(validateChangeDatum(f.data, binding, finalSet)).toEqual([]); f.data.push(finalSet);
+  expect(validateChangeDatum(f.data, binding, bottom)).toEqual([]);
+  f.data.push(d("ACC-retired", {confirms: [id(finalSet)], "changes-under": [id(change)]}, {decision: "accept"}));
+  expect(validateChangeDatum(f.data, binding, bottom)).toEqual([]);
+  expect(validateChangeDatum(f.data, binding, middleSet)).toEqual([]);
+  const newGroup = {...bottom, revision: 3, revision_id: "DCP-bottom-r3"};
+  expect(validateChangeDatum(f.data, binding, newGroup).map(d => d.code)).toContain("change-closed");
+});
+test("rejected change scope can narrow while every previously approved root remains protected", () => {
+  const f = fixture(); baseline(f);
+  const change = d("CHG-rejected", {baseline: [id(f.acc)], changes: [id(f.root), id(f.peer)]});
+  const rejection = d("REV-rejected", {reviews: [id(change)]}, {outcome: "fail"}); f.data.push(change, rejection);
+  const narrower = d(change.id, {baseline: [id(f.acc)], changes: [id(f.root)]}, {}, 2);
+  expect(validateChangeDatum(f.data, binding, narrower)).toEqual([]);
+  f.data.push(narrower, d("REV-narrow-approved", {reviews: [id(narrower)]}, {outcome: "pass"}));
+  const proposal = d(change.id, {baseline: [id(f.acc)], changes: [id(f.root), id(f.peer)]}, {}, 3); f.data.push(proposal);
+  const dropsUnapproved = d(change.id, {baseline: [id(f.acc)], changes: [id(f.root)]}, {}, 4);
+  expect(validateChangeDatum(f.data, binding, dropsUnapproved)).toEqual([]);
+  const dropsApproved = d(change.id, {baseline: [id(f.acc)], changes: [id(f.peer)]}, {}, 4);
+  expect(validateChangeDatum(f.data, binding, dropsApproved).map(d => d.code)).toContain("change-amendment-scope");
+});
