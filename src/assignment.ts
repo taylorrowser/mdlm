@@ -1,4 +1,4 @@
-import { assessRequirements, changeScope, type RequirementAssessments } from "./change-assessment.js";
+import { assessRequirements, changeImpact, type RequirementAssessments } from "./change-assessment.js";
 import { buildAssignmentReviewContext, type AssignmentReviewContext } from "./assignment-review-context.js";
 import { compareImplementationScopes } from "./requirement-trace-inspection.js";
 import { requirementTraceBinding, selectedRequirementGraph } from "./requirement-trace.js";
@@ -652,7 +652,7 @@ export interface AssignmentPacket {
   authorValuesScaffold?: AssignmentAuthorValues;
   sourceScopes?: {implementation: string; scopes: {revision: string; payload: Record<string, unknown>; links: {type: string; target: string}[]}[]; changes: unknown; comparison: ReturnType<typeof compareImplementationScopes> | null}[];
   changeAssessment?: RequirementAssessments;
-  prospectiveChange?: {change: string; baseline: string | undefined; requirements: string[]; request: Record<string, unknown>};
+  prospectiveChange?: ReturnType<typeof changeImpact> & {change: string; baseline: string | undefined; request: Record<string, unknown>; scopes: {revision: string; payload: Record<string, unknown>; links: {type: string; target: string}[]}[]};
   requirementGraphs?: { selection: string; groups?: {revision: string; payload: Record<string, unknown>; links: {type: string; target: string}[]}[]; requirements: {id: string; revision: string; payload: Record<string, unknown>; links: {type: string; target: string}[]; leaf: boolean}[] }[];
   responseSchema: Record<string, unknown>;
   responseScaffold: AssignmentResponseSkeleton;
@@ -4067,7 +4067,8 @@ function packet(
         const baseline = change.links.find(l => l.type === "baseline")?.target;
         const acc = data.find(d => d.revision_id === baseline);
         for (const l of acc?.links ?? []) if (l.type === "confirms") inputIds.add(l.target);
-        rendered.prospectiveChange = {change: change.revision_id, baseline, requirements: changeScope(data, traceBinding, change), request: change.payload};
+        const impact = changeImpact(data, traceBinding, change);
+        rendered.prospectiveChange = {...impact, change: change.revision_id, baseline, request: change.payload, scopes: data.filter(d => impact.sourceScopes.includes(d.revision_id)).map(d => ({revision: d.revision_id, payload: d.payload, links: d.links}))};
       }
     }
     const sets = data.filter((d) => d.type === traceBinding.type && (inputIds.has(d.revision_id) || data.some((i) => inputIds.has(i.revision_id) && i.links.some((l) => l.target === d.revision_id))));
