@@ -70,7 +70,7 @@ it("reviews decomposition, changes a baselined leaf, and clarifies its ancestor 
   }
   function dcp(handle: string, parentTarget: Json | string, children: (Json | string)[], revision?: string) {
     return { slot: "decompositions", handle, ...(revision ? { revision_of: revision } : {}),
-      payload: { title: handle }, links: [{ type: "parent", target: parentTarget }, ...children.map(target => ({ type: "child", target }))], body: "" };
+      payload: { title: handle }, links: [{ type: "parent", target: typeof parentTarget === "string" ? { datum: parentTarget } : parentTarget }, ...children.map(target => ({ type: "child", target: typeof target === "string" ? { datum: target } : target }))], body: "" };
   }
   try {
     await fs.access(executable);
@@ -140,7 +140,7 @@ it("reviews decomposition, changes a baselined leaf, and clarifies its ancestor 
         output.payload = { title: phase === 1 ? "Count semicolons" : "Clarify literal counting",
           reason: phase === 1 ? "The input format now uses semicolons." : "Make the existing literal-input interpretation explicit.",
           requested_outcome: phase === 1 ? "Count semicolons instead of commas; keep argument rejection unchanged." : "Clarify the stakeholder statement without changing behavior." };
-        output.links = [{ type: "changes", target: leaf(graph!, phase === 1 ? "Count delimiter" : "Delimiter counting").revision }];
+        output.links = [{ type: "changes", target: { datum: leaf(graph!, phase === 1 ? "Count delimiter" : "Delimiter counting").revision } }];
       } else if (type === "REV") {
         output.payload = { ...output.payload, title: "Exact content review", outcome: "pass", findings: "The supplied requirements and evidence support the requested behavior." };
         for (const assessment of output.payload.requirement_assessments ?? []) Object.assign(assessment, { disposition: "valid", rationale: "The statement describes its allocated behavior." });
