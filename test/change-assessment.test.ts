@@ -179,3 +179,33 @@ test("failed verification reopens only changed or requested requirements within 
   result.payload.outcome = "fail"; result.type = "OTHER";
   expect(assessRequirements(f.data, resultBinding, candidate.set).correction.requirements).toEqual([]);
 });
+test("a child added to fill an authorized group gap can be corrected without scope amendment", () => {
+  const f = fixture(); baseline(f);
+  const change = request(f, f.parent);
+  const candidate = replace(f, change, f.parent);
+  const gapWork = assessRequirements(f.data, binding, candidate.set);
+  const gap = d("REV-gap", {reviews: [id(candidate.set)]}, {outcome: "fail", requirement_assessments: gapWork.requirements.map(requirement => ({requirement, disposition: "valid", rationale: "Correct."})), decomposition_assessments: gapWork.groups.map(g => ({group: g.revision, children: g.children.map(requirement => ({requirement, disposition: "valid", rationale: "Fits."})), disposition: g.revision === "DCP-bottom-r2" ? "needs-change" : "adequate", membership_action: g.revision === "DCP-bottom-r2" ? "revise-membership" : "none", rationale: "Allocate the new behavior."}))});
+  expect(validateChangeDatum(f.data, binding, gap)).toEqual([]); f.data.push(gap);
+  const added = d("REQ-added", {"changes-under": [id(change)]}, {kind: "software"});
+  const group = d(f.bottom.id, {parent: [id(candidate.revision)], child: [id(f.leaf), id(added)], "changes-under": [id(change)]}, {}, 3);
+  const set = d(f.set.id, {contains: [...targetsForTest(candidate.set, "contains"), id(added)], decomposition: ["DCP-top-r2", id(group)], "changes-under": [id(change)]}, {}, 3);
+  f.data.push(added, group);
+  expect(validateChangeDatum(f.data, binding, set)).toEqual([]); f.data.push(set);
+  const addedWork = assessRequirements(f.data, binding, set);
+  const review = d("REV-added", {reviews: [id(set)]}, {outcome: "fail", requirement_assessments: addedWork.requirements.map(requirement => ({requirement, disposition: requirement === id(added) ? "needs-change" : "valid", rationale: "Clarify the new requirement."})), decomposition_assessments: addedWork.groups.map(g => ({group: g.revision, children: g.children.map(requirement => ({requirement, disposition: requirement === id(added) ? "needs-change" : "valid", rationale: "Clarify the new requirement."})), disposition: "adequate", membership_action: "none", rationale: "Responsibilities allocated."}))});
+  expect(validateChangeDatum(f.data, binding, review)).toEqual([]); f.data.push(review);
+  const assessment = assessRequirements(f.data, binding, set);
+  expect(assessment.allowedRequirements).toContain(id(added));
+  expect(assessment.correction.requirements).toEqual([id(added)]);
+  const corrected = {...added, revision: 2, revision_id: "REQ-added-r2"};
+  const correctedGroup = {...group, revision: 4, revision_id: "DCP-bottom-r4", links: group.links.map(l => l.target === id(added) ? {...l, target: id(corrected)} : l)};
+  const correctedSet = {...set, revision: 4, revision_id: "RQS-set-r4", links: set.links.map(l => ({...l, target: l.target === id(added) ? id(corrected) : l.target === id(group) ? id(correctedGroup) : l.target}))};
+  f.data.push(corrected, correctedGroup);
+  expect(validateChangeDatum(f.data, binding, correctedSet)).toEqual([]);
+  const unrelated = d("REQ-unrelated", {"changes-under": [id(change)]}, {kind: "software"}); f.data.push(unrelated);
+  const foreignGroup = d("DCP-foreign", {parent: [id(f.peer)], child: [id(unrelated)], "changes-under": [id(change)]}); f.data.push(foreignGroup);
+  const foreignSet = {...correctedSet, links: [...correctedSet.links, {type: "contains", target: id(unrelated)}, {type: "decomposition", target: id(foreignGroup)}]};
+  expect(validateChangeDatum(f.data, binding, foreignSet).map(d => d.code)).toContain("change-addition-scope");
+  expect(assessRequirements(f.data, binding, foreignSet).allowedRequirements).not.toContain(id(unrelated));
+});
+function targetsForTest(datum: DatumEnvelope, relation: string): string[] {return datum.links.filter(l => l.type === relation).map(l => l.target);}

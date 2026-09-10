@@ -24,6 +24,28 @@ export function changeScope(data: DatumEnvelope[], b: RequirementTraceBinding, c
   }
   return [...scope].sort();
 }
+/** New requirements inherit only scope established through the approved change's selected groups. */
+function selectedChangeScope(data: DatumEnvelope[], b: RequirementTraceBinding, change: DatumEnvelope, set: DatumEnvelope): string[] {
+  const scope = changeScope(data, b, change);
+  const allowed = new Set(scope.flatMap(id => find(data, id)?.id ?? []));
+  const baseline = find(data, targets(change, "baseline")[0]);
+  const baseSet = find(data, targets(baseline, "confirms")[0]);
+  const existing = new Set(baseSet ? selectedRequirementGraph(data, baseSet, b).requirements.map(r => r.id) : []);
+  const graph = selectedRequirementGraph(data, set, b);
+  const underChange = (d: DatumEnvelope) => targets(d, "changes-under").some(id => find(data, id)?.id === change.id);
+  let size = -1;
+  while (size !== allowed.size) {
+    size = allowed.size;
+    for (const group of graph.groups.filter(underChange)) {
+      if (![...targets(group, "parent"), ...targets(group, "child")].some(id => allowed.has(find(data, id)?.id ?? ""))) continue;
+      for (const child of targets(group, "child")) {
+        const requirement = find(data, child);
+        if (requirement && !existing.has(requirement.id) && underChange(requirement)) allowed.add(requirement.id);
+      }
+    }
+  }
+  return unique([...scope, ...graph.requirements.filter(r => !existing.has(r.id) && allowed.has(r.id)).map(r => r.revision_id)]);
+}
 export interface RequirementAssessments {
   requirements: string[];
   groups: {revision: string; parent: string; children: string[]}[];
@@ -58,7 +80,7 @@ export function assessRequirements(data: DatumEnvelope[], b: RequirementTraceBin
     return implementation?.type === b.implementation_type && targets(implementation, "implements").includes(set.revision_id);
   }));
   if (change && expectationFailure) {
-    const allowed = new Set(changeScope(data, b, change).flatMap(id => find(data, id)?.id ?? []));
+    const allowed = new Set(selectedChangeScope(data, b, change, set).flatMap(id => find(data, id)?.id ?? []));
     const requested = new Set(targets(change, "changes").flatMap(id => find(data, id)?.id ?? []));
     requirementCorrections.push(...graph.requirements.filter(r => allowed.has(r.id) && (requested.has(r.id) || changed.some(c => c.revision_id === r.revision_id))).map(r => r.revision_id));
   }
@@ -69,7 +91,7 @@ export function assessRequirements(data: DatumEnvelope[], b: RequirementTraceBin
     requirements: changed.filter(r => !passedRequirements.has(r.revision_id)).map(r => r.revision_id).sort(), groups,
     correction: {requirements: unique(requirementCorrections), groups: unique(groupCorrections)},
     sourceScopes: unique(sourceScopes), ...(baseline ? {baseline: baseline.revision_id} : {}), ...(change ? {change: change.revision_id} : {}),
-    allowedRequirements: change ? changeScope(data, b, change) : graph.requirements.map(r => r.revision_id),
+    allowedRequirements: change ? selectedChangeScope(data, b, change, set) : graph.requirements.map(r => r.revision_id),
   };
 }
 
@@ -168,6 +190,10 @@ export function validateChangeDatum(data: DatumEnvelope[], b: RequirementTraceBi
         const priorSets = others.filter(s => s.type === b.type && s.id === datum.id && s.revision < datum.revision && targets(s, "changes-under").some(id => find(all, id)?.id === authority.change.id));
         const previous = priorSets.sort((a, z) => z.revision - a.revision)[0] ?? baseSet;
         const previousGraph = previous ? selectedRequirementGraph(all, previous, b) : undefined;
+        if (previous) for (const id of selectedChangeScope(all, b, authority.change, previous)) {
+          const requirement = find(all, id);
+          if (requirement) allowedIds.add(requirement.id);
+        }
         const frontier = previous && previous !== baseSet ? assessRequirements(others, b, previous).correction : {requirements: targets(authority.change, "changes"), groups: []};
         const priorChange = find(all, targets(previous, "changes-under")[0]);
         if (priorChange && priorChange.revision < authority.change.revision) frontier.requirements.push(...targets(authority.change, "changes").filter(id => !targets(priorChange, "changes").includes(id)));
@@ -175,7 +201,7 @@ export function validateChangeDatum(data: DatumEnvelope[], b: RequirementTraceBi
         const groupIds = new Set(frontier.groups.flatMap(id => find(all, id)?.id ?? []));
         for (const r of graph.requirements) {
           if (previousGraph?.requirements.some(old => old.revision_id === r.revision_id)) continue;
-          const old = baselineGraph?.requirements.find(old => old.id === r.id);
+          const old = previousGraph?.requirements.find(old => old.id === r.id) ?? baselineGraph?.requirements.find(old => old.id === r.id);
           if (old && !allowedIds.has(r.id)) fail("change-outside-scope", `Requirement '${r.revision_id}' is outside approved scope; amend the change request`);
           if (old && !frontierIds.has(r.id)) fail("change-frontier", `Requirement '${r.revision_id}' is outside the current authoring frontier; assess its parent first`);
           if (!old) {
