@@ -21,7 +21,7 @@ outputs:
       input: subject
   required_payload:
     publication: recorded
-prompt_ref: prompts/review-requirements.md@5
+prompt_ref: prompts/review-requirements.md@6
 review_policy_ref: review-applicability@1
 completion: execution.integrity.contract_valid == true && (true)
 resolves:
@@ -35,3 +35,5 @@ participation:
 authority_evidence:
   output: review
   type: REV
+review_contract:
+  external_artifact: registered-review@1

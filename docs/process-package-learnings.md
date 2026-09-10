@@ -80,7 +80,7 @@ without receiving requirement-review assessment rows.
 
 ## 4. Review completion must compare evidence, not prose
 
-Issues: #593, #602, #660, #669, #670, #691.
+Issues: #593, #602, #660, #669, #670, #691, #781.
 
 Pattern: a Review passes although its subject contradicts its exact requirement,
 omits its declared reviewer, or reports observations that do not match the
@@ -93,6 +93,16 @@ contract, and the kernel materializes those comparisons at publication.
 Check: Review Scenario `completion` expressions must reference each declared
 mechanical field. Package load reports a Review Scenario with a prose-only
 completion as `inconclusive`.
+
+Lane 273 also published an author-created FAIL review before an independent
+reviewer was assigned. A content finding can be correct while its provenance is
+wrong. Review scenarios that require external judgment declare the registered
+review artifact contract. Canonical submission compares the exact active context
+and verdict with the manager's registration, regardless of PASS or FAIL; arbitrary
+completion evidence or a reviewer label is not proof. Root dispatch and manager
+authentication establish independence under the documented cooperative OS boundary.
+One public CLI transaction rejects an unregistered FAIL without publication or lease
+consumption, accepts its exact external registration and rejects changed bindings.
 
 ## 5. Corrections keep exact lineage identity
 

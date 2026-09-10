@@ -1,3 +1,4 @@
+import { reviewFixtureEnvironment, registerReviewFixture } from "./helpers/external-review-fixture.js";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
@@ -15,6 +16,7 @@ it("reviews decomposition, changes a baselined leaf, and clarifies its ancestor 
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-change-public-"));
   const lifecycle = path.join(root, "lifecycle");
   const source = path.join(root, "product");
+  const reviewEnvironment = reviewFixtureEnvironment(lifecycle);
   let executable = path.join(process.cwd(), "dist/mdlm.js");
   const installedMode = process.env.MDLM_TINY_INSTALLED === "1";
   let archive: string | undefined;
@@ -38,7 +40,7 @@ it("reviews decomposition, changes a baselined leaf, and clarifies its ancestor 
   const requirements = (g: Json) => Object.fromEntries(g.requirements.map((r: Json) => [r.id, r.revision]));
   const groups = (g: Json) => Object.fromEntries(g.groups.map((d: Json) => [d.revision.replace(/-r\d+$/, ""), d.revision]));
   function command(file: string, args: string[], cwd: string, input?: string) {
-    const result = spawnSync(file, args, { cwd, input, encoding: "utf8", timeout: 90_000 });
+    const result = spawnSync(file, args, { cwd, input, env: reviewEnvironment, encoding: "utf8", timeout: 90_000 });
     if (result.error) throw result.error;
     return result;
   }
@@ -58,6 +60,7 @@ it("reviews decomposition, changes a baselined leaf, and clarifies its ancestor 
     const args = ["assignment", "submit-proposal", "-", "--json"];
     if (next.outcome === "attention-required") args.push("--authority", next.authorityRequirement.authority);
     const before = git(["status", "--porcelain", "--", ".lifecycle/data"], lifecycle);
+    if (/^review-(requirements|implementation)@/.test(next.assignment.packet.scenario.reference)) registerReviewFixture(executable, lifecycle, next.assignment.id, proposal, reviewEnvironment);
     const result = cli(args, proposal, status);
     if (status !== 0) {
       expect(result.outcome).toBe("rejected");

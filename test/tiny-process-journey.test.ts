@@ -1,3 +1,4 @@
+import { reviewFixtureEnvironment, registerReviewFixture } from "./helpers/external-review-fixture.js";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
@@ -15,6 +16,7 @@ it("captures Docker failures and stakeholder rejection through correction to exp
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-docker-public-"));
   const lifecycle = path.join(root, "lifecycle");
   const source = path.join(root, "product");
+  const reviewEnvironment = reviewFixtureEnvironment(lifecycle);
   let executable = path.join(process.cwd(), "dist/mdlm.js");
   const evidenceFile = path.join(os.tmpdir(), "mdlm-docker-public-evidence", `${path.basename(root)}.json`);
   const acceptedTrace: Json[] = [];
@@ -24,7 +26,7 @@ it("captures Docker failures and stakeholder rejection through correction to exp
   let packageIdentity: Json | undefined;
   let failure: string | undefined;
   function command(file: string, args: string[], cwd: string, input?: string) {
-    const result = spawnSync(file, args, { cwd, input, encoding: "utf8", timeout: 90_000 });
+    const result = spawnSync(file, args, { cwd, input, env: reviewEnvironment, encoding: "utf8", timeout: 90_000 });
     if (result.error) throw result.error;
     return result;
   }
@@ -229,6 +231,7 @@ it("captures Docker failures and stakeholder rejection through correction to exp
       } else throw new Error(`Unexpected output ${type}`);
       const args = ["assignment", "submit-proposal", "-", "--json"];
       if (next.outcome === "attention-required") args.push("--authority", next.authorityRequirement.authority);
+      if (/^review-(requirements|implementation)@/.test(packet.scenario.reference)) registerReviewFixture(executable, lifecycle, next.assignment.id, proposal, reviewEnvironment);
       const submitted = cli(args, proposal);
       expect(submitted.outcome).toBe("accepted");
       for (const publication of submitted.receipt.publications) {

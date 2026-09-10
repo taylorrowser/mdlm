@@ -89,9 +89,56 @@ Start each transaction from a clean tree. Stop rather than absorb unrelated
 changes. MDLM owns Lifecycle Data publication; the operator owns review of the
 resulting diff and the ordinary Git commit.
 
+## Independent review registration
+
+Tiny 0.6.0 requires a manager-registered external verdict for requirements and
+implementation reviews. Root assigns a fresh reviewer. The manager authenticates
+that dispatch and the returned verdict against the complete CLI review export.
+The author does not review its own work or register its own verdict.
+
+Before launching the author, the manager creates an existing absolute registry
+directory outside the lifecycle repository and fixes `MDLM_REVIEW_REGISTRY` in
+both the manager and author environments. The author environment must omit
+`MDLM_REVIEW_REGISTRAR`. The registry is manager-owned transport state, separate
+from Lifecycle Data. Its artifacts must be preserved with the lane evidence.
+
+```bash
+# Author exports the exact active review and requests a fresh root-assigned reviewer.
+mdlm assignment review-context ASSIGNMENT_ID --json > review-context.json
+
+# Manager authenticates the returned verdict, then registers its exact bytes.
+MDLM_REVIEW_REGISTRAR=1 mdlm assignment register-review ASSIGNMENT_ID \
+  /absolute/review-context.json /absolute/reviewer-verdict.json --json
+
+# Author submits the unchanged relayed file using its normal command.
+mdlm assignment submit-proposal /absolute/reviewer-verdict.json --json
+```
+
+The context file may be the complete CLI JSON output or its `reviewContext`
+object. The verdict is ordinary `authorValues` JSON. Registration reads the active
+Assignment without writing the lifecycle repository. It preserves an immutable
+artifact and atomically selects the current verdict for that Assignment. A
+corrected independently returned verdict can replace that selection while the
+Assignment remains active; earlier artifacts remain preserved.
+
+Canonical submission checks the exact review context, full packet, and derived
+response against that registration. Ordinary submission also compares the original
+verdict bytes. Missing configuration, missing registration, changed bytes or stale
+bindings reject publication without consuming the lease. Diagnostic
+`scenario submit` must match the response derived from the registered verdict.
+Accepted execution records the review binding; existing settlement owns consumption
+and prevents a second publication. No online Message Board connection is required.
+
+This is cooperative manager/author separation on a shared OS account. The registrar
+environment switch and filesystem ownership convention do not authenticate a human
+or model identity and do not stop an author intentionally impersonating the manager,
+changing its environment, or rewriting manager files. Root dispatch and manager
+authentication remain the evidence of reviewer independence. A self-declared
+`completionEvidence` object cannot replace the registered artifact.
+
 ## Code traceability and requirement changes
 
-For tiny 0.5.0, author requirements and decomposition memberships in one batch
+For tiny 0.6.0, author requirements and decomposition memberships in one batch
 using the packet's local handles. Each DCP selects one exact parent and its
 complete immediate-child group; RQS selects the exact requirements and groups.
 The CLI supplies stable requirement IDs in
@@ -161,7 +208,7 @@ Impact identifies candidate source regions and verification evidence, not a list
 of mandatory code edits. The implementation assignment records dispositions for
 the affected evidence. The normal implementation review, CLI Docker verification
 and stakeholder acceptance route still applies. Old requirements, groups, source
-scopes and acceptance evidence remain immutable. Tiny 0.5.0 is for fresh
+scopes and acceptance evidence remain immutable. Tiny 0.6.0 is for fresh
 repositories; historical runs retain their selected package and representation.
 See [the baseline and decomposition decision](docs/adr/0006-baseline-changes-and-decomposition-groups.md).
 

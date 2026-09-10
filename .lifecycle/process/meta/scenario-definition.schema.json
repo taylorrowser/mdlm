@@ -40,8 +40,9 @@
     "review_contract": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["required_evidence", "allowed_findings", "summary_rule", "correction_authorities"],
+      "anyOf": [{"required": ["required_evidence", "allowed_findings", "summary_rule", "correction_authorities"]}, {"required": ["external_artifact"]}],
       "properties": {
+        "external_artifact": {"const": "registered-review@1"},
         "required_evidence": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}, "uniqueItems": true},
         "allowed_findings": {"type": "array", "items": {"enum": ["scope", "traceability", "observability", "consistency", "evidence", "independence"]}, "minItems": 1, "uniqueItems": true},
         "summary_rule": {"type": "string", "minLength": 1},
