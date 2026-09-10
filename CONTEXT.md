@@ -184,8 +184,16 @@ _Avoid_: Chat-based progression, redundant approval by default
 ## Definition and decomposition
 
 **Accepted Requirement Revision**:
-An exact requirement Revision accepted under its selected Process Package. A package may require an Accepted Baseline; the tiny package uses its exact requirement Review before implementation. Later substantive revision follows the selected package's correction or change rules.
+An exact requirement Revision that has received the review or acceptance required by its selected Process Package. Requirement review and inclusion in an accepted product baseline are distinct claims.
 _Avoid_: Latest requirement, acceptance inferred without the selected package's rule
+
+**Decomposition Group (DCP)**:
+One exact parent requirement and its complete group of immediate child requirements. Each child's validity under that parent and the group's collective adequacy are separate judgments.
+_Avoid_: Requirement level, decomposition work package
+
+**Requirement Set (RQS)**:
+An exact selection of requirements and their decomposition groups for a product. Explicit retirements exclude requirements from a successor selection without changing historical selections.
+_Avoid_: Latest requirements, mutable graph
 
 **Decomposition Work Package (DWP)**:
 The durable planning and completion lineage for one bounded many-to-many decomposition from exact parent requirement Revisions to exact child requirement Revisions.
@@ -210,7 +218,7 @@ An exact report of a failure or unexpected condition preserving the immutable ev
 _Avoid_: Bug ticket when the durable evidence relationship matters
 
 **Change Request (CHG)**:
-A reviewed bounded change with exact traceability-based impact, explicit implementation order, approval, and closure evidence.
+A bounded request to change an accepted product, with an exact baseline, affected requirement targets, a reason and a requested outcome. Approval authorizes its scope; later acceptance records its closure.
 _Avoid_: Problem Report, generic task, mutable change status
 
 **Original-V order**:
@@ -250,7 +258,7 @@ An exact frozen definition proposed for downstream authorization but not yet his
 _Avoid_: Draft baseline
 
 **Accepted Baseline**:
-An immutable baseline whose exact definition has received the required authorization and downstream evidence.
+An immutable product definition with the required authorization and supporting evidence. In the tiny process, stakeholder acceptance establishes the exact requirements, decomposition, implementation and verification that belong to it.
 _Avoid_: Current baseline
 
 **Gate Sign-off**:
