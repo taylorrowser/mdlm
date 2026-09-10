@@ -1,10 +1,10 @@
 ---
 id: correct-requirements-after-review
 scenario: correct-requirements-after-review
-version: 2
+version: 3
 skills:
 - skills/product-quality.md@1
-- skills/typed-requirements.md@2
+- skills/typed-requirements.md@3
 ---
 
 # Correct requirements after content Review

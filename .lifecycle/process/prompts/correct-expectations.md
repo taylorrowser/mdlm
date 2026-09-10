@@ -1,10 +1,10 @@
 ---
 id: correct-expectations
 scenario: correct-expectations
-version: 2
+version: 3
 skills:
 - skills/product-quality.md@1
-- skills/typed-requirements.md@2
+- skills/typed-requirements.md@3
 ---
 
 # Correct a wrong acceptance expectation
