@@ -1,10 +1,10 @@
 ---
 id: correct-product
 scenario: correct-product
-version: 4
+version: 5
 skills:
 - skills/product-quality.md@1
-- skills/typed-requirements.md@3
+- skills/typed-requirements.md@4
 - skills/verification-starter.md@1
 - skills/source-trace.md@1
 ---

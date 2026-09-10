@@ -1,10 +1,10 @@
 ---
 id: revise-requirements
 scenario: revise-requirements
-version: 3
+version: 4
 skills:
 - skills/product-quality.md@1
-- skills/typed-requirements.md@3
+- skills/typed-requirements.md@4
 - skills/source-trace.md@1
 ---
 

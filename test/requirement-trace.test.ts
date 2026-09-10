@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { expect, test } from "vitest";
 import type { DatumEnvelope } from "../src/index.js";
-import { selectedRequirementGraph, deriveImplementationScopes, type RequirementTraceBinding } from "../src/requirement-trace.js";
+import { latestRequirements, selectedRequirementGraph, deriveImplementationScopes, type RequirementTraceBinding } from "../src/requirement-trace.js";
 const binding: RequirementTraceBinding = {type: "RQS", requirement_type: "REQ", implementation_type: "IMP", scope_type: "SCP"};
 function datum(id: string, kind = "software", parents: string[] = [], revision = 1): DatumEnvelope {
   return {id, revision, revision_id: `${id}-r${String(revision).padStart(5, "0")}`, type: "REQ", payload: {kind}, links: parents.map((target) => ({type: "decomposes", target})), created_by: {process_ref: "test"}, body: ""};
@@ -32,6 +32,28 @@ test("new parent revision leaves historical graph intact but blocks current reus
   data.push(datum(root.id, "stakeholder", [], 2));
   expect(selectedRequirementGraph(data, set, binding).diagnostics).toEqual([]);
   expect(selectedRequirementGraph(data, set, binding, true).diagnostics.map((d) => d.code)).toContain("trace-selection-stale");
+});
+test("leaf-only changes preserve exact parents and siblings; parent changes require reaffirmation", () => {
+  const root = datum("REQ-0000000001", "stakeholder");
+  const children = Array.from({length: 6}, (_, i) => datum(`REQ-000000000${i + 2}`, "software", [root.revision_id]));
+  const unchanged = JSON.stringify([root, ...children.slice(2)]);
+  const revised = children.slice(0, 2).map(child => ({
+    ...datum(child.id, "software", [root.revision_id], 2),
+    payload: {...child.payload, source: "completion-change.md"},
+  }));
+  const data = [root, ...children, ...revised];
+  const set = {...datum("RQS-0000000001"), type: "RQS", links: latestRequirements(data, binding).map(r => ({type: "contains", target: r.revision_id}))};
+  const graph = selectedRequirementGraph(data, set, binding, true);
+  expect(graph.diagnostics).toEqual([]);
+  expect(graph.requirements).toEqual([root, ...revised, ...children.slice(2)]);
+  expect(JSON.stringify([root, ...children.slice(2)])).toBe(unchanged);
+  expect(graph.requirements.filter(r => r.revision === 2).map(r => r.payload.source)).toEqual(["completion-change.md", "completion-change.md"]);
+
+  data.push({...datum(root.id, "stakeholder", [], 2), payload: {...root.payload, source: "completion-change.md"}});
+  set.links = latestRequirements(data, binding).map(r => ({type: "contains", target: r.revision_id}));
+  const codes = selectedRequirementGraph(data, set, binding, true).diagnostics.map(d => d.code);
+  expect(codes.filter(code => code === "trace-decomposition-outside-selection")).toHaveLength(6);
+  expect(codes).toContain("trace-stakeholder-unreachable");
 });
 test("rejects cyclic and broken exact decomposition before publication", () => {
   const {data, set, root, leaf} = fixture();

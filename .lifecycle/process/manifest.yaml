@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-tiny
-version: 0.4.4
+version: 0.4.5
 status: experimental
 description: Small products with batched normal-link requirements and complete source attribution.
 kernel_contract:

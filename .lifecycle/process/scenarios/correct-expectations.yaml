@@ -35,7 +35,7 @@ outputs:
     publication: recorded
   identity_from:
     input: subject
-prompt_ref: prompts/correct-expectations.md@3
+prompt_ref: prompts/correct-expectations.md@4
 review_policy_ref: review-applicability@1
 completion: 'execution.integrity.contract_valid == true && failure.payload.correction_target == "requirements" &&
   !every("correction-subjects-for@2", {failure: failure}, corrected => corrected.identity.revision_id != subject.identity.revision_id)'
