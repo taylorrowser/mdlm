@@ -3844,7 +3844,10 @@ function scenarioProposalFromResponse(
         .map((link) => JSON.stringify(link)),
     );
     const trace = requirementTraceBinding(exact.processPackage);
-    const decomposition = output.type === trace?.requirement_type ? output.links.filter((l) => l.type === "decomposes") : [];
+    const authoredLinkTypes = trace?.decomposition_type
+      ? output.type === trace.decomposition_type ? ["parent", "child"] : output.type === trace.change_type ? ["changes"] : output.type === trace.type ? ["retires"] : []
+      : output.type === trace?.requirement_type ? ["decomposes"] : [];
+    const decomposition = output.links.filter(l => authoredLinkTypes.includes(l.type));
     const activeActual = activeLinks(output.links.filter((l) => !decomposition.includes(l)));
     const permittedActual = activeActual
       .map((link) => JSON.stringify(link))
