@@ -22,3 +22,12 @@ test("a software statement requires its EARS guard while stakeholder statements 
   expect(validate(software)).toBe(false);
   expect(validate({ ...software, ears: { ...software.ears, event: "a task is added" } })).toBe(true);
 });
+
+test("stakeholder rejection is an explicit decision rather than an implicit acceptance", async () => {
+  const definition = parse(await fs.readFile(".lifecycle/process/types/ACC.yaml", "utf8"));
+  const scenario = parse(await fs.readFile(".lifecycle/process/scenarios/accept-product.yaml", "utf8"));
+  const validate = new Ajv2020({ strict: false }).compile(definition.payload_schema);
+  expect(validate({ publication: "recorded", decision: "reject", rationale: "Valid IDs crash" })).toBe(true);
+  expect(validate({ publication: "recorded", rationale: "Valid IDs crash" })).toBe(false);
+  expect(scenario.outputs[0].required_payload).not.toHaveProperty("decision");
+});

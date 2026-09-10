@@ -1,13 +1,14 @@
 kind: scenario-definition
 id: correct-product
-version: 1
-description: Correct a product verification failure
+version: 2
+description: Correct a failed verification or stakeholder rejection
 phases:
 - phase-0-tiny-product
 inputs:
 - name: failure
   types:
   - RES
+  - ACC
   cardinality: one
   identity: revision
 - name: subject
@@ -43,11 +44,12 @@ outputs:
   required_links: []
   required_payload:
     publication: recorded
-prompt_ref: prompts/correct-product.md@2
+prompt_ref: prompts/correct-product.md@3
 review_policy_ref: review-applicability@1
-completion: 'execution.integrity.contract_valid == true && failure.payload.correction_target == "implementation"
-  && !every("correction-subjects-for@1", {failure: failure}, corrected => corrected.identity.revision_id != subject.identity.revision_id)'
+completion: 'execution.integrity.contract_valid == true && (!every("results-for@1", {implementation: subject}, item => item.identity.revision_id != failure.identity.revision_id || item.payload.correction_target != "implementation") || !every("rejections-for@1", {implementation: subject}, item => item.identity.revision_id != failure.identity.revision_id))
+  && !every("correction-subjects-for@2", {failure: failure}, corrected => corrected.identity.revision_id != subject.identity.revision_id)'
 resolves:
 - product-correction
+- stakeholder-rejection-correction
 prohibited_inputs: []
 batching: single

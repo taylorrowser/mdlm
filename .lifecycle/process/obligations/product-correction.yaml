@@ -14,7 +14,7 @@ status_rules:
   reason: product correction
 default_status: blocked
 resolve_with:
-  scenario: correct-product@1
+  scenario: correct-product@2
   inputs:
     failure: subject
     subject: 'one("implementation-for-result@1", {result: subject})'

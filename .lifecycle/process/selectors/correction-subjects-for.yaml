@@ -1,6 +1,6 @@
 kind: selector-definition
 id: correction-subjects-for
-version: 1
+version: 2
 description: Exact subjects linked by immutable failing evidence.
 parameters:
 - name: failure
@@ -8,6 +8,7 @@ parameters:
   types:
   - REV
   - RES
+  - ACC
 result_kind: revision
 query:
   from:

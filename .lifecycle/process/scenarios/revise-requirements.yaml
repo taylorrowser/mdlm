@@ -12,7 +12,7 @@ inputs:
   cardinality: one
   identity: revision
   conditions: 'exists("pass-reviews@1", {subject: subject}) && none("fail-reviews@1", {subject: subject}) && exists("implementations-for@1",
-    {requirements: subject}) && every("implementations-for@1", {requirements: subject}, imp => exists("acceptances-for@1",
+    {requirements: subject}) && every("implementations-for@1", {requirements: subject}, imp => exists("acceptances-for@2",
     {implementation: imp}))'
 outputs:
 - name: requirements
