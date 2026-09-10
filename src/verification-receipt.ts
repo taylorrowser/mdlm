@@ -32,6 +32,10 @@ export async function readVerificationReceipt(root: string, assignment: string) 
   });
   if (!found) return undefined;
   const oid = found.stdout.trim();
+  return readVerificationReceiptBlob(root, oid);
+}
+export async function readVerificationReceiptBlob(root: string, oid: string) {
+  if (!/^[a-f0-9]{40}$/.test(oid)) throw new Error("Verification receipt must name an exact Git blob");
   const source = await git(root, ["cat-file", "blob", oid]);
   return {oid, receipt: JSON.parse(source) as {binding: VerificationBinding; attempt: number; result?: Awaited<ReturnType<typeof executeDockerVerification>>; state: string}};
 }
@@ -60,8 +64,8 @@ export async function runVerificationReceipt(root: string, binding: Verification
   const oid = await persist(receipt, started);
   return {oid, receipt};
 }
-export async function requireVerificationReceipt(root: string, binding: VerificationBinding) {
-  const saved = await readVerificationReceipt(root, binding.assignment);
+export async function requireVerificationReceipt(root: string, binding: VerificationBinding, receiptOid?: string) {
+  const saved = receiptOid === undefined ? await readVerificationReceipt(root, binding.assignment) : await readVerificationReceiptBlob(root, receiptOid);
   if (saved?.receipt.state !== "completed" || !saved.receipt.result || !isDeepStrictEqual(saved.receipt.binding, binding)) throw new Error("Run this exact Assignment with 'mdlm assignment run --json' before submitting verification");
   const result = saved.receipt.result;
   const current = result.sourceTree !== null && result.scriptSha256 !== null ? await authenticateVerificationSource(binding) : {};
@@ -72,7 +76,7 @@ export async function requireVerificationReceipt(root: string, binding: Verifica
   return {outcome: result.outcome, receipt: `git-blob:${saved.oid}`, saved};
 }
 
-export function verificationBinding(assignment: string, packageIdentity: unknown, scenario: VersionedDefinition, dryRun: import("./scenario-dry-run.js").ScenarioDryRun): VerificationBinding {
+export function verificationBinding(assignment: string, packageIdentity: unknown, scenario: VersionedDefinition, dryRun: Pick<import("./scenario-dry-run.js").ScenarioDryRun, "invocations">): VerificationBinding {
   const contract = verificationContract(scenario);
   if (!contract || dryRun.invocations.length !== 1) throw new Error("Docker verification requires one declared invocation");
   const inputs = dryRun.invocations[0]!.inputs;

@@ -1,3 +1,4 @@
+import { buildAssignmentReviewContext, type AssignmentReviewContext } from "./assignment-review-context.js";
 import { compareImplementationScopes } from "./requirement-trace-inspection.js";
 import { requirementTraceBinding, selectedRequirementGraph } from "./requirement-trace.js";
 import type { PayloadCollection, PayloadView } from "./payload-collections.js";
@@ -733,6 +734,31 @@ export async function inspectActiveAssignmentResponseScaffold(
     value: packet(exact.value, lease).responseScaffold,
     diagnostics: [],
   };
+}
+
+/** Export exact review content without allocating, submitting, or writing repository state. */
+export async function inspectAssignmentReviewContext(
+  repositoryRoot: string, assignmentId: string,
+): Promise<AssignmentResult<AssignmentReviewContext>> {
+  const persisted = await readLease(repositoryRoot);
+  if (!persisted.ok) return persisted;
+  const lease = persisted.value;
+  if (!lease || lease.disposition !== "active" || lease.id !== assignmentId) return failure("assignment-unavailable", `Assignment '${assignmentId}' is not the active Assignment`, assignmentId);
+  if (await readPendingSettlement(repositoryRoot, lease.id)) return failure("submission-settlement-required", "The active Assignment has uncertain publication closure; inspect settlement and do not replay it", lease.id);
+  const exact = await exactAssignment(repositoryRoot);
+  if (!exact.ok) return exact;
+  if (!sameAssignment(lease, exact.value)) return failure("assignment-stale", `Assignment '${lease.id}' no longer matches the current exact repository state`, lease.id);
+  let context: AssignmentReviewContext;
+  try { context = await buildAssignmentReviewContext(repositoryRoot, packet(exact.value, lease), exact.value.processPackage, exact.value.snapshot.records.map(record => record.datum)); }
+  catch (error) { return failure("assignment-review-context-invalid", `Cannot prepare complete review context: ${error instanceof Error ? error.message : String(error)}`, lease.id); }
+  const after = await exactAssignment(repositoryRoot);
+  if (!after.ok) return after;
+  if (!sameAssignment(lease, after.value)) return failure("assignment-stale", "Assignment inputs changed while preparing review context", lease.id);
+  const current = await readLease(repositoryRoot);
+  if (!current.ok) return current;
+  if (!exactActiveLease(current.value, lease)) return failure("assignment-unavailable", "Assignment is no longer active", lease.id);
+  if (await readPendingSettlement(repositoryRoot, lease.id)) return failure("submission-settlement-required", "Assignment settlement began while preparing review context", lease.id);
+  return {ok: true, value: context, diagnostics: []};
 }
 
 /** Compile transient author-owned values into the active exact response envelope. */
