@@ -1,6 +1,6 @@
 import {expect, test} from "vitest";
 import type {DatumEnvelope} from "../src/index.js";
-import {assessRequirements, validateChangeDatum} from "../src/change-assessment.js";
+import {assessRequirements, changeImpact, validateChangeDatum} from "../src/change-assessment.js";
 import type {RequirementTraceBinding} from "../src/requirement-trace.js";
 const binding: RequirementTraceBinding = {type: "RQS", requirement_type: "REQ", implementation_type: "IMP", scope_type: "SCP", decomposition_type: "DCP", change_type: "CHG", acceptance_type: "ACC", review_type: "REV"};
 function d(id: string, links: Record<string, string[]> = {}, payload: Record<string, unknown> = {}, revision = 1): DatumEnvelope {
@@ -209,3 +209,23 @@ test("a child added to fill an authorized group gap can be corrected without sco
   expect(assessRequirements(f.data, binding, foreignSet).allowedRequirements).not.toContain(id(unrelated));
 });
 function targetsForTest(datum: DatumEnvelope, relation: string): string[] {return datum.links.filter(l => l.type === relation).map(l => l.target);}
+test("prospective change impact identifies exact baseline groups, source and evidence before edits", () => {
+  const f = fixture();
+  const result = d("RES-baseline", {verifies: [id(f.set)], executes: [id(f.imp)]}, {outcome: "pass"});
+  f.acc.links.push({type: "uses-evidence", target: id(result)});
+  baseline(f); f.data.push(result);
+  const change = request(f, f.leaf);
+  const unrelated = d("SCP-unrelated", {"belongs-to": [id(f.imp)], implements: [id(f.peer)]}); f.data.push(unrelated);
+  expect(changeImpact(f.data, binding, change)).toEqual({requirements: [id(f.leaf)], groups: [id(f.bottom)], sourceScopes: [id(f.scope)], implementation: id(f.imp), result: id(result)});
+});
+test("a changed parent statement can be the correction for a group with valid children", () => {
+  const f = fixture();
+  f.review.payload.outcome = "fail";
+  const statements = f.review.payload.requirement_assessments as {requirement: string; disposition: string}[];
+  statements.find(a => a.requirement === id(f.root))!.disposition = "needs-change";
+  const groups = f.review.payload.decomposition_assessments as {group: string; disposition: string}[];
+  groups.find(a => a.group === id(f.top))!.disposition = "needs-change";
+  expect(validateChangeDatum(f.data, binding, f.review)).toEqual([]);
+  f.data.push(f.review);
+  expect(assessRequirements(f.data, binding, f.set).correction).toEqual({requirements: [id(f.root)], groups: []});
+});

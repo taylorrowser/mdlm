@@ -24,6 +24,19 @@ export function changeScope(data: DatumEnvelope[], b: RequirementTraceBinding, c
   }
   return [...scope].sort();
 }
+/** Prospective candidates are derived from accepted exact links before any edits. */
+export function changeImpact(data: DatumEnvelope[], b: RequirementTraceBinding, change: DatumEnvelope): {
+  requirements: string[]; groups: string[]; sourceScopes: string[]; implementation?: string; result?: string;
+} {
+  const requirements = changeScope(data, b, change);
+  const baseline = find(data, targets(change, "baseline")[0]);
+  const set = find(data, targets(baseline, "confirms")[0]);
+  const implementation = targets(baseline, "accepts")[0];
+  const result = targets(baseline, "uses-evidence")[0];
+  const groups = set ? selectedRequirementGraph(data, set, b).groups.filter(g => g.links.some(l => (l.type === "parent" || l.type === "child") && requirements.includes(l.target))).map(g => g.revision_id) : [];
+  const sourceScopes = data.filter(d => d.type === b.scope_type && targets(d, "belongs-to").includes(implementation ?? "") && d.links.some(l => (l.type === "implements" || l.type === "verifies") && requirements.includes(l.target))).map(d => d.revision_id);
+  return {requirements, groups: unique(groups), sourceScopes: unique(sourceScopes), ...(implementation ? {implementation} : {}), ...(result ? {result} : {})};
+}
 /** New requirements inherit only scope established through the approved change's selected groups. */
 function selectedChangeScope(data: DatumEnvelope[], b: RequirementTraceBinding, change: DatumEnvelope, set: DatumEnvelope): string[] {
   const scope = changeScope(data, b, change);
@@ -261,7 +274,11 @@ export function validateChangeDatum(data: DatumEnvelope[], b: RequirementTraceBi
         if (assessment) exact(rows(assessment.children).map(a => String(a.requirement)), group.children, `Children of ${group.revision}`);
       }
       if (datum.payload.outcome === "pass" && (statements.some(a => a.disposition !== "valid") || groups.some(a => a.disposition !== "adequate" || a.membership_action !== "none" || rows(a.children).some(c => c.disposition !== "valid")))) fail("change-review-pass", "A passing review cannot contain a requirement, child, or decomposition needing correction");
-      for (const group of groups) if (group.disposition === "needs-change" && group.membership_action !== "revise-membership" && !rows(group.children).some(c => c.disposition === "needs-change")) fail("change-review-correction", "An inadequate group must identify child correction or a membership revision");
+      for (const group of groups) {
+        const parent = expected.groups.find(g => g.revision === group.group)?.parent;
+        const parentCorrection = statements.some(a => a.requirement === parent && a.disposition === "needs-change");
+        if (group.disposition === "needs-change" && group.membership_action !== "revise-membership" && !rows(group.children).some(c => c.disposition === "needs-change") && !parentCorrection) fail("change-review-correction", "An inadequate group must identify parent or child correction, or a membership revision");
+      }
     }
   }
   return diagnostics;
