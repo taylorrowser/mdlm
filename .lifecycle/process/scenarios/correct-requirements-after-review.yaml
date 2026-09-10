@@ -35,7 +35,7 @@ outputs:
     publication: recorded
   identity_from:
     input: subject
-prompt_ref: prompts/correct-requirements-after-review.md@3
+prompt_ref: prompts/correct-requirements-after-review.md@4
 review_policy_ref: review-applicability@1
 completion: 'execution.integrity.contract_valid == true && (true) && exists("fail-reviews@1", {subject: subject})
   && every("fail-reviews@1", {subject: subject}, failed => failed.identity.revision_id == failure.identity.revision_id)'

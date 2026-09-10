@@ -1,6 +1,6 @@
 ---
 id: typed-requirements
-version: 3
+version: 4
 ---
 
 # Author one normal-link requirement graph
@@ -15,4 +15,4 @@ Shared success and failure constraints must retain the functional behavior in th
 
 Fill ears.pattern, system and response. Supply the complete subject in system and the response without a trailing period. Event requires event; state requires state; optional requires feature; unwanted requires unwanted. Ubiquitous has no guard. Complex combines at least two guards, with at most one event or unwanted guard. When the source already states an implementable, verifiable contract, preserve its operative wording while fitting the EARS fields instead of summarizing it. Carry relevant parent constraints into the software contract. Keep it as a software leaf with a normal link to its stakeholder parent; add intermediate requirements only when they allocate a useful responsibility. Split obligations when that clarifies their meaning. Mechanical graph completeness does not establish behavioral completeness or appropriate detail.
 
-For a correction or approved revision, use revision_of for an existing REQ lineage and update or reaffirm affected descendants in the same batch. Preserve old links and evidence. An unchanged child still pointing to an old parent is not a reaffirmation against the new parent. The CLI regenerates the complete RQS and later source scopes against the newly reviewed exact graph. Keep the body empty when structured fields carry the claim.
+For a correction or approved revision, use revision_of for each changed or reaffirmed existing REQ lineage. Revise only requirements whose claim changes. When a software behavior changes under an unchanged stakeholder or software parent, keep that exact parent revision and link revised children to it. Record the new change source on changed requirements or in completion evidence; updating change provenance alone does not require reauthoring an unchanged parent. If a parent's claim changes, reassess and explicitly reaffirm its affected descendants in the same batch. Preserve old links and evidence. An unchanged child still pointing to an old parent is not a reaffirmation against the new parent. The CLI regenerates the complete RQS and later source scopes against the newly reviewed exact graph. Keep the body empty when structured fields carry the claim.

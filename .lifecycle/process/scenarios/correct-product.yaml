@@ -44,7 +44,7 @@ outputs:
   required_links: []
   required_payload:
     publication: recorded
-prompt_ref: prompts/correct-product.md@4
+prompt_ref: prompts/correct-product.md@5
 review_policy_ref: review-applicability@1
 completion: 'execution.integrity.contract_valid == true && (!every("results-for@1", {implementation: subject}, item => item.identity.revision_id != failure.identity.revision_id || item.payload.correction_target != "implementation") || !every("rejections-for@1", {implementation: subject}, item => item.identity.revision_id != failure.identity.revision_id))
   && !every("correction-subjects-for@2", {failure: failure}, corrected => corrected.identity.revision_id != subject.identity.revision_id)'

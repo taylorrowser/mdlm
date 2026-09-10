@@ -31,7 +31,7 @@ outputs:
     publication: recorded
   identity_from:
     input: subject
-prompt_ref: prompts/revise-requirements.md@3
+prompt_ref: prompts/revise-requirements.md@4
 review_policy_ref: review-applicability@1
 completion: execution.integrity.contract_valid == true
 resolves: []
