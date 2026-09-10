@@ -1,6 +1,6 @@
 kind: implementation-profile-definition
 id: tiny
-version: 1
+version: 2
 description: One-batch normal-link requirements and fully attributed Python product lifecycle.
 status: experimental
 enabled:
@@ -24,7 +24,7 @@ disabled_capabilities:
 - architecture and interface definition
 - environment qualification
 - custom verification image builds
-- long-running or interactive products
+- long-running services or products requiring a TTY
 terminal_outcomes:
   lifecycle_complete:
     condition: 'exists("current-requirements@1", {}) && every("current-requirements@1", {}, req => exists("implementations-for@1",

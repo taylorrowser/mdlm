@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-tiny
-version: 0.6.0
+version: 0.7.0
 status: experimental
 description: Small products with batched normal-link requirements and complete source
   attribution.
@@ -47,9 +47,9 @@ compatibility:
   template_inheritance: single-parent-additive
   repository_migration: fresh-only
 profiles:
-  default: tiny@1
+  default: tiny@2
   available:
-  - profiles/tiny.yaml@1
+  - profiles/tiny.yaml@2
 provenance:
   source_document: docs/adr/0004-tiny-product-process-package.md
   companion_reference: .lifecycle/process/README.md

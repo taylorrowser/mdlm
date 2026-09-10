@@ -15,6 +15,7 @@ export const mdlmPiTestFiles = [
 // unless the PR gate names one as a diff-focused regression. This source list is
 // exhaustive so verification can detect missing, duplicate, and stale entries.
 export const rootTestQualificationManifest = Object.freeze([
+  { file: "test/docker-verification-dialogue.test.ts", qualificationGate: "release" },
   { file: "test/assignment-change-context.test.ts", qualificationGate: "pr" },
   { file: "test/external-review-public.test.ts", qualificationGate: "pr" },
   { file: "test/assignment-review-context.test.ts", qualificationGate: "pr" },

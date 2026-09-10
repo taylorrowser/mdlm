@@ -1,11 +1,11 @@
 ---
 id: correct-implementation-after-review
 scenario: correct-implementation-after-review
-version: 5
+version: 6
 skills:
 - skills/product-quality.md@1
 - skills/typed-requirements.md@5
-- skills/verification-starter.md@1
+- skills/verification-starter.md@2
 - skills/source-trace.md@1
 ---
 
