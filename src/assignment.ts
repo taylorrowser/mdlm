@@ -4095,11 +4095,25 @@ function packet(
       const assessment = rendered.changeAssessment;
       for (const value of rendered.authorValuesScaffold.outputs) {
         const contract = rendered.outputs.find(o => o.handle === value.slot);
-        if (contract?.type === traceBinding.review_type && directSet) {
-          value.payload.requirement_assessments = assessment.requirements.map(requirement => ({requirement, disposition: "valid", rationale: ""}));
-          value.payload.decomposition_assessments = assessment.groups.map(g => ({group: g.revision, children: g.children.map(requirement => ({requirement, disposition: "valid", rationale: ""})), disposition: "adequate", membership_action: "none", rationale: ""}));
+        if (contract?.type === traceBinding.review_type) {
+          // Supporting inputs supply context; the declared reviews link selects judgments.
+          const template = responseSkeleton.proposal.outputs.find(o => o.handle === value.slot);
+          const target = template?.links.find(l => l.type === "reviews")?.target;
+          const revision = target && ("input" in target
+            ? inputEntities(exact, target.input, template?.invocation)[0]?.identity.revision_id
+            : "datum" in target ? target.datum : undefined);
+          const subject = data.find(d => d.revision_id === revision);
+          const reviewedSet = subject?.type === traceBinding.type ? subject :
+            data.find(d => d.type === traceBinding.type && subject?.links.some(l => l.type === "implements" && l.target === d.revision_id));
+          if (reviewedSet) {
+            const reviewAssessment = assessRequirements(data, traceBinding, reviewedSet);
+            if (subject?.type === traceBinding.type) {
+              value.payload.requirement_assessments = reviewAssessment.requirements.map(requirement => ({requirement, disposition: "valid", rationale: ""}));
+              value.payload.decomposition_assessments = reviewAssessment.groups.map(g => ({group: g.revision, children: g.children.map(requirement => ({requirement, disposition: "valid", rationale: ""})), disposition: "adequate", membership_action: "none", rationale: ""}));
+            }
+            if (subject?.type === traceBinding.implementation_type) value.payload.source_assessments = reviewAssessment.sourceScopes.map(source_scope => ({source_scope, disposition: "valid", rationale: ""}));
+          }
         }
-        if (contract?.type === traceBinding.review_type && implementation) value.payload.source_assessments = assessment.sourceScopes.map(source_scope => ({source_scope, disposition: "valid", rationale: ""}));
         if (contract?.type === traceBinding.implementation_type && assessment.change) value.payload.impact_dispositions = assessment.sourceScopes.map(source_scope => {
           const scope = data.find(d => d.revision_id === source_scope)!;
           return {source_scope, disposition: "valid", candidate: {path: scope.payload.path, name: scope.payload.name, role: scope.payload.role}, rationale: ""};

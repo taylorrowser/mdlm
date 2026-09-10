@@ -54,7 +54,7 @@ Obligations are `inconclusive` unless declared non-gating.
 ## 3. The packet and the schema come from one declaration
 
 Issues: #493, #508, #509, #540, #547, #616, #622, #637, #642, #644, #650,
-#662, #676, #679, #689, #694, #696, #725.
+#662, #676, #679, #689, #694, #696, #725, #775.
 
 Pattern: the Assignment Packet, the author-only response schema, the
 Scenario-fixed projected values, and cross-output references are assembled by
@@ -67,12 +67,16 @@ the authorable properties. The ordinary next/submit-proposal path emits
 `authorValuesSchema` and `authorValuesScaffold` from the same field-ownership
 rules used by submission. Prompts point to those fields; full response templates
 remain diagnostic. Every response-local reference resolves at the canonical
-final-proposal boundary.
+final-proposal boundary. Review assessment rows follow the declared `reviews`
+subject; supporting inputs provide context without adding judgments about a
+different subject.
 
 Check: one package-neutral test compiles every Scenario in the selected
 package, fills its scaffold with placeholder values, and asserts the compiled
 proposal validates. A Scenario whose scaffold cannot round-trip fails package
-qualification before any demo runs.
+qualification before any demo runs. The review-context regression also checks
+that implementation reviews retain source assessments and supporting requirements
+without receiving requirement-review assessment rows.
 
 ## 4. Review completion must compare evidence, not prose
 
