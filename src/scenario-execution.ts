@@ -999,7 +999,7 @@ async function submitScenario(
         if (!output.datum.links.some(l => l.type === "baseline")) output.datum.links.push({type: "baseline", target: baseline});
       }
       const directChange = existing.find(d => inputs.has(d.revision_id) && d.type === trace.change_type);
-      const inheritedChange = existing.filter(d => inputs.has(d.revision_id)).flatMap(d => d.links.filter(l => l.type === "changes-under").map(l => l.target));
+      const inheritedChange = existing.filter(d => inputs.has(d.revision_id)).sort((a, b) => Number(b.type === trace.type) - Number(a.type === trace.type)).flatMap(d => d.links.filter(l => l.type === "changes-under").map(l => l.target));
       const change = directChange?.revision_id ?? inheritedChange[0];
       if (change && !approvedChanges(existing, trace).some(c => c.revision_id === change) && outputData.some(o => [trace.requirement_type, trace.decomposition_type, trace.type, trace.implementation_type, trace.acceptance_type].includes(o.datum.type))) return {ok: false, diagnostics: [{code: "change-approval-required", message: "Current change revision needs stakeholder approval before publication"}]};
       if (change) for (const output of outputData.filter(o => [trace.requirement_type, trace.decomposition_type, trace.type, trace.implementation_type, trace.acceptance_type].includes(o.datum.type))) {
