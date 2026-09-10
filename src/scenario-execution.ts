@@ -1,3 +1,4 @@
+import { assessRequirements, approvedChanges } from "./change-assessment.js";
 import { requirementTraceBinding, latestRequirements, selectedRequirementGraph, deriveImplementationScopes, implementationSourceChanges } from "./requirement-trace.js";
 import { verificationContract, verificationBinding, requireVerificationReceipt } from "./verification-receipt.js";
 import { createHash, randomUUID } from "node:crypto";
@@ -986,16 +987,70 @@ async function submitScenario(
   const kernelFinalizedOutputs: KernelFinalizedScenarioOutput[] = [];
   const trace = requirementTraceBinding(processPackage);
   if (trace) {
+    if (trace.change_type) {
+      const existing = snapshot.records.map(r => r.datum);
+      const inputs = new Set(dryRun.invocations.flatMap(i => i.inputs.flatMap(input => input.values.map(v => v.identity.revision_id))));
+      for (const output of outputData.filter(o => o.datum.type === trace.change_type)) {
+        const subject = existing.find(d => inputs.has(d.revision_id) && d.type === trace.type);
+        const previous = existing.find(d => inputs.has(d.revision_id) && d.type === trace.change_type);
+        const baseline = previous?.links.find(l => l.type === "baseline")?.target ?? existing.find(d => d.type === trace.acceptance_type && d.payload.decision === "accept" && d.links.some(l => l.type === "confirms" && l.target === subject?.revision_id))?.revision_id;
+        if (!baseline) return {ok: false, diagnostics: [{code: "change-baseline-required", message: "A change request needs an exact accepted baseline"}]};
+        if (output.datum.links.some(l => l.type === "baseline" && l.target !== baseline)) return {ok: false, diagnostics: [{code: "change-baseline-mismatch", message: "Change baseline differs from the Assignment input"}]};
+        if (!output.datum.links.some(l => l.type === "baseline")) output.datum.links.push({type: "baseline", target: baseline});
+      }
+      const directChange = existing.find(d => inputs.has(d.revision_id) && d.type === trace.change_type);
+      const inheritedChange = existing.filter(d => inputs.has(d.revision_id)).flatMap(d => d.links.filter(l => l.type === "changes-under").map(l => l.target));
+      const change = directChange?.revision_id ?? inheritedChange[0];
+      if (change && !approvedChanges(existing, trace).some(c => c.revision_id === change) && outputData.some(o => [trace.requirement_type, trace.decomposition_type, trace.type, trace.implementation_type, trace.acceptance_type].includes(o.datum.type))) return {ok: false, diagnostics: [{code: "change-approval-required", message: "Current change revision needs stakeholder approval before publication"}]};
+      if (change) for (const output of outputData.filter(o => [trace.requirement_type, trace.decomposition_type, trace.type, trace.implementation_type, trace.acceptance_type].includes(o.datum.type))) {
+        if (output.datum.links.some(l => l.type === "changes-under" && l.target !== change)) return {ok: false, diagnostics: [{code: "change-authority-mismatch", message: "Output change authority differs from the Assignment"}]};
+        if (!output.datum.links.some(l => l.type === "changes-under")) output.datum.links.push({type: "changes-under", target: change});
+      }
+    }
     if (outputData.some((o) => o.datum.type === trace.scope_type)) return {ok: false, diagnostics: [{code: "trace-generated-output", message: "Source scopes are generated from committed source, never authored"}]};
     const allData = [...snapshot.records.map((r) => r.datum), ...outputData.map((o) => o.datum)];
     for (const output of outputData.filter((o) => o.datum.type === trace.type)) {
       if (output.datum.links.some((l) => l.type === "contains")) return {ok: false, diagnostics: [{code: "trace-generated-selection", message: "The CLI selects the complete requirement graph"}]};
       output.datum.payload.title = "Requirement graph";
       output.datum.payload.publication = "recorded";
-      output.datum.links.push(...latestRequirements(allData, trace).map((d) => ({type: "contains", target: d.revision_id})));
+      const previousSet = snapshot.records.map(r => r.datum).filter(d => d.type === trace.type && d.id === output.datum.id).sort((a, b) => b.revision - a.revision)[0];
+      if (trace.decomposition_type) for (const link of previousSet?.links.filter(l => l.type === "retires") ?? []) if (!output.datum.links.some(l => l.type === link.type && l.target === link.target)) output.datum.links.push(link);
+      const retired = new Set(output.datum.links.filter(l => l.type === "retires").map(l => allData.find(d => d.revision_id === l.target)?.id));
+      output.datum.links.push(...latestRequirements(allData, trace).filter(d => !trace.decomposition_type || !retired.has(d.id)).map((d) => ({type: "contains", target: d.revision_id})));
+      if (trace.decomposition_type) {
+        const selected = new Map(latestRequirements(allData, trace).filter(d => !retired.has(d.id)).map(d => [d.id, d]));
+        const previousSets = snapshot.records.map(r => r.datum).filter(d => d.type === trace.type && d.id === output.datum.id).sort((a, b) => b.revision - a.revision);
+        const previousSet = previousSets[0];
+        const previousGroups = previousSet ? selectedRequirementGraph(snapshot.records.map(r => r.datum), previousSet, trace).groups : [];
+        const authoredGroups = outputData.filter(o => o.datum.type === trace.decomposition_type);
+        const parentId = (group: DatumEnvelope) => allData.find(d => d.revision_id === group.links.find(l => l.type === "parent")?.target)?.id;
+        const groups = [...authoredGroups.map(o => o.datum)];
+        for (const previous of previousGroups) {
+          if (retired.has(parentId(previous)) || groups.some(g => parentId(g) === parentId(previous))) continue;
+          const links = previous.links.filter(l => l.type !== "changes-under").map(link => {
+            const endpoint = allData.find(d => d.revision_id === link.target);
+            return {...link, target: endpoint ? selected.get(endpoint.id)?.revision_id ?? link.target : link.target};
+          });
+          if (JSON.stringify(links) === JSON.stringify(previous.links.filter(l => l.type !== "changes-under"))) { groups.push(previous); continue; }
+          const revision = Math.max(...allData.filter(d => d.id === previous.id).map(d => d.revision)) + 1;
+          const datum: DatumEnvelope = {...previous, revision, revision_id: `${previous.id}-r${String(revision).padStart(5, "0")}`, links: [...links, ...output.datum.links.filter(l => l.type === "changes-under")], created_by: {...output.datum.created_by}};
+          const definition = outputDefinitions.find(d => Array.isArray(d?.types) && d.types.includes(trace.decomposition_type));
+          if (!definition || typeof definition.name !== "string") return {ok: false, diagnostics: [{code: "trace-group-output-missing", message: "Requirement authoring must declare decomposition output"}]};
+          const localId = `group-${previous.id}`;
+          outputData.push({proposal: {localId, name: definition.name, invocation: output.proposal.invocation, lifecycleDatum: {id: previous.id, type: datum.type, payload: {}, links: [], body: ""}}, datum});
+          allData.push(datum); groups.push(datum);
+          kernelFinalizedOutputs.push({capability: "requirement-trace@2", datum});
+        }
+        for (const group of groups) {
+          const prior = previousGroups.find(g => parentId(g) === parentId(group));
+          if (prior && group.id !== prior.id) return {ok: false, diagnostics: [{code: "trace-group-lineage", message: `Revise existing group '${prior.revision_id}' for this parent instead of creating another lineage`}]};
+        }
+        if (output.datum.links.some(l => l.type === "decomposition")) return {ok: false, diagnostics: [{code: "trace-generated-selection", message: "The CLI selects decomposition groups"}]};
+        output.datum.links.push(...groups.map(d => ({type: "decomposition", target: d.revision_id})));
+      }
       const graph = selectedRequirementGraph(allData, output.datum, trace, true);
       if (graph.diagnostics.length) return {ok: false, diagnostics: graph.diagnostics};
-      kernelFinalizedOutputs.push({capability: "requirement-trace@1", datum: output.datum});
+      kernelFinalizedOutputs.push({capability: trace.decomposition_type ? "requirement-trace@2" : "requirement-trace@1", datum: output.datum});
     }
     for (const output of [...outputData].filter((o) => o.datum.type === trace.implementation_type)) {
       if ("product_files" in output.datum.payload || "source_inventory" in output.datum.payload || "source_changes" in output.datum.payload) return {ok: false, diagnostics: [{code: "trace-generated-inventory", message: "The CLI derives product_files and source_inventory from the source commit"}]};
@@ -1006,7 +1061,7 @@ async function submitScenario(
       try {
         output.datum.payload.source_changes = await implementationSourceChanges(output.datum, allData, trace, generated.scopes);
       } catch (error) { return {ok: false, diagnostics: [{code: "trace-source-diff-unavailable", message: String(error)}]}; }
-      kernelFinalizedOutputs.push({capability: "requirement-trace@1", datum: output.datum});
+      kernelFinalizedOutputs.push({capability: trace.decomposition_type ? "requirement-trace@2" : "requirement-trace@1", datum: output.datum});
       const definition = outputDefinitions.find((d) => Array.isArray(d?.types) && d.types.includes(trace.scope_type));
       if (!definition || typeof definition.name !== "string") return {ok: false, diagnostics: [{code: "trace-scope-output-missing", message: "Implementation Scenario must declare a source-scope output"}]};
       for (const scope of generated.scopes) {
@@ -1019,8 +1074,19 @@ async function submitScenario(
           created_by: {...output.datum.created_by}, body: "",
         };
         outputData.push({proposal: {localId, name: definition.name, invocation: output.proposal.invocation, lifecycleDatum: {type: datum.type, payload: {}, links: [], body: ""}}, datum});
-        kernelFinalizedOutputs.push({capability: "requirement-trace@1", datum});
+        kernelFinalizedOutputs.push({capability: trace.decomposition_type ? "requirement-trace@2" : "requirement-trace@1", datum});
       }
+    }
+  }
+  if (trace?.decomposition_type) {
+    const allData = [...snapshot.records.map(r => r.datum), ...outputData.map(o => o.datum)];
+    for (const output of outputData.filter(o => o.datum.type === trace.review_type)) {
+      if ("scope_amendment_required" in output.datum.payload) return {ok: false, diagnostics: [{code: "change-derived-review-field", message: "The CLI derives scope amendment work"}]};
+      const set = allData.find(d => d.type === trace.type && output.datum.links.some(l => l.type === "reviews" && l.target === d.revision_id));
+      const assessment = set ? assessRequirements(allData, trace, set) : undefined;
+      const allowed = new Set(assessment?.allowedRequirements.map(id => allData.find(d => d.revision_id === id)?.id));
+      output.datum.payload.scope_amendment_required = Boolean(assessment?.change && assessment.correction.requirements.some(id => !allowed.has(allData.find(d => d.revision_id === id)?.id)));
+      kernelFinalizedOutputs.push({capability: "requirement-trace@2", datum: output.datum});
     }
   }
   const linkDiagnostics = requiredLinkDiagnostics(

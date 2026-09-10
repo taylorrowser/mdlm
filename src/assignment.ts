@@ -1,3 +1,4 @@
+import { assessRequirements, changeScope, type RequirementAssessments } from "./change-assessment.js";
 import { buildAssignmentReviewContext, type AssignmentReviewContext } from "./assignment-review-context.js";
 import { compareImplementationScopes } from "./requirement-trace-inspection.js";
 import { requirementTraceBinding, selectedRequirementGraph } from "./requirement-trace.js";
@@ -650,7 +651,9 @@ export interface AssignmentPacket {
   authorValuesSchema?: Record<string, unknown>;
   authorValuesScaffold?: AssignmentAuthorValues;
   sourceScopes?: {implementation: string; scopes: {revision: string; payload: Record<string, unknown>; links: {type: string; target: string}[]}[]; changes: unknown; comparison: ReturnType<typeof compareImplementationScopes> | null}[];
-  requirementGraphs?: { selection: string; requirements: {id: string; revision: string; payload: Record<string, unknown>; links: {type: string; target: string}[]; leaf: boolean}[] }[];
+  changeAssessment?: RequirementAssessments;
+  prospectiveChange?: {change: string; baseline: string | undefined; requirements: string[]};
+  requirementGraphs?: { selection: string; groups?: {revision: string; payload: Record<string, unknown>; links: {type: string; target: string}[]}[]; requirements: {id: string; revision: string; payload: Record<string, unknown>; links: {type: string; target: string}[]; leaf: boolean}[] }[];
   responseSchema: Record<string, unknown>;
   responseScaffold: AssignmentResponseSkeleton;
   checkpointConversation?: CheckpointConversation;
@@ -2360,7 +2363,7 @@ export async function requestRequirementChange(repositoryRoot: string, subject: 
     if (!trace || state.value.classification.kind !== "lifecycle-complete") return failure("change-request-boundary", "A requirement change can start only after the current product is accepted and complete");
     const datum = state.value.snapshot.records.find((r) => r.datum.revision_id === subject)?.datum;
     if (!datum || datum.type !== trace.type || state.value.snapshot.records.some((r) => r.datum.id === datum.id && r.datum.revision > datum.revision)) return failure("change-request-subject", "Select the exact current requirement-set revision");
-    const scenarios = Object.values(state.value.processPackage.scenarios).filter((s) => s.initiation === "explicit" && Array.isArray(s.inputs) && s.inputs.some((i) => object(i)?.name === "subject" && (object(i)?.types as unknown[] | undefined)?.includes(trace.type)) && Array.isArray(s.outputs) && s.outputs.some((o) => (object(o)?.types as unknown[] | undefined)?.includes(trace.requirement_type)));
+    const scenarios = Object.values(state.value.processPackage.scenarios).filter((s) => s.initiation === "explicit" && Array.isArray(s.inputs) && s.inputs.some((i) => object(i)?.name === "subject" && (object(i)?.types as unknown[] | undefined)?.includes(trace.type)) && Array.isArray(s.outputs) && s.outputs.some((o) => (object(o)?.types as unknown[] | undefined)?.includes(trace.change_type ?? trace.requirement_type)));
     if (scenarios.length !== 1) return failure("change-scenario-unavailable", "The package must declare one explicit requirement revision Scenario");
     const scenario = `${scenarios[0]!.id}@${scenarios[0]!.version}`;
     const prepared = await dryRunExplicitScenario(state.value.processPackage, state.value.snapshot, scenario, [{name: "subject", value: subject}]);
@@ -2947,6 +2950,11 @@ function authorValuesContract(
   for (const template of packet.responseScaffold.proposal.outputs) {
     const contract = packet.outputs.find((output) =>
       output.handle === (template.output ?? template.handle))!;
+    if (trace?.decomposition_type && template.type === trace.type) {
+      const base = assignmentAuthorValuesSchema.properties.outputs.items;
+      variants.push({...base, properties: {slot: {const: template.handle}, payload: {type: "object", maxProperties: 0}, body: {const: ""}, links: base.properties.links}});
+      continue;
+    }
     if (contract.name === materializedOutput || [trace?.type, trace?.scope_type].includes(template.type)) continue;
     const { fixed, managed } = authorPayloadOwnership(contract, template);
     const payloadSchema = authorPayloadSchema(packet.schemas[template.type]!.payload,
@@ -2959,7 +2967,7 @@ function authorValuesContract(
       properties: {
         slot: { const: template.handle },
         ...(repeated ? { handle: base.properties.handle } : {}),
-        ...(template.type === trace?.requirement_type ? { links: base.properties.links, revision_of: base.properties.revision_of } : {}),
+        ...([trace?.requirement_type, trace?.decomposition_type, trace?.change_type].includes(template.type) ? { links: base.properties.links, revision_of: base.properties.revision_of } : {}),
         payload: payloadSchema,
         body: base.properties.body,
       },
@@ -3105,9 +3113,11 @@ function assignmentResponseFromAuthorValues(
     if (!contract) continue;
     let supplied = suppliedBySlot.get(template.handle) ?? [];
     if ([trace?.type, trace?.scope_type].includes(template.type)) {
-      if (supplied.length) diagnostics.push({code: "trace-generated-output", message: "Requirement sets and source scopes are generated by the CLI"});
+      if (trace?.decomposition_type && template.type === trace.type) {
+        if (supplied.some(v => Object.keys(v.payload).length || v.body || v.links?.some(l => l.type !== "retires"))) diagnostics.push({code: "trace-generated-output", message: "Only explicit retires links may be authored for a generated requirement set"});
+      } else if (supplied.length) diagnostics.push({code: "trace-generated-output", message: "Requirement sets and source scopes are generated by the CLI"});
       if (template.type === trace?.scope_type) continue;
-      supplied = [{slot: template.handle, payload: {}, body: ""}];
+      if (!supplied.length) supplied = [{slot: template.handle, payload: {}, body: ""}];
     }
     const repeated = ["one-or-more", "zero-or-more"].includes(contract.cardinality);
     const definition = (Array.isArray(exact.scenario.outputs)
@@ -3188,7 +3198,7 @@ function assignmentResponseFromAuthorValues(
     }
     if (supplied.length === 0) {
       if (contract.cardinality.startsWith("zero-")) {
-        resultOutputs.push(template);
+        if (![trace?.requirement_type, trace?.decomposition_type].includes(template.type)) resultOutputs.push(template);
       } else {
         diagnostics.push({
           code: "assignment-author-values-slot-required",
@@ -3906,7 +3916,7 @@ function scenarioProposalFromResponse(
       const previous = exact.snapshot.records.find((r) => r.datum.revision_id === output.revision_of)?.datum;
       const inputs = invocationInputs.flatMap((i) => i.values.map((v) => v.identity.revision_id));
       const selected = exact.snapshot.records.filter((r) => inputs.includes(r.datum.revision_id) && r.datum.type === trace?.type);
-      if (output.type !== trace?.requirement_type || !previous || !selected.some((r) => r.datum.links.some((l) => l.type === "contains" && l.target === previous.revision_id))) return failure("trace-revision-outside-selection", "revision_of must name an exact requirement in the Assignment's selected input graph");
+      if (![trace?.requirement_type, trace?.decomposition_type].includes(output.type) || !previous || !selected.some((r) => r.datum.links.some((l) => ["contains", "decomposition"].includes(l.type) && l.target === previous.revision_id))) return failure("trace-revision-outside-selection", "revision_of must name an exact requirement in the Assignment's selected input graph");
       revisionId = previous.id;
     }
     outputs.push({
@@ -4047,6 +4057,14 @@ function packet(
   if (traceBinding) {
     const data = exact.snapshot.records.map((r) => r.datum);
     const inputIds = new Set(exact.dryRun.invocations.flatMap((i) => i.inputs.flatMap((input) => input.values.map((v) => v.identity.revision_id))));
+    if (traceBinding.change_type) {
+      for (const change of data.filter(d => inputIds.has(d.revision_id) && d.type === traceBinding.change_type)) {
+        const baseline = change.links.find(l => l.type === "baseline")?.target;
+        const acc = data.find(d => d.revision_id === baseline);
+        for (const l of acc?.links ?? []) if (l.type === "confirms") inputIds.add(l.target);
+        rendered.prospectiveChange = {change: change.revision_id, baseline, requirements: changeScope(data, traceBinding, change)};
+      }
+    }
     const sets = data.filter((d) => d.type === traceBinding.type && (inputIds.has(d.revision_id) || data.some((i) => inputIds.has(i.revision_id) && i.links.some((l) => l.target === d.revision_id))));
     rendered.sourceScopes = data.filter((d) => d.type === traceBinding.implementation_type && inputIds.has(d.revision_id)).map((implementation) => {
       const baseline = object(implementation.payload.source_changes)?.baseline_implementation;
@@ -4054,12 +4072,35 @@ function packet(
     });
     rendered.requirementGraphs = sets.map((set) => {
       const graph = selectedRequirementGraph(data, set, traceBinding);
-      return {selection: set.revision_id, requirements: graph.requirements.map((d) => ({id: d.id, revision: d.revision_id, payload: d.payload, links: d.links, leaf: graph.leaves.has(d.revision_id)}))};
+      return {selection: set.revision_id, groups: graph.groups.map(d => ({revision: d.revision_id, payload: d.payload, links: d.links})), requirements: graph.requirements.map((d) => ({id: d.id, revision: d.revision_id, payload: d.payload, links: d.links, leaf: graph.leaves.has(d.revision_id)}))};
     });
   }
   const authorValues = authorValuesContract(rendered, materialization?.output, requirementTraceBinding(exact.processPackage));
   rendered.authorValuesSchema = authorValues.schema;
   rendered.authorValuesScaffold = authorValues.scaffold;
+  if (traceBinding?.decomposition_type) {
+    const data = exact.snapshot.records.map(r => r.datum);
+    const inputs = exact.dryRun.invocations.flatMap(i => i.inputs.flatMap(input => input.values.map(v => v.identity.revision_id)));
+    const directSet = data.filter(d => d.type === traceBinding.type && inputs.includes(d.revision_id)).sort((a,b) => b.revision - a.revision)[0];
+    const implementation = data.find(d => d.type === traceBinding.implementation_type && inputs.includes(d.revision_id));
+    const set = directSet ?? data.find(d => d.type === traceBinding.type && implementation?.links.some(l => l.type === "implements" && l.target === d.revision_id));
+    if (set) {
+      rendered.changeAssessment = assessRequirements(data, traceBinding, set);
+      const assessment = rendered.changeAssessment;
+      for (const value of rendered.authorValuesScaffold.outputs) {
+        const contract = rendered.outputs.find(o => o.handle === value.slot);
+        if (contract?.type === traceBinding.review_type && directSet) {
+          value.payload.requirement_assessments = assessment.requirements.map(requirement => ({requirement, disposition: "valid", rationale: ""}));
+          value.payload.decomposition_assessments = assessment.groups.map(g => ({group: g.revision, children: g.children.map(requirement => ({requirement, disposition: "valid", rationale: ""})), disposition: "adequate", membership_action: "none", rationale: ""}));
+        }
+        if (contract?.type === traceBinding.review_type && implementation) value.payload.source_assessments = assessment.sourceScopes.map(source_scope => ({source_scope, disposition: "valid", rationale: ""}));
+        if (contract?.type === traceBinding.implementation_type && assessment.change) value.payload.impact_dispositions = assessment.sourceScopes.map(source_scope => {
+          const scope = data.find(d => d.revision_id === source_scope)!;
+          return {source_scope, disposition: "valid", candidate: {path: scope.payload.path, name: scope.payload.name, role: scope.payload.role}, rationale: ""};
+        });
+      }
+    }
+  }
   assertAssignmentPacketV3(rendered);
   return rendered;
 }

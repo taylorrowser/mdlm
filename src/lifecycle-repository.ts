@@ -1,3 +1,4 @@
+import { validateChangeDatum } from "./change-assessment.js";
 import { traceDatumDiagnostics, requirementTraceBinding } from "./requirement-trace.js";
 import { validatePayloadCollections, renderPayloadViews, type RenderedPayloadView } from "./payload-collections.js";
 import { createHash, randomUUID } from "node:crypto";
@@ -134,7 +135,7 @@ export interface ParsedDatum {
 }
 
 export interface KernelFinalizedScenarioOutput {
-  capability: "exact-baseline@1" | "docker-verification@1" | "requirement-trace@1";
+  capability: "exact-baseline@1" | "docker-verification@1" | "requirement-trace@1" | "requirement-trace@2";
   datum: DatumEnvelope;
 }
 
@@ -641,6 +642,8 @@ function validateDatum(
     datum.created_by.process_ref,
   ));
   diagnostics.push(...traceDatumDiagnostics(processPackage, datum, lifecycleData.map((record) => record.datum)));
+  const trace = requirementTraceBinding(processPackage);
+  if (trace?.decomposition_type) diagnostics.push(...validateChangeDatum(lifecycleData.map(r => r.datum), trace, datum));
   return diagnostics;
 }
 
@@ -912,7 +915,7 @@ function authorityEvidenceExecutionDiagnostic(
   const trace = requirementTraceBinding(provenance.processPackage);
   if (
     authorityEvidenceScenarioReferences(provenance.processPackage, datum.type).length === 0 &&
-    ![trace?.type, trace?.requirement_type, trace?.implementation_type, trace?.scope_type].includes(datum.type)
+    ![trace?.type, trace?.requirement_type, trace?.implementation_type, trace?.scope_type, trace?.decomposition_type, trace?.change_type].includes(datum.type)
   ) return undefined;
   return provenance.valid
     ? undefined

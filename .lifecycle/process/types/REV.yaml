@@ -1,6 +1,6 @@
 kind: type-definition
 id: REV
-version: 1
+version: 2
 description: Independent content Review
 name: Independent content Review
 extends: titled-datum@1
@@ -27,6 +27,77 @@ payload_schema:
     findings:
       type: string
       minLength: 1
+    requirement_assessments:
+      type: array
+      items: &id001
+        type: object
+        additionalProperties: false
+        required:
+        - requirement
+        - disposition
+        - rationale
+        properties:
+          requirement:
+            type: string
+            minLength: 1
+          disposition:
+            enum:
+            - valid
+            - needs-change
+          rationale:
+            type: string
+            minLength: 1
+    decomposition_assessments:
+      type: array
+      items:
+        type: object
+        additionalProperties: false
+        required:
+        - group
+        - children
+        - disposition
+        - membership_action
+        - rationale
+        properties:
+          group:
+            type: string
+            minLength: 1
+          children:
+            type: array
+            items: *id001
+          disposition:
+            enum:
+            - adequate
+            - needs-change
+          membership_action:
+            enum:
+            - none
+            - revise-membership
+          rationale:
+            type: string
+            minLength: 1
+    source_assessments:
+      type: array
+      items:
+        type: object
+        additionalProperties: false
+        required:
+        - source_scope
+        - disposition
+        - rationale
+        properties:
+          source_scope:
+            type: string
+            minLength: 1
+          disposition:
+            enum:
+            - valid
+            - needs-change
+          rationale:
+            type: string
+            minLength: 1
+    scope_amendment_required:
+      type: boolean
 outgoing_links:
 - id: reviews
   description: reviews
@@ -35,6 +106,7 @@ outgoing_links:
     types:
     - RQS
     - IMP
+    - CHG
     identity: revision
   cardinality:
     minimum: 1
@@ -53,4 +125,5 @@ outgoing_links:
     maximum: 1
   freeze_resolution: already-exact
   inverse_label: incoming-uses-evidence
-kernel_managed_payload_paths: []
+kernel_managed_payload_paths:
+- scope_amendment_required

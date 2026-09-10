@@ -1,0 +1,16 @@
+kind: selector-definition
+id: current-changes
+version: 1
+description: current changes
+parameters: []
+result_kind: revision
+query:
+  from:
+    collection: revisions
+    types:
+    - CHG
+  as: item
+  where: 'state(item, "validity") == "valid" && none("newer-revisions@1", {subject: item})'
+  distinct: true
+  order_by:
+  - identity.revision_id

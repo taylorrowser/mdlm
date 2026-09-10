@@ -1,0 +1,27 @@
+kind: scenario-definition
+id: request-change
+version: 1
+description: Propose a bounded change to the accepted product
+phases:
+- phase-0-tiny-product
+inputs:
+- name: subject
+  types:
+  - RQS
+  cardinality: one
+  identity: revision
+outputs:
+- name: change
+  types:
+  - CHG
+  cardinality: one
+  required_links: []
+  required_payload:
+    publication: recorded
+prompt_ref: prompts/request-change.md@1
+review_policy_ref: review-applicability@1
+completion: execution.integrity.contract_valid == true
+resolves: []
+prohibited_inputs: []
+batching: single
+initiation: explicit

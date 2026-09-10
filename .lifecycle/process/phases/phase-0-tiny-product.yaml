@@ -23,6 +23,9 @@ outputs:
 - RES
 - REV
 - ACC
+- DCP
+- CHG
+- RQS
 gate:
   required: false
   candidate_selector: '[]'

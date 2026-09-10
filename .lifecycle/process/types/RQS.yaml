@@ -1,6 +1,6 @@
 kind: type-definition
 id: RQS
-version: 1
+version: 2
 description: Requirement set
 name: Requirement set
 extends: titled-datum@1
@@ -44,5 +44,41 @@ outgoing_links:
     maximum: many
   freeze_resolution: already-exact
   inverse_label: incoming-corrects
+- id: changes-under
+  description: changes-under
+  targets:
+  - kind: datum
+    types:
+    - CHG
+    identity: revision
+  cardinality:
+    minimum: 0
+    maximum: 1
+  freeze_resolution: already-exact
+  inverse_label: incoming-changes-under
+- id: decomposition
+  description: decomposition
+  targets:
+  - kind: datum
+    types:
+    - DCP
+    identity: revision
+  cardinality:
+    minimum: 0
+    maximum: many
+  freeze_resolution: already-exact
+  inverse_label: incoming-decomposition
+- id: retires
+  description: Explicit removal from this selected requirement graph
+  targets:
+  - kind: datum
+    types:
+    - REQ
+    identity: revision
+  cardinality:
+    minimum: 0
+    maximum: many
+  freeze_resolution: already-exact
+  inverse_label: incoming-retires
 kernel_managed_payload_paths:
 - title
