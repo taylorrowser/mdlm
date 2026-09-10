@@ -267,6 +267,13 @@ submit and settlement, and doctor commands.
 
 ## Integrity boundary
 
+For baseline changes, authors still judge each affected source region as valid,
+changed, or removed. When a valid or changed disposition omits its candidate
+coordinates, the CLI fills them only if the committed candidate has exactly one
+region with the baseline region's path, name, and role. Explicit mappings are
+preserved. Moves, renames, missing regions, and ambiguous matches require explicit
+handling; the CLI does not infer semantic validity.
+
 Exact Process Package, repository, Assignment, execution, Stable Datum, and
 Revision identities remain authoritative. Frozen Revisions and accepted
 publications are immutable. Package and schema validation precede atomic

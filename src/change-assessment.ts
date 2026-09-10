@@ -69,6 +69,28 @@ export interface RequirementAssessments {
   allowedRequirements: string[];
 }
 
+/** Fill coordinates, never judgments: only an omitted candidate with one exact
+ * affected baseline path/name/role match is derivable. Explicit mappings and
+ * unresolved moves, renames, or splits remain for canonical validation. */
+export function deriveSourceDispositionCandidates(
+  data: DatumEnvelope[], b: RequirementTraceBinding, implementation: DatumEnvelope,
+  candidates: readonly {path: string; name: string; role: string}[],
+): unknown {
+  const dispositions = implementation.payload.impact_dispositions;
+  const set = find(data, targets(implementation, "implements")[0]);
+  if (!b.decomposition_type || !set || !Array.isArray(dispositions)) return dispositions;
+  const affected = new Set(assessRequirements(data, b, set).sourceScopes);
+  return dispositions.map(value => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+    const row = value as Record<string, unknown>;
+    if ("candidate" in row || !["valid", "changed"].includes(String(row.disposition)) || !affected.has(String(row.source_scope))) return value;
+    const baseline = find(data, String(row.source_scope));
+    const matches = candidates.filter(c => c.path === baseline?.payload.path && c.name === baseline?.payload.name && c.role === baseline?.payload.role);
+    const match = matches.length === 1 ? matches[0] : undefined;
+    return match ? {...row, candidate: {path: match.path, name: match.name, role: match.role}} : value;
+  });
+}
+
 /** Derive local review obligations from exact graph evidence, without maintaining a queue. */
 export function assessRequirements(data: DatumEnvelope[], b: RequirementTraceBinding, set: DatumEnvelope): RequirementAssessments {
   const graph = selectedRequirementGraph(data, set, b);
@@ -246,7 +268,7 @@ export function validateChangeDatum(data: DatumEnvelope[], b: RequirementTraceBi
       for (const d of dispositions) {
         if (d.disposition === "removed") continue;
         const candidate = d.candidate as Record<string, unknown> | undefined;
-        if (!candidate || !all.some(s => s.type === b.scope_type && targets(s, "belongs-to").includes(datum.revision_id) && s.payload.path === candidate.path && s.payload.name === candidate.name && s.payload.role === candidate.role)) fail("change-source-candidate", "Every valid or changed source disposition needs an exact generated candidate path, name, and role");
+        if (!candidate || !all.some(s => s.type === b.scope_type && targets(s, "belongs-to").includes(datum.revision_id) && s.payload.path === candidate.path && s.payload.name === candidate.name && s.payload.role === candidate.role)) fail("change-source-candidate", `Source disposition '${String(d.source_scope)}' needs an exact generated candidate path, name, and role; provide an explicit mapping when no unique same-coordinate candidate exists`);
       }
     }
   }

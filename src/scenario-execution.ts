@@ -1,4 +1,4 @@
-import { assessRequirements, approvedChanges } from "./change-assessment.js";
+import { assessRequirements, approvedChanges, deriveSourceDispositionCandidates } from "./change-assessment.js";
 import { requirementTraceBinding, latestRequirements, selectedRequirementGraph, deriveImplementationScopes, implementationSourceChanges } from "./requirement-trace.js";
 import { verificationContract, verificationBinding, requireVerificationReceipt } from "./verification-receipt.js";
 import { createHash, randomUUID } from "node:crypto";
@@ -1056,6 +1056,9 @@ async function submitScenario(
       if ("product_files" in output.datum.payload || "source_inventory" in output.datum.payload || "source_changes" in output.datum.payload) return {ok: false, diagnostics: [{code: "trace-generated-inventory", message: "The CLI derives product_files and source_inventory from the source commit"}]};
       const generated = await deriveImplementationScopes(output.datum, allData, trace);
       if (generated.diagnostics.length) return {ok: false, diagnostics: generated.diagnostics};
+      if (trace.decomposition_type && "impact_dispositions" in output.datum.payload) {
+        output.datum.payload.impact_dispositions = deriveSourceDispositionCandidates(allData, trace, output.datum, generated.scopes);
+      }
       output.datum.payload.product_files = generated.inventory.map((entry) => entry.path);
       output.datum.payload.source_inventory = generated.inventory;
       try {
