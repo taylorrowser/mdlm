@@ -166,7 +166,7 @@ it("reviews decomposition, changes a baselined leaf, and clarifies its ancestor 
             output.payload.findings = "The command decomposition omits argument rejection.";
             failedGroup = true;
           } else if (phase === 1) {
-            const previous = baselines[0].graph;
+            const previous = baselines[0]!.graph;
             const changed = leaf(graph!, "Count delimiter");
             expect(requirements(graph!)).toEqual({ ...requirements(previous), [changed.id]: changed.revision });
             expect(changed.revision).not.toBe(leaf(previous, "Count delimiter").revision);
@@ -174,7 +174,7 @@ it("reviews decomposition, changes a baselined leaf, and clarifies its ancestor 
             expect(groups(graph!)[unchangedRootGroup.revision.replace(/-r\d+$/, "")]).toBe(unchangedRootGroup.revision);
             expect(output.payload.decomposition_assessments.map((a: Json) => a.group)).toEqual([parent(graph!, leaf(graph!, "Command contract").revision).revision]);
           } else if (phase === 2) {
-            const previous = baselines[1].graph;
+            const previous = baselines[1]!.graph;
             const clarified = leaf(graph!, "Delimiter counting");
             expect(requirements(graph!)).toEqual({ ...requirements(previous), [clarified.id]: clarified.revision });
             expect(clarified.revision).not.toBe(leaf(previous, "Delimiter counting").revision);
@@ -222,8 +222,8 @@ it("reviews decomposition, changes a baselined leaf, and clarifies its ancestor 
     }
     expect(baselines).toHaveLength(3);
     expect(receipts).toHaveLength(3);
-    expect(baselines[0].sourceCommit).not.toBe(baselines[1].sourceCommit);
-    expect(baselines[1].sourceCommit).toBe(baselines[2].sourceCommit);
+    expect(baselines[0]!.sourceCommit).not.toBe(baselines[1]!.sourceCommit);
+    expect(baselines[1]!.sourceCommit).toBe(baselines[2]!.sourceCommit);
     expect(accepted.filter(t => t.scenario === "approve-change@1")).toHaveLength(2);
     expect(cli(["next", "--json"]).outcome).toBe("lifecycle-complete");
     const records: Json[] = [];
