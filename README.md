@@ -114,7 +114,8 @@ requirement links and exact added lines. Blank gaps outside regions are exempt;
 imports and comments require a region. File defaults are rejected. Documentation stays
 in the inventory without line directives. Initially executable source uses
 Python comments; unsupported formats are rejected explicitly. Review judges
-whether the linked requirements actually explain the code.
+whether requirements explain each region and whether each software leaf links all
+regions directly responsible for its observable contract, including shared code.
 
 ```bash
 mdlm trace why tasks.py:42 --implementation <exact-IMP-revision> --json
@@ -127,9 +128,11 @@ opens the package's explicit revision assignment, then the normal next/submit
 loop resumes. Use `revision_of` to revise or reaffirm exact selected requirements
 in one batch and link descendants to the new parent revisions. Old requirements,
 source scopes and acceptance evidence remain immutable. Impact output identifies
-locations to inspect, including verification and shared scopes; it does not claim
-that every reported line must change. The implementation review packet includes
-`sourceScopes`, exact `source_changes`, and comparison against the prior source.
+directly linked source regions for the requested requirement and its descendants, including verification and shared scopes. Other
+dependencies may need inspection; listed code does not necessarily need an edit.
+For a change, query the requirements for both changed and explicitly preserved
+commitments and inspect their combined regions. The implementation review packet
+includes `sourceScopes`, exact `source_changes`, and comparison against the prior source.
 
 ## Read-only inspection
 

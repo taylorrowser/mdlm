@@ -1919,7 +1919,9 @@ function renderCommandResult(result: CommandResult): string {
       `Implementation: ${trace.implementation}`,
       `Requirement graph: ${trace.selection}`,
       `Source commit: ${String(trace.source_commit)}`,
-      "Inspection locations; listed code does not necessarily need an edit.",
+      trace.query.kind === "impact"
+        ? "Directly linked source regions for the requested requirement and its descendants. Other dependencies may need inspection; listed code does not necessarily need an edit."
+        : "Inspection locations; listed code does not necessarily need an edit.",
       ...trace.scopes.flatMap((scope) => [
         `${String(scope.path)}:${scope.ranges.map((r) => r.start === r.end ? r.start : `${r.start}-${r.end}`).join(",")} [${String(scope.role)}, ${scope.inherited ? "file default" : "explicit region"}]`,
         ...scope.reasons.map((reason) => `  ${reason.reason}: ${reason.path.map(label).join(" -> ")}`),

@@ -1,6 +1,6 @@
 # Tiny product Process Package
 
-`mdlm-tiny@0.4.0` is the default Example Process Package. It targets small,
+`mdlm-tiny@0.4.1` is the default Example Process Package. It targets small,
 terminating Python command-line products with UTF-8 input and output. Requirements
 form an ordinary linked graph, authored and reviewed in one batch. Earlier
 package identities and accepted products retain their original history.
