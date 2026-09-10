@@ -158,6 +158,22 @@ it("reviews decomposition, changes a baselined leaf, and clarifies its ancestor 
           requested_outcome: phase === 1 ? "Count semicolons instead of commas; keep argument rejection unchanged." : "Clarify the stakeholder statement without changing behavior." };
         output.links = [{ type: "changes", target: { datum: leaf(graph!, phase === 1 ? "Count delimiter" : "Delimiter counting").revision } }];
       } else if (type === "REV") {
+        if (scenario === "approve-change@1") {
+          const subjects = packet.exactInputs.flatMap((invocation: Json) => invocation.inputs)
+            .filter((input: Json) => input.name === "subject")
+            .flatMap((input: Json) => input.values);
+          expect(subjects).toHaveLength(1);
+          const subject = subjects[0];
+          expect(subject.identity.type).toBe("CHG");
+          const baselineLinks = subject.data.links.filter((link: Json) => link.type === "baseline");
+          expect(baselineLinks).toHaveLength(1);
+          expect(packet.prospectiveChange.change).toBe(subject.identity.revision_id);
+          expect(packet.prospectiveChange.baseline).toBe(baselineLinks[0].target);
+          // The most recently accepted graph is this request's baseline. Older
+          // completed changes must not add their requirement selections here.
+          expect(packet.requirementGraphs.map((selected: Json) => selected.selection))
+            .toEqual([baselines.at(-1)!.graph.selection]);
+        }
         output.payload = { ...output.payload, title: "Exact content review", outcome: "pass", findings: "The supplied requirements and evidence support the requested behavior." };
         for (const assessment of output.payload.requirement_assessments ?? []) Object.assign(assessment, { disposition: "valid", rationale: "The statement describes its allocated behavior." });
         for (const assessment of output.payload.decomposition_assessments ?? []) {
