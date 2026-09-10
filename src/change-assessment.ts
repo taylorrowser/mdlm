@@ -71,62 +71,74 @@ export function validateChangeDatum(data: DatumEnvelope[], b: RequirementTraceBi
   const others = data.filter(d => d.revision_id !== datum.revision_id);
   const all = [...others, datum];
   const baselines = accepted(others, b);
-  const closed = (id: string) => baselines.some(a => targets(a, "changes-under").includes(id));
+  const closed = (id: string) => {
+    const request = find(all, id);
+    return baselines.some(a => targets(a, "changes-under").some(target => {
+      const final = find(all, target);
+      return final && request && final.id === request.id && final.revision >= request.revision;
+    }));
+  };
   const isApproved = (change: DatumEnvelope) => reviews(others, b, change.revision_id).some(r => r.payload.outcome === "pass");
-  const selectedSets = baselines.flatMap(a => targets(a, "confirms")).flatMap(id => find(others, id) ?? []);
-  const controlled = selectedSets.flatMap(s => selectedRequirementGraph(others, s, b).requirements);
-  const change = find(others, targets(datum, "changes-under")[0]);
+  const selectedSets = baselines.flatMap(a => targets(a, "confirms")).flatMap(id => find(all, id) ?? []);
+  const controlled = selectedSets.flatMap(s => selectedRequirementGraph(all, s, b).requirements);
+  const change = find(all, targets(datum, "changes-under")[0]);
   const validateAuthority = () => {
     if (!change || change.type !== b.change_type || !isApproved(change)) {
       fail("change-approval-required", "Baselined work requires an exact approved change request; request and approve the change before revision"); return undefined;
     }
-    const baseline = find(others, targets(change, "baseline")[0]);
+    const baseline = find(all, targets(change, "baseline")[0]);
     if (!baseline || !baselines.some(a => a.revision_id === baseline.revision_id)) {
       fail("change-baseline", "Change request must name an accepted baseline"); return undefined;
     }
-    const closing = baselines.find(a => targets(a, "changes-under").includes(change.revision_id));
+    const closing = baselines.find(a => targets(a, "changes-under").some(id => {
+      const final = find(all, id);
+      return final?.id === change.id && final.revision >= change.revision;
+    }));
     if (closing) {
-      const finalSet = find(others, targets(closing, "confirms")[0]);
-      const finalGraph = finalSet ? selectedRequirementGraph(others, finalSet, b) : undefined;
-      const historical = datum.type === b.type ? finalSet : datum.type === b.implementation_type ? find(others, targets(closing, "accepts")[0]) : [...(finalGraph?.requirements ?? []), ...(finalGraph?.groups ?? []), ...targets(finalSet, "retires").flatMap(id => find(others, id) ?? [])].find(d => d.id === datum.id);
+      const finalSet = find(all, targets(closing, "confirms")[0]);
+      const finalGraph = finalSet ? selectedRequirementGraph(all, finalSet, b) : undefined;
+      const historical = datum.type === b.type ? finalSet : datum.type === b.implementation_type ? find(all, targets(closing, "accepts")[0]) : [...(finalGraph?.requirements ?? []), ...(finalGraph?.groups ?? []), ...targets(finalSet, "retires").flatMap(id => find(all, id) ?? [])].find(d => d.id === datum.id);
       if (!historical || historical.id !== datum.id || historical.revision < datum.revision) fail("change-closed", "This change is already accepted; request a new change against the accepted successor baseline");
     }
     return {change, baseline, scope: changeScope(others, b, change)};
   };
   if (datum.type === b.change_type) {
     const ids = targets(datum, "baseline");
-    const baseline = find(others, ids[0]);
+    const baseline = find(all, ids[0]);
     if (ids.length !== 1 || !baseline || !baselines.includes(baseline)) fail("change-baseline", "Change request must name one exact accepted baseline");
     else {
-      const selection = find(others, targets(baseline, "confirms")[0]);
-      const members = selection ? selectedRequirementGraph(others, selection, b).requirements.map(r => r.revision_id) : [];
+      const selection = find(all, targets(baseline, "confirms")[0]);
+      const members = selection ? selectedRequirementGraph(all, selection, b).requirements.map(r => r.revision_id) : [];
       const roots = targets(datum, "changes");
       if (!roots.length || new Set(roots).size !== roots.length || roots.some(id => !members.includes(id))) fail("change-target", "Change targets must be distinct exact requirements in its accepted baseline");
       const prior = others.filter(c => c.id === datum.id && c.revision < datum.revision).sort((a, z) => z.revision - a.revision)[0];
       if (prior && (targets(prior, "baseline")[0] !== baseline.revision_id || targets(prior, "changes").some(id => !roots.includes(id)))) fail("change-amendment-scope", "An amendment must retain its baseline and previously approved change targets");
-      const successors = baselines.filter(a => targets(a, "changes-under").some(id => targets(find(others, id), "baseline").includes(baseline.revision_id)));
+      const successors = baselines.filter(a => targets(a, "changes-under").some(id => targets(find(all, id), "baseline").includes(baseline.revision_id)));
       if (!closed(datum.revision_id) && successors.length) fail("change-baseline-stale", "Request change against the successor accepted baseline");
     }
   }
   if (datum.type === b.requirement_type && controlled.some(r => r.id === datum.id && r.revision < datum.revision)) {
     const authority = validateAuthority();
-    if (authority && !authority.scope.some(id => find(others, id)?.id === datum.id)) fail("change-outside-scope", "Requirement is outside the approved change; amend its scope through stakeholder approval");
+    if (authority && !authority.scope.some(id => find(all, id)?.id === datum.id)) fail("change-outside-scope", "Requirement is outside the approved change; amend its scope through stakeholder approval");
   }
   if (datum.type === b.decomposition_type && baselines.length) {
-    const previous = selectedSets.flatMap(s => selectedRequirementGraph(others, s, b).groups).filter(g => g.id === datum.id && g.revision < datum.revision);
+    const previous = selectedSets.flatMap(s => selectedRequirementGraph(all, s, b).groups).filter(g => g.id === datum.id && g.revision < datum.revision);
     if (previous.length) {
       const authority = validateAuthority();
       if (authority) {
-        const allowed = new Set(authority.scope.flatMap(id => find(others, id)?.id ?? []));
+        const allowed = new Set(authority.scope.flatMap(id => find(all, id)?.id ?? []));
         const endpoints = [...targets(datum, "parent"), ...targets(datum, "child")];
         if (!endpoints.some(id => allowed.has(find(all, id)?.id ?? ""))) fail("change-outside-scope", "Decomposition does not involve any requirement in the approved change");
       }
     }
   }
-  if (datum.type === b.implementation_type && baselines.length && !baselines.some(a => targets(a, "accepts").some(id => {const old = find(others, id); return old?.id === datum.id && old.revision >= datum.revision;}))) validateAuthority();
+  if (datum.type === b.implementation_type && baselines.length && !baselines.some(a => targets(a, "accepts").some(id => {const old = find(all, id); return old?.id === datum.id && old.revision >= datum.revision;}))) validateAuthority();
   if (datum.type === b.type) {
     const selected = targets(datum, "contains").flatMap(id => find(all, id) ?? []);
     const retired = targets(datum, "retires");
+    const previousSet = others.filter(s => s.type === b.type && s.id === datum.id && s.revision < datum.revision).sort((a, z) => z.revision - a.revision)[0];
+    const previousRetired = targets(previousSet, "retires");
+    if (retired.filter(id => !previousRetired.includes(id)).some(id => !targets(previousSet, "contains").includes(id))) fail("change-retirement-stale", "New retirements must name exact requirements selected by the immediately preceding requirement set");
     const historicalRetired = others.filter(s => s.type === b.type && s.id === datum.id && s.revision < datum.revision).flatMap(s => targets(s, "retires"));
     if (historicalRetired.some(id => !retired.includes(id))) fail("change-retirement-history", "Retirement links must preserve prior exact retirements; reinstatement is unsupported");
     if (retired.some(id => { const r = find(all, id); return !r || r.type !== b.requirement_type || selected.some(s => s.id === r.id); })) fail("change-retirement-selection", "Retired requirements must be exact requirements excluded from the current selection");
@@ -137,20 +149,20 @@ export function validateChangeDatum(data: DatumEnvelope[], b: RequirementTraceBi
     if (baseSets.length) {
       const authority = validateAuthority();
       if (authority) {
-        const baseSet = find(others, targets(authority.baseline, "confirms")[0]);
-        const baselineGraph = baseSet ? selectedRequirementGraph(others, baseSet, b) : undefined;
-        const allowedIds = new Set(authority.scope.flatMap(id => find(others, id)?.id ?? []));
+        const baseSet = find(all, targets(authority.baseline, "confirms")[0]);
+        const baselineGraph = baseSet ? selectedRequirementGraph(all, baseSet, b) : undefined;
+        const allowedIds = new Set(authority.scope.flatMap(id => find(all, id)?.id ?? []));
         const removed = baselineGraph?.requirements.filter(old => !graph.requirements.some(r => r.id === old.id)) ?? [];
-        if (removed.some(r => !targets(datum, "retires").some(id => find(others, id)?.id === r.id))) fail("change-retirement-required", "Removed baselined requirements need explicit exact retires links");
+        if (removed.some(r => !targets(datum, "retires").some(id => find(all, id)?.id === r.id))) fail("change-retirement-required", "Removed baselined requirements need explicit exact retires links");
         if (removed.some(r => !allowedIds.has(r.id))) fail("change-outside-scope", "Removing a selected requirement requires approved scope for that requirement");
-        const priorSets = others.filter(s => s.type === b.type && s.id === datum.id && s.revision < datum.revision && targets(s, "changes-under").some(id => find(others, id)?.id === authority.change.id));
+        const priorSets = others.filter(s => s.type === b.type && s.id === datum.id && s.revision < datum.revision && targets(s, "changes-under").some(id => find(all, id)?.id === authority.change.id));
         const previous = priorSets.sort((a, z) => z.revision - a.revision)[0] ?? baseSet;
-        const previousGraph = previous ? selectedRequirementGraph(others, previous, b) : undefined;
+        const previousGraph = previous ? selectedRequirementGraph(all, previous, b) : undefined;
         const frontier = previous && previous !== baseSet ? assessRequirements(others, b, previous).correction : {requirements: targets(authority.change, "changes"), groups: []};
-        const priorChange = find(others, targets(previous, "changes-under")[0]);
+        const priorChange = find(all, targets(previous, "changes-under")[0]);
         if (priorChange && priorChange.revision < authority.change.revision) frontier.requirements.push(...targets(authority.change, "changes").filter(id => !targets(priorChange, "changes").includes(id)));
-        const frontierIds = new Set(frontier.requirements.flatMap(id => find(others, id)?.id ?? []));
-        const groupIds = new Set(frontier.groups.flatMap(id => find(others, id)?.id ?? []));
+        const frontierIds = new Set(frontier.requirements.flatMap(id => find(all, id)?.id ?? []));
+        const groupIds = new Set(frontier.groups.flatMap(id => find(all, id)?.id ?? []));
         for (const r of graph.requirements) {
           if (previousGraph?.requirements.some(old => old.revision_id === r.revision_id)) continue;
           const old = baselineGraph?.requirements.find(old => old.id === r.id);
@@ -163,7 +175,7 @@ export function validateChangeDatum(data: DatumEnvelope[], b: RequirementTraceBi
         }
         for (const g of graph.groups) {
           const old = previousGraph?.groups.find(old => old.id === g.id);
-          const oldChildren = targets(old, "child").map(id => find(others, id)?.id ?? id).sort();
+          const oldChildren = targets(old, "child").map(id => find(all, id)?.id ?? id).sort();
           const newChildren = targets(g, "child").map(id => find(all, id)?.id ?? id).sort();
           if (JSON.stringify(oldChildren) !== JSON.stringify(newChildren) && !groupIds.has(g.id) && !targets(g, "parent").some(id => frontierIds.has(find(all, id)?.id ?? ""))) fail("change-membership-frontier", `Group '${g.revision_id}' membership needs an authorized parent target or a review membership correction`);
         }
@@ -185,13 +197,13 @@ export function validateChangeDatum(data: DatumEnvelope[], b: RequirementTraceBi
     }
   }
   if (datum.type === b.review_type) {
-    const subject = find(others, targets(datum, "reviews")[0]);
+    const subject = find(all, targets(datum, "reviews")[0]);
     if (subject?.type === b.change_type && datum.payload.outcome === "pass") {
       const active = approvedChanges(others, b).filter(c => !closed(c.revision_id) && c.id !== subject.id);
       if (!closed(subject.revision_id) && active.some(c => targets(c, "baseline").some(id => targets(subject, "baseline").includes(id)))) fail("change-already-active", "An approved change is already open for this baseline; close or amend it before approving another");
     }
     if (subject?.type === b.implementation_type) {
-      const set = find(others, targets(subject, "implements")[0]);
+      const set = find(all, targets(subject, "implements")[0]);
       if (set && targets(set, "changes-under").length) {
         const expected = assessRequirements(others, b, set).sourceScopes;
         const assessments = rows(datum.payload.source_assessments);

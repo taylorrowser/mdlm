@@ -127,3 +127,33 @@ test("new baseline implementation identities cannot bypass change authority", ()
   const imp = d("IMP-other", {implements: [id(f.set)]});
   expect(validateChangeDatum(f.data, binding, imp).map(d => d.code)).toContain("change-approval-required");
 });
+test("accepted baseline referents validate themselves without demanding retrospective change authority", () => {
+  const f = fixture(); baseline(f);
+  for (const datum of [f.root, f.parent, f.leaf, f.top, f.bottom, f.set, f.imp, f.acc]) expect(validateChangeDatum(f.data, binding, datum), datum.revision_id).toEqual([]);
+  const unauthorized = {...f.imp, revision: 2, revision_id: "IMP-product-r2"};
+  expect(validateChangeDatum(f.data, binding, unauthorized).map(d => d.code)).toContain("change-approval-required");
+});
+test("accepted changed graph and historical amended requests retain exact reference resolution", () => {
+  const f = fixture(); baseline(f);
+  const change = request(f, f.root);
+  const amendment = d(change.id, {baseline: [id(f.acc)], changes: [id(f.root), id(f.leaf)]}, {}, 2);
+  f.data.push(amendment, d("REV-amendment", {reviews: [id(amendment)]}, {outcome: "pass"}));
+  const candidate = replace(f, amendment, f.root);
+  const acc = d("ACC-second", {confirms: [id(candidate.set)], "changes-under": [id(amendment)]}, {decision: "accept"}); f.data.push(acc);
+  expect(validateChangeDatum(f.data, binding, candidate.set)).toEqual([]);
+  expect(validateChangeDatum(f.data, binding, candidate.revision)).toEqual([]);
+  expect(validateChangeDatum(f.data, binding, change)).toEqual([]);
+  expect(validateChangeDatum(f.data, binding, amendment)).toEqual([]);
+  const stale = d("CHG-unrelated", {baseline: [id(f.acc)], changes: [id(f.root)]});
+  expect(validateChangeDatum(f.data, binding, stale).map(d => d.code)).toContain("change-baseline-stale");
+});
+test("retirement names the immediately selected revision rather than any old revision of its identity", () => {
+  const f = fixture();
+  const revised = {...f.leaf, revision: 2, revision_id: "REQ-leaf-r2"};
+  const second = d(f.set.id, {contains: [id(f.root), id(f.parent), id(revised), id(f.peer)]}, {}, 2);
+  f.data.push(revised, second);
+  const retirement = d(f.set.id, {contains: [f.root, f.parent, f.peer].map(id), retires: [id(f.leaf)]}, {}, 3);
+  expect(validateChangeDatum(f.data, binding, retirement).map(d => d.code)).toContain("change-retirement-stale");
+  retirement.links = retirement.links.map(l => l.type === "retires" ? {...l, target: id(revised)} : l);
+  expect(validateChangeDatum(f.data, binding, retirement)).toEqual([]);
+});
