@@ -1,6 +1,6 @@
 # Tiny product Process Package
 
-`mdlm-tiny@0.4.3` is the default Example Process Package. It targets small,
+`mdlm-tiny@0.5.0` is the default Example Process Package. It targets small,
 terminating Python command-line products with UTF-8 input and output. Requirements
 form an ordinary linked graph, authored and reviewed in one batch. Earlier
 package identities and accepted products retain their original history.
@@ -23,7 +23,7 @@ The normal journey still has six Assignments:
 
 No per-requirement, per-scope or separately authored grouping turns are required.
 REQ uses kind: stakeholder with a statement, or kind: software with structured
-EARS. Software decomposes links point to exact parent REQ revisions. Multiple
+EARS. DCP parent and child links define each complete immediate-child group; RQS selects exact groups through decomposition links. REQs do not carry decomposition edges. Multiple
 parents and useful software levels are allowed; software leaves in the complete
 selected graph are the low-level code contracts. Structural checks reject broken
 or incomplete selections, cycles and missing stakeholder ancestry. Review judges
@@ -72,8 +72,7 @@ run command reuses its completed receipt. After an environment repair, the publi
 --retry option records a new attempt while preserving the failed one.
 
 All publications freeze immediately. A failed set Review creates a batch
-correction in the same RQS lineage. Revise or reaffirm affected REQs through
-ordinary links, preserving old revisions. Wrong requirements receive a fresh set
+correction in the same RQS lineage. Revise changed REQs and membership groups in the CLI-supplied frontier, preserving unchanged revisions. Each review separately assesses individual children and collective decomposition adequacy. Wrong requirements receive a fresh set
 Review, then the IMP lineage binds the reviewed graph. Wrong product code or
 verification revises IMP. Submission recomputes source scopes from the complete
 snapshot rather than retaining or unioning old links. Both routes require fresh
@@ -81,12 +80,11 @@ execution, independent Review and stakeholder acceptance.
 
 ## Approved requirement changes
 
-The explicit revise-requirements scenario takes the exact accepted RQS and
-publishes changed or reaffirmed REQs plus a new generated RQS in one batch. An
-old child link to a superseded parent is not automatically valid for the new
-parent. Inspect the predicted production and verifier locations before editing,
-including unchanged affected code. Reaffirm selected links explicitly and follow
-the normal set Review, product rebinding, verification and acceptance route.
+After accepted ACC establishes a baseline, `mdlm change request --requirements <exact-RQS> --json` starts a bounded CHG proposal. The CLI binds its accepted baseline. The next Assignment obtains stakeholder approval, then revises its requested roots. Baseline-controlled publications without approved scoped authority are rejected.
+
+The CLI regenerates groups whose endpoints changed and queues exact assessments. Changed children trigger their own group review; unchanged children stop propagation and retain their exact deeper group reviews. Revising a shared child refreshes every direct parent group without revising those parents. A clarification may leave all children and code unchanged. Every group must remain collectively adequate even when each child remains valid.
+
+Source and verification regions directly linked to changed requirements receive explicit dispositions and independent review. Updated products still need fresh Docker verification and stakeholder acceptance. Discovery outside approved scope creates an amendment and fresh stakeholder approval. One approved change is active per product lineage. Explicit RQS retires links remove requirements from candidate selection; all affected memberships must be resolved. Reinstatement and concurrent change merging are unsupported.
 
 Generated traces support line-to-stakeholder and requirement-to-code inspection.
 The change report identifies locations to inspect, not lines that necessarily

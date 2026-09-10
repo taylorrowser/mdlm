@@ -652,7 +652,7 @@ export interface AssignmentPacket {
   authorValuesScaffold?: AssignmentAuthorValues;
   sourceScopes?: {implementation: string; scopes: {revision: string; payload: Record<string, unknown>; links: {type: string; target: string}[]}[]; changes: unknown; comparison: ReturnType<typeof compareImplementationScopes> | null}[];
   changeAssessment?: RequirementAssessments;
-  prospectiveChange?: {change: string; baseline: string | undefined; requirements: string[]};
+  prospectiveChange?: {change: string; baseline: string | undefined; requirements: string[]; request: Record<string, unknown>};
   requirementGraphs?: { selection: string; groups?: {revision: string; payload: Record<string, unknown>; links: {type: string; target: string}[]}[]; requirements: {id: string; revision: string; payload: Record<string, unknown>; links: {type: string; target: string}[]; leaf: boolean}[] }[];
   responseSchema: Record<string, unknown>;
   responseScaffold: AssignmentResponseSkeleton;
@@ -4061,11 +4061,13 @@ function packet(
     const data = exact.snapshot.records.map((r) => r.datum);
     const inputIds = new Set(exact.dryRun.invocations.flatMap((i) => i.inputs.flatMap((input) => input.values.map((v) => v.identity.revision_id))));
     if (traceBinding.change_type) {
-      for (const change of data.filter(d => inputIds.has(d.revision_id) && d.type === traceBinding.change_type)) {
+      const related = data.filter(d => inputIds.has(d.revision_id) || data.some(i => inputIds.has(i.revision_id) && i.links.some(l => l.target === d.revision_id)));
+      const changeIds = new Set(related.flatMap(d => d.type === traceBinding.change_type ? [d.revision_id] : d.links.filter(l => l.type === "changes-under").map(l => l.target)));
+      for (const change of data.filter(d => changeIds.has(d.revision_id) && d.type === traceBinding.change_type)) {
         const baseline = change.links.find(l => l.type === "baseline")?.target;
         const acc = data.find(d => d.revision_id === baseline);
         for (const l of acc?.links ?? []) if (l.type === "confirms") inputIds.add(l.target);
-        rendered.prospectiveChange = {change: change.revision_id, baseline, requirements: changeScope(data, traceBinding, change)};
+        rendered.prospectiveChange = {change: change.revision_id, baseline, requirements: changeScope(data, traceBinding, change), request: change.payload};
       }
     }
     const sets = data.filter((d) => d.type === traceBinding.type && (inputIds.has(d.revision_id) || data.some((i) => inputIds.has(i.revision_id) && i.links.some((l) => l.target === d.revision_id))));
