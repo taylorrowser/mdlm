@@ -100,17 +100,12 @@ export function traceDatumDiagnostics(pkg: ProcessPackage, datum: DatumEnvelope,
   return [];
 }
 
-export async function deriveImplementationScopes(
-  implementation: DatumEnvelope, data: DatumEnvelope[], binding: RequirementTraceBinding,
-) {
+/** Read the declared exact committed inventory for attribution and review. */
+export async function readImplementationSource(implementation: DatumEnvelope): Promise<{entries: SourceEntry[]; diagnostics: ProcessDiagnostic[]}> {
   const diagnostics: ProcessDiagnostic[] = [];
-  const selection = data.find((d) => d.revision_id === implementation.links.find((l) => l.type === "implements")?.target && d.type === binding.type);
-  if (!selection) return { diagnostics: [{ code: "trace-selection-missing", message: "Implementation must bind one exact requirement graph" }], inventory: [], scopes: [] };
-  const graph = selectedRequirementGraph(data, selection, binding, true);
-  if (graph.diagnostics.length) return { diagnostics: graph.diagnostics, inventory: [], scopes: [] };
   const cwd = String(implementation.payload.repository_path);
   const commit = String(implementation.payload.source_commit);
-  if (!/^[0-9a-f]{40}$/.test(commit)) return { diagnostics: [{ code: "trace-source-commit", message: "Source commit must be an exact Git commit" }], inventory: [], scopes: [] };
+  if (!/^[0-9a-f]{40}$/.test(commit)) return {entries: [], diagnostics: [{code: "trace-source-commit", message: "Source commit must be an exact Git commit"}]};
   try {
     const { stdout } = await exec("git", ["ls-tree", "-rz", "--full-tree", commit], { cwd, encoding: "buffer", maxBuffer: 64 * 1024 * 1024 });
     const roles = implementation.payload.file_roles as Record<string, SourceEntry["role"]> | undefined;
@@ -125,7 +120,22 @@ export async function deriveImplementationScopes(
       entries.push({ path: file, mode, blob, bytes, role });
     }
     for (const file of Object.keys(roles ?? {})) if (!entries.some((e) => e.path === file) && !diagnostics.some((d) => d.path === file)) diagnostics.push({ code: "trace-source-role-unknown", path: file, message: "File role refers to no committed entry" });
-    if (diagnostics.length) return { diagnostics, inventory: [], scopes: [] };
+    return {entries, diagnostics};
+  } catch (error) {
+    return {entries: [], diagnostics: [{code: "trace-source-unavailable", message: `Cannot read exact committed source: ${String(error)}`}]};
+  }
+}
+
+export async function deriveImplementationScopes(
+  implementation: DatumEnvelope, data: DatumEnvelope[], binding: RequirementTraceBinding,
+) {
+  const selection = data.find((d) => d.revision_id === implementation.links.find((l) => l.type === "implements")?.target && d.type === binding.type);
+  if (!selection) return { diagnostics: [{ code: "trace-selection-missing", message: "Implementation must bind one exact requirement graph" }], inventory: [], scopes: [] };
+  const graph = selectedRequirementGraph(data, selection, binding, true);
+  if (graph.diagnostics.length) return { diagnostics: graph.diagnostics, inventory: [], scopes: [] };
+  try {
+    const {entries, diagnostics: sourceDiagnostics} = await readImplementationSource(implementation);
+    if (sourceDiagnostics.length) return {diagnostics: sourceDiagnostics, inventory: [], scopes: []};
     const generated = deriveSourceScopes({ entries, selectedRequirements: graph.requirements.map((d) => ({ stableId: d.id, revisionId: d.revision_id, kind: d.payload.kind as "stakeholder" | "software", isLeaf: graph.leaves.has(d.revision_id) })) });
     for (const leaf of graph.leaves) {
       for (const relation of ["implements", "verifies"]) {

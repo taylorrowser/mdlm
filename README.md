@@ -134,6 +134,44 @@ For a change, query the requirements for both changed and explicitly preserved
 commitments and inspect their combined regions. The implementation review packet
 includes `sourceScopes`, exact `source_changes`, and comparison against the prior source.
 
+## Independent review context
+
+At a current review Assignment, export the CLI-prepared context into the temporary
+file already used for the review request:
+
+```bash
+mdlm assignment review-context <assignment-id> --json > .lifecycle/work/review-context.json
+```
+
+The read-only command returns `reviewContext` with contract
+`mdlm-assignment-review-context@1`. It authenticates the exact active lease and
+repository state before and after preparing the export. It retains the complete
+input values, requirement graph and bodies, shared guidance, source scopes and
+comparison history, participation and authority, completion rules, and
+`authorValuesSchema`/`authorValuesScaffold`. It omits only full type schemas,
+`responseSchema`, and `responseScaffold` from this derived view. The ordinary
+`next` packet remains unchanged.
+
+For selected implementations it includes every declared committed source file,
+including documentation, with its path, role, mode, blob identity and UTF-8 text.
+It reads the commit, so an uncommitted product checkout cannot replace those
+bytes. For selected verification results it resolves the exact receipt blob named
+by the result and its publishing execution, then checks the existing verification
+binding against the selected implementation, requirements and package. It includes
+the recorded outcome and captured streams without rerunning Docker. Missing,
+conflicting or unsupported evidence fails the export with diagnostics; no partial
+context is reported as complete. Mechanical agreement does not establish adequate
+assertions or product correctness.
+
+`fullPacket.sha256` identifies the full packet serialized as UTF-8 JSON with
+recursively sorted object keys, original array order and no whitespace or trailing
+newline. It identifies bytes and grants no reviewer authority. Forward the export
+path and digest with the approved stakeholder brief to the independent reviewer.
+Keep the saved full `next` packet available for diagnostics. The root still
+assigns the fresh reviewer, and the author submits its returned verdict through
+the unchanged `assignment submit-proposal` path. Saving this temporary export
+requires no extra lifecycle record or tracked commit during the active Assignment.
+
 ## Read-only inspection
 
 The contracted interface retains package-neutral inspection of repository and

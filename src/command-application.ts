@@ -1,3 +1,4 @@
+import type { AssignmentReviewContext } from "./assignment-review-context.js";
 import { requirementTraceBinding } from "./requirement-trace.js";
 import { inspectRequirementTrace } from "./requirement-trace-inspection.js";
 import { execFile } from "node:child_process";
@@ -85,6 +86,7 @@ import {
   requestRequirementChange,
   compileActiveAssignmentProposal,
   inspectActiveAssignmentResponseScaffold,
+  inspectAssignmentReviewContext,
   inspectAssignmentState,
   inspectOperatorStatus,
   inspectSubmissionSettlement,
@@ -161,7 +163,8 @@ interface StartBriefing {
 interface CommandResultBase {
   ok: boolean;
   command?: string;
-  contract?: AssignmentOutcome["contract"] | AssignmentPacket["contract"] | AssignmentSubmission["contract"] | AssignmentDisposition["contract"] | AssignmentState["contract"] | OperatorStatus["contract"] | StartBriefing["contract"] | SubmissionOutcome["contract"];
+  reviewContext?: AssignmentReviewContext;
+  contract?: "mdlm-assignment-review-context@1" | AssignmentOutcome["contract"] | AssignmentPacket["contract"] | AssignmentSubmission["contract"] | AssignmentDisposition["contract"] | AssignmentState["contract"] | OperatorStatus["contract"] | StartBriefing["contract"] | SubmissionOutcome["contract"];
   outcome?: AssignmentOutcome["outcome"] | SubmissionOutcome["outcome"] | "invalid";
   assignment?: { id: string; packet?: AssignmentPacket };
   authorityRequirement?: Extract<AssignmentOutcome, {
@@ -253,6 +256,7 @@ Agent-guided lifecycle commands:
   mdlm start [--json]
   mdlm next [--json]
   mdlm assignment response [--json]
+  mdlm assignment review-context <assignment-id> [--json]
   mdlm assignment run [--retry] --json
   mdlm assignment submit-proposal <author-values-file|-> [--authority <authority-id>] --json
   mdlm scenario submit [response-file|-] [--authority <authority-id>] [--json]
@@ -2284,6 +2288,12 @@ async function dispatchCommand(
           command: "assignment.show",
           contract: "mdlm-assignment-state@1",
         };
+  }
+  if (operands[0] === "assignment" && operands[1] === "review-context") {
+    const args = arguments_.filter(argument => argument !== "--json");
+    if (args.length !== 3 || !args[2] || args[2].startsWith("--")) return {...failure("assignment-review-context-arguments-invalid", "Expected 'mdlm assignment review-context <assignment-id>'"), command: "assignment.review-context"};
+    const inspected = await inspectAssignmentReviewContext(repositoryRoot, args[2]);
+    return inspected.ok ? {ok: true, command: "assignment.review-context", contract: "mdlm-assignment-review-context@1", reviewContext: inspected.value, diagnostics: []} : {...inspected, command: "assignment.review-context"};
   }
   if (operands[0] === "assignment" && operands[1] === "response") {
     const responseArguments = arguments_.filter((argument) => argument !== "--json");
