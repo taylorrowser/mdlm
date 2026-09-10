@@ -69,6 +69,10 @@ it("exports complete current review inputs, exact source and selected receipt wi
     const review = await cli(["next", "--json"]);
     const beforeRequirements = await bytes(root);
     const reqContext = (await cli(["assignment", "review-context", review.assignment.id, "--json"])).reviewContext;
+    const requirementRows = reqContext.authorValuesScaffold.outputs[0].payload;
+    expect(requirementRows.requirement_assessments.map((row: Json) => row.requirement)).toEqual(reqContext.changeAssessment.requirements);
+    expect(requirementRows.decomposition_assessments.map((row: Json) => row.group)).toEqual(reqContext.changeAssessment.groups.map((group: Json) => group.revision));
+    expect(requirementRows).not.toHaveProperty("source_assessments");
     expect(reqContext.verificationReceipts).toEqual([]);
     expect(reqContext.requirementGraphs).toMatchObject(review.assignment.packet.requirementGraphs);
     expect(reqContext.requirementGraphs[0].requirements.map((r: Json) => r.body)).toContain("Software detail body.");
@@ -103,6 +107,11 @@ it("exports complete current review inputs, exact source and selected receipt wi
     const before = await bytes(root);
     const exported = await cli(["assignment", "review-context", impReview.assignment.id, "--json"]);
     const context = exported.reviewContext;
+    const implementationRows = context.authorValuesScaffold.outputs[0].payload;
+    expect(context.requirementGraphs).toHaveLength(1);
+    expect(implementationRows).not.toHaveProperty("requirement_assessments");
+    expect(implementationRows).not.toHaveProperty("decomposition_assessments");
+    expect(implementationRows.source_assessments.map((row: Json) => row.source_scope)).toEqual(context.changeAssessment.sourceScopes);
     expect(context.contract).toBe("mdlm-assignment-review-context@1");
     const {contract: _contract, schemas: _schemas, responseSchema: _responseSchema, responseScaffold: _responseScaffold, ...semantic} = impReview.assignment.packet;
     expect(context).toMatchObject(semantic);
