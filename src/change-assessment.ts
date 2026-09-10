@@ -52,6 +52,16 @@ export function assessRequirements(data: DatumEnvelope[], b: RequirementTraceBin
     ...rows(r.payload.decomposition_assessments).flatMap(a => rows(a.children).filter(c => c.disposition === "needs-change").map(c => String(c.requirement))),
   ]);
   const groupCorrections = failed.flatMap(r => rows(r.payload.decomposition_assessments).filter(a => a.membership_action === "revise-membership").map(a => String(a.group)));
+  const resultType = (b as RequirementTraceBinding & {result_type?: string}).result_type;
+  const expectationFailure = resultType && data.some(result => result.type === resultType && ["fail", "error"].includes(String(result.payload.outcome)) && result.payload.correction_target === "requirements" && targets(result, "verifies").includes(set.revision_id) && targets(result, "executes").some(id => {
+    const implementation = find(data, id);
+    return implementation?.type === b.implementation_type && targets(implementation, "implements").includes(set.revision_id);
+  }));
+  if (change && expectationFailure) {
+    const allowed = new Set(changeScope(data, b, change).flatMap(id => find(data, id)?.id ?? []));
+    const requested = new Set(targets(change, "changes").flatMap(id => find(data, id)?.id ?? []));
+    requirementCorrections.push(...graph.requirements.filter(r => allowed.has(r.id) && (requested.has(r.id) || changed.some(c => c.revision_id === r.revision_id))).map(r => r.revision_id));
+  }
   const oldChanged = baseRequirements.filter(old => (changed.some(r => r.id === old.id) || !graph.requirements.some(r => r.id === old.id))).map(r => r.revision_id);
   const implementation = targets(baseline, "accepts")[0];
   const sourceScopes = data.filter(d => d.type === b.scope_type && targets(d, "belongs-to").includes(implementation ?? "") && d.links.some(l => (l.type === "implements" || l.type === "verifies") && oldChanged.includes(l.target))).map(d => d.revision_id);

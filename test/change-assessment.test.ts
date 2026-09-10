@@ -157,3 +157,25 @@ test("retirement names the immediately selected revision rather than any old rev
   retirement.links = retirement.links.map(l => l.type === "retires" ? {...l, target: id(revised)} : l);
   expect(validateChangeDatum(f.data, binding, retirement)).toEqual([]);
 });
+test("failed verification reopens only changed or requested requirements within approved scope", () => {
+  const f = fixture(); baseline(f);
+  const change = request(f, f.parent);
+  const candidate = replace(f, change, f.parent);
+  const implementation = d("IMP-changed", {implements: [id(candidate.set)], "changes-under": [id(change)]});
+  const result = d("RES-failed", {verifies: [id(candidate.set)], executes: [id(implementation)]}, {outcome: "fail", correction_target: "requirements"});
+  const resultBinding = {...binding, result_type: "RES"};
+  f.data.push(implementation, result);
+  expect(assessRequirements(f.data, resultBinding, candidate.set).correction.requirements).toEqual([id(candidate.revision)]);
+  const corrected = {...candidate.revision, revision: 3, revision_id: "REQ-parent-r3"};
+  const groups = candidate.groups.map(g => ({...g, revision: 3, revision_id: `${g.id}-r3`, links: g.links.map(l => l.target === id(candidate.revision) ? {...l, target: id(corrected)} : l)}));
+  const next = d(f.set.id, {contains: [id(f.root), id(corrected), id(f.leaf), id(f.peer)], decomposition: groups.map(id), "changes-under": [id(change)], corrects: [id(result)]}, {}, 3);
+  f.data.push(corrected, ...groups);
+  expect(validateChangeDatum(f.data, resultBinding, next)).toEqual([]);
+  result.links = result.links.map(l => l.type === "executes" ? {...l, target: id(f.imp)} : l);
+  expect(assessRequirements(f.data, resultBinding, candidate.set).correction.requirements).toEqual([]);
+  result.links = [{type: "verifies", target: id(candidate.set)}, {type: "executes", target: id(implementation)}];
+  result.payload.outcome = "pass";
+  expect(assessRequirements(f.data, resultBinding, candidate.set).correction.requirements).toEqual([]);
+  result.payload.outcome = "fail"; result.type = "OTHER";
+  expect(assessRequirements(f.data, resultBinding, candidate.set).correction.requirements).toEqual([]);
+});
