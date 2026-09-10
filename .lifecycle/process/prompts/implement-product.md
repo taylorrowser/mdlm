@@ -1,10 +1,10 @@
 ---
 id: implement-product
 scenario: implement-product
-version: 1
+version: 2
 skills:
 - skills/product-quality.md@1
-- skills/typed-requirements.md@1
+- skills/typed-requirements.md@2
 - skills/verification-starter.md@1
 - skills/source-trace.md@1
 ---

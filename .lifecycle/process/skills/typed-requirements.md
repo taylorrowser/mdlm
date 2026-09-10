@@ -1,6 +1,6 @@
 ---
 id: typed-requirements
-version: 1
+version: 2
 ---
 
 # Author one normal-link requirement graph
@@ -10,6 +10,8 @@ Read the packet requirementGraphs projection for the selected exact requirements
 Author values identify repeated items with handles. For example, a stakeholder item uses `{slot: "requirements", handle: "need", payload: {title: "Keep tasks", kind: "stakeholder", statement: "Retain my task list"}, body: ""}`. A software item's `links` can include `{type: "decomposes", target: {output: "need"}}`. For an existing parent use `{datum: "<exact-REQ-revision>"}`. Omit generated RQS and SCP items from author values.
 
 Link software requirements to exact parent REQ revisions using decomposes. Use the Assignment's batch-local handles for newly authored parents, and the exact supplied revisions for existing parents. Several parents and useful software levels are allowed. Software leaves are the low-level code contracts. Check that children collectively fulfill parent behavior, including interactions, state preservation and relevant failures. Every software path must reach a stakeholder requirement. Keep assumptions explicit and seek stakeholder clarification when they change acceptance.
+
+Shared success and failure constraints must retain the functional behavior in the leaves. For example, decomposing add-task only into successful exit and invalid-input rejection loses creation of an incomplete task, next-ID assignment, exact-title persistence and ID output. Keep the complete add behavior as a software leaf when further decomposition is not useful, or give its children those remaining obligations alongside the shared constraints. Authors and reviewers check that terminal descendants collectively retain the parent behavior and that linked leaves explain a source region's actual work. A path to an ancestor cannot replace a missing leaf obligation.
 
 Fill ears.pattern, system and response. Supply the complete subject in system and the response without a trailing period. Event requires event; state requires state; optional requires feature; unwanted requires unwanted. Ubiquitous has no guard. Complex combines at least two guards, with at most one event or unwanted guard. Split independently verifiable obligations when that clarifies the contract. Mechanical graph completeness does not establish behavioral completeness or appropriate detail.
 
