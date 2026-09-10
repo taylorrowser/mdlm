@@ -106,7 +106,7 @@ it("captures Docker failures and stakeholder rejection through correction to exp
         }
       } else if (type === "CHG") {
         output.payload = {title: "Clarify repeated use", reason: "Clarify that the existing behavior persists across invocations.", requested_outcome: "Preserve the existing counter behavior for later invocations."};
-        output.links = [{type: "changes", target: packet.requirementGraphs[0].requirements.find((r: Json) => r.payload.kind === "stakeholder").revision}];
+        output.links = [{type: "changes", target: {datum: packet.requirementGraphs[0].requirements.find((r: Json) => r.payload.kind === "stakeholder").revision}}];
       } else if (type === "IMP") {
         if (rejection && !correctedImplementation) {
           expect(packet.scenario.reference).toBe("correct-product@2");
