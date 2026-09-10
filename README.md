@@ -91,7 +91,7 @@ resulting diff and the ordinary Git commit.
 
 ## Independent review registration
 
-Tiny 0.6.0 requires a manager-registered external verdict for requirements and
+Tiny 0.7.0 requires a manager-registered external verdict for requirements and
 implementation reviews. Root assigns a fresh reviewer. The manager authenticates
 that dispatch and the returned verdict against the complete CLI review export.
 The author does not review its own work or register its own verdict.
@@ -138,7 +138,7 @@ authentication remain the evidence of reviewer independence. A self-declared
 
 ## Code traceability and requirement changes
 
-For tiny 0.6.0, author requirements and decomposition memberships in one batch
+For tiny 0.7.0, author requirements and decomposition memberships in one batch
 using the packet's local handles. Each DCP selects one exact parent and its
 complete immediate-child group; RQS selects the exact requirements and groups.
 The CLI supplies stable requirement IDs in
@@ -208,7 +208,7 @@ Impact identifies candidate source regions and verification evidence, not a list
 of mandatory code edits. The implementation assignment records dispositions for
 the affected evidence. The normal implementation review, CLI Docker verification
 and stakeholder acceptance route still applies. Old requirements, groups, source
-scopes and acceptance evidence remain immutable. Tiny 0.6.0 is for fresh
+scopes and acceptance evidence remain immutable. Tiny 0.7.0 is for fresh
 repositories; historical runs retain their selected package and representation.
 See [the baseline and decomposition decision](docs/adr/0006-baseline-changes-and-decomposition-groups.md).
 

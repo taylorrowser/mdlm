@@ -1,7 +1,9 @@
 # Tiny product Process Package
 
-`mdlm-tiny@0.6.0` is the default Example Process Package. It targets small,
-terminating Python command-line products with UTF-8 input and output. Requirements
+`mdlm-tiny@0.7.0` is the default Example Process Package. It targets small,
+terminating Python command-line products with UTF-8 input and output, including
+line-oriented interactive CLIs verified with finite stdin/stdout dialogues.
+Long-running services and products requiring a TTY remain outside this profile. Requirements
 form an ordinary linked graph, authored and reviewed in one batch. Earlier
 package identities and accepted products retain their original history.
 
@@ -60,7 +62,7 @@ checks that each scope's links explain its code and that file roles are honest.
 
 The committed script owns executable expectations. Exit 0 means pass, exit 1
 means assertion failure, and other exits mean execution error. Handle unexpected
-exceptions separately. `skills/verification-starter.md@1` supplies an optional
+exceptions separately. `skills/verification-starter.md@2` supplies an optional
 raw-byte example to adapt and annotate for the selected requirements.
 
 `mdlm assignment run --json` executes the exact snapshot in a pinned Docker image.

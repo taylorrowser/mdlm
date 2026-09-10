@@ -1,6 +1,6 @@
 ---
 id: verification-starter
-version: 1
+version: 2
 ---
 
 # Optional raw-byte verification starter
@@ -13,7 +13,7 @@ import sys
 
 
 def check(argv, stdin, expected_exit, expected_stdout, expected_stderr):
-    result = subprocess.run(argv, input=stdin, capture_output=True, check=False)
+    result = subprocess.run(argv, input=stdin, capture_output=True, check=False, timeout=5)
     actual = (result.returncode, result.stdout, result.stderr)
     expected = (expected_exit, expected_stdout, expected_stderr)
     if actual != expected:
@@ -33,3 +33,5 @@ print("PASS: all declared assertions ran")
 ```
 
 Compare raw bytes when exact output is required. If a requirement leaves usage wording open, assert its required properties instead of fixing arbitrary prose. For persistent products, exercise separate invocations against the same temporary data file and verify state after failures. The script owns assertions and exit status; inspect the CLI receipt and briefly assess the captured result.
+
+For a line-oriented interactive CLI, run the actual product as a child with a finite scripted dialogue through stdin. Assert prompt order, required output, and successful termination after quit. Use a subprocess timeout, as above, so missing quit handling becomes an execution error. The verifier runs unattended without an attached terminal; the child uses ordinary stdin/stdout pipes. Record human observations separately when judging whether the prompts are comfortable to use.

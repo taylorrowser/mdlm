@@ -1,11 +1,11 @@
 ---
 id: rebind-product
-version: 5
+version: 6
 scenario: rebind-product
 skills:
 - skills/product-quality.md@1
 - skills/typed-requirements.md@5
-- skills/verification-starter.md@1
+- skills/verification-starter.md@2
 - skills/source-trace.md@1
 ---
 

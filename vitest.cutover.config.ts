@@ -13,6 +13,7 @@ export default defineConfig({
       "test/change-control-public.test.ts",
       "test/tiny-process-journey.test.ts",
       "test/docker-verification-receipt.test.ts",
+      "test/docker-verification-dialogue.test.ts",
       "test/operator-contract-v2.test.ts",
       "test/operator-outcome-classification.test.ts",
       "test/release-candidate-gate.test.ts",
