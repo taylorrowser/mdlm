@@ -1,3 +1,4 @@
+import { inspectRequirementTrace } from "../src/requirement-trace-inspection.js";
 import { expect, test } from "vitest";
 import type { DatumEnvelope } from "../src/index.js";
 import { selectedRequirementGraph, type RequirementTraceBinding } from "../src/requirement-trace.js";
@@ -107,4 +108,17 @@ test.each([
   const f = fixture();
   mutate(f);
   expect(selectedRequirementGraph(f.data, f.set, binding).diagnostics.map(d => d.code)).toContain(code);
+});
+
+
+test("line explanations and prospective impact traverse only selected group links", () => {
+  const f = fixture();
+  const implementation = {...datum("IMP", 1), links: [{type: "implements", target: f.set.revision_id}]};
+  const scope = {...datum("SCP", 1), payload: {path: "counter.py", name: "count", role: "production", ranges: [{start: 1, end: 3}]}, links: [{type: "belongs-to", target: implementation.revision_id}, {type: "implements", target: f.leaf.revision_id}]};
+  const data = [...f.data, f.set, implementation, scope];
+  const why = inspectRequirementTrace(data, binding, implementation.revision_id, {kind: "why", path: "counter.py", line: 2});
+  expect(why.diagnostics).toEqual([]);
+  expect(why.scopes[0]?.reasons[0]?.path).toEqual([f.leaf.revision_id, f.middle.revision_id, f.root.revision_id]);
+  const impact = inspectRequirementTrace(data, binding, implementation.revision_id, {kind: "impact", requirement: f.root.id});
+  expect(impact.scopes[0]?.reasons[0]?.path).toEqual([f.root.revision_id, f.middle.revision_id, f.leaf.revision_id]);
 });
