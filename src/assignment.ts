@@ -1,7 +1,7 @@
 import { assessRequirements, changeImpact, type RequirementAssessments } from "./change-assessment.js";
 import { buildAssignmentReviewContext, type AssignmentReviewContext } from "./assignment-review-context.js";
 import { compareImplementationScopes } from "./requirement-trace-inspection.js";
-import { requirementTraceBinding, selectedRequirementGraph } from "./requirement-trace.js";
+import { requirementTraceBinding, selectedRequirementGraph, type RequirementTraceBinding } from "./requirement-trace.js";
 import type { PayloadCollection, PayloadView } from "./payload-collections.js";
 import { verificationBinding, verificationContract, runVerificationReceipt } from "./verification-receipt.js";
 import { createHash, randomUUID } from "node:crypto";
@@ -13,6 +13,7 @@ import { Ajv2020, type ErrorObject } from "ajv/dist/2020.js";
 import type { AssignmentOutputRoute } from "./assignment-projection-compiler.js";
 import { repositoryGitEnvironment } from "./git-environment.js";
 import type {
+  DatumEnvelope,
   LifecycleEvaluation,
   LifecycleRecord,
   LifecycleSnapshot,
@@ -3942,6 +3943,37 @@ function scenarioProposalFromResponse(
   };
 }
 
+export function assignmentChangeContext(data: DatumEnvelope[], traceBinding: RequirementTraceBinding, inputIds: ReadonlySet<string | undefined>): {prospectiveChange?: AssignmentPacket["prospectiveChange"]; baselineRequirements: string[]} {
+  let prospectiveChange: AssignmentPacket["prospectiveChange"];
+  const baselineRequirements: string[] = [];
+  if (traceBinding.change_type) {
+    const direct = data.filter(d => inputIds.has(d.revision_id));
+    const directChanges = direct.filter(d => d.type === traceBinding.change_type);
+    // The approval subject owns its projection. Baseline links describe history,
+    // so traversing them must never replace that subject or add an older graph.
+    const directSets = direct.filter(d => d.type === traceBinding.type);
+    const implementations = direct.filter(d => d.type === traceBinding.implementation_type);
+    const supporting = directSets.length ? directSets : [
+      ...implementations,
+      ...data.filter(d => d.type === traceBinding.type && implementations.some(i => i.links.some(l => l.type === "implements" && l.target === d.revision_id))),
+    ];
+    const changeIds = new Set(directChanges.length
+      ? directChanges.map(d => d.revision_id)
+      : supporting.flatMap(d => d.links.filter(l => l.type === "changes-under").map(l => l.target)));
+    const changes = data.filter(d => changeIds.has(d.revision_id) && d.type === traceBinding.change_type);
+    // A singular projection cannot truthfully choose between competing contexts.
+    if (changeIds.size === 1 && changes.length === 1) {
+      const change = changes[0]!;
+      const baseline = change.links.find(l => l.type === "baseline")?.target;
+      const acc = data.find(d => d.revision_id === baseline);
+      for (const l of acc?.links ?? []) if (l.type === "confirms") baselineRequirements.push(l.target);
+      const impact = changeImpact(data, traceBinding, change);
+      prospectiveChange = {...impact, change: change.revision_id, baseline, request: change.payload, scopes: data.filter(d => impact.sourceScopes.includes(d.revision_id)).map(d => ({revision: d.revision_id, payload: d.payload, links: d.links}))};
+    }
+  }
+  return {prospectiveChange, baselineRequirements};
+}
+
 function packet(
   exact: ExactAssignment,
   lease: AssignmentLease,
@@ -4060,17 +4092,9 @@ function packet(
   if (traceBinding) {
     const data = exact.snapshot.records.map((r) => r.datum);
     const inputIds = new Set(exact.dryRun.invocations.flatMap((i) => i.inputs.flatMap((input) => input.values.map((v) => v.identity.revision_id))));
-    if (traceBinding.change_type) {
-      const related = data.filter(d => inputIds.has(d.revision_id) || data.some(i => inputIds.has(i.revision_id) && i.links.some(l => l.target === d.revision_id)));
-      const changeIds = new Set(related.flatMap(d => d.type === traceBinding.change_type ? [d.revision_id] : d.links.filter(l => l.type === "changes-under").map(l => l.target)));
-      for (const change of data.filter(d => changeIds.has(d.revision_id) && d.type === traceBinding.change_type)) {
-        const baseline = change.links.find(l => l.type === "baseline")?.target;
-        const acc = data.find(d => d.revision_id === baseline);
-        for (const l of acc?.links ?? []) if (l.type === "confirms") inputIds.add(l.target);
-        const impact = changeImpact(data, traceBinding, change);
-        rendered.prospectiveChange = {...impact, change: change.revision_id, baseline, request: change.payload, scopes: data.filter(d => impact.sourceScopes.includes(d.revision_id)).map(d => ({revision: d.revision_id, payload: d.payload, links: d.links}))};
-      }
-    }
+    const changeContext = assignmentChangeContext(data, traceBinding, inputIds);
+    if (changeContext.prospectiveChange) rendered.prospectiveChange = changeContext.prospectiveChange;
+    for (const id of changeContext.baselineRequirements) inputIds.add(id);
     const sets = data.filter((d) => d.type === traceBinding.type && (inputIds.has(d.revision_id) || data.some((i) => inputIds.has(i.revision_id) && i.links.some((l) => l.target === d.revision_id))));
     rendered.sourceScopes = data.filter((d) => d.type === traceBinding.implementation_type && inputIds.has(d.revision_id)).map((implementation) => {
       const baseline = object(implementation.payload.source_changes)?.baseline_implementation;

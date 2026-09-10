@@ -15,6 +15,7 @@ export const mdlmPiTestFiles = [
 // unless the PR gate names one as a diff-focused regression. This source list is
 // exhaustive so verification can detect missing, duplicate, and stale entries.
 export const rootTestQualificationManifest = Object.freeze([
+  { file: "test/assignment-change-context.test.ts", qualificationGate: "pr" },
   { file: "test/assignment-review-context.test.ts", qualificationGate: "pr" },
   { file: "test/requirement-trace-inspection.test.ts", qualificationGate: "pr" },
   { file: "test/source-scopes.test.ts", qualificationGate: "pr" },
@@ -82,6 +83,7 @@ const qualificationGateByFile = new Map(
 // Durations are the latest selected successful focused observations. They
 // include focused Vitest startup and remain estimates, not p95s.
 const rootTestRuntimeManifest = [
+  { file: "test/assignment-change-context.test.ts", runtimeClass: "cheap-in-process", weight: 1, measuredDurationMs: 874 },
   { file: "test/assignment-review-context.test.ts", runtimeClass: "process-repository-safe", weight: 1, measuredDurationMs: 8_670 },
   { file: "test/load-process-package.test.ts", runtimeClass: "process-package-heavy", weight: 3, measuredDurationMs: 66_137 },
   { file: "test/process-package-cases.test.ts", runtimeClass: "process-package-heavy", weight: 3, measuredDurationMs: 7_220 },
