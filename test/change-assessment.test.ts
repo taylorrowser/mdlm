@@ -1,6 +1,6 @@
 import {expect, test} from "vitest";
 import type {DatumEnvelope} from "../src/index.js";
-import {assessRequirements, changeImpact, validateChangeDatum} from "../src/change-assessment.js";
+import {assessRequirements, changeImpact, deriveSourceDispositionCandidates, validateChangeDatum} from "../src/change-assessment.js";
 import type {RequirementTraceBinding} from "../src/requirement-trace.js";
 const binding: RequirementTraceBinding = {type: "RQS", requirement_type: "REQ", implementation_type: "IMP", scope_type: "SCP", decomposition_type: "DCP", change_type: "CHG", acceptance_type: "ACC", review_type: "REV"};
 function d(id: string, links: Record<string, string[]> = {}, payload: Record<string, unknown> = {}, revision = 1): DatumEnvelope {
@@ -39,6 +39,37 @@ function replace(f: ReturnType<typeof fixture>, change: DatumEnvelope, original:
   f.data.push(revision, ...groups.filter(g => g.revision === 2), set);
   return {revision, groups, set};
 }
+test("source disposition coordinates derive only from unique exact affected region matches", () => {
+  const f = fixture(); baseline(f);
+  const change = request(f, f.leaf);
+  const selection = replace(f, change, f.leaf).set;
+  const tuple = {path: "tasks.py", name: "complete", role: "production"};
+  const explicit = {path: "renamed.py", name: "renamed", role: "production"};
+  for (const [disposition, supplied, scopes, expected] of [
+    ["valid", undefined, [tuple], tuple],
+    ["changed", undefined, [tuple], tuple],
+    ["valid", explicit, [tuple], explicit],
+    ["valid", null, [tuple], null],
+    ["removed", undefined, [tuple], undefined],
+    ["valid", undefined, [], undefined],
+    ["changed", undefined, [tuple, tuple], undefined],
+    ["valid", undefined, [explicit], undefined],
+    ["valid", undefined, [{...tuple, role: "verification"}], undefined],
+  ] as const) {
+    const row = {source_scope: id(f.scope), disposition, rationale: "Author judgment.", ...(supplied !== undefined ? {candidate: supplied} : {})};
+    const imp = d("IMP-next", {implements: [id(selection)], "changes-under": [id(change)]}, {impact_dispositions: [row]});
+    const result = deriveSourceDispositionCandidates(f.data, binding, imp, scopes);
+    expect(result).toEqual([{...row, ...(expected !== undefined ? {candidate: expected} : {})}]);
+    expect(row).not.toHaveProperty("candidate", tuple);
+    imp.payload.impact_dispositions = result;
+    const generated = scopes.map((s, i) => d(`SCP-new${i}`, {"belongs-to": [id(imp)]}, s));
+    const errors = validateChangeDatum([...f.data, ...generated], binding, imp).filter(e => e.code === "change-source-candidate");
+    if (expected !== tuple && disposition !== "removed") expect(errors[0]?.message).toContain(id(f.scope));
+    if (expected === tuple || disposition === "removed") expect(errors).toEqual([]);
+  }
+  const outside = d("IMP-other", {implements: [id(f.set)]}, {impact_dispositions: [{source_scope: id(f.scope), disposition: "valid", rationale: "No change context."}]});
+  expect(deriveSourceDispositionCandidates(f.data, binding, outside, [tuple])).toEqual(outside.payload.impact_dispositions);
+});
 test("initial review requires statements and each whole decomposition, independently", () => {
   const f = fixture();
   expect(validateChangeDatum(f.data, binding, f.review)).toEqual([]);
