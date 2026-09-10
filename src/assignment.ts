@@ -4075,7 +4075,7 @@ function packet(
       const baseline = object(implementation.payload.source_changes)?.baseline_implementation;
       return {implementation: implementation.revision_id, scopes: data.filter((d) => d.type === traceBinding.scope_type && d.links.some((l) => l.type === "belongs-to" && l.target === implementation.revision_id)).map((d) => ({revision: d.revision_id, payload: d.payload, links: d.links})), changes: implementation.payload.source_changes ?? null, comparison: typeof baseline === "string" ? compareImplementationScopes(data, traceBinding, baseline, implementation.revision_id) : null};
     });
-    rendered.requirementGraphs = sets.map((set) => {
+    rendered.requirementGraphs = sets.sort((a, b) => b.revision - a.revision || a.revision_id.localeCompare(b.revision_id)).map((set) => {
       const graph = selectedRequirementGraph(data, set, traceBinding);
       return {selection: set.revision_id, groups: graph.groups.map(d => ({revision: d.revision_id, payload: d.payload, links: d.links})), requirements: graph.requirements.map((d) => ({id: d.id, revision: d.revision_id, payload: d.payload, links: d.links, leaf: graph.leaves.has(d.revision_id)}))};
     });
