@@ -1,6 +1,6 @@
 ---
 id: typed-requirements
-version: 2
+version: 3
 ---
 
 # Author one normal-link requirement graph
@@ -13,6 +13,6 @@ Link software requirements to exact parent REQ revisions using decomposes. Use t
 
 Shared success and failure constraints must retain the functional behavior in the leaves. For example, decomposing add-task only into successful exit and invalid-input rejection loses creation of an incomplete task, next-ID assignment, exact-title persistence and ID output. Keep the complete add behavior as a software leaf when further decomposition is not useful, or give its children those remaining obligations alongside the shared constraints. Authors and reviewers check that terminal descendants collectively retain the parent behavior and that linked leaves explain a source region's actual work. A path to an ancestor cannot replace a missing leaf obligation.
 
-Fill ears.pattern, system and response. Supply the complete subject in system and the response without a trailing period. Event requires event; state requires state; optional requires feature; unwanted requires unwanted. Ubiquitous has no guard. Complex combines at least two guards, with at most one event or unwanted guard. Split independently verifiable obligations when that clarifies the contract. Mechanical graph completeness does not establish behavioral completeness or appropriate detail.
+Fill ears.pattern, system and response. Supply the complete subject in system and the response without a trailing period. Event requires event; state requires state; optional requires feature; unwanted requires unwanted. Ubiquitous has no guard. Complex combines at least two guards, with at most one event or unwanted guard. When the source already states an implementable, verifiable contract, preserve its operative wording while fitting the EARS fields instead of summarizing it. Carry relevant parent constraints into the software contract. Keep it as a software leaf with a normal link to its stakeholder parent; add intermediate requirements only when they allocate a useful responsibility. Split obligations when that clarifies their meaning. Mechanical graph completeness does not establish behavioral completeness or appropriate detail.
 
 For a correction or approved revision, use revision_of for an existing REQ lineage and update or reaffirm affected descendants in the same batch. Preserve old links and evidence. An unchanged child still pointing to an old parent is not a reaffirmation against the new parent. The CLI regenerates the complete RQS and later source scopes against the newly reviewed exact graph. Keep the body empty when structured fields carry the claim.
