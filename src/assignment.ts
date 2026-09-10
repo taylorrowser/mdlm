@@ -1,3 +1,4 @@
+import { registerExternalReview, requireExternalReview, requiresExternalReview } from "./external-review.js";
 import { assessRequirements, changeImpact, type RequirementAssessments } from "./change-assessment.js";
 import { buildAssignmentReviewContext, type AssignmentReviewContext } from "./assignment-review-context.js";
 import { compareImplementationScopes } from "./requirement-trace-inspection.js";
@@ -763,6 +764,30 @@ export async function inspectAssignmentReviewContext(
   if (!exactActiveLease(current.value, lease)) return failure("assignment-unavailable", "Assignment is no longer active", lease.id);
   if (await readPendingSettlement(repositoryRoot, lease.id)) return failure("submission-settlement-required", "Assignment settlement began while preparing review context", lease.id);
   return {ok: true, value: context, diagnostics: []};
+}
+
+/** Register an authenticated reviewer result without writing lifecycle state. */
+export async function registerAssignmentReview(
+  repositoryRoot: string, assignmentId: string, contextSource: string, verdictSource: string,
+): Promise<AssignmentResult<import("./external-review.js").ExternalReviewProof>> {
+  const inspected = await inspectAssignmentReviewContext(repositoryRoot, assignmentId);
+  if (!inspected.ok) return inspected;
+  const exact = await exactAssignment(repositoryRoot);
+  if (!exact.ok) return exact;
+  if (!requiresExternalReview(exact.value.scenario)) return failure("external-review-not-required", "This Scenario does not require a registered external review", assignmentId);
+  try {
+    const supplied = JSON.parse(contextSource);
+    if (!isDeepStrictEqual(supplied.reviewContext ?? supplied, inspected.value)) throw new Error("Supplied review context differs from the active exact export");
+    const compiled = await compileActiveAssignmentProposal(repositoryRoot, verdictSource);
+    if (!compiled.ok) return compiled;
+    const after = await inspectAssignmentReviewContext(repositoryRoot, assignmentId);
+    if (!after.ok) return after;
+    if (!isDeepStrictEqual(after.value, inspected.value)) throw new Error("Review context changed during registration");
+    const registered = await registerExternalReview(repositoryRoot, inspected.value, verdictSource, compiled.value.source);
+    return {ok: true, value: registered, diagnostics: []};
+  } catch (error) {
+    return failure("external-review-registration-invalid", error instanceof Error ? error.message : String(error), assignmentId);
+  }
 }
 
 /** Compile transient author-owned values into the active exact response envelope. */
@@ -4462,6 +4487,7 @@ export async function submitAssignmentResponse(
   repositoryRoot: string,
   responseSource: string,
   authoritySupplies: string[] = [],
+  authorValuesSource?: string,
 ): Promise<AssignmentSubmissionResult> {
   const parsed = parseAssignmentResponse(responseSource);
   if (parsed.ok) {
@@ -4579,6 +4605,21 @@ export async function submitAssignmentResponse(
       }
       return pendingSettlementSubmission(lockedPendingSettlement);
     }
+    let externalReview: import("./external-review.js").ExternalReviewProof | undefined;
+    if (requiresExternalReview(exact.value.scenario)) {
+      try {
+        const context = await buildAssignmentReviewContext(repositoryRoot, packet(exact.value, lease), exact.value.processPackage, exact.value.snapshot.records.map(record => record.datum));
+        externalReview = await requireExternalReview(repositoryRoot, context, responseSource, verdict => {
+          const values = parseAssignmentAuthorValues(verdict);
+          if (!values.ok) throw new Error("Registered verdict is not valid author values");
+          const compiled = assignmentResponseFromAuthorValues(exact.value, lease, values.value);
+          if (!compiled.ok) throw new Error("Registered verdict no longer compiles against the active Assignment");
+          return `${JSON.stringify(compiled.value)}\n`;
+        }, authorValuesSource);
+      } catch (error) {
+        return writeMalformedResponse(repositoryRoot, lease, responseSource, [{code: "external-review-required", message: error instanceof Error ? error.message : String(error), path: lease.id}], renew);
+      }
+    }
     const verifyAssignment = async (): Promise<AssignmentResult<undefined>> => {
       await renew();
       const committedLease = await readLease(repositoryRoot);
@@ -4598,6 +4639,7 @@ export async function submitAssignmentResponse(
         verifyAssignment,
       ),
       executionId,
+      ...(externalReview ? {externalReview} : {}),
       beginPublication: async (publishedExecution: string, publishedDigest: string) => {
         await renew();
         await writePendingSettlement(repositoryRoot, {

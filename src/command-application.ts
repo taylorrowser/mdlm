@@ -82,6 +82,7 @@ import {
 } from "./operator-instructions.js";
 import {
   runAssignmentVerification,
+  registerAssignmentReview,
   claimNextWork,
   requestRequirementChange,
   compileActiveAssignmentProposal,
@@ -257,6 +258,7 @@ Agent-guided lifecycle commands:
   mdlm next [--json]
   mdlm assignment response [--json]
   mdlm assignment review-context <assignment-id> [--json]
+  mdlm assignment register-review <assignment-id> <context-file> <verdict-file> --json
   mdlm assignment run [--retry] --json
   mdlm assignment submit-proposal <author-values-file|-> [--authority <authority-id>] --json
   mdlm scenario submit [response-file|-] [--authority <authority-id>] [--json]
@@ -1472,6 +1474,7 @@ async function submitAssignmentProposal(
         repositoryRoot,
         compiled.value.source,
         authoritySupplies,
+        authorValuesSource,
       );
       if (!submitted.ok) {
         return {
@@ -2288,6 +2291,16 @@ async function dispatchCommand(
           command: "assignment.show",
           contract: "mdlm-assignment-state@1",
         };
+  }
+  if (operands[0] === "assignment" && operands[1] === "register-review") {
+    const args = arguments_.filter(argument => argument !== "--json");
+    if (args.length !== 5 || args.slice(2).some(arg => arg.startsWith("--"))) return {...failure("external-review-arguments-invalid", "Expected mdlm assignment register-review <assignment-id> <context-file> <verdict-file> --json"), command: "assignment.register-review"};
+    try {
+      const [context, verdict] = await Promise.all([fs.readFile(path.resolve(repositoryRoot, args[3]!), "utf8"), fs.readFile(path.resolve(repositoryRoot, args[4]!), "utf8")]);
+      return {...await registerAssignmentReview(repositoryRoot, args[2]!, context, verdict), command: "assignment.register-review"};
+    } catch (error) {
+      return {...failure("external-review-read-failed", error instanceof Error ? error.message : String(error)), command: "assignment.register-review"};
+    }
   }
   if (operands[0] === "assignment" && operands[1] === "review-context") {
     const args = arguments_.filter(argument => argument !== "--json");

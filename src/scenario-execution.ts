@@ -124,6 +124,7 @@ export interface ScenarioExecution {
     evaluations: { invocation: number; result: true }[];
   };
   completionEvidence: unknown;
+  externalReview?: import("./external-review.js").ExternalReviewProof;
   resultingObligations: string[];
   discoveredObligations: string[];
 }
@@ -1252,6 +1253,7 @@ async function submitScenario(
       evaluations: completionEvaluations,
     },
     completionEvidence: proposal.completionEvidence,
+    ...(prepared?.externalReview ? {externalReview: prepared.externalReview} : {}),
     resultingObligations,
     discoveredObligations,
   };
@@ -1342,6 +1344,7 @@ export async function submitResolverScenario(
 }
 
 export interface PreparedScenarioSubmission {
+  externalReview?: import("./external-review.js").ExternalReviewProof;
   executionId?: string;
   beginPublication?: (executionId: string, responseDigest: string) => Promise<void>;
   dryRun: ScenarioDryRun;

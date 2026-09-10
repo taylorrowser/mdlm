@@ -1,6 +1,6 @@
 # Tiny product Process Package
 
-`mdlm-tiny@0.5.0` is the default Example Process Package. It targets small,
+`mdlm-tiny@0.6.0` is the default Example Process Package. It targets small,
 terminating Python command-line products with UTF-8 input and output. Requirements
 form an ordinary linked graph, authored and reviewed in one batch. Earlier
 package identities and accepted products retain their original history.
@@ -100,3 +100,9 @@ Use operational evidence to improve this package. When authoring or review
 exposes avoidable friction, update its owning schema, prompt, skill or CLI in the
 same session. Keep the learning durable; add process breadth only when a
 concrete product need earns its cost.
+
+Requirements and implementation reviews declare `review_contract.external_artifact:
+registered-review@1`. The manager registers the externally returned exact verdict
+through the CLI before the author submits it. See the root README section on
+independent review registration. This fresh-only package does not migrate earlier
+review publications.

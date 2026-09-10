@@ -52,6 +52,17 @@ it("exports complete current review inputs, exact source and selected receipt wi
     proposal.completionEvidence = {summary: "Exact review export fixture."}; edit(proposal);
     const args = ["assignment", "submit-proposal", "-", "--json"];
     if (next.authorityRequirement) args.push("--authority", next.authorityRequirement.authority);
+    if (/^review-(requirements|implementation)@/.test(next.assignment.packet.scenario.reference)) {
+      const registry = path.join(root, "review-registry");
+      await fs.mkdir(registry, {recursive: true});
+      vi.stubEnv("MDLM_REVIEW_REGISTRY", registry);
+      const contextFile = path.join(registry, "context.json"), verdictFile = path.join(registry, "verdict.json");
+      await fs.writeFile(contextFile, JSON.stringify(await cli(["assignment", "review-context", next.assignment.id, "--json"])));
+      await fs.writeFile(verdictFile, JSON.stringify(proposal));
+      vi.stubEnv("MDLM_REVIEW_REGISTRAR", "1");
+      try { await cli(["assignment", "register-review", next.assignment.id, contextFile, verdictFile, "--json"]); }
+      finally { vi.stubEnv("MDLM_REVIEW_REGISTRAR", undefined); }
+    }
     const result = await cli(args, proposal);
     expect(result.outcome).toBe("accepted");
     git(lifecycle, "add", ".lifecycle/data");
@@ -138,6 +149,7 @@ it("exports complete current review inputs, exact source and selected receipt wi
     const stale = await cli(["assignment", "review-context", impReview.assignment.id, "--json"], undefined, false);
     expect(stale.diagnostics[0].code).toBe("assignment-stale"); expect(await bytes(root)).toBe(staleBefore);
   } finally {
+    vi.unstubAllEnvs();
     if (process.env.MDLM_REVIEW_CONTEXT_MEASUREMENTS) await fs.writeFile(process.env.MDLM_REVIEW_CONTEXT_MEASUREMENTS, JSON.stringify(measurements, null, 2) + "\n");
     await fs.rm(root, {recursive: true, force: true});
   }

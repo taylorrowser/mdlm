@@ -1,3 +1,4 @@
+import { reviewFixtureEnvironment, registerReviewFixture } from "./helpers/external-review-fixture.js";
 import { spawnSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import os from "node:os";
@@ -8,10 +9,11 @@ import { expect, it } from "vitest";
 it("fills the emitted author scaffold and submits it without structural repair", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-author-scaffold-"));
   const repository = path.join(root, "lifecycle");
+  const reviewEnvironment = reviewFixtureEnvironment(repository);
   const executable = path.join(process.cwd(), "dist/mdlm.js");
   function cli(args: string[], cwd = repository, input?: unknown, expectedStatus = 0) {
     const result = spawnSync(process.execPath, [executable, ...args], {
-      cwd, input: input === undefined ? undefined : JSON.stringify(input),
+      cwd, env: reviewEnvironment, input: input === undefined ? undefined : JSON.stringify(input),
       encoding: "utf8", timeout: 30_000,
     });
     expect(result.status, result.stderr || result.stdout).toBe(expectedStatus);
@@ -90,6 +92,7 @@ it("fills the emitted author scaffold and submits it without structural repair",
     review.completionEvidence = { summary: "Reviewed each requirement and its collective decomposition." };
     const validateReview = new Ajv2020({ strict: false }).compile(reviewPacket.authorValuesSchema);
     expect(validateReview(review), JSON.stringify(validateReview.errors)).toBe(true);
+    registerReviewFixture(executable, repository, reviewPacket.assignment.id, review, reviewEnvironment);
     expect(cli(["assignment", "submit-proposal", "-", "--json"], repository, review).outcome).toBe("accepted");
   } finally {
     await fs.rm(root, { recursive: true, force: true });

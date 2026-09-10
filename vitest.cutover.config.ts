@@ -6,6 +6,7 @@ export default defineConfig({
   test: {
     include: [
       "test/author-values-scaffold-public.test.ts",
+      "test/external-review-public.test.ts",
       "test/tiny-process-package.test.ts",
       "test/requirement-trace-v2.test.ts",
       "test/change-assessment.test.ts",
