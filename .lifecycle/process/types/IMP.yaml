@@ -1,6 +1,6 @@
 kind: type-definition
 id: IMP
-version: 1
+version: 2
 description: Implementation
 name: Implementation
 extends: titled-datum@1
@@ -173,6 +173,7 @@ outgoing_links:
     types:
     - REV
     - RES
+    - ACC
     identity: revision
   cardinality:
     minimum: 0

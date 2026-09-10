@@ -11,7 +11,7 @@ const image = "python@sha256:7415fbc3c9e4979cc717d92377ab2bc7b2b4a2af1ac03cc52b5
 
 // Requires Docker and the pinned image. This is the public execution boundary,
 // including real assertion failure and correction, rather than a Docker mock.
-it("captures Docker script failure, error and corrected success without authored outcomes", async () => {
+it("captures Docker failures and stakeholder rejection through correction to explicit acceptance", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-docker-public-"));
   const lifecycle = path.join(root, "lifecycle");
   const source = path.join(root, "product");
@@ -45,6 +45,9 @@ it("captures Docker script failure, error and corrected success without authored
   const installedMode = process.env.MDLM_TINY_INSTALLED === "1";
   let implementation = installedMode ? 2 : 0;
   let changed = false;
+  let rejection = "";
+  let rejectedImplementation = "";
+  let correctedImplementation = "";
   let currentSet = "";
   let firstImplementation = "";
   try {
@@ -71,7 +74,7 @@ it("captures Docker script failure, error and corrected success without authored
       executable = path.join(installRoot, "node_modules/mdlm/dist/mdlm.js");
     }
     packageIdentity = cli(["init", lifecycle, "--json"], undefined, 0, root).package;
-    for (let step = 0; step < 24; step++) {
+    for (let step = 0; step < 28; step++) {
       const next = cli(["next", "--json"]);
       if (next.outcome === "lifecycle-complete") {
         if (!installedMode && !changed) {
@@ -101,6 +104,11 @@ it("captures Docker script failure, error and corrected success without authored
           proposal.outputs[1].revision_of = requirements.find((r: Json) => r.leaf).revision;
         }
       } else if (type === "IMP") {
+        if (rejection && !correctedImplementation) {
+          expect(packet.scenario.reference).toBe("correct-product@2");
+          expect(JSON.stringify(packet.exactInputs)).toContain(rejection);
+          expect(JSON.stringify(packet.exactInputs)).toContain(rejectedImplementation);
+        }
         // Stage zero reproduces the real demo's literal-backslash transcription.
         // Stage one is an execution error; stage two checks stdin and argv.
         const expected = implementation === 0 ? "b'2\\\\n'" : "b'2\\n'";
@@ -163,8 +171,8 @@ it("captures Docker script failure, error and corrected success without authored
         const result = execution.receipt.result;
         expect(result.started).toBe(true);
         expect(result.sourceCommit).toBe(commits.at(-1));
-        expect(result.outcome).toBe((installedMode ? ["pass"] : ["fail", "error", "pass", "pass"])[receipts.length - 1]);
-        expect(result.exitCode).toBe((installedMode ? [0] : [1, 2, 0, 0])[receipts.length - 1]);
+        expect(result.outcome).toBe((installedMode ? ["pass", "pass"] : ["fail", "error", "pass", "pass", "pass"])[receipts.length - 1]);
+        expect(result.exitCode).toBe((installedMode ? [0, 0] : [1, 2, 0, 0, 0])[receipts.length - 1]);
         expect(execution.receipt.attempt).toBe(1);
         if (!installedMode) {
           expect(cli(["assignment", "run", "--json"]).value).toEqual(execution);
@@ -196,13 +204,32 @@ it("captures Docker script failure, error and corrected success without authored
       } else if (type === "REV") {
         output.payload = { title: "Review", outcome: "pass", findings: "The exact requirements, script assertions and evidence support the claim." };
       } else if (type === "ACC") {
-        output.payload = { title: "Accepted comma counter", rationale: "The corrected script passes stdin and argument assertions." };
+        output.payload = { title: "Stakeholder decision", decision: rejection ? "accept" : "reject",
+          rationale: rejection ? "The corrected script passes stdin and argument assertions." : "Reject this candidate and request an implementation correction." };
+        if (!rejection) {
+          const missingDecision = structuredClone(proposal);
+          delete missingDecision.outputs[0].payload.decision;
+          const before = git(["status", "--porcelain", "--", ".lifecycle/data"], lifecycle);
+          const invalid = cli(["assignment", "submit-proposal", "-", "--json", "--authority", "stakeholder"], missingDecision, 1);
+          expect(invalid.outcome).toBe("rejected");
+          expect(git(["status", "--porcelain", "--", ".lifecycle/data"], lifecycle)).toBe(before);
+          rejectedTrace.push({ assignment: next.assignment.id, missingDecision: invalid });
+        }
       } else throw new Error(`Unexpected output ${type}`);
       const args = ["assignment", "submit-proposal", "-", "--json"];
       if (next.outcome === "attention-required") args.push("--authority", next.authorityRequirement.authority);
       const submitted = cli(args, proposal);
       expect(submitted.outcome).toBe("accepted");
       for (const publication of submitted.receipt.publications) {
+        if (publication.stableId.startsWith("ACC-") && output.payload.decision === "reject") rejection = publication.revisionId;
+        if (publication.stableId.startsWith("IMP-")) {
+          if (!rejection) rejectedImplementation = publication.revisionId;
+          else if (!correctedImplementation) {
+            correctedImplementation = publication.revisionId;
+            expect(publication.stableId).toBe(rejectedImplementation.replace(/-r\d+$/, ""));
+            expect(correctedImplementation).not.toBe(rejectedImplementation);
+          }
+        }
         if (publication.stableId.startsWith("RQS-")) currentSet = publication.revisionId;
         if (publication.stableId.startsWith("IMP-") && !firstImplementation) firstImplementation = publication.revisionId;
       }
@@ -213,7 +240,7 @@ it("captures Docker script failure, error and corrected success without authored
         "commit", "--quiet", "--no-verify", "-m", `Publish ${packet.scenario.reference}`], lifecycle);
     }
     expect(cli(["next", "--json"]).outcome).toBe("lifecycle-complete");
-    expect(receipts).toHaveLength(installedMode ? 1 : 4);
+    expect(receipts).toHaveLength(installedMode ? 2 : 5);
     const why = cli(["trace", "why", "count.py:2", "--implementation", firstImplementation, "--json"]).requirementTrace;
     expect(why.scopes).toHaveLength(1);
     expect(why.scopes[0].reasons[0].path).toHaveLength(2);
@@ -241,13 +268,18 @@ it("captures Docker script failure, error and corrected success without authored
       if (frontmatter) records.push(parse(frontmatter[1]!));
     }
     const results = records.filter(record => record.type === "RES");
-    expect(results.map(record => record.payload.outcome).sort()).toEqual(installedMode ? ["pass"] : ["error", "fail", "pass", "pass"]);
+    expect(results.map(record => record.payload.outcome).sort()).toEqual(installedMode ? ["pass", "pass"] : ["error", "fail", "pass", "pass", "pass"]);
     for (const receipt of receipts) {
       const retained = JSON.parse(git(["cat-file", "blob", receipt.oid], lifecycle));
       expect(retained).toEqual(receipt.receipt);
       expect(results.some(record => record.payload.receipt === `git-blob:${receipt.oid}`)).toBe(true);
     }
-    const acceptances = records.filter(record => record.type === "ACC");
+    const decisions = records.filter(record => record.type === "ACC");
+    expect(decisions.filter(record => record.payload.decision === "reject")).toHaveLength(1);
+    expect(correctedImplementation).not.toBe("");
+    const corrected = records.find(record => record.revision_id === correctedImplementation)!;
+    expect(corrected.links).toContainEqual(expect.objectContaining({ type: "corrects", target: rejection }));
+    const acceptances = decisions.filter(record => record.payload.decision === "accept");
     expect(acceptances).toHaveLength(installedMode ? 1 : 2);
     const linked = (record: Json, type: string) => {
       const links = record.links.filter((link: Json) => link.type === type);

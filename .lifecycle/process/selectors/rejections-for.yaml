@@ -1,7 +1,7 @@
 kind: selector-definition
-id: acceptances-for
-version: 2
-description: acceptances for
+id: rejections-for
+version: 1
+description: Exact stakeholder rejections for an implementation
 parameters:
 - name: implementation
   kind: revision
@@ -17,7 +17,7 @@ query:
     types:
     - ACC
   as: item
-  where: state(item, "validity") == "valid" && item.integrity.scenario_execution_valid == true && item.payload.decision == "accept"
+  where: state(item, "validity") == "valid" && item.integrity.scenario_execution_valid == true && item.payload.decision == "reject"
   distinct: true
   order_by:
   - identity.revision_id

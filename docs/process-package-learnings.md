@@ -13,21 +13,27 @@ without a check is a request for one.
 ## 1. Every failable output needs a correction route
 
 Issues: #470, #505, #507, #531, #571, #573, #585, #599, #610, #631, #653,
-#664, #675.
+#664, #675, #767.
 
 Pattern: a Scenario publishes a Revision, an independent Review fails it or a
 gate rejects it, and no Obligation in that Phase dispatches a same-lineage
 correction. The lane reaches Process Dead End after dozens of accepted
 transactions.
 
-Rule: for every Phase, every output type that can receive a failing REV or a
-rejecting gate DEC must have a correction Obligation and Resolver Scenario in
+Rule: stakeholder decisions must require an explicit authored outcome, including
+rejection. A fixed acceptance value cannot represent stakeholder judgment.
+Acceptance selectors and terminal conditions must exclude rejection. For every
+Phase, every output type that can receive a failing REV or rejecting authority
+decision must have a correction Obligation and Resolver Scenario in
 that same Phase whose output declares `identity_from` the failed input.
 
 Check: a declaration-derived liveness proof in the package constraint compiler
 that reports `contradictory` when a reviewable output type lacks a correction
 route in a Phase where it is produced. Reverting any issue above must produce
-that diagnostic.
+that diagnostic. For the tiny acceptance boundary, the public CLI regression
+rejects a missing decision without publication, records stakeholder rejection,
+dispatches same-lineage correction, then requires fresh review and verification
+before explicit acceptance can complete the lifecycle.
 
 ## 2. Progression must not outrun its prerequisites
 

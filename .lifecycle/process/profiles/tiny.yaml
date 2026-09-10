@@ -28,7 +28,7 @@ disabled_capabilities:
 terminal_outcomes:
   lifecycle_complete:
     condition: 'exists("current-requirements@1", {}) && every("current-requirements@1", {}, req => exists("implementations-for@1",
-      {requirements: req}) && every("implementations-for@1", {requirements: req}, imp => exists("acceptances-for@1",
+      {requirements: req}) && every("implementations-for@1", {requirements: req}, imp => exists("acceptances-for@2",
       {implementation: imp}) && exists("passing-results@1", {implementation: imp}) && exists("pass-reviews@1", {subject:
       imp}) && none("fail-reviews@1", {subject: imp}))) && every("current-requirements@1", {}, req => exists("pass-reviews@1",
       {subject: req}) && none("fail-reviews@1", {subject: req}))'

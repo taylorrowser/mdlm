@@ -27,6 +27,6 @@ gate:
   required: false
   candidate_selector: '[]'
   candidate_as: candidate
-  obligation: acceptance-required@1
+  obligation: acceptance-required@2
   completion: 'true'
 progression: null

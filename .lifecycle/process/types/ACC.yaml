@@ -1,8 +1,8 @@
 kind: type-definition
 id: ACC
-version: 1
-description: Stakeholder acceptance
-name: Stakeholder acceptance
+version: 2
+description: Stakeholder acceptance decision
+name: Stakeholder acceptance decision
 extends: titled-datum@1
 lifecycle:
   authorship: authored
@@ -21,7 +21,7 @@ payload_schema:
     publication:
       const: recorded
     decision:
-      const: accept
+      enum: [accept, reject]
     rationale:
       type: string
       minLength: 1
