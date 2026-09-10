@@ -9,9 +9,14 @@ export interface RequirementTraceBinding {
   requirement_type: string;
   implementation_type: string;
   scope_type: string;
+  decomposition_type?: string;
+  change_type?: string;
+  acceptance_type?: string;
+  review_type?: string;
+  result_type?: string;
 }
 export function requirementTraceBinding(pkg: ProcessPackage): RequirementTraceBinding | undefined {
-  const binding = pkg.kernelCapabilities["requirement-trace@1"];
+  const binding = pkg.kernelCapabilities["requirement-trace@2"] ?? pkg.kernelCapabilities["requirement-trace@1"];
   return binding as RequirementTraceBinding | undefined;
 }
 export function latestRequirements(data: DatumEnvelope[], binding: RequirementTraceBinding): DatumEnvelope[] {
@@ -25,6 +30,8 @@ export function latestRequirements(data: DatumEnvelope[], binding: RequirementTr
 export interface SelectedRequirementGraph {
   requirements: DatumEnvelope[];
   leaves: Set<string>;
+  groups: DatumEnvelope[];
+  parents: Map<string, string[]>;
   diagnostics: ProcessDiagnostic[];
 }
 export function selectedRequirementGraph(
@@ -45,7 +52,26 @@ export function selectedRequirementGraph(
   if (!requirements.length) fail("trace-requirements-empty", "A requirement graph must contain stakeholder and software requirements");
   if (new Set(requirements.map((d) => d.id)).size !== requirements.length) fail("trace-requirement-duplicate", "Select exactly one revision of each requirement");
   const selected = new Map(requirements.map((d) => [d.revision_id, d]));
-  const parents = new Map(requirements.map((d) => [d.revision_id, d.links.filter((l) => l.type === "decomposes").map((l) => l.target)]));
+  const parents = new Map(requirements.map((d) => [d.revision_id, binding.decomposition_type ? [] as string[] : d.links.filter((l) => l.type === "decomposes").map((l) => l.target)]));
+  const groups: DatumEnvelope[] = [];
+  if (binding.decomposition_type) {
+    const parentIds = new Set<string>();
+    for (const target of set.links.filter(l => l.type === "decomposition").map(l => l.target)) {
+      const group = byRevision.get(target);
+      if (!group || group.type !== binding.decomposition_type) { fail("trace-group-reference", `Group '${target}' must be an exact decomposition revision`); continue; }
+      groups.push(group);
+      const roots = group.links.filter(l => l.type === "parent").map(l => l.target);
+      const members = group.links.filter(l => l.type === "child").map(l => l.target);
+      if (roots.length !== 1) { fail("trace-group-parent", "A decomposition group requires exactly one parent", target); continue; }
+      const parent = roots[0]!;
+      if (parentIds.has(parent)) fail("trace-group-duplicate", "Select one decomposition group per parent", target);
+      parentIds.add(parent);
+      if (!selected.has(parent) || members.some(id => !selected.has(id))) fail("trace-decomposition-outside-selection", "Decomposition endpoints must belong to the exact selected graph", target);
+      if (new Set(members).size !== members.length) fail("trace-decomposition-duplicate", "Group children must be distinct", target);
+      for (const child of members) parents.get(child)?.push(parent);
+    }
+    for (const requirement of requirements) if (requirement.links.some(l => l.type === "decomposes")) fail("trace-competing-decomposition", "Decomposition belongs only to selected groups", requirement.revision_id);
+  }
   const children = new Set<string>();
   for (const requirement of requirements) {
     const targets = parents.get(requirement.revision_id)!;
@@ -73,7 +99,8 @@ export function selectedRequirementGraph(
   }
   for (const requirement of requirements) if (!visit(requirement.revision_id)) fail("trace-stakeholder-unreachable", `Requirement '${requirement.revision_id}' has no complete decomposition path to a stakeholder root`);
   if (requireCurrent) {
-    const expected = latestRequirements(data, binding).map((d) => d.revision_id);
+    const retired = new Set(set.links.filter(l => l.type === "retires").map(l => byRevision.get(l.target)?.id));
+    const expected = latestRequirements(data, binding).filter(d => !binding.decomposition_type || !retired.has(d.id)).map((d) => d.revision_id);
     if (JSON.stringify([...targets].sort()) !== JSON.stringify(expected)) fail("trace-selection-stale", "The selected graph must include every current requirement revision; publish a reassessed requirement set before implementation");
   }
   const leaves = new Set(requirements.filter((d) => d.payload.kind === "software" && !children.has(d.revision_id)).map((d) => d.revision_id));
@@ -81,7 +108,7 @@ export function selectedRequirementGraph(
     if (!children.has(root.revision_id)) fail("trace-stakeholder-uncovered", "Every stakeholder root must be decomposed into software behavior", root.revision_id);
   }
   if (!leaves.size) fail("trace-software-leaf-missing", "The graph must have a software leaf eligible for implementation");
-  return { requirements, leaves, diagnostics };
+  return { requirements, leaves, groups, parents, diagnostics };
 }
 
 export function traceDatumDiagnostics(pkg: ProcessPackage, datum: DatumEnvelope, data: DatumEnvelope[]): ProcessDiagnostic[] {

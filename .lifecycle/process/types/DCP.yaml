@@ -1,8 +1,8 @@
 kind: type-definition
-id: ACC
-version: 3
-description: Stakeholder acceptance decision
-name: Stakeholder acceptance decision
+id: DCP
+version: 1
+description: Exact parent and immediate child decomposition
+name: Decomposition group
 extends: titled-datum@1
 lifecycle:
   authorship: authored
@@ -15,55 +15,34 @@ payload_schema:
   type: object
   required:
   - publication
-  - decision
-  - rationale
   properties:
     publication:
       const: recorded
-    decision:
-      enum:
-      - accept
-      - reject
-    rationale:
-      type: string
-      minLength: 1
 outgoing_links:
-- id: accepts
-  description: accepts
+- id: parent
+  description: parent
   targets:
   - kind: datum
     types:
-    - IMP
+    - REQ
     identity: revision
   cardinality:
     minimum: 1
     maximum: 1
   freeze_resolution: already-exact
-  inverse_label: incoming-accepts
-- id: uses-evidence
-  description: uses evidence
+  inverse_label: incoming-parent
+- id: child
+  description: child
   targets:
   - kind: datum
     types:
-    - RES
+    - REQ
     identity: revision
   cardinality:
-    minimum: 1
-    maximum: 1
+    minimum: 0
+    maximum: many
   freeze_resolution: already-exact
-  inverse_label: incoming-uses-evidence
-- id: confirms
-  description: confirms
-  targets:
-  - kind: datum
-    types:
-    - RQS
-    identity: revision
-  cardinality:
-    minimum: 1
-    maximum: 1
-  freeze_resolution: already-exact
-  inverse_label: incoming-confirms
+  inverse_label: incoming-child
 - id: changes-under
   description: changes-under
   targets:

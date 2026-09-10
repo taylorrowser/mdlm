@@ -1,10 +1,10 @@
 ---
 id: draft-requirements
 scenario: draft-requirements
-version: 4
+version: 5
 skills:
 - skills/product-quality.md@1
-- skills/typed-requirements.md@4
+- skills/typed-requirements.md@5
 ---
 
 # Write one small requirement set

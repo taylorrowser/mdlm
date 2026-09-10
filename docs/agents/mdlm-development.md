@@ -224,14 +224,27 @@ Keep release candidates separate from demo history. Demo records answer what hap
 
 Use the default tiny Process Package for new tiny products. Record each
 stakeholder or software requirement as an individual REQ. Decompose behavior
-through normal links to exact parent revisions wherever useful; do not impose
-fixed tiers. The CLI batches requirements, generates the requirement set and
-source scopes, and keeps one set-level review without per-node author or review
-turns. Attribute every nonblank supported source line to an explicit named region;
+through DCP groups with normal links to exact parent and child revisions wherever
+useful; do not impose fixed tiers. The CLI batches requirements, materializes exact
+groups, the requirement set and source scopes, and keeps one set-level review
+without per-node author or review turns. Review each required child in its parent
+context and the collective adequacy of every required group. Attribute every
+nonblank supported source line to an explicit named region;
 regions and software leaves use many-to-many normal links. The CLI derives
 coverage and exempt blank gaps, while review judges responsibility boundaries. Keep executable expectations in the committed verification script and
 use the direct implementation and verification route. Historical reports
 describe the packages that produced them.
+
+Tiny 0.5.0 uses accepted ACC evidence as the baseline boundary. Before baseline,
+use ordinary authoring and correction. Afterwards, use `mdlm change request
+--requirements <exact-current-RQS-revision> --json` and the returned request
+Assignment, followed by stakeholder approval through `next`. Follow the packet's
+approved targets and correction frontier. The CLI refreshes exact group endpoints
+and derives local reassessment work; unchanged children preserve deeper groups.
+Record semantic assessments rather than manufacturing requirement revisions to
+refresh links. Retire requirements explicitly through RQS links and resolve their
+selected group references. This package is fresh-only; preserve historical runs
+on their selected package. See [the change-control decision](../adr/0006-baseline-changes-and-decomposition-groups.md).
 
 The CLI owns mechanical checks before publication: schema and field validity,
 exact references, complete requirement graphs, source attribution, fixed values,

@@ -23,6 +23,26 @@
     "scope_type": {
       "type": "string",
       "pattern": "^[A-Z]{3,8}$"
+    },
+    "decomposition_type": {
+      "type": "string",
+      "pattern": "^[A-Z]{3,8}$"
+    },
+    "change_type": {
+      "type": "string",
+      "pattern": "^[A-Z]{3,8}$"
+    },
+    "acceptance_type": {
+      "type": "string",
+      "pattern": "^[A-Z]{3,8}$"
+    },
+    "review_type": {
+      "type": "string",
+      "pattern": "^[A-Z]{3,8}$"
+    },
+    "result_type": {
+      "type": "string",
+      "pattern": "^[A-Z]{3,8}$"
     }
   }
 }

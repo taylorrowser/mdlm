@@ -63,7 +63,8 @@ it("exports complete current review inputs, exact source and selected receipt wi
     const requirements = await cli(["next", "--json"]);
     await publish(requirements, proposal => { proposal.outputs = [
       {slot: "requirements", handle: "need", payload: {title: "Greeting", kind: "stakeholder", statement: "Print a greeting."}, body: "Stakeholder intent body."},
-      {slot: "requirements", handle: "greeting", payload: {title: "Output", kind: "software", ears: {pattern: "ubiquitous", system: "the greeter", response: "print hello followed by a newline"}}, links: [{type: "decomposes", target: {output: "need"}}], body: "Software detail body."},
+      {slot: "requirements", handle: "greeting", payload: {title: "Output", kind: "software", ears: {pattern: "ubiquitous", system: "the greeter", response: "print hello followed by a newline"}}, body: "Software detail body."},
+      {slot: "decompositions", handle: "group", payload: {title: "Behavior allocation"}, links: [{type: "parent", target: {output: "need"}}, {type: "child", target: {output: "greeting"}}], body: ""},
     ]; });
     const review = await cli(["next", "--json"]);
     const beforeRequirements = await bytes(root);
@@ -75,7 +76,13 @@ it("exports complete current review inputs, exact source and selected receipt wi
     expect(reqContext.exactInputs).toEqual(review.assignment.packet.exactInputs);
     expect(await bytes(root)).toBe(beforeRequirements);
     measure("requirements", review.assignment.packet, reqContext);
-    await publish(review, proposal => { proposal.outputs[0].payload = {title: "Review", outcome: "pass", findings: "Exact fixture requirements are clear."}; });
+    await publish(review, proposal => { const payload = proposal.outputs[0].payload;
+      Object.assign(payload, {title: "Review", outcome: "pass", findings: "Exact fixture requirements are clear."});
+      for (const assessment of payload.requirement_assessments) assessment.rationale = "The statement describes the greeting contract.";
+      for (const assessment of payload.decomposition_assessments) {
+        assessment.rationale = "The output child covers the greeting need.";
+        for (const child of assessment.children) child.rationale = "This child fulfills the parent greeting behavior.";
+      } });
     const implement = await cli(["next", "--json"]);
     const leaf = implement.assignment.packet.requirementGraphs[0].requirements.find((r: Json) => r.leaf).id;
     git(product, "init", "--quiet");

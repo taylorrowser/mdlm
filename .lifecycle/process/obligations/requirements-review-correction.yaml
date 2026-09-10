@@ -10,7 +10,8 @@ satisfied_when: 'none("fail-reviews@1", {subject: subject})'
 status_rules:
 - status: ready
   priority: 100
-  when: 'exists("fail-reviews@1", {subject: subject})'
+  when: 'exists("fail-reviews@1", {subject: subject}) && every("fail-reviews@1", {subject: subject}, failed
+    => failed.payload.scope_amendment_required == false)'
   reason: requirements review correction
 default_status: blocked
 resolve_with:

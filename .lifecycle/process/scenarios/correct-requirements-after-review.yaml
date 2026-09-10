@@ -19,7 +19,14 @@ outputs:
 - name: requirements
   types:
   - REQ
-  cardinality: one-or-more
+  cardinality: zero-or-more
+  required_links: []
+  required_payload:
+    publication: recorded
+- name: decompositions
+  types:
+  - DCP
+  cardinality: zero-or-more
   required_links: []
   required_payload:
     publication: recorded
@@ -35,10 +42,10 @@ outputs:
     publication: recorded
   identity_from:
     input: subject
-prompt_ref: prompts/correct-requirements-after-review.md@4
+prompt_ref: prompts/correct-requirements-after-review.md@5
 review_policy_ref: review-applicability@1
-completion: 'execution.integrity.contract_valid == true && (true) && exists("fail-reviews@1", {subject: subject})
-  && every("fail-reviews@1", {subject: subject}, failed => failed.identity.revision_id == failure.identity.revision_id)'
+completion: 'execution.integrity.contract_valid == true && (true) && exists("fail-reviews@1", {subject:
+  subject}) && every("fail-reviews@1", {subject: subject}, failed => failed.identity.revision_id == failure.identity.revision_id)'
 resolves:
 - requirements-review-correction
 prohibited_inputs: []

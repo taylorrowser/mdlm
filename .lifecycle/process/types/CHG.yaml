@@ -1,8 +1,8 @@
 kind: type-definition
-id: ACC
-version: 3
-description: Stakeholder acceptance decision
-name: Stakeholder acceptance decision
+id: CHG
+version: 1
+description: Scoped request to change an accepted product
+name: Change request
 extends: titled-datum@1
 lifecycle:
   authorship: authored
@@ -15,57 +15,44 @@ payload_schema:
   type: object
   required:
   - publication
-  - decision
-  - rationale
+  - reason
+  - requested_outcome
   properties:
     publication:
       const: recorded
-    decision:
-      enum:
-      - accept
-      - reject
-    rationale:
+    reason:
+      type: string
+      minLength: 1
+    requested_outcome:
       type: string
       minLength: 1
 outgoing_links:
-- id: accepts
-  description: accepts
+- id: baseline
+  description: baseline
   targets:
   - kind: datum
     types:
-    - IMP
+    - ACC
     identity: revision
   cardinality:
     minimum: 1
     maximum: 1
   freeze_resolution: already-exact
-  inverse_label: incoming-accepts
-- id: uses-evidence
-  description: uses evidence
+  inverse_label: incoming-baseline
+- id: changes
+  description: changes
   targets:
   - kind: datum
     types:
-    - RES
+    - REQ
     identity: revision
   cardinality:
     minimum: 1
-    maximum: 1
+    maximum: many
   freeze_resolution: already-exact
-  inverse_label: incoming-uses-evidence
-- id: confirms
-  description: confirms
-  targets:
-  - kind: datum
-    types:
-    - RQS
-    identity: revision
-  cardinality:
-    minimum: 1
-    maximum: 1
-  freeze_resolution: already-exact
-  inverse_label: incoming-confirms
-- id: changes-under
-  description: changes-under
+  inverse_label: incoming-changes
+- id: amends
+  description: amends
   targets:
   - kind: datum
     types:
@@ -75,5 +62,5 @@ outgoing_links:
     minimum: 0
     maximum: 1
   freeze_resolution: already-exact
-  inverse_label: incoming-changes-under
+  inverse_label: incoming-amends
 kernel_managed_payload_paths: []

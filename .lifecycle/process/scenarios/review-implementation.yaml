@@ -34,7 +34,7 @@ outputs:
       input: result
   required_payload:
     publication: recorded
-prompt_ref: prompts/review-implementation.md@4
+prompt_ref: prompts/review-implementation.md@5
 review_policy_ref: review-applicability@1
 completion: 'execution.integrity.contract_valid == true && (exists("passing-results@1", {implementation: subject})
   && every("passing-results@1", {implementation: subject}, passed => passed.identity.revision_id == result.identity.revision_id))

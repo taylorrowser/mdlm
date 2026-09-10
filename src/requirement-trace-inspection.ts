@@ -35,7 +35,7 @@ export function inspectRequirementTrace(data: DatumEnvelope[], binding: Requirem
   const pathsToRoots = (start: string): string[][] => {
     const walk = (id: string, path: string[]): string[][] => {
       if (path.includes(id) || !byRevision.has(id)) return [];
-      const next = [...path, id], parents = targets(byRevision.get(id)!, "decomposes");
+      const next = [...path, id], parents = context.graph?.parents.get(id) ?? [];
       return parents.length ? parents.flatMap(parent => walk(parent, next)) : [next];
     };
     return walk(start, []);
@@ -80,7 +80,7 @@ export function inspectRequirementTrace(data: DatumEnvelope[], binding: Requirem
       const descend = (id: string, path: string[]) => {
         if (path.includes(id)) return;
         const next = [...path, id]; paths.set(id, [...paths.get(id) ?? [], next]);
-        for (const child of requirements) if (targets(child, "decomposes").includes(id)) descend(child.revision_id, next);
+        for (const child of requirements) if (context.graph?.parents.get(child.revision_id)?.includes(id)) descend(child.revision_id, next);
       };
       descend(root.revision_id, []);
       for (const scope of context.scopes) {

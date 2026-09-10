@@ -1,6 +1,6 @@
 kind: type-definition
 id: REQ
-version: 1
+version: 2
 description: Requirement statement
 name: Requirement statement
 extends: titled-datum@1
@@ -196,16 +196,16 @@ payload_schema:
         required:
         - statement
 outgoing_links:
-- id: decomposes
-  description: decomposes
+- id: changes-under
+  description: changes-under
   targets:
   - kind: datum
     types:
-    - REQ
+    - CHG
     identity: revision
   cardinality:
     minimum: 0
-    maximum: many
+    maximum: 1
   freeze_resolution: already-exact
-  inverse_label: incoming-decomposes
+  inverse_label: incoming-changes-under
 kernel_managed_payload_paths: []

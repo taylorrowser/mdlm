@@ -95,14 +95,18 @@ it("captures Docker failures and stakeholder rejection through correction to exp
       if (type === "REQ") {
         proposal.outputs = [
           {slot: "requirements", handle: "need", payload: {title: "Count commas", kind: "stakeholder", statement: "Count ASCII commas from stdin; reject arguments."}, body: ""},
-          {slot: "requirements", handle: "count", payload: {title: "Count input", kind: "software", ears: {pattern: "ubiquitous", system: "the counter", response: "print the ASCII comma count plus newline for no arguments and reject arguments with exit 2 and usage on stderr"}}, links: [{type: "decomposes", target: {output: "need"}}], body: ""},
+          {slot: "requirements", handle: "count", payload: {title: "Count input", kind: "software", ears: {pattern: "ubiquitous", system: "the counter", response: "print the ASCII comma count plus newline for no arguments and reject arguments with exit 2 and usage on stderr"}}, body: ""},
+          {slot: "decompositions", handle: "group", payload: {title: "Behavior allocation"}, links: [{type: "parent", target: {output: "need"}}, {type: "child", target: {output: "count"}}], body: ""},
         ];
         if (changed) {
           const requirements = packet.requirementGraphs[0].requirements;
           proposal.outputs[0].revision_of = requirements.find((r: Json) => r.payload.kind === "stakeholder").revision;
           proposal.outputs[0].payload.statement += " Preserve this behavior for later invocations.";
-          proposal.outputs[1].revision_of = requirements.find((r: Json) => r.leaf).revision;
+          proposal.outputs = [proposal.outputs[0]];
         }
+      } else if (type === "CHG") {
+        output.payload = {title: "Clarify repeated use", reason: "Clarify that the existing behavior persists across invocations.", requested_outcome: "Preserve the existing counter behavior for later invocations."};
+        output.links = [{type: "changes", target: {datum: packet.requirementGraphs[0].requirements.find((r: Json) => r.payload.kind === "stakeholder").revision}}];
       } else if (type === "IMP") {
         if (rejection && !correctedImplementation) {
           expect(packet.scenario.reference).toBe("correct-product@2");
@@ -136,9 +140,10 @@ it("captures Docker failures and stakeholder rejection through correction to exp
         git(["-c", "commit.gpgSign=false", "commit", "--quiet", "--allow-empty", "--no-verify", "-m", `Verification stage ${implementation}`]);
         const sourceCommit = git(["rev-parse", "HEAD"]);
         commits.push(sourceCommit);
+        const impact = output.payload.impact_dispositions;
         output.payload = { title: "Comma counter and verification script", repository_path: source,
           source_commit: sourceCommit, command: ["python3", "count.py"], file_roles: {"count.py": "production", "verify.py": "verification"},
-          verification_image: image, verification_command: ["python3", "verify.py"], verification_script: "verify.py" };
+          verification_image: image, verification_command: ["python3", "verify.py"], verification_script: "verify.py", ...(impact ? {impact_dispositions: impact.map((entry: Json) => ({...entry, rationale: "The existing region remains valid for the clarification."}))} : {}) };
         if (!installedMode && implementation === 0) {
           // Reject an uncovered committed line without publishing any IMP/SCP.
           await fs.appendFile(countFile, "# uncovered comment\n");
@@ -202,7 +207,13 @@ it("captures Docker failures and stakeholder rejection through correction to exp
           expect(result.stderrBase64).toBe("");
         }
       } else if (type === "REV") {
-        output.payload = { title: "Review", outcome: "pass", findings: "The exact requirements, script assertions and evidence support the claim." };
+        output.payload = { ...output.payload, title: "Review", outcome: "pass", findings: "The exact requirements, script assertions and evidence support the claim." };
+        for (const assessment of output.payload.requirement_assessments ?? []) assessment.rationale = "The statement describes the required counter behavior.";
+        for (const assessment of output.payload.decomposition_assessments ?? []) {
+          assessment.rationale = "The child covers both counting and argument rejection.";
+          for (const child of assessment.children) child.rationale = "The child fulfills the unchanged counting contract.";
+        }
+        for (const assessment of output.payload.source_assessments ?? []) assessment.rationale = "The region and passing script support the clarified contract.";
       } else if (type === "ACC") {
         output.payload = { title: "Stakeholder decision", decision: rejection ? "accept" : "reject",
           rationale: rejection ? "The corrected script passes stdin and argument assertions." : "Reject this candidate and request an implementation correction." };

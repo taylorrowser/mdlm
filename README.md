@@ -11,9 +11,9 @@ requirements, independent requirement review, implementation, executable
 verification run by the CLI in Docker, independent implementation review, and
 stakeholder acceptance.
 Each stakeholder need and software commitment has its own normal identity.
-Software requirements decompose their parents through exact links, with as many
-levels as the behavior needs. Software leaves are the code contracts. The CLI
-generates the requirement-set and source-scope records without extra agent turns.
+Decomposition groups connect each parent to its immediate children through exact
+links, with as many requirement levels as the behavior needs. Software leaves are
+the code contracts. The CLI generates the requirement-set and source-scope records without extra agent turns.
 
 The CLI validates structure, references, fixed values, and declared mechanical
 constraints before atomic publication. Reviewers judge whether requirements express the intended product and whether implementation and evidence
@@ -91,8 +91,10 @@ resulting diff and the ordinary Git commit.
 
 ## Code traceability and requirement changes
 
-For the tiny package, author requirements in one batch using the packet's local
-handles and normal `decomposes` links. The CLI supplies stable requirement IDs in
+For tiny 0.5.0, author requirements and decomposition memberships in one batch
+using the packet's local handles. Each DCP selects one exact parent and its
+complete immediate-child group; RQS selects the exact requirements and groups.
+The CLI supplies stable requirement IDs in
 `requirementGraphs`. Source comments name those IDs, resolved only against the
 exact reviewed graph selected for the implementation. Use explicit closed, nonnested regions for every nonblank source line:
 
@@ -123,16 +125,45 @@ mdlm trace impact <REQ-id-or-revision> --implementation <exact-IMP-revision> --j
 mdlm change request --requirements <exact-current-RQS-revision> --json
 ```
 
-Request a change only after the current product is accepted and complete. This
-opens the package's explicit revision assignment, then the normal next/submit
-loop resumes. Use `revision_of` to revise or reaffirm exact selected requirements
-in one batch and link descendants to the new parent revisions. Old requirements,
-source scopes and acceptance evidence remain immutable. Impact output identifies
-directly linked source regions for the requested requirement and its descendants, including verification and shared scopes. Other
-dependencies may need inspection; listed code does not necessarily need an edit.
-For a change, query the requirements for both changed and explicitly preserved
-commitments and inspect their combined regions. The implementation review packet
-includes `sourceScopes`, exact `source_changes`, and comparison against the prior source.
+Request a change only after the current product is accepted and complete. The
+command returns an Assignment to author a CHG with its reason, requested outcome,
+accepted baseline and exact requirement targets. Submit it through the normal
+`assignment submit-proposal` command. `next` then requests stakeholder approval
+before dispatching requirement edits. Target the requirements whose meaning
+changes, regardless of who requested the change; unchanged ancestors keep their
+revisions. One active change is supported per accepted product lineage.
+
+An accepted ACC establishes the baseline. Before first baseline inclusion,
+requirements follow normal authoring and correction. Afterwards, publication of
+controlled revisions requires an approved CHG covering those changes. Requests
+outside its scope require an approved amendment. The CLI supplies change links
+and derives impact and outstanding work; agents judge the content.
+
+Requirements review covers both individual validity and collective decomposition.
+For every required group, assess each child against its exact parent and assess
+whether the children together fulfill that parent's obligations. A group can need
+new membership even when every existing child remains valid. The packet supplies
+the required assessments and the CLI rejects missing or inconsistent coverage.
+
+When an endpoint changes, the CLI refreshes its group's exact links and queues
+assessment. A revised child propagates assessment into its own decomposition;
+an unchanged child preserves its deeper groups and their exact review evidence.
+Refreshing links does not assert semantic validity. Shared children receive
+separate assessments in each affected parent context. A clarification may leave
+all children and product code unchanged.
+
+Explicit requirement retirement uses RQS `retires` links and preserves historical
+selections. Removing membership from one parent does not retire a shared child.
+Resolve remaining group references when retiring a requirement; reinstatement is
+outside this version's supported route.
+
+Impact identifies candidate source regions and verification evidence, not a list
+of mandatory code edits. The implementation assignment records dispositions for
+the affected evidence. The normal implementation review, CLI Docker verification
+and stakeholder acceptance route still applies. Old requirements, groups, source
+scopes and acceptance evidence remain immutable. Tiny 0.5.0 is for fresh
+repositories; historical runs retain their selected package and representation.
+See [the baseline and decomposition decision](docs/adr/0006-baseline-changes-and-decomposition-groups.md).
 
 ## Independent review context
 
