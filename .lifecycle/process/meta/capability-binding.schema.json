@@ -39,6 +39,10 @@
     "review_type": {
       "type": "string",
       "pattern": "^[A-Z]{3,8}$"
+    },
+    "result_type": {
+      "type": "string",
+      "pattern": "^[A-Z]{3,8}$"
     }
   }
 }

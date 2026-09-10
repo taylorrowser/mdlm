@@ -13,6 +13,7 @@ export interface RequirementTraceBinding {
   change_type?: string;
   acceptance_type?: string;
   review_type?: string;
+  result_type?: string;
 }
 export function requirementTraceBinding(pkg: ProcessPackage): RequirementTraceBinding | undefined {
   const binding = pkg.kernelCapabilities["requirement-trace@2"] ?? pkg.kernelCapabilities["requirement-trace@1"];

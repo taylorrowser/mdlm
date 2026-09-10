@@ -10,7 +10,7 @@ test("the tiny package keeps one batch review route with native requirement and 
   expect(loaded.ok, loaded.ok ? "" : JSON.stringify(loaded.diagnostics, null, 2)).toBe(true);
   if (!loaded.ok) return;
   expect(Object.keys(loaded.package.types).sort()).toEqual(["ACC", "CHG", "DCP", "IMP", "REQ", "RES", "REV", "RQS", "SCP"]);
-  expect(loaded.package.kernelCapabilities["requirement-trace@2"]).toEqual({ type: "RQS", requirement_type: "REQ", implementation_type: "IMP", scope_type: "SCP", decomposition_type: "DCP", change_type: "CHG", acceptance_type: "ACC", review_type: "REV" });
+  expect(loaded.package.kernelCapabilities["requirement-trace@2"]).toEqual({ type: "RQS", requirement_type: "REQ", implementation_type: "IMP", scope_type: "SCP", decomposition_type: "DCP", change_type: "CHG", acceptance_type: "ACC", review_type: "REV", result_type: "RES" });
   expect(Object.keys(loaded.package.phases)).toEqual(["phase-0-tiny-product"]);
 });
 

@@ -117,6 +117,7 @@ export interface KernelCapabilityBinding {
   change_type?: string;
   acceptance_type?: string;
   review_type?: string;
+  result_type?: string;
 }
 
 export interface ProcessPackage {
@@ -284,7 +285,7 @@ function validateKernelCapabilities(
       continue;
     }
     if (reference === "requirement-trace@1" || reference === "requirement-trace@2") {
-      for (const field of (reference === "requirement-trace@2" ? ["requirement_type", "implementation_type", "scope_type", "decomposition_type", "change_type", "acceptance_type", "review_type"] : ["requirement_type", "implementation_type", "scope_type"]) as (keyof KernelCapabilityBinding)[]) {
+      for (const field of (reference === "requirement-trace@2" ? ["requirement_type", "implementation_type", "scope_type", "decomposition_type", "change_type", "acceptance_type", "review_type", "result_type"] : ["requirement_type", "implementation_type", "scope_type"]) as (keyof KernelCapabilityBinding)[]) {
         if (!binding[field] || !processPackage.types[binding[field]!]) diagnostics.push({code: "incompatible-kernel-capability", path: bindingPath, message: `Requirement trace requires a declared ${field}`});
       }
       continue;

@@ -2,7 +2,8 @@ kind: process-package-manifest
 id: mdlm-tiny
 version: 0.5.0
 status: experimental
-description: Small products with batched normal-link requirements and complete source attribution.
+description: Small products with batched normal-link requirements and complete source
+  attribution.
 kernel_contract:
   id: mdlm-kernel-process-interface
   version: 1
@@ -36,6 +37,7 @@ kernel_capabilities:
     change_type: CHG
     acceptance_type: ACC
     review_type: REV
+    result_type: RES
 compatibility:
   minimum_kernel: 0.2.0
   meta_schema_version: 3
