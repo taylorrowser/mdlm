@@ -15,7 +15,9 @@ it("reviews decomposition, changes a baselined leaf, and clarifies its ancestor 
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-change-public-"));
   const lifecycle = path.join(root, "lifecycle");
   const source = path.join(root, "product");
-  const executable = path.join(process.cwd(), "dist/mdlm.js");
+  let executable = path.join(process.cwd(), "dist/mdlm.js");
+  const installedMode = process.env.MDLM_TINY_INSTALLED === "1";
+  let archive: string | undefined;
   const evidenceFile = path.join(os.tmpdir(), "mdlm-change-public-evidence", `${path.basename(root)}.json`);
   const accepted: Json[] = [];
   const rejected: Json[] = [];
@@ -78,6 +80,20 @@ it("reviews decomposition, changes a baselined leaf, and clarifies its ancestor 
     git(["init", "--quiet"]);
     git(["config", "user.name", "MDLM public change test"]);
     git(["config", "user.email", "mdlm-test@localhost"]);
+    if (installedMode) {
+      const packedRoot = path.join(root, "packed");
+      const installRoot = path.join(root, "install");
+      await fs.mkdir(packedRoot);
+      const packed = command("npm", ["pack", "--pack-destination", packedRoot, "--silent"], process.cwd());
+      expect(packed.status, packed.stderr).toBe(0);
+      archive = path.join(packedRoot, packed.stdout.trim().split("\n").at(-1)!);
+      const installed = command("npm", ["install", "--prefix", installRoot, "--ignore-scripts", "--no-audit", "--no-fund", "--offline", archive], root);
+      expect(installed.status, installed.stderr).toBe(0);
+      executable = path.join(installRoot, "node_modules/mdlm/dist/mdlm.js");
+      await fs.access(executable);
+    }
+    // Every lifecycle invocation runs outside the source checkout. Installed mode
+    // changes only the executable; all three baseline journeys remain mandatory.
     packageIdentity = cli(["init", lifecycle, "--json"], undefined, 0, root).package;
     for (let step = 0; step < 36; step++) {
       const next = cli(["next", "--json"]);
@@ -242,7 +258,18 @@ it("reviews decomposition, changes a baselined leaf, and clarifies its ancestor 
     await fs.mkdir(path.dirname(evidenceFile), { recursive: true });
     const executableBytes = await fs.readFile(executable).catch(() => undefined);
     const executableSha256 = executableBytes ? createHash("sha256").update(executableBytes).digest("hex") : null;
-    await fs.writeFile(evidenceFile, JSON.stringify({ root, lifecycle, source, executable, executableSha256, packageIdentity, accepted, rejected, baselines, receipts, terminal, boundary, failure }, null, 2));
+    const artifactDigests: Record<string, string> = {};
+    for (const file of [executable, archive, path.join(source, "count.py"), path.join(source, "verify.py")]) {
+      if (!file) continue;
+      const bytes = await fs.readFile(file).catch(() => undefined);
+      if (bytes) artifactDigests[file] = createHash("sha256").update(bytes).digest("hex");
+    }
+    const head = command("git", ["rev-parse", "HEAD"], lifecycle);
+    await fs.writeFile(evidenceFile, JSON.stringify({ outcome: failure ? "failed" : "passed", root, lifecycle, source,
+      product: source, executable, executableSha256, archive, artifactDigests, installed: installedMode,
+      lifecycleHead: head.status === 0 ? head.stdout.trim() : null, repositoryPreservedForAudit: true,
+      packageIdentity, accepted, rejected, baselines, receipts, terminal, boundary, failure }, null, 2) + "\n");
+    process.stdout.write(`TINY_JOURNEY_EVIDENCE ${evidenceFile}\n`);
     // Preserve both success and failure repositories for exact evidence inspection.
   }
 }, 240_000);
