@@ -1,0 +1,23 @@
+kind: selector-definition
+id: revision-observations
+version: 1
+description: revision-observations
+parameters:
+  - name: experiment
+    kind: revision
+    types:
+      - EXP
+result_kind: revision
+query:
+  from:
+    relation: incoming-links
+    of: experiment
+    link: against
+    emit: source
+    types:
+      - OBS
+  as: item
+  where: item.payload.recommendation == "revise"
+  distinct: true
+  order_by:
+    - identity.revision_id

@@ -62,6 +62,40 @@ nothing and may be corrected without consuming a lifecycle correction allowance.
 Accepted publication is atomic. When closure is uncertain, inspect settlement by
 the stable Assignment or execution identity and never replay submission.
 
+## Explore a prototype
+
+Select the separate experimental package when you want to learn before committing
+its behavior to requirements:
+
+```bash
+mdlm init ./experiment --process exploratory
+cd ./experiment
+mdlm start --json
+mdlm next --json
+```
+
+Default initialization still selects tiny. The exploratory package uses the same
+`next`, `assignment run`, `submit-proposal`, `doctor` and Git commit loop.
+
+- **EXP, experiment brief:** a revisable stakeholder criterion, learning question,
+  provisional approach, constraints, time allowance and scope cut.
+- **TRY, prototype trial:** a runnable command and exact committed source plus a
+  bounded verification script. Prototype code needs no requirement markers.
+- **OBS, observation:** a CLI-captured Docker outcome and receipt, with an authored
+  assessment, observation origin, limitations and next-step recommendation.
+
+Choose `revise` to receive a new revision of the same experiment brief and try
+another prototype. Previous briefs, trials and observations retain their exact
+links. A successful script is evidence about that script and committed source;
+record actual user observations separately from scripted or agent-observed use.
+The time allowance guides scope decisions; MDLM does not enforce a timer.
+
+`keep`, `drop` and `nominate` finish at an exploratory Profile Boundary. Nomination
+only proposes wording for a later requirement. It does not establish product
+acceptance or a baseline. Failed/error executions permit `revise` or `drop`.
+Promotion, partial baselines, complete code traceability and continuing after a
+terminal recommendation are deferred. Existing tiny lifecycles stay unchanged.
+
 ## Clean transaction example
 
 ```bash

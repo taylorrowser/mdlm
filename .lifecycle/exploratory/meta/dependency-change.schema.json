@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mdlm.dev/meta/dependency-change@1",
+  "title": "MDLM dependency change record v1",
+  "oneOf": [
+    {"$ref": "#/$defs/content-change"},
+    {"$ref": "#/$defs/outbound-link-change"},
+    {"$ref": "#/$defs/stable-link-resolution-change"},
+    {"$ref": "#/$defs/baseline-membership-change"},
+    {"$ref": "#/$defs/baseline-composition-change"},
+    {"$ref": "#/$defs/evidence-target-change"},
+    {"$ref": "#/$defs/review-context-change"},
+    {"$ref": "#/$defs/process-provenance-change"}
+  ],
+  "$defs": {
+    "revision-id": {
+      "type": "string",
+      "pattern": "^[A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$"
+    },
+    "base": {
+      "type": "object",
+      "required": ["record_version", "kind", "subject_revision", "before_revision", "after_revision"],
+      "properties": {
+        "record_version": {"const": "dependency-change@1"},
+        "kind": {"type": "string"},
+        "subject_revision": {"$ref": "#/$defs/revision-id"},
+        "before_revision": {"$ref": "#/$defs/revision-id"},
+        "after_revision": {"$ref": "#/$defs/revision-id"}
+      }
+    },
+    "content-change": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["record_version", "kind", "subject_revision", "before_revision", "after_revision", "path", "before_present", "after_present", "before", "after"],
+          "properties": {
+            "record_version": {"const": "dependency-change@1"},
+            "kind": {"const": "content-change"},
+            "subject_revision": {"type": "string"},
+            "before_revision": {"type": "string"},
+            "after_revision": {"type": "string"},
+            "path": {"type": "string"},
+            "before_present": {"type": "boolean"},
+            "after_present": {"type": "boolean"},
+            "before": true,
+            "after": true
+          }
+        }
+      ]
+    },
+    "outbound-link-change": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["record_version", "kind", "subject_revision", "before_revision", "after_revision", "link_type", "before_targets", "after_targets"],
+          "properties": {
+            "record_version": {"const": "dependency-change@1"},
+            "kind": {"const": "outbound-link-change"},
+            "subject_revision": {"type": "string"},
+            "before_revision": {"type": "string"},
+            "after_revision": {"type": "string"},
+            "link_type": {"type": "string"},
+            "before_targets": {"type": "array", "items": {"type": "string"}},
+            "after_targets": {"type": "array", "items": {"type": "string"}}
+          }
+        }
+      ]
+    },
+    "stable-link-resolution-change": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["record_version", "kind", "subject_revision", "before_revision", "after_revision", "link_type", "stable_target", "before_target_revision", "after_target_revision"],
+          "properties": {
+            "record_version": {"const": "dependency-change@1"},
+            "kind": {"const": "stable-link-resolution-change"},
+            "subject_revision": {"type": "string"},
+            "before_revision": {"type": "string"},
+            "after_revision": {"type": "string"},
+            "link_type": {"type": "string"},
+            "stable_target": {"type": "string", "pattern": "^[A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}$"},
+            "before_target_revision": {"$ref": "#/$defs/revision-id"},
+            "after_target_revision": {"$ref": "#/$defs/revision-id"}
+          }
+        }
+      ]
+    },
+    "baseline-membership-change": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["record_version", "kind", "subject_revision", "before_revision", "after_revision", "removed_members", "added_members"],
+          "properties": {
+            "record_version": {"const": "dependency-change@1"},
+            "kind": {"const": "baseline-membership-change"},
+            "subject_revision": {"type": "string"},
+            "before_revision": {"type": "string"},
+            "after_revision": {"type": "string"},
+            "removed_members": {"type": "array", "items": {"$ref": "#/$defs/revision-id"}, "uniqueItems": true},
+            "added_members": {"type": "array", "items": {"$ref": "#/$defs/revision-id"}, "uniqueItems": true}
+          }
+        }
+      ]
+    },
+    "baseline-composition-change": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["record_version", "kind", "subject_revision", "before_revision", "after_revision", "removed_components", "added_components"],
+          "properties": {
+            "record_version": {"const": "dependency-change@1"},
+            "kind": {"const": "baseline-composition-change"},
+            "subject_revision": {"type": "string"},
+            "before_revision": {"type": "string"},
+            "after_revision": {"type": "string"},
+            "removed_components": {"type": "array", "items": {"$ref": "#/$defs/revision-id"}, "uniqueItems": true},
+            "added_components": {"type": "array", "items": {"$ref": "#/$defs/revision-id"}, "uniqueItems": true}
+          }
+        }
+      ]
+    },
+    "evidence-target-change": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["record_version", "kind", "subject_revision", "before_revision", "after_revision", "removed_evidence", "added_evidence"],
+          "properties": {
+            "record_version": {"const": "dependency-change@1"},
+            "kind": {"const": "evidence-target-change"},
+            "subject_revision": {"type": "string"},
+            "before_revision": {"type": "string"},
+            "after_revision": {"type": "string"},
+            "removed_evidence": {"type": "array", "items": {"$ref": "#/$defs/revision-id"}, "uniqueItems": true},
+            "added_evidence": {"type": "array", "items": {"$ref": "#/$defs/revision-id"}, "uniqueItems": true}
+          }
+        }
+      ]
+    },
+    "review-context-change": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["record_version", "kind", "subject_revision", "before_revision", "after_revision", "before_context_revision", "after_context_revision"],
+          "properties": {
+            "record_version": {"const": "dependency-change@1"},
+            "kind": {"const": "review-context-change"},
+            "subject_revision": {"type": "string"},
+            "before_revision": {"type": "string"},
+            "after_revision": {"type": "string"},
+            "before_context_revision": {"$ref": "#/$defs/revision-id"},
+            "after_context_revision": {"$ref": "#/$defs/revision-id"}
+          }
+        }
+      ]
+    },
+    "process-provenance-change": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["record_version", "kind", "subject_revision", "before_revision", "after_revision", "before_process_ref", "after_process_ref", "before_manifest_hash", "after_manifest_hash", "removed_asset_refs", "added_asset_refs"],
+          "properties": {
+            "record_version": {"const": "dependency-change@1"},
+            "kind": {"const": "process-provenance-change"},
+            "subject_revision": {"type": "string"},
+            "before_revision": {"type": "string"},
+            "after_revision": {"type": "string"},
+            "before_process_ref": {"type": "string"},
+            "after_process_ref": {"type": "string"},
+            "before_manifest_hash": {"type": "string"},
+            "after_manifest_hash": {"type": "string"},
+            "removed_asset_refs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+            "added_asset_refs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+          }
+        }
+      ]
+    }
+  }
+}

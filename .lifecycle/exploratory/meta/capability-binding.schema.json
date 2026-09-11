@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mdlm.dev/meta/v3/capability-binding.schema.json",
+  "title": "MDLM Kernel Capability binding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type"
+  ],
+  "properties": {
+    "type": {
+      "type": "string",
+      "pattern": "^[A-Z]{3,8}$"
+    },
+    "requirement_type": {
+      "type": "string",
+      "pattern": "^[A-Z]{3,8}$"
+    },
+    "implementation_type": {
+      "type": "string",
+      "pattern": "^[A-Z]{3,8}$"
+    },
+    "scope_type": {
+      "type": "string",
+      "pattern": "^[A-Z]{3,8}$"
+    },
+    "decomposition_type": {
+      "type": "string",
+      "pattern": "^[A-Z]{3,8}$"
+    },
+    "change_type": {
+      "type": "string",
+      "pattern": "^[A-Z]{3,8}$"
+    },
+    "acceptance_type": {
+      "type": "string",
+      "pattern": "^[A-Z]{3,8}$"
+    },
+    "review_type": {
+      "type": "string",
+      "pattern": "^[A-Z]{3,8}$"
+    },
+    "result_type": {
+      "type": "string",
+      "pattern": "^[A-Z]{3,8}$"
+    }
+  }
+}

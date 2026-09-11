@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mdlm.dev/meta/v3/profile-definition.schema.json",
+  "title": "MDLM implementation profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "id", "version", "status", "description", "enabled", "disabled_capabilities", "success_criteria"],
+  "properties": {
+    "kind": {"const": "implementation-profile-definition"},
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+    "version": {"type": "integer", "minimum": 1},
+    "status": {"enum": ["experimental", "supported", "deprecated"]},
+    "description": {"type": "string", "minLength": 1},
+    "enabled": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["types", "phases", "obligation_statuses"],
+      "properties": {
+        "types": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{3,8}$"}, "uniqueItems": true},
+        "phases": {"type": "array", "items": {"type": "string", "pattern": "^phase-[0-9]+-[a-z0-9-]+$"}, "uniqueItems": true},
+        "obligation_statuses": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "disabled_capabilities": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "success_criteria": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+    "terminal_outcomes": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "profile_boundary": {"$ref": "#/$defs/terminalOutcome"},
+        "lifecycle_complete": {"$ref": "#/$defs/terminalOutcome"}
+      }
+    }
+  },
+  "$defs": {
+    "terminalOutcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["condition", "explanation"],
+      "properties": {
+        "condition": {"$ref": "expression.schema.json"},
+        "explanation": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

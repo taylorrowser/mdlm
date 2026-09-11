@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mdlm.dev/meta/v3/type-definition.schema.json",
+  "title": "MDLM lifecycle type definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "id", "version", "name", "description", "extends", "lifecycle", "payload_schema", "outgoing_links", "kernel_managed_payload_paths"],
+  "properties": {
+    "kind": {"const": "type-definition"},
+    "id": {"type": "string", "pattern": "^[A-Z]{3,8}$"},
+    "version": {"type": "integer", "minimum": 1},
+    "name": {"type": "string", "minLength": 1},
+    "description": {"type": "string", "minLength": 1},
+    "extends": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"},
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authorship", "freeze_when"],
+      "properties": {
+        "authorship": {"enum": ["authored", "generated", "mixed"]},
+        "freeze_when": {"enum": ["baseline-frozen", "terminal-outcome", "explicit"]},
+        "terminal_payload_field": {"type": "string", "minLength": 1},
+        "terminal_values": {"type": "array", "items": {"type": ["string", "number", "boolean"]}, "uniqueItems": true}
+      }
+    },
+    "payload_schema": {
+      "type": "object",
+      "required": ["$schema", "type", "properties"],
+      "properties": {
+        "$schema": {"const": "https://json-schema.org/draft/2020-12/schema"},
+        "type": {"const": "object"},
+        "required": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "properties": {"type": "object"}
+      }
+    },
+    "outgoing_links": {"type": "array", "items": {"$ref": "link-contract.schema.json"}, "uniqueItems": true},
+    "payload_collections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)*$"
+          },
+          "key": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)*$"
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)*$"
+                },
+                "target": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)*$"
+                },
+                "key": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)*$"
+                },
+                "link": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "coverage_where": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "field",
+                  "equals"
+                ],
+                "properties": {
+                  "field": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)*$"
+                  },
+                  "equals": {
+                    "type": "string"
+                  }
+                }
+              },
+              "covered": {
+                  "type": "boolean"
+                },
+                "acyclic": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "field",
+                "target",
+                "key"
+              ]
+            }
+          }
+        },
+        "required": [
+          "path"
+        ]
+      }
+    },
+    "payload_views": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)*$"
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "fragments": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "field": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)*$"
+                      },
+                      "prefix": {
+                        "type": "string"
+                      },
+                      "suffix": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "field"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "title",
+                "fragments"
+              ]
+            }
+          }
+        },
+        "required": [
+          "title",
+          "path",
+          "columns"
+        ]
+      }
+    },
+    "kernel_managed_payload_paths": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]*$"}, "uniqueItems": true}
+  }
+}

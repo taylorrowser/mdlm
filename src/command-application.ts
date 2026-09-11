@@ -253,7 +253,7 @@ const proposalSubmissionLockRef = "refs/mdlm/assignment-proposal-submit-lock";
 const help = `Usage: mdlm <command> [--json]
 
 Agent-guided lifecycle commands:
-  mdlm init <destination>
+  mdlm init <destination> [--process exploratory]
   mdlm start [--json]
   mdlm next [--json]
   mdlm assignment response [--json]
@@ -2149,21 +2149,25 @@ async function dispatchCommand(
     return { ok: true, command: "help", help, diagnostics: [] };
   }
   if (operands[0] === "init") {
-    if (arguments_.includes("--process")) {
+    const selectedProcess = optionValue(arguments_, "--process");
+    if (arguments_.includes("--process") && selectedProcess !== "exploratory") {
       return failure(
         "init-custom-process-unsupported",
-        "mdlm init uses the bundled Example Process Package and does not accept '--process'",
+        "The only named alternative is '--process exploratory'; custom Process Package paths are unsupported",
       );
     }
     const initArguments = arguments_.filter((argument) => argument !== "--json");
-    if (initArguments.length !== 2 || initArguments[1]?.startsWith("--")) {
+    const expected = selectedProcess === "exploratory" ? 4 : 2;
+    if (initArguments.length !== expected || initArguments[1]?.startsWith("--") ||
+      (expected === 4 && (initArguments[2] !== "--process" || initArguments[3] !== "exploratory"))) {
       return failure(
         "init-destination-required",
-        "Expected 'mdlm init <destination>'",
+        "Expected 'mdlm init <destination> [--process exploratory]'",
       );
     }
     const initialized = await initializeBundledRepository(
       path.resolve(repositoryRoot, initArguments[1]!),
+      selectedProcess === "exploratory" ? "exploratory" : "tiny",
     );
     return { ...initialized, command: "init" };
   }

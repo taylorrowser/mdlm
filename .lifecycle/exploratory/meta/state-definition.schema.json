@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mdlm.dev/meta/v3/state-definition.schema.json",
+  "title": "MDLM computed-state definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "id", "version", "description", "subject_as", "cardinality", "values", "rules"],
+  "properties": {
+    "kind": {"const": "state-definition"},
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+    "version": {"type": "integer", "minimum": 1},
+    "description": {"type": "string", "minLength": 1},
+    "subject_as": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+    "cardinality": {"enum": ["exactly-one", "zero-or-more"]},
+    "default": {"type": ["string", "null"]},
+    "values": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"}, "minItems": 1, "uniqueItems": true},
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["value", "priority", "when", "explanation"],
+        "properties": {
+          "value": {"type": "string"},
+          "priority": {"type": "integer"},
+          "when": {"$ref": "expression.schema.json"},
+          "explanation": {"type": "string", "minLength": 1},
+          "explanation_evidence": {"$ref": "expression.schema.json"}
+        }
+      }
+    }
+  }
+}

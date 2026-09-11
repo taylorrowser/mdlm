@@ -1,0 +1,34 @@
+kind: implementation-profile-definition
+id: exploratory
+version: 1
+status: experimental
+description: One experiment with evidence-driven revision and a provisional recommendation.
+enabled:
+  types:
+    - EXP
+    - TRY
+    - OBS
+  phases:
+    - phase-0-exploration
+  obligation_statuses:
+    - ready
+    - blocked
+disabled_capabilities:
+  - product acceptance and requirements baselines
+  - promotion and partial baselines
+  - continuing after a keep/drop/nominate checkpoint
+  - long-running services or TTY-dependent verification
+terminal_outcomes:
+  profile_boundary:
+    condition: 'exists("current-experiments@1", {}) &&
+      every("current-experiments@1", {}, exp => exists("observations-against@1",
+      {experiment: exp}) && every("observations-against@1", {experiment: exp},
+      obs => obs.payload.recommendation != "revise"))'
+    explanation: Exploratory observation recorded. Keep, drop and nomination are
+      provisional recommendations, not product acceptance or a requirements
+      baseline.
+success_criteria:
+  - The exact prototype and observations support a provisional next-step
+    recommendation.
+  - Revision preserves the original brief, source identity and observation
+    history.

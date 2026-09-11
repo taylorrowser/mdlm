@@ -1,0 +1,21 @@
+kind: obligation-definition
+id: observation-required
+version: 1
+description: observation-required
+phases:
+  - phase-0-exploration
+for_each: select("current-trials@1", {})
+subject_as: subject
+satisfied_when: 'exists("observations-for@1", {trial: subject})'
+status_rules:
+  - status: ready
+    priority: 100
+    when: "true"
+    reason: observation-required
+default_status: blocked
+resolve_with:
+  scenario: observe-prototype@1
+  inputs:
+    trial: subject
+    experiment: 'one("experiment-for@1", {trial: subject})'
+waiver_policy_ref: waiver-applicability@1

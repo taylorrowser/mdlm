@@ -355,6 +355,10 @@ export function initializeRepositoryFromProcessPackage(
 /** Initialize one destination with MDLM's bundled Example Process Package. */
 export function initializeBundledRepository(
   destination: string,
+  process: "tiny" | "exploratory" = "tiny",
 ): Promise<RepositoryInitialization> {
-  return initializeRepositoryFromProcessPackage(destination, bundledProcessPackage);
+  const packageRoot = process === "exploratory"
+    ? fileURLToPath(new URL("../.lifecycle/exploratory/", import.meta.url))
+    : bundledProcessPackage;
+  return initializeRepositoryFromProcessPackage(destination, packageRoot);
 }

@@ -1,0 +1,45 @@
+kind: process-package-manifest
+id: mdlm-exploratory
+version: 0.1.0
+status: experimental
+description: Bounded prototype experiments with provisional criteria and exact
+  execution evidence.
+kernel_contract:
+  id: mdlm-kernel-process-interface
+  version: 1
+  primitive_catalog_ref: primitives/kernel-v1.yaml@1
+  envelope_schema_id: https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json
+  envelope_schema_copy: meta/datum-envelope.schema.json
+  package_may_override: false
+artifact_format:
+  media_type: text/markdown
+  metadata: yaml-frontmatter
+  merged_body_field: body
+  payload_field: payload
+  encoding: utf-8
+references:
+  process_asset: <path>@<positive-integer-version>
+  definition: <stable-definition-id>@<positive-integer-version>
+  datum_stable: <TYPE>-<Crockford-Base32-ID>
+  datum_revision: <stable-id>-r<five-digit-revision>
+  obligation_instance: <obligation>@<version>:<exact-subject>:<process-ref>
+language:
+  expressions: mdlm-expression@1
+kernel_capabilities:
+  docker-verification@1:
+    type: OBS
+compatibility:
+  minimum_kernel: 0.2.0
+  meta_schema_version: 3
+  json_schema_draft: 2020-12
+  unknown_definition_fields: reject
+  arbitrary_code_execution: forbidden
+  template_inheritance: single-parent-additive
+  repository_migration: fresh-only
+profiles:
+  default: exploratory@1
+  available:
+    - profiles/exploratory.yaml@1
+provenance:
+  intent: exploratory-prototype-learning
+  normative_scope: this-package-only

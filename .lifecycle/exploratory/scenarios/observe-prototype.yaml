@@ -1,0 +1,45 @@
+kind: scenario-definition
+id: observe-prototype
+version: 1
+description: observe-prototype
+phases:
+  - phase-0-exploration
+inputs:
+  - name: trial
+    types:
+      - TRY
+    cardinality: one
+    identity: revision
+  - name: experiment
+    types:
+      - EXP
+    cardinality: one
+    identity: revision
+outputs:
+  - name: observation
+    types:
+      - OBS
+    cardinality: one
+    required_links:
+      - link: observes
+        target:
+          input: trial
+      - link: against
+        target:
+          input: experiment
+    required_payload:
+      publication: recorded
+prompt_ref: prompts/observe-prototype.md@1
+review_policy_ref: review-applicability@1
+completion: execution.integrity.contract_valid == true &&
+  (observation.payload.outcome == "pass" || observation.payload.recommendation
+  == "revise" || observation.payload.recommendation == "drop")
+resolves:
+  - observation-required
+prohibited_inputs: []
+batching: single
+kernel_execution:
+  kind: docker-verification@1
+  implementation_input: trial
+  requirements_input: experiment
+  output: observation

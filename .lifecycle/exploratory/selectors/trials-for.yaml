@@ -1,0 +1,22 @@
+kind: selector-definition
+id: trials-for
+version: 1
+description: trials-for
+parameters:
+  - name: experiment
+    kind: revision
+    types:
+      - EXP
+result_kind: revision
+query:
+  from:
+    relation: incoming-links
+    of: experiment
+    link: explores
+    emit: source
+    types:
+      - TRY
+  as: item
+  distinct: true
+  order_by:
+    - identity.revision_id

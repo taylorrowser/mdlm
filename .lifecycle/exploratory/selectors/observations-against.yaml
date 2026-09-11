@@ -1,0 +1,22 @@
+kind: selector-definition
+id: observations-against
+version: 1
+description: observations-against
+parameters:
+  - name: experiment
+    kind: revision
+    types:
+      - EXP
+result_kind: revision
+query:
+  from:
+    relation: incoming-links
+    of: experiment
+    link: against
+    emit: source
+    types:
+      - OBS
+  as: item
+  distinct: true
+  order_by:
+    - identity.revision_id
