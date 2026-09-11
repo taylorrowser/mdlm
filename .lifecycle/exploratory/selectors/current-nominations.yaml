@@ -1,0 +1,19 @@
+kind: selector-definition
+id: current-nominations
+version: 1
+description: current-nominations
+parameters: []
+result_kind: revision
+query:
+  from:
+    collection: revisions
+    types:
+      - OBS
+  as: item
+  where: 'item.payload.recommendation == "nominate" &&
+    every("trial-for-observation@1", {observation: item}, trial =>
+    none("newer-revisions@1", {subject: trial}) && every("experiment-for@1",
+    {trial: trial}, exp => none("newer-revisions@1", {subject: exp})))'
+  distinct: true
+  order_by:
+    - identity.revision_id

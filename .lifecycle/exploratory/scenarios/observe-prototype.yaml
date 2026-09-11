@@ -1,6 +1,6 @@
 kind: scenario-definition
 id: observe-prototype
-version: 1
+version: 2
 description: observe-prototype
 phases:
   - phase-0-exploration
@@ -29,7 +29,7 @@ outputs:
           input: experiment
     required_payload:
       publication: recorded
-prompt_ref: prompts/observe-prototype.md@1
+prompt_ref: prompts/observe-prototype.md@2
 review_policy_ref: review-applicability@1
 completion: execution.integrity.contract_valid == true &&
   (observation.payload.outcome == "pass" || observation.payload.recommendation

@@ -4,7 +4,7 @@ version: 1
 description: observation-required
 phases:
   - phase-0-exploration
-for_each: select("current-trials@1", {})
+for_each: select("current-trials@2", {})
 subject_as: subject
 satisfied_when: 'exists("observations-for@1", {trial: subject})'
 status_rules:
@@ -14,7 +14,7 @@ status_rules:
     reason: observation-required
 default_status: blocked
 resolve_with:
-  scenario: observe-prototype@1
+  scenario: observe-prototype@2
   inputs:
     trial: subject
     experiment: 'one("experiment-for@1", {trial: subject})'

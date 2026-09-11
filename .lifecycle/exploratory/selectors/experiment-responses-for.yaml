@@ -1,23 +1,22 @@
 kind: selector-definition
-id: trials-for
-version: 2
-description: trials-for
+id: experiment-responses-for
+version: 1
+description: experiment-responses-for
 parameters:
-  - name: experiment
+  - name: feedback
     kind: revision
     types:
-      - EXP
+      - FDB
 result_kind: revision
 query:
   from:
     relation: incoming-links
-    of: experiment
-    link: explores
+    of: feedback
+    link: responds-to
     emit: source
     types:
-      - TRY
+      - EXP
   as: item
   distinct: true
   order_by:
     - identity.revision_id
-  where: 'none("newer-revisions@1", {subject: item})'

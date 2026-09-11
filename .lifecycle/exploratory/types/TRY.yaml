@@ -1,6 +1,6 @@
 kind: type-definition
 id: TRY
-version: 1
+version: 2
 name: Prototype trial
 description: Prototype trial
 extends: titled-datum@1
@@ -57,4 +57,16 @@ outgoing_links:
       maximum: 1
     freeze_resolution: already-exact
     inverse_label: incoming-explores
+  - id: responds-to
+    description: responds-to
+    targets:
+      - kind: datum
+        types:
+          - FDB
+        identity: revision
+    cardinality:
+      minimum: 0
+      maximum: 1
+    freeze_resolution: already-exact
+    inverse_label: incoming-responds-to
 kernel_managed_payload_paths: []

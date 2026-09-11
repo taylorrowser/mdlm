@@ -51,6 +51,13 @@ Check: the liveness proof lists Obligations bound to a Phase that are not
 referenced by that Phase's readiness or gate expressions. Unreferenced
 Obligations are `inconclusive` unless declared non-gating.
 
+Issue #788 applies this rule to exploratory nominations: nomination requests
+attended stakeholder feedback rather than satisfying the terminal condition.
+Explicit stop feedback closes the experiment; continuation requires a linked
+brief or prototype revision and new evidence. The installed public journey checks
+that repeated `next` while waiting preserves the exact attention request and that
+submission without stakeholder authority cannot publish feedback.
+
 ## 3. The packet and the schema come from one declaration
 
 Issues: #493, #508, #509, #540, #547, #616, #622, #637, #642, #644, #650,

@@ -1,39 +1,45 @@
 kind: scenario-definition
-id: revise-experiment
-version: 2
-description: revise-experiment
+id: revise-prototype
+version: 1
+description: revise-prototype
 phases:
   - phase-0-exploration
 inputs:
   - name: subject
     types:
-      - EXP
+      - TRY
     cardinality: one
     identity: revision
-  - name: observation
-    types:
-      - OBS
-      - FDB
-    cardinality: one
-    identity: revision
-outputs:
   - name: experiment
     types:
       - EXP
     cardinality: one
+    identity: revision
+  - name: feedback
+    types:
+      - FDB
+    cardinality: one
+    identity: revision
+outputs:
+  - name: trial
+    types:
+      - TRY
+    cardinality: one
     required_links:
+      - link: explores
+        target:
+          input: experiment
       - link: responds-to
         target:
-          input: observation
+          input: feedback
     required_payload:
       publication: recorded
     identity_from:
       input: subject
-prompt_ref: prompts/revise-experiment.md@2
+prompt_ref: prompts/revise-prototype.md@1
 review_policy_ref: review-applicability@1
 completion: execution.integrity.contract_valid == true
 resolves:
-  - experiment-revision-required
-  - criteria-feedback-required
+  - prototype-feedback-required
 prohibited_inputs: []
 batching: single

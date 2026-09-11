@@ -1,6 +1,6 @@
 kind: phase-definition
 id: phase-0-exploration
-version: 1
+version: 2
 order: 0
 name: Prototype exploration
 purpose: Learn through a bounded runnable prototype without baselining its
@@ -14,6 +14,7 @@ outputs:
   - EXP
   - TRY
   - OBS
+  - FDB
 gate:
   required: false
   candidate_selector: "[]"
@@ -23,5 +24,12 @@ gate:
 progression: null
 routing:
   eligible_when: dispatchable
-  status_order: [ready, awaiting-review, failed, stale, blocked]
-  tie_breakers: [subject, obligation]
+  status_order:
+    - ready
+    - awaiting-review
+    - failed
+    - stale
+    - blocked
+  tie_breakers:
+    - subject
+    - obligation

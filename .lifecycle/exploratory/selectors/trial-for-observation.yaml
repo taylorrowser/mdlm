@@ -1,0 +1,22 @@
+kind: selector-definition
+id: trial-for-observation
+version: 1
+description: trial-for-observation
+parameters:
+  - name: observation
+    kind: revision
+    types:
+      - OBS
+result_kind: revision
+query:
+  from:
+    relation: outgoing-links
+    of: observation
+    link: observes
+    emit: target
+    types:
+      - TRY
+  as: item
+  distinct: true
+  order_by:
+    - identity.revision_id

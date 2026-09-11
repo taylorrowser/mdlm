@@ -1,25 +1,19 @@
 kind: scenario-definition
-id: revise-experiment
-version: 2
-description: revise-experiment
+id: record-feedback
+version: 1
+description: record-feedback
 phases:
   - phase-0-exploration
 inputs:
-  - name: subject
-    types:
-      - EXP
-    cardinality: one
-    identity: revision
   - name: observation
     types:
       - OBS
-      - FDB
     cardinality: one
     identity: revision
 outputs:
-  - name: experiment
+  - name: feedback
     types:
-      - EXP
+      - FDB
     cardinality: one
     required_links:
       - link: responds-to
@@ -27,13 +21,17 @@ outputs:
           input: observation
     required_payload:
       publication: recorded
-    identity_from:
-      input: subject
-prompt_ref: prompts/revise-experiment.md@2
+prompt_ref: prompts/record-feedback.md@1
 review_policy_ref: review-applicability@1
 completion: execution.integrity.contract_valid == true
 resolves:
-  - experiment-revision-required
-  - criteria-feedback-required
+  - stakeholder-feedback-required
 prohibited_inputs: []
 batching: single
+participation:
+  policy_ref: stakeholder-feedback@1
+  arguments:
+    subject: observation
+authority_evidence:
+  output: feedback
+  type: FDB

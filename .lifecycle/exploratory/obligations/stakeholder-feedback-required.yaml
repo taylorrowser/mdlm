@@ -1,0 +1,20 @@
+kind: obligation-definition
+id: stakeholder-feedback-required
+version: 1
+description: stakeholder-feedback-required
+phases:
+  - phase-0-exploration
+for_each: select("current-nominations@1", {})
+subject_as: subject
+satisfied_when: 'exists("feedback-for@1", {observation: subject})'
+status_rules:
+  - status: ready
+    priority: 100
+    when: "true"
+    reason: stakeholder-feedback-required
+default_status: blocked
+resolve_with:
+  scenario: record-feedback@1
+  inputs:
+    observation: subject
+waiver_policy_ref: waiver-applicability@1

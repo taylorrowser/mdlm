@@ -1,9 +1,9 @@
 kind: process-package-manifest
 id: mdlm-exploratory
-version: 0.1.1
+version: 0.2.0
 status: experimental
-description: Bounded prototype experiments with provisional criteria and exact
-  execution evidence.
+description: Prototype experiments with exact observations and stakeholder
+  feedback continuation.
 kernel_contract:
   id: mdlm-kernel-process-interface
   version: 1
@@ -37,9 +37,9 @@ compatibility:
   template_inheritance: single-parent-additive
   repository_migration: fresh-only
 profiles:
-  default: exploratory@1
+  default: exploratory@2
   available:
-    - profiles/exploratory.yaml@1
+    - profiles/exploratory.yaml@2
 provenance:
   intent: exploratory-prototype-learning
   normative_scope: this-package-only
