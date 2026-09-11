@@ -50,7 +50,7 @@ it("revises an unmarked prototype experiment without rebinding its earlier evide
     expect(cli(["init", unknown, "--process", "invented", "--json"], undefined, 1, root).ok).toBe(false);
     await expect(fs.stat(unknown)).rejects.toMatchObject({ code: "ENOENT" });
     const initialized = cli(["init", lifecycle, "--process", "exploratory", "--json"], undefined, 0, root);
-    expect(initialized.package.reference).toBe("mdlm-exploratory@0.1.0");
+    expect(initialized.package.reference).toBe("mdlm-exploratory@0.1.1");
     await fs.mkdir(source);
     git(["init", "--quiet"]);
     git(["config", "user.name", "MDLM exploratory fixture"]);
