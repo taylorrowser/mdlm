@@ -83,6 +83,9 @@ Default initialization still selects tiny. The exploratory package uses the same
   bounded verification script. Prototype code needs no requirement markers.
 - **OBS, observation:** a CLI-captured Docker outcome and receipt, with an authored
   assessment, observation origin, limitations and next-step recommendation.
+- **FDB, stakeholder feedback:** the stakeholder's actual direction about one exact
+  nomination, with its source and a choice to revise criteria, revise the prototype
+  or stop.
 
 Choose `revise` to receive a new revision of the same experiment brief and try
 another prototype. Previous briefs, trials and observations retain their exact
@@ -90,11 +93,30 @@ links. A successful script is evidence about that script and committed source;
 record actual user observations separately from scripted or agent-observed use.
 The time allowance guides scope decisions; MDLM does not enforce a timer.
 
-`keep`, `drop` and `nominate` finish at an exploratory Profile Boundary. Nomination
-only proposes wording for a later requirement. It does not establish product
-acceptance or a baseline. Failed/error executions permit `revise` or `drop`.
-Promotion, partial baselines, complete code traceability and continuing after a
-terminal recommendation are deferred. Existing tiny lifecycles stay unchanged.
+`nominate` proposes wording for a later requirement and requests attended
+stakeholder feedback through `mdlm next`. Wait for actual input; the agent must not
+invent authority or treat the nomination as approval. Submit the feedback packet
+with `--authority stakeholder` only after receiving the stakeholder's direction.
+
+Feedback offers three actions:
+
+- `revise-criteria`: revise the EXP brief, preserving its stable identity, then
+  prepare a new prototype. The brief can retain its criterion while changing a
+  provisional approach; say which part changed.
+- `revise-prototype`: create another TRY revision under the same exact EXP.
+  The next trial links to the feedback and requires a fresh execution and OBS.
+- `stop`: end at an exploratory Profile Boundary without accepting the product
+  or baselining requirements.
+
+The existing autonomous `revise` recommendation remains available. Agent `keep`
+and `drop` recommendations also remain explicit exploratory boundaries. Failed or
+errored executions permit `revise` or `drop`. Prior observations and receipts keep
+their original bindings. Historical feedback used in a rehearsal must be labeled
+as historical rather than new user experience.
+
+Promotion, partial baselines, complete code traceability and resuming after an
+explicit stop are deferred. Existing tiny and older exploratory lifecycles stay
+on their original packages; use a fresh repository for this package version.
 
 ## Clean transaction example
 

@@ -1,21 +1,21 @@
 kind: selector-definition
-id: observations-against
+id: feedback-for
 version: 1
-description: observations-against
+description: feedback-for
 parameters:
-  - name: experiment
+  - name: observation
     kind: revision
     types:
-      - EXP
+      - OBS
 result_kind: revision
 query:
   from:
     relation: incoming-links
-    of: experiment
-    link: against
+    of: observation
+    link: responds-to
     emit: source
     types:
-      - OBS
+      - FDB
   as: item
   distinct: true
   order_by:

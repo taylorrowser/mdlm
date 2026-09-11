@@ -14,7 +14,7 @@ status_rules:
     reason: experiment-revision-required
 default_status: blocked
 resolve_with:
-  scenario: revise-experiment@1
+  scenario: revise-experiment@2
   inputs:
     subject: subject
     observation: 'one("revision-observations@1", {experiment: subject})'

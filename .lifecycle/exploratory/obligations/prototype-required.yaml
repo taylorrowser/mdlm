@@ -6,7 +6,7 @@ phases:
   - phase-0-exploration
 for_each: select("current-experiments@1", {})
 subject_as: subject
-satisfied_when: 'exists("trials-for@1", {experiment: subject})'
+satisfied_when: 'exists("trials-for@2", {experiment: subject})'
 status_rules:
   - status: ready
     priority: 100

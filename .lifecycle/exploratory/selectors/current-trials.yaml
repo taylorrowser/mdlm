@@ -1,6 +1,6 @@
 kind: selector-definition
 id: current-trials
-version: 1
+version: 2
 description: current-trials
 parameters: []
 result_kind: revision
@@ -10,8 +10,8 @@ query:
     types:
       - TRY
   as: item
-  where: 'every("experiment-for@1", {trial: item}, exp =>
-    none("newer-revisions@1", {subject: exp}))'
+  where: 'none("newer-revisions@1", {subject: item}) && every("experiment-for@1",
+    {trial: item}, exp => none("newer-revisions@1", {subject: exp}))'
   distinct: true
   order_by:
     - identity.revision_id

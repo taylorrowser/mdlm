@@ -1,0 +1,22 @@
+kind: obligation-definition
+id: criteria-feedback-required
+version: 1
+description: criteria-feedback-required
+phases:
+  - phase-0-exploration
+for_each: select("criteria-feedback@1", {})
+subject_as: subject
+satisfied_when: 'exists("experiment-responses-for@1", {feedback: subject})'
+status_rules:
+  - status: ready
+    priority: 100
+    when: "true"
+    reason: criteria-feedback-required
+default_status: blocked
+resolve_with:
+  scenario: revise-experiment@2
+  inputs:
+    subject: 'one("experiment-for-observation@1", {observation:
+      one("observation-for-feedback@1", {feedback: subject})})'
+    observation: subject
+waiver_policy_ref: waiver-applicability@1
