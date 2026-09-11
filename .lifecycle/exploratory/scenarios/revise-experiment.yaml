@@ -1,0 +1,37 @@
+kind: scenario-definition
+id: revise-experiment
+version: 1
+description: revise-experiment
+phases:
+  - phase-0-exploration
+inputs:
+  - name: subject
+    types:
+      - EXP
+    cardinality: one
+    identity: revision
+  - name: observation
+    types:
+      - OBS
+    cardinality: one
+    identity: revision
+outputs:
+  - name: experiment
+    types:
+      - EXP
+    cardinality: one
+    required_links:
+      - link: responds-to
+        target:
+          input: observation
+    required_payload:
+      publication: recorded
+    identity_from:
+      input: subject
+prompt_ref: prompts/revise-experiment.md@1
+review_policy_ref: review-applicability@1
+completion: execution.integrity.contract_valid == true
+resolves:
+  - experiment-revision-required
+prohibited_inputs: []
+batching: single

@@ -1,0 +1,79 @@
+kind: type-definition
+id: OBS
+version: 1
+name: Prototype observation
+description: Prototype observation
+extends: titled-datum@1
+lifecycle:
+  authorship: authored
+  freeze_when: terminal-outcome
+  terminal_payload_field: publication
+  terminal_values:
+    - recorded
+payload_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  required:
+    - publication
+    - outcome
+    - receipt
+    - assessment
+    - observation_origin
+    - interaction_observation
+    - limitations
+    - recommendation
+    - next_action
+  properties:
+    publication:
+      const: recorded
+    outcome:
+      enum:
+        - pass
+        - fail
+        - error
+    receipt: &a1
+      type: string
+      minLength: 1
+    assessment: *a1
+    observation_origin:
+      enum:
+        - scripted
+        - agent
+        - user
+    interaction_observation: *a1
+    limitations: *a1
+    recommendation:
+      enum:
+        - keep
+        - revise
+        - drop
+        - nominate
+    next_action: *a1
+outgoing_links:
+  - id: observes
+    description: observes
+    targets:
+      - kind: datum
+        types:
+          - TRY
+        identity: revision
+    cardinality:
+      minimum: 1
+      maximum: 1
+    freeze_resolution: already-exact
+    inverse_label: incoming-observes
+  - id: against
+    description: against
+    targets:
+      - kind: datum
+        types:
+          - EXP
+        identity: revision
+    cardinality:
+      minimum: 1
+      maximum: 1
+    freeze_resolution: already-exact
+    inverse_label: incoming-against
+kernel_managed_payload_paths:
+  - outcome
+  - receipt

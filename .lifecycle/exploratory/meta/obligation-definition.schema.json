@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mdlm.dev/meta/v3/obligation-definition.schema.json",
+  "title": "MDLM obligation definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "id", "version", "description", "phases", "for_each", "subject_as", "satisfied_when", "status_rules", "default_status", "resolve_with", "waiver_policy_ref"],
+  "properties": {
+    "kind": {"const": "obligation-definition"},
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+    "version": {"type": "integer", "minimum": 1},
+    "description": {"type": "string", "minLength": 1},
+    "phases": {"type": "array", "items": {"type": "string", "pattern": "^phase-[0-9]+-[a-z0-9-]+$"}, "minItems": 1, "uniqueItems": true},
+    "for_each": {"$ref": "expression.schema.json"},
+    "subject_as": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+    "satisfied_when": {"$ref": "expression.schema.json"},
+    "status_rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status", "priority", "when", "reason"],
+        "properties": {
+          "status": {"enum": ["ready", "blocked", "awaiting-review", "stale", "failed"]},
+          "priority": {"type": "integer"},
+          "when": {"$ref": "expression.schema.json"},
+          "reason": {"type": "string", "minLength": 1},
+          "blocked_by": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/blocker"},
+            "uniqueItems": true
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "default_status": {"enum": ["ready", "blocked", "awaiting-review", "stale", "failed"]},
+    "resolve_with": {"$ref": "#/$defs/resolver"},
+    "waiver_policy_ref": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"}
+  },
+  "$defs": {
+    "binding": {"$ref": "expression.schema.json"},
+    "blocker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["obligation", "subjects"],
+      "properties": {
+        "obligation": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"},
+        "subjects": {"$ref": "expression.schema.json"}
+      }
+    },
+    "resolver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scenario", "inputs"],
+      "properties": {
+        "scenario": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"},
+        "dispatch": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["for_each", "as"],
+          "properties": {
+            "for_each": {"$ref": "expression.schema.json"},
+            "as": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}
+          }
+        },
+        "inputs": {"type": "object", "additionalProperties": {"$ref": "#/$defs/binding"}}
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+kind: selector-definition
+id: current-experiments
+version: 1
+description: current-experiments
+parameters: []
+result_kind: revision
+query:
+  from:
+    collection: revisions
+    types:
+      - EXP
+  as: item
+  where: 'none("newer-revisions@1", {subject: item})'
+  distinct: true
+  order_by:
+    - identity.revision_id

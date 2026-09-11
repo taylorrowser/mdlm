@@ -1,0 +1,18 @@
+kind: selector-definition
+id: newer-revisions
+version: 1
+description: newer-revisions
+parameters:
+  - name: subject
+    kind: revision
+result_kind: revision
+query:
+  from:
+    relation: revisions
+    of: subject
+    emit: entity
+  as: item
+  where: item.identity.revision > subject.identity.revision
+  distinct: true
+  order_by:
+    - identity.revision_id

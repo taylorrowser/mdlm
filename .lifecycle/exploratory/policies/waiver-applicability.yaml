@@ -1,0 +1,32 @@
+kind: policy-definition
+id: waiver-applicability
+version: 1
+description: waiver applicability
+parameters:
+- name: subject
+  kind: revision
+result_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  required:
+  - permitted
+  - approval_required
+  - applicable
+  - scope
+  properties:
+    permitted:
+      type: boolean
+    approval_required:
+      type: boolean
+    applicable:
+      type: boolean
+    scope:
+      type:
+      - string
+      - 'null'
+default:
+  permitted: false
+  approval_required: false
+  applicable: false
+  scope: null
+rules: []
