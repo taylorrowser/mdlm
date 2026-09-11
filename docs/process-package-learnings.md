@@ -219,3 +219,23 @@ relations; retain package field names and sentence fragments in its declarations
 Use the optional verification starter inside the CLI's existing container and
 compare raw bytes when required. Extend mechanics after a concrete operational
 miss, without replacing content judgment with wording or file-count heuristics.
+
+## 11. Installed packages retain required empty directories
+
+Issue: #785.
+
+Pattern: a package loads in its authoring worktree but fails after npm installation
+because Git and the archive omit empty definition directories.
+
+Rule: every directory traversed unconditionally by the package loader must contain
+a tracked file. For unused definition groups, a README explains their intentional
+absence; the loader ignores it because it reads only YAML definitions.
+
+Check: build the CLI, then run the existing journey against an npm installation:
+
+```bash
+MDLM_EXPLORATORY_INSTALLED=1 npx vitest run --config vitest.cutover.config.ts test/exploratory-process-journey.test.ts
+```
+
+It initializes from the installed package and completes the revision loop. A pack
+file listing alone does not establish that the installed package can load.
