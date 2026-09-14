@@ -6,9 +6,35 @@ This document turns the recurring defect classes into package rules and names
 the check that should catch each class before a demo does. Update it when a new
 class appears or when a check makes a class unreachable.
 
-Each rule below is a package authoring obligation. Each check is either a
-package-load diagnostic, a package-neutral test, or a kernel boundary. A rule
-without a check is a request for one.
+## Current applicability after the direct-work cutover
+
+The numbered entries below preserve historical patterns, issue references and
+checks. Their Scenario, Obligation, phase, Assignment, compiler and old test
+instructions describe the replaced runtime; they are not current authoring or
+verification instructions. Use [the direct-work contract](contracts/direct-work.md)
+and [MDLM development guidance](agents/mdlm-development.md) for current commands
+and checks. Do not restore removed machinery to satisfy a historical check.
+
+The useful lessons still apply to direct work:
+
+- Failure and rejection need an eligible correction action that preserves exact
+  lineage and evidence. Terminal conditions must respect outstanding decisions.
+- Guidance and publication must agree on authored fields, fixed values, exact
+  input links and local candidate references.
+- Review judgment must bind the exact context and registered verdict; an author
+  label or persuasive prose is insufficient authority evidence.
+- Execution receipts must come from the committed command and source. Authored
+  observations cannot replace captured output or status.
+- Prompts should share content expectations and make exact references clear.
+  Keep package declarations and checks only where current behavior needs them.
+- Generated package artifacts and installed-package loading still need the
+  current release checks. Historical test filenames below are not a run list.
+
+No removed compiler diagnostic or historical package test is claimed to protect
+these lessons in the direct kernel. Current public journeys and focused integrity
+checks supply the evidence for the implemented direct routes.
+
+## Historical patterns and checks
 
 ## 1. Every failable output needs a correction route
 
