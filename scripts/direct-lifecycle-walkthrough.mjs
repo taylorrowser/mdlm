@@ -260,10 +260,19 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
       try { return run(file, args, cwd, {expected: null}); } catch (error) { return {error: String(error)}; }
     };
     const gitState = Object.fromEntries([['lifecycle', lifecycle], ['source', source]].map(([name, cwd]) => [name, existsSync(cwd) ? {head: capture('git', ['rev-parse', 'HEAD'], cwd), tree: capture('git', ['rev-parse', 'HEAD^{tree}'], cwd), status: capture('git', ['status', '--porcelain'], cwd), refs: capture('git', ['for-each-ref', '--format=%(refname) %(objectname)'], cwd)} : null]));
+    const captureFailures = [];
+    for (const [name, state] of Object.entries(gitState)) {
+      if (!state) { captureFailures.push(`${name} repository is unavailable`); continue; }
+      for (const [command, record] of Object.entries(state)) {
+        if (record.status !== 0 || record.error || record.signal) captureFailures.push(`${name} ${command} capture failed`);
+      }
+      if (state.status.status === 0 && state.status.stdout.trim()) captureFailures.push(`${name} repository has uncommitted changes`);
+    }
     let lifecycleData;
-    if (existsSync(lifecycle)) { try { lifecycleData = [...new Set(revisions)].map(exact); } catch (error) { lifecycleData = {error: String(error)}; } }
+    if (existsSync(lifecycle)) { try { lifecycleData = [...new Set(revisions)].map(exact); } catch (error) { lifecycleData = {error: String(error)}; captureFailures.push(`Lifecycle data capture failed: ${error.message}`); } }
     save('lifecycle-data.json', lifecycleData ?? []);
-    const result = {ok: !caught, outcome: terminal?.outcome ?? 'failed', process: processName, corrections, root, lifecycle, source, evidenceFile, publications, revisions, receipts, sourceCommits, commands, terminal, gitState, scope: fixtureAuthority, error: caught ? {message: caught.message, stack: caught.stack} : undefined};
+    if (captureFailures.length && !caught) caught = new Error(`Final evidence is incomplete: ${captureFailures.join('; ')}`);
+    const result = {ok: !caught, outcome: caught ? 'failed' : terminal?.outcome ?? 'failed', process: processName, corrections, root, lifecycle, source, evidenceFile, publications, revisions, receipts, sourceCommits, commands, terminal, gitState, captureFailures, scope: fixtureAuthority, error: caught ? {message: caught.message, stack: caught.stack} : undefined};
     save('result.json', result);
     if (caught) { caught.message += `\nPreserved journey evidence: ${evidenceFile}`; throw caught; }
     return result;
