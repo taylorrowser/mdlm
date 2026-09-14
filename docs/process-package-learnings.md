@@ -34,6 +34,21 @@ No removed compiler diagnostic or historical package test is claimed to protect
 these lessons in the direct kernel. Current public journeys and focused integrity
 checks supply the evidence for the implemented direct routes.
 
+## Direct authoring guidance, #807
+
+The first live direct scoring author recognized and worked around obsolete
+requirement candidate instructions, then submitted `operationId` where the
+contract requires `operation`. These are current examples of classes 3 and 6:
+authoring guidance must agree with publication and explain exact copy rules.
+
+Keep one complete proposal-envelope example in the operator guide, copying the
+current guidance values. Package skills teach candidate fields and exact string
+references from `DirectProposal`; graph inspection instructions name the actual
+read commands instead of promising expanded context that guidance does not return.
+Check examples against the direct contract and requirement finalization when
+changing them. Use subsequent live authoring to judge whether agents can submit
+without manual format translation; prose assertions in tests do not establish it.
+
 ## Historical patterns and checks
 
 ## 1. Every failable output needs a correction route
