@@ -50,7 +50,7 @@ export class RunController {
         context: { instruction: "Choose the work most useful to the stakeholder goal. Priority is a suggestion. Return its action and exact subject if present.", discovery: available },
         responseSchema: { type: "object", oneOf: eligible.map(item => ({
           type: "object", additionalProperties: false,
-          properties: { action: { const: item.action }, ...(item.subject ? { subject: { const: item.subject } } : {}) },
+          properties: { action: { const: string(item.action, "action") }, ...(item.subject ? { subject: { const: item.subject } } : {}) },
           required: item.subject ? ["action", "subject"] : ["action"],
         })) },
       });
