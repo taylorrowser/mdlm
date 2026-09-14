@@ -3,13 +3,14 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify, isDeepStrictEqual } from "node:util";
 import { resolveType, type DatumEnvelope } from "./index.js";
-import type { DirectContext, DirectTransaction } from "./direct-contract.js";
+import type { DirectContext, DirectTransaction, SourceAssessmentTargets } from "./direct-contract.js";
 import { readImplementationSource, requirementTraceBinding, selectedRequirementGraph } from "./requirement-trace.js";
 import { assessRequirements, changeImpact } from "./change-assessment.js";
 import { compareImplementationScopes } from "./requirement-trace-inspection.js";
 import { readVerificationReceiptBlob, validateVerificationReceipt, verificationRef } from "./verification-receipt.js";
 import { repositoryGitEnvironment } from "./git-environment.js";
 import { resolvePrompt } from "./direct-prompt.js";
+import { authorablePayloadSchema, sourceAssessmentTargets } from "./direct-guidance.js";
 
 const exec = promisify(execFile);
 export interface DirectReviewContext {
@@ -21,6 +22,7 @@ export interface DirectReviewContext {
   inputs: DirectContext["inputs"];
   prompt: unknown;
   payloadSchemas: Record<string, unknown>;
+  sourceAssessmentTargets?: SourceAssessmentTargets | undefined;
   records: DatumEnvelope[];
   requirementGraphs: {selection: string; assessment: ReturnType<typeof assessRequirements>; groups: DatumEnvelope[]; requirements: (DatumEnvelope & {leaf: boolean})[]}[];
   sourceScopes: {implementation: string; scopes: DatumEnvelope[]; changes: unknown; comparison: unknown}[];
@@ -38,12 +40,12 @@ export async function buildDirectReviewContext(context: DirectContext): Promise<
   for (const type of context.action.types) {
     const resolved = resolveType(pkg, type);
     if (!resolved.ok) throw new Error(`Review output type '${type}' could not be resolved`);
-    payloadSchemas[type] = resolved.type.payloadSchema;
+    payloadSchemas[type] = authorablePayloadSchema(resolved.type);
   }
   const selectedIds = new Set([...Object.values(context.inputs).flat(), ...(context.subject ? [context.subject] : [])]);
   for (const id of selectedIds) if (!data.some(datum => datum.revision_id === id)) throw new Error(`Review input '${id}' is unavailable`);
   const selected = data.filter(datum => selectedIds.has(datum.revision_id));
-  const result: DirectReviewContext = {contract: "mdlm-direct-review-context@1", package: context.package, snapshot: context.snapshot, action: context.action, ...(context.subject ? {subject: context.subject} : {}), inputs: context.inputs, prompt: prompt.prompt, payloadSchemas, records: selected, requirementGraphs: [], sourceScopes: [], sources: [], verificationReceipts: []};
+  const result: DirectReviewContext = {contract: "mdlm-direct-review-context@1", package: context.package, snapshot: context.snapshot, action: context.action, ...(context.subject ? {subject: context.subject} : {}), inputs: context.inputs, prompt: prompt.prompt, payloadSchemas, sourceAssessmentTargets: sourceAssessmentTargets(context), records: selected, requirementGraphs: [], sourceScopes: [], sources: [], verificationReceipts: []};
   const trace = requirementTraceBinding(pkg);
   if (!trace) return result;
   const changes = selected.filter(datum => datum.type === trace.change_type);

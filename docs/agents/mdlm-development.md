@@ -105,6 +105,8 @@ The integration lane owns expensive checks:
 
 Feature and fix writers rely on focused checks instead of repeating the full suite. Integration failures create focused follow-up work. They do not erase valid operational evidence.
 
+Before reporting a redirected check as passing, inspect that check's exit status and log. A later successful command in the same shell does not establish that the check passed.
+
 For a focused current tiny or exploratory test, use an explicit file filter with
 `vitest.cutover.config.ts`, or the default Vitest config. Check the suite include
 list before invoking a grouped filter; `vitest.fast.config.ts` contains historical
