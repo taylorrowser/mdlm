@@ -51,6 +51,7 @@ export async function runDirectJourney({process: processName = 'tiny', executabl
     git(['-c', 'commit.gpgSign=false', 'commit', '--quiet', '--no-verify', '--allow-empty', '-m', message], cwd);
   }
   function data() { return cli(['list']).data.map(item => item.lifecycleDatum?.datum ?? item.datum ?? item); }
+  function exact(revision) { return cli(['show', revision]).lifecycleDatum.datum; }
   function guidance(action, subject) {
     const before = git(['status', '--porcelain']);
     const result = cli(['expectations', 'show', `${action}@1`, ...(subject ? [subject] : [])]);
@@ -157,7 +158,7 @@ export async function runDirectJourney({process: processName = 'tiny', executabl
     git(['init', '--quiet'], source);
     git(['config', 'user.name', 'Direct lifecycle fixture'], source);
     git(['config', 'user.email', 'fixture@localhost'], source);
-    cli(['init', lifecycle, '--process', processName], undefined, {cwd: root});
+    cli(['init', lifecycle, ...(processName === 'exploratory' ? ['--process', 'exploratory'] : [])], undefined, {cwd: root});
     git(['config', 'user.name', 'Direct lifecycle fixture']);
     git(['config', 'user.email', 'fixture@localhost']);
     if (processName === 'tiny') {
@@ -189,7 +190,7 @@ export async function runDirectJourney({process: processName = 'tiny', executabl
       const secondSource = sourceVersion(count.id);
       const nextImp = submit('rebind-product', nextSet.revision_id, [candidate('implementation', 'IMP', {...secondSource, file_roles: {'count.py': 'production', 'verify.py': 'verification'}, impact_dispositions: dispositions}, [link('implements', nextSet.revision_id)], imp.revision_id)]).find(d => d.type === 'IMP');
       finishProduct(nextSet, nextImp);
-      assert.deepEqual(data().find(d => d.revision_id === label.revision_id), label, 'Retirement preserves the historical requirement');
+      assert.deepEqual(exact(label.revision_id), label, 'Retirement preserves the historical requirement');
     } else {
       const experiment = submit('frame-experiment', undefined, [candidate('count-experiment', 'EXP', {criterion: 'Count command-line arguments.', question: 'Can a small program and executable evidence survive nomination and feedback revision?', approach: 'Use a Python counter and subprocess assertion.', constraints: 'CLI only; no persistence or user acceptance claim.', allowance_minutes: 10, scope_cut: 'One count operation.'})]).find(d => d.type === 'EXP');
       const prototype = submit('prepare-prototype', experiment.revision_id, [candidate('counter-prototype', 'TRY', sourceVersion(), [link('explores', experiment.revision_id)])]).find(d => d.type === 'TRY');
@@ -198,7 +199,7 @@ export async function runDirectJourney({process: processName = 'tiny', executabl
       const feedback = submit('record-feedback', nomination.revision_id, [candidate('fixture-feedback', 'FDB', {action: 'revise-prototype', feedback: 'Exercise a captured assertion failure in a revised trial, then stop this fixture.', source: fixtureAuthority}, [link('responds-to', nomination.revision_id)])]).find(d => d.type === 'FDB');
       const revised = submit('revise-prototype', feedback.revision_id, [candidate('counter-prototype', 'TRY', sourceVersion(undefined, undefined, true), [link('explores', experiment.revision_id), link('responds-to', feedback.revision_id)], prototype.revision_id)]).find(d => d.type === 'TRY');
       observe(revised, execute(revised, 'fail'), 'drop');
-      assert.deepEqual(data().find(d => d.revision_id === prototype.revision_id), prototype, 'Revision preserves the original prototype');
+      assert.deepEqual(exact(prototype.revision_id), prototype, 'Revision preserves the original prototype');
     }
     stage = 'closure';
     terminal = cli(['expectations']);
@@ -212,7 +213,7 @@ export async function runDirectJourney({process: processName = 'tiny', executabl
     };
     const gitState = Object.fromEntries([['lifecycle', lifecycle], ['source', source]].map(([name, cwd]) => [name, existsSync(cwd) ? {head: capture('git', ['rev-parse', 'HEAD'], cwd), tree: capture('git', ['rev-parse', 'HEAD^{tree}'], cwd), status: capture('git', ['status', '--porcelain'], cwd), refs: capture('git', ['for-each-ref', '--format=%(refname) %(objectname)'], cwd)} : null]));
     let lifecycleData;
-    if (existsSync(lifecycle)) { try { lifecycleData = data(); } catch (error) { lifecycleData = {error: String(error)}; } }
+    if (existsSync(lifecycle)) { try { lifecycleData = [...new Set(revisions)].map(exact); } catch (error) { lifecycleData = {error: String(error)}; } }
     save('lifecycle-data.json', lifecycleData ?? []);
     const result = {ok: !caught, outcome: terminal?.outcome ?? 'failed', process: processName, root, lifecycle, source, evidenceFile, publications, revisions, receipts, sourceCommits, commands, terminal, gitState, scope: fixtureAuthority, error: caught ? {message: caught.message, stack: caught.stack} : undefined};
     save('result.json', result);
