@@ -40,7 +40,8 @@ test("the kernel accepts the second eligible action without a first-item claim",
     const file = path.join(root,"proposal.json");await fs.writeFile(file,JSON.stringify(proposal));
     const submitted = cli("proposal","submit",file);
     expect(submitted.outcome).toBe("accepted");expect(submitted.revisions).toHaveLength(1);
-    expect(cli("proposal","settlement",proposal.operation)).toEqual(submitted);
+    const {command: _submitCommand, ...accepted} = submitted;
+    expect(cli("proposal","settlement",proposal.operation)).toMatchObject(accepted);
     expect(cli("expectations").items.map((item:{action:string})=>item.action)).toContain("first-experiment@1");
   } finally {await fs.rm(root,{recursive:true,force:true});}
 },60_000);

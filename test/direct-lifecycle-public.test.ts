@@ -6,8 +6,12 @@ import { expect, test } from "vitest";
 
 // A caller may pin the already installed executable. Qualification's installed
 // mode packages this exact tree and exercises its installation in a fresh root.
-for (const processName of ["tiny", "exploratory"] as const) {
-  test(`direct public ${processName} lifecycle preserves decisions, corrections and history`, async () => {
+for (const {processName, corrections} of [
+  {processName:"tiny",corrections:false},
+  {processName:"exploratory",corrections:false},
+  {processName:"tiny",corrections:true},
+] as const) {
+  test(`direct public ${processName}${corrections ? " correction" : ""} lifecycle preserves decisions, corrections and history`, async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), `mdlm-direct-${processName}-`));
     let executable = process.env.MDLM_DIRECT_EXECUTABLE ?? path.join(process.cwd(), "dist/mdlm.js");
     const command = (file: string, args: string[], cwd = root) => {
@@ -25,7 +29,7 @@ for (const processName of ["tiny", "exploratory"] as const) {
       executable = path.join(install,"node_modules/mdlm/dist/mdlm.js");
     }
     const journeyRoot = path.join(root,"journey");
-    const invocation = spawnSync(process.execPath,[path.join(process.cwd(),"scripts/direct-lifecycle-walkthrough.mjs"),"--process",processName,"--executable",executable,"--root",journeyRoot],{
+    const invocation = spawnSync(process.execPath,[path.join(process.cwd(),"scripts/direct-lifecycle-walkthrough.mjs"),"--process",processName,"--executable",executable,"--root",journeyRoot,...(corrections ? ["--corrections"] : [])],{
       cwd:root,encoding:"utf8",timeout:240_000,maxBuffer:30*1024*1024,env:process.env,
     });
     const mode = process.env.MDLM_DIRECT_EXECUTABLE ? "supplied-executable" : process.env.MDLM_DIRECT_INSTALLED === "1" ? "installed" : "source";
@@ -33,7 +37,7 @@ for (const processName of ["tiny", "exploratory"] as const) {
     // The driver writes the same durable result before returning or throwing.
     // Emit its location before assertions so failed operation stays discoverable.
     const captured = await fs.readFile(evidenceFile,"utf8").then(source=>JSON.parse(source)).catch(()=>undefined);
-    process.stdout.write(`DIRECT_JOURNEY_CONTEXT ${JSON.stringify({process:processName,mode,executable,status:invocation.status})}\n`);
+    process.stdout.write(`DIRECT_JOURNEY_CONTEXT ${JSON.stringify({process:processName,corrections,mode,executable,status:invocation.status})}\n`);
     if (captured) process.stdout.write(`DIRECT_JOURNEY_EVIDENCE ${captured.evidenceFile}\n`);
     else process.stdout.write(`DIRECT_JOURNEY_CAPTURE_MISSING ${evidenceFile}\n`);
     expect(invocation.error).toBeUndefined();
