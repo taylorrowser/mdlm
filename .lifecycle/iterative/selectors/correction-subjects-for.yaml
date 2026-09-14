@@ -1,0 +1,25 @@
+kind: selector-definition
+id: correction-subjects-for
+version: 2
+description: Exact subjects linked by immutable failing evidence.
+parameters:
+- name: failure
+  kind: revision
+  types:
+  - REV
+  - RES
+  - ACC
+result_kind: revision
+query:
+  from:
+    relation: outgoing-links
+    of: failure
+    emit: target
+    types:
+    - RQS
+    - IMP
+  as: item
+  where: state(item, "validity") == "valid"
+  distinct: true
+  order_by:
+  - identity.revision_id

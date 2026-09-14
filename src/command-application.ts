@@ -23,7 +23,7 @@ interface CommandResult {
 const help = `Usage: mdlm <command> [--json]
 
 Direct lifecycle work:
-  mdlm init <destination> [--process exploratory]
+  mdlm init <destination> [--process exploratory|iterative]
   mdlm expectations [show <action> [<exact-subject>]] [--json]
   mdlm proposal submit <proposal-file|-> [--authority <authority-id>] [--json]
   mdlm proposal settlement <operation-id> [--json]
@@ -697,24 +697,24 @@ async function dispatchCommand(
   }
   if (operands[0] === "init") {
     const selectedProcess = optionValue(arguments_, "--process");
-    if (arguments_.includes("--process") && selectedProcess !== "exploratory") {
+    if (arguments_.includes("--process") && selectedProcess !== "exploratory" && selectedProcess !== "iterative") {
       return failure(
         "init-custom-process-unsupported",
-        "The only named alternative is '--process exploratory'; custom Process Package paths are unsupported",
+        "Named alternatives are '--process exploratory' and '--process iterative'; custom Process Package paths are unsupported",
       );
     }
     const initArguments = arguments_.filter((argument) => argument !== "--json");
-    const expected = selectedProcess === "exploratory" ? 4 : 2;
+    const expected = selectedProcess ? 4 : 2;
     if (initArguments.length !== expected || initArguments[1]?.startsWith("--") ||
-      (expected === 4 && (initArguments[2] !== "--process" || initArguments[3] !== "exploratory"))) {
+      (expected === 4 && (initArguments[2] !== "--process" || initArguments[3] !== selectedProcess))) {
       return failure(
         "init-destination-required",
-        "Expected 'mdlm init <destination> [--process exploratory]'",
+        "Expected 'mdlm init <destination> [--process exploratory|iterative]'",
       );
     }
     const initialized = await initializeBundledRepository(
       path.resolve(repositoryRoot, initArguments[1]!),
-      selectedProcess === "exploratory" ? "exploratory" : "tiny",
+      selectedProcess === "exploratory" || selectedProcess === "iterative" ? selectedProcess : "tiny",
     );
     return { ...initialized, command: "init" };
   }

@@ -1,0 +1,84 @@
+kind: type-definition
+id: RQS
+version: 2
+description: Requirement set
+name: Requirement set
+extends: titled-datum@1
+lifecycle:
+  authorship: generated
+  freeze_when: terminal-outcome
+  terminal_payload_field: publication
+  terminal_values:
+  - recorded
+payload_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  required:
+  - publication
+  properties:
+    publication:
+      const: recorded
+outgoing_links:
+- id: contains
+  description: contains
+  targets:
+  - kind: datum
+    types:
+    - REQ
+    identity: revision
+  cardinality:
+    minimum: 1
+    maximum: many
+  freeze_resolution: already-exact
+  inverse_label: incoming-contains
+- id: corrects
+  description: corrects
+  targets:
+  - kind: datum
+    types:
+    - REV
+    - RES
+    identity: revision
+  cardinality:
+    minimum: 0
+    maximum: many
+  freeze_resolution: already-exact
+  inverse_label: incoming-corrects
+- id: changes-under
+  description: changes-under
+  targets:
+  - kind: datum
+    types:
+    - CHG
+    identity: revision
+  cardinality:
+    minimum: 0
+    maximum: 1
+  freeze_resolution: already-exact
+  inverse_label: incoming-changes-under
+- id: decomposition
+  description: decomposition
+  targets:
+  - kind: datum
+    types:
+    - DCP
+    identity: revision
+  cardinality:
+    minimum: 0
+    maximum: many
+  freeze_resolution: already-exact
+  inverse_label: incoming-decomposition
+- id: retires
+  description: Explicit removal from this selected requirement graph
+  targets:
+  - kind: datum
+    types:
+    - REQ
+    identity: revision
+  cardinality:
+    minimum: 0
+    maximum: many
+  freeze_resolution: already-exact
+  inverse_label: incoming-retires
+kernel_managed_payload_paths:
+- title

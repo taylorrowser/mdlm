@@ -1,0 +1,72 @@
+kind: type-definition
+id: TRY
+version: 2
+name: Prototype trial
+description: Prototype trial
+extends: titled-datum@1
+lifecycle:
+  authorship: authored
+  freeze_when: terminal-outcome
+  terminal_payload_field: publication
+  terminal_values:
+    - recorded
+payload_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  required:
+    - publication
+    - repository_path
+    - source_commit
+    - command
+    - verification_image
+    - verification_command
+    - verification_script
+  properties:
+    publication:
+      const: recorded
+    repository_path:
+      type: string
+      pattern: ^/
+    source_commit:
+      type: string
+      pattern: ^[0-9a-f]{40}$
+    command: &a1
+      type: array
+      minItems: 1
+      items:
+        type: string
+        minLength: 1
+    verification_image:
+      type: string
+      pattern: ^[^\s]+@sha256:[0-9a-f]{64}$
+    verification_command: *a1
+    verification_script:
+      type: string
+      minLength: 1
+      pattern: ^(?!/)(?!.*(?:^|/)\.\.(?:/|$)).+$
+outgoing_links:
+  - id: explores
+    description: explores
+    targets:
+      - kind: datum
+        types:
+          - EXP
+        identity: revision
+    cardinality:
+      minimum: 1
+      maximum: 1
+    freeze_resolution: already-exact
+    inverse_label: incoming-explores
+  - id: responds-to
+    description: responds-to
+    targets:
+      - kind: datum
+        types:
+          - FDB
+        identity: revision
+    cardinality:
+      minimum: 0
+      maximum: 1
+    freeze_resolution: already-exact
+    inverse_label: incoming-responds-to
+kernel_managed_payload_paths: []

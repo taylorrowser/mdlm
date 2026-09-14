@@ -1,0 +1,21 @@
+kind: selector-definition
+id: reviews-for
+version: 1
+description: reviews for
+parameters:
+- name: subject
+  kind: revision
+result_kind: revision
+query:
+  from:
+    relation: incoming-links
+    of: subject
+    link: reviews
+    emit: source
+    types:
+    - REV
+  as: item
+  where: state(item, "validity") == "valid" && item.integrity.transaction_valid == true
+  distinct: true
+  order_by:
+  - identity.revision_id

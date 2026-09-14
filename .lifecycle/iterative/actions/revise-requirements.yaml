@@ -1,0 +1,26 @@
+kind: action-definition
+id: revise-requirements
+version: 1
+description: Revise the CLI-supplied approved frontier
+capability: requirements
+prompt_ref: prompts/revise-requirements.md@5
+types:
+- REQ
+- DCP
+- RQS
+subjects: select("current-changes@1", {})
+inputs:
+  change: subject
+  subject: one("current-requirements@1", {})
+when: '!(none("pass-reviews@1", {subject: subject}) || exists("sets-for-change@1", {change: subject}))
+  && (exists("pass-reviews@1", {subject: subject}) && none("fail-reviews@1", {subject: subject}))'
+priority: 110
+revises:
+  RQS: subject
+fixed_payload:
+  REQ:
+    publication: recorded
+  DCP:
+    publication: recorded
+  RQS:
+    publication: recorded

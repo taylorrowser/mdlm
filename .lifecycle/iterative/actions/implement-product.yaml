@@ -1,0 +1,21 @@
+kind: action-definition
+id: implement-product
+version: 1
+description: Implement the tiny product
+capability: implementation
+prompt_ref: prompts/implement-product.md@6
+types:
+- IMP
+subjects: select("current-requirements@1", {})
+inputs:
+  requirements: subject
+when: '!(exists("implementations-for@1", {requirements: subject})) && (exists("pass-reviews@1", {subject:
+  subject}) && none("fail-reviews@1", {subject: subject}) && none("prior-implementations-for@1", {requirements:
+  subject}))'
+priority: 100
+links:
+  IMP:
+    implements: requirements
+fixed_payload:
+  IMP:
+    publication: recorded

@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mdlm.dev/meta/v3/expression.schema.json",
+  "title": "MDLM expression source",
+  "description": "Source text authored for the exact expression language pinned by the Process Package manifest.",
+  "type": "string",
+  "minLength": 1
+}

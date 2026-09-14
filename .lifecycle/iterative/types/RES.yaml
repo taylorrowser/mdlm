@@ -1,0 +1,68 @@
+kind: type-definition
+id: RES
+version: 1
+description: Verification result
+name: Verification result
+extends: titled-datum@1
+lifecycle:
+  authorship: authored
+  freeze_when: terminal-outcome
+  terminal_payload_field: publication
+  terminal_values:
+  - recorded
+payload_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  required:
+  - publication
+  - outcome
+  - receipt
+  - assessment
+  - correction_target
+  properties:
+    publication:
+      const: recorded
+    outcome:
+      enum:
+      - pass
+      - fail
+      - error
+    receipt:
+      type: string
+      minLength: 1
+    assessment:
+      type: string
+      minLength: 1
+    correction_target:
+      enum:
+      - none
+      - requirements
+      - implementation
+outgoing_links:
+- id: verifies
+  description: verifies
+  targets:
+  - kind: datum
+    types:
+    - RQS
+    identity: revision
+  cardinality:
+    minimum: 1
+    maximum: 1
+  freeze_resolution: already-exact
+  inverse_label: incoming-verifies
+- id: executes
+  description: executes
+  targets:
+  - kind: datum
+    types:
+    - IMP
+    identity: revision
+  cardinality:
+    minimum: 1
+    maximum: 1
+  freeze_resolution: already-exact
+  inverse_label: incoming-executes
+kernel_managed_payload_paths:
+- outcome
+- receipt

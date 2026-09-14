@@ -1,0 +1,22 @@
+kind: action-definition
+id: approve-change
+version: 1
+description: Approve the requested scope
+capability: review
+prompt_ref: prompts/approve-change.md@1
+types:
+- REV
+subjects: select("current-changes@1", {})
+inputs:
+  subject: subject
+when: '!(exists("reviews-for@1", {subject: subject})) && (none("reviews-for@1", {subject: subject}))'
+priority: 110
+links:
+  REV:
+    reviews: subject
+fixed_payload:
+  REV:
+    publication: recorded
+authority:
+  kind: stakeholder
+  name: stakeholder

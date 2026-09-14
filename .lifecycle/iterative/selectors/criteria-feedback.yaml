@@ -1,0 +1,20 @@
+kind: selector-definition
+id: criteria-feedback
+version: 1
+description: criteria-feedback
+parameters: []
+result_kind: revision
+query:
+  from:
+    collection: revisions
+    types:
+      - FDB
+  as: item
+  where: 'item.payload.action == "revise-criteria" &&
+    every("observation-for-feedback@1", {feedback: item}, obs =>
+    every("trial-for-observation@1", {observation: obs}, trial =>
+    none("newer-revisions@1", {subject: trial}) && every("experiment-for@1",
+    {trial: trial}, exp => none("newer-revisions@1", {subject: exp}))))'
+  distinct: true
+  order_by:
+    - identity.revision_id

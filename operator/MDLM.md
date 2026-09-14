@@ -65,3 +65,5 @@ Use the exact authority name from guidance for both the array and flag. Authorit
 For independent review, give a fresh reviewer the export from `mdlm review context <action> <exact-subject> --json`. The review manager registers the exact proposal and verdict through `mdlm review register <proposal-file> <verdict-file> --json`. The author must not register its own judgment. Submit the exact registered proposal bytes.
 
 Continue through useful work and ordinary correction. At a reported boundary, explain whether it is exploratory completion or actual product acceptance. If guidance is blocked, an authority is unavailable, or publication cannot be authenticated, preserve the exact state and report the missing information.
+
+For a fresh useful-product-to-baseline experiment, initialize with `mdlm init /path/to/lifecycle --process iterative` and follow the [iterative package](../.lifecycle/iterative/README.md). Its accepted formal scope is a profile boundary; compare that exact scope with the agreed whole product before declaring the experiment complete.

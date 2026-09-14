@@ -1,0 +1,16 @@
+kind: selector-definition
+id: current-requirements
+version: 1
+description: current requirements
+parameters: []
+result_kind: revision
+query:
+  from:
+    collection: revisions
+    types:
+    - RQS
+  as: item
+  where: 'state(item, "validity") == "valid" && none("newer-revisions@1", {subject: item})'
+  distinct: true
+  order_by:
+  - identity.revision_id

@@ -1,0 +1,25 @@
+kind: state-definition
+id: verification-outcome
+version: 1
+description: The CLI-owned outcome of the committed verification script.
+subject_as: subject
+cardinality: exactly-one
+default: not-applicable
+values:
+- not-applicable
+- pass
+- fail
+- error
+rules:
+- value: pass
+  priority: 100
+  when: 'subject.identity.type == "RES" && exists("exact-requirements-for-result@1", {result: subject}) && subject.payload.outcome == "pass"'
+  explanation: The verification script passed.
+- value: fail
+  priority: 50
+  when: 'subject.identity.type == "RES" && exists("exact-requirements-for-result@1", {result: subject}) && subject.payload.outcome == "fail"'
+  explanation: The verification script reported an assertion failure.
+- value: error
+  priority: 50
+  when: 'subject.identity.type == "RES" && exists("exact-requirements-for-result@1", {result: subject}) && subject.payload.outcome == "error"'
+  explanation: Verification execution failed before a trustworthy pass or assertion failure.

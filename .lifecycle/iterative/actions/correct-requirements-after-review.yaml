@@ -1,0 +1,30 @@
+kind: action-definition
+id: correct-requirements-after-review
+version: 1
+description: Correct requirements after content Review
+capability: requirements
+prompt_ref: prompts/correct-requirements-after-review.md@5
+types:
+- REQ
+- DCP
+- RQS
+subjects: select("current-requirements@1", {})
+inputs:
+  subject: subject
+  failure: 'one("fail-reviews@1", {subject: subject})'
+when: '!(none("fail-reviews@1", {subject: subject})) && (exists("fail-reviews@1", {subject: subject})
+  && every("fail-reviews@1", {subject: subject}, failed => failed.payload.scope_amendment_required ==
+  false))'
+priority: 100
+links:
+  RQS:
+    corrects: failure
+revises:
+  RQS: subject
+fixed_payload:
+  REQ:
+    publication: recorded
+  DCP:
+    publication: recorded
+  RQS:
+    publication: recorded

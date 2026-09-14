@@ -1,0 +1,21 @@
+kind: action-definition
+id: draft-requirements
+version: 1
+description: Draft necessary requirements for the selected formal scope
+capability: requirements
+prompt_ref: prompts/draft-requirements.md@5
+types:
+  - REQ
+  - DCP
+  - RQS
+inputs:
+  experiment: one("current-experiments@1", {})
+when: exists("current-experiments@1", {}) && none("current-requirements@1", {})
+priority: 100
+fixed_payload:
+  REQ:
+    publication: recorded
+  DCP:
+    publication: recorded
+  RQS:
+    publication: recorded

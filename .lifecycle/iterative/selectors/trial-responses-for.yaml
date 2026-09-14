@@ -1,0 +1,22 @@
+kind: selector-definition
+id: trial-responses-for
+version: 1
+description: trial-responses-for
+parameters:
+  - name: feedback
+    kind: revision
+    types:
+      - FDB
+result_kind: revision
+query:
+  from:
+    relation: incoming-links
+    of: feedback
+    link: responds-to
+    emit: source
+    types:
+      - TRY
+  as: item
+  distinct: true
+  order_by:
+    - identity.revision_id

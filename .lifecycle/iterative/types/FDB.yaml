@@ -1,0 +1,48 @@
+kind: type-definition
+id: FDB
+version: 1
+name: Stakeholder feedback
+description: An explicit stakeholder direction about one exact exploratory observation.
+extends: titled-datum@1
+lifecycle:
+  authorship: authored
+  freeze_when: terminal-outcome
+  terminal_payload_field: publication
+  terminal_values:
+    - recorded
+payload_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  required:
+    - publication
+    - action
+    - feedback
+    - source
+  properties:
+    publication:
+      const: recorded
+    action:
+      enum:
+        - revise-criteria
+        - revise-prototype
+        - stop
+    feedback:
+      type: string
+      minLength: 1
+    source:
+      type: string
+      minLength: 1
+outgoing_links:
+  - id: responds-to
+    description: responds-to
+    targets:
+      - kind: datum
+        types:
+          - OBS
+        identity: revision
+    cardinality:
+      minimum: 1
+      maximum: 1
+    freeze_resolution: already-exact
+    inverse_label: incoming-responds-to
+kernel_managed_payload_paths: []

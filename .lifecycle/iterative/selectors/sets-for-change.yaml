@@ -1,0 +1,23 @@
+kind: selector-definition
+id: sets-for-change
+version: 1
+description: sets for change
+parameters:
+- name: change
+  kind: revision
+  types:
+  - CHG
+result_kind: revision
+query:
+  from:
+    relation: incoming-links
+    of: change
+    link: changes-under
+    emit: source
+    types:
+    - RQS
+  as: item
+  where: state(item, "validity") == "valid"
+  distinct: true
+  order_by:
+  - identity.revision_id

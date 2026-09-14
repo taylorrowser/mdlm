@@ -1,0 +1,23 @@
+kind: selector-definition
+id: exact-requirements-for-result
+version: 1
+description: Original exact expectations used by a preserved execution result.
+parameters:
+- name: result
+  kind: revision
+  types:
+  - RES
+result_kind: revision
+query:
+  from:
+    relation: outgoing-links
+    of: result
+    link: verifies
+    emit: target
+    types:
+    - RQS
+  as: item
+  where: state(item, "validity") == "valid"
+  distinct: true
+  order_by:
+  - identity.revision_id

@@ -1,0 +1,66 @@
+kind: type-definition
+id: CHG
+version: 1
+description: Scoped request to change an accepted product
+name: Change request
+extends: titled-datum@1
+lifecycle:
+  authorship: authored
+  freeze_when: terminal-outcome
+  terminal_payload_field: publication
+  terminal_values:
+  - recorded
+payload_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  required:
+  - publication
+  - reason
+  - requested_outcome
+  properties:
+    publication:
+      const: recorded
+    reason:
+      type: string
+      minLength: 1
+    requested_outcome:
+      type: string
+      minLength: 1
+outgoing_links:
+- id: baseline
+  description: baseline
+  targets:
+  - kind: datum
+    types:
+    - ACC
+    identity: revision
+  cardinality:
+    minimum: 1
+    maximum: 1
+  freeze_resolution: already-exact
+  inverse_label: incoming-baseline
+- id: changes
+  description: changes
+  targets:
+  - kind: datum
+    types:
+    - REQ
+    identity: revision
+  cardinality:
+    minimum: 1
+    maximum: many
+  freeze_resolution: already-exact
+  inverse_label: incoming-changes
+- id: amends
+  description: amends
+  targets:
+  - kind: datum
+    types:
+    - CHG
+    identity: revision
+  cardinality:
+    minimum: 0
+    maximum: 1
+  freeze_resolution: already-exact
+  inverse_label: incoming-amends
+kernel_managed_payload_paths: []

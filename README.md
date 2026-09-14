@@ -11,7 +11,7 @@ mdlm expectations --json
 mdlm expectations show <action> [<exact-subject>] --json
 ```
 
-The default package supports requirements, implementation, verification, independent review, stakeholder acceptance and approved changes. Use `mdlm init /path/to/lifecycle --process exploratory` for experiments, prototypes, observations and stakeholder feedback.
+The default package supports requirements, implementation, verification, independent review, stakeholder acceptance and approved changes. Use `mdlm init /path/to/lifecycle --process exploratory` for experiments, prototypes, observations and stakeholder feedback. Use `--process iterative` for the experimental [useful-product-to-baseline route](.lifecycle/iterative/README.md), which keeps exploration and formal requirements in one lifecycle repository.
 
 The agent chooses available work. Discovery does not reserve work or force the first item. Guidance includes the package prompt, exact context, schemas and candidate examples. Keep functionality focused on the stakeholder's need; use experiments to learn before committing more detail.
 

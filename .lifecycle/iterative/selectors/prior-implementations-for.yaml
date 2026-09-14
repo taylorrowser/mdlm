@@ -1,0 +1,22 @@
+kind: selector-definition
+id: prior-implementations-for
+version: 1
+description: current implementations
+parameters:
+- name: requirements
+  kind: revision
+  types:
+  - RQS
+result_kind: revision
+query:
+  from:
+    collection: revisions
+    types:
+    - IMP
+  as: item
+  where: 'state(item, "validity") == "valid" && none("newer-revisions@1", {subject: item}) && exists("all-requirements-for@1",
+    {implementation: item}) && every("all-requirements-for@1", {implementation: item}, prior => prior.identity.id
+    == requirements.identity.id && prior.identity.revision_id != requirements.identity.revision_id)'
+  distinct: true
+  order_by:
+  - identity.revision_id

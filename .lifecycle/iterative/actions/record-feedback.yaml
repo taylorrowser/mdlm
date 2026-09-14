@@ -1,0 +1,22 @@
+kind: action-definition
+id: record-feedback
+version: 1
+description: record-feedback
+capability: feedback
+prompt_ref: prompts/record-feedback.md@1
+types:
+- FDB
+subjects: select("current-nominations@1", {})
+inputs:
+  observation: subject
+when: '!(exists("feedback-for@1", {observation: subject})) && (true)'
+priority: 100
+links:
+  FDB:
+    responds-to: observation
+fixed_payload:
+  FDB:
+    publication: recorded
+authority:
+  kind: stakeholder
+  name: stakeholder

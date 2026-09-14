@@ -1,0 +1,23 @@
+kind: action-definition
+id: revise-experiment-from-feedback
+version: 1
+description: revise-experiment
+capability: experiment
+prompt_ref: prompts/revise-experiment.md@2
+types:
+- EXP
+subjects: select("criteria-feedback@1", {})
+inputs:
+  subject: 'one("experiment-for-observation@1", {observation: one("observation-for-feedback@1", {feedback:
+    subject})})'
+  observation: subject
+when: '!(exists("experiment-responses-for@1", {feedback: subject})) && (true)'
+priority: 100
+links:
+  EXP:
+    responds-to: observation
+revises:
+  EXP: subject
+fixed_payload:
+  EXP:
+    publication: recorded
