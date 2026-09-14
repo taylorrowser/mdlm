@@ -11,6 +11,21 @@ Discovery and guidance are read-only. Priority is a suggestion. Choose work that
 
 Author a proposal with a unique operation ID, the guidance's action, package, snapshot, exact subject and inputs, and your candidates. Each candidate supplies a localId, type, payload, links and body. A revision also names its exact predecessor. References to another candidate use `$<localId>` for its revision or `$<localId>.id` for its stable identity. MDLM generates revision identities and managed data.
 
+Save the chosen action's guidance as `guidance.json`. This example builds the complete proposal envelope from those exact values:
+
+```bash
+jq '{
+  operation: "draft-requirements-001",
+  action: .action,
+  package: .package,
+  snapshot: .snapshot,
+  inputs: .inputs,
+  candidates: .candidates
+} + (if has("subject") then {subject: .subject} else {} end)' guidance.json > proposal.json
+```
+
+Choose a fresh `operation` value for your proposal. Edit `candidates` to satisfy the returned payload schemas and package prompt, preserving fixed values, required links and predecessors. Candidate examples are starting points and may lack required authored fields. Add `evidence` when the action needs a receipt, registered review or stakeholder authority; the sections below describe those requirements. Keep the copied action, package, snapshot, subject and inputs unchanged.
+
 ```bash
 mdlm proposal submit proposal.json --json
 mdlm proposal settlement <operation-id> --json
