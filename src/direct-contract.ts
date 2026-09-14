@@ -93,3 +93,26 @@ export interface DirectGuidance {
   authority?: DirectAction["authority"];
   evidence?: unknown;
 }
+export interface DirectExpectations {
+  ok: true;
+  contract: "mdlm-expectations@2";
+  package: DirectPackageIdentity;
+  snapshot: string;
+  items: DirectWorkItem[];
+  optional: DirectWorkItem[];
+  outcome: "work-available" | "blocked" | "profile-boundary-reached" | "lifecycle-complete";
+}
+export interface DirectProposalResult {
+  ok: true;
+  contract: "mdlm-proposal-result@2";
+  operation: string;
+  outcome: "accepted" | "not-published";
+  transaction?: string;
+  revisions?: string[];
+}
+export interface DirectExecutionResult {
+  ok: true;
+  contract: "mdlm-execution-result@1";
+  operation: string;
+  value: {state?: string; evidence?: string; [key: string]: unknown};
+}
