@@ -339,7 +339,7 @@ async function readYaml(filePath: string): Promise<unknown> {
 }
 
 async function yamlFiles(directory: string): Promise<string[]> {
-  const entries = await fs.readdir(directory, { withFileTypes: true });
+  const entries = await fs.readdir(directory, { withFileTypes: true }).catch(error => {if ((error as NodeJS.ErrnoException).code === "ENOENT") return []; throw error;});
   const files = await Promise.all(
     entries.map(async (entry) => {
       const entryPath = path.join(directory, entry.name);
@@ -672,7 +672,6 @@ export async function loadProcessPackage(
             selectors: definitions.selectors,
             states: definitions.states,
             policies: definitions.policies,
-            actions: definitions.actions,
             ...(exactBaselineType ? { exactBaselineType } : {}),
           },
         ),
