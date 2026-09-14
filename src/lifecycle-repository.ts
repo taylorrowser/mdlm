@@ -621,13 +621,15 @@ function directProvenance(item: ParsedDatum, pkg: ProcessPackage, packageDigest:
     const [actionId, actionVersion] = String(tx.action).split("@");
     const action = pkg.actions[actionId!];
     const identity = `${pkg.manifest.id}@${pkg.manifest.version}`;
+    const trace = pkg.kernelCapabilities["requirement-trace@2"] ?? pkg.kernelCapabilities["requirement-trace@1"];
+    const generatedScope = action?.capability === "implementation" && datum.type === trace?.scope_type && Array.isArray(tx.outputs) && datum.links.some(link => link.type === "belongs-to" && tx.outputs.some((output: DatumEnvelope) => output.type === trace.implementation_type && output.revision_id === link.target));
     return datum.created_by.transaction === "mdlm-direct-transaction@1" && tx.contract === "mdlm-direct-transaction@1" && tx.id === id &&
       typeof tx.operation === "string" && /^[a-zA-Z0-9-]{1,80}$/.test(tx.operation) &&
       id === `direct-${createHash("sha256").update(tx.operation).digest("hex")}` &&
       typeof tx.proposalDigest === "string" && /^sha256:[a-f0-9]{64}$/.test(tx.proposalDigest) &&
       tx.package?.reference === identity && tx.package?.digest === packageDigest &&
       datum.created_by.process_ref === `${identity}#${packageDigest}` && !!action && Number(actionVersion) === action.version &&
-      action.types.includes(datum.type) && datum.created_by.prompt_ref === action.prompt_ref &&
+      (action.types.includes(datum.type) || generatedScope) && datum.created_by.prompt_ref === action.prompt_ref &&
       (!action.authority || !!tx.authority) && Array.isArray(tx.outputs) &&
       tx.outputs.filter((d: unknown) => structuralValuesEqual(d,datum)).length === 1;
   } catch { return false; }

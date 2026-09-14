@@ -35,7 +35,7 @@ export async function directState(root: string) {
   return {root,pkg:selected.processPackage,package:identity,snapshot:digest({package:identity,data}),data,parsed:loaded.value};
 }
 type State = Awaited<ReturnType<typeof directState>>;
-function snapshot(current: State) { return {processRef:current.package.reference,records:current.parsed.map(p=>p.lifecycleDatum),dependencyComparisons:[]}; }
+function snapshot(current: State) { return {processRef:`${current.package.reference}#${current.package.digest}`,records:current.parsed.map(p=>p.lifecycleDatum),dependencyComparisons:[]}; }
 function expression(current: State, value: unknown, subject?: string): unknown {
   const bindings = subject ? {subject} : {};
   let compiled = value;
@@ -122,6 +122,7 @@ async function settlement(root:string,operation:string) {
 }
 export async function inspectDirectSettlement(root:string,operation:string){return (await settlement(root,operation))?.result??{ok:true,contract:"mdlm-proposal-result@2",operation,outcome:"not-published"};}
 function outputData(context:DirectContext,proposal:DirectProposal,promptSkills:string[]):DatumEnvelope[]{
+  if(context.action.capability!=="requirements"&&proposal.candidates.length!==1)fail("This action publishes exactly one authored datum; generated supporting data remain atomic");
   const identities=new Map<string,{id:string;revision:number;revision_id:string}>();
   for(const c of proposal.candidates){
     if(identities.has(c.localId)||!context.action.types.includes(c.type))fail("Duplicate local identity or undeclared output type");
@@ -182,7 +183,7 @@ async function receiptFor(current:State,locator:string,implementation:DatumEnvel
 async function availableReceipts(current:State,implementation:DatumEnvelope){const refs=await git(current.root,["for-each-ref","--format=%(objectname)","refs/mdlm/execution"]);const results:string[]=[];for(const oid of new Set(refs.split("\n").filter(Boolean))){try{await receiptFor(current,`git-blob:${oid}`,implementation);results.push(`git-blob:${oid}`);}catch{}}return results;}
 export async function runDirectExecution(root:string,subject:string,operation:string){checkOperation(operation);return withRepositoryLock(root,lock,async()=>{const current=await directState(root);const implementation=current.data.find(d=>d.revision_id===subject);if(!implementation||!Object.values(current.pkg.actions).some(a=>["implementation","prototype"].includes(a.capability)&&a.types.includes(implementation.type)))fail("Unknown exact execution subject or unsupported type");const saved=await runVerificationReceipt(root,executionBinding(current,implementation,operation),false);return{ok:true,contract:"mdlm-execution-result@1",operation,value:{...saved,evidence:`git-blob:${saved.oid}`}};});}
 export async function inspectDirectExecution(root:string,operation:string){checkOperation(operation);const current=await directState(root);const oid=await git(root,["rev-parse","--verify","--quiet",`refs/mdlm/execution/${operation}/latest`]).catch(e=>{if(e.code===1)return undefined;throw e;});if(!oid)return{ok:true,contract:"mdlm-execution-result@1",operation,value:{state:"not-started"}};const saved=await readVerificationReceiptBlob(root,oid);if(saved.receipt.binding.operation!==operation||!isDeepStrictEqual(saved.receipt.binding.package,current.package))fail("Execution settlement binding changed");return{ok:true,contract:"mdlm-execution-result@1",operation,value:{...saved,...(saved.receipt.state==="completed"?{evidence:`git-blob:${oid}`}:{})}};}
-export async function inspectDirectReview(root:string,action:string,subject?:string){const current=await directState(root);return {ok:true,value:await buildDirectReviewContext(directContext(current,action,subject))};}
+export async function inspectDirectReview(root:string,action:string,subject?:string){const current=await directState(root);return {ok:true,...await buildDirectReviewContext(directContext(current,action,subject))};}
 export async function registerDirectReviewFiles(root:string,source:string,verdict:string){return withRepositoryLock(root,lock,async()=>{const p=parseDirectProposal(source);const current=await directState(root);if(!isDeepStrictEqual(p.package,current.package)||p.snapshot!==current.snapshot)fail("Review registration package or snapshot changed");const context=directContext(current,p.action,p.subject);const value=await registerDirectReview(root,context,source,verdict);if((await directState(root)).snapshot!==current.snapshot)fail("Review context changed during registration");return{ok:true,value};});}
 
 async function receiptDetails(current:State,implementation:DatumEnvelope){return Promise.all((await availableReceipts(current,implementation)).map(async evidence=>({evidence,...await readVerificationReceiptBlob(current.root,evidence.slice(9))})));}
