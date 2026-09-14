@@ -47,13 +47,7 @@ export function workRetryPolicy(workTimeoutMs: number, providerRetries: number) 
   };
 }
 
-export interface WorkCorrection {
-  previousResponse: JsonObject;
-  diagnostics: JsonValue;
-}
-
 export interface PiWorkRunOptions {
-  correction?: WorkCorrection;
   attendedContext?: JsonValue;
 }
 
@@ -141,7 +135,7 @@ export class PiWorkRunner {
   async run(packet: AgentTask, options: PiWorkRunOptions = {}): Promise<JsonObject> {
     const workId = packet.id;
     let active = this.#sessions.get(workId);
-    if (active !== undefined && options.correction === undefined) {
+    if (active !== undefined) {
       throw new PiWorkRunnerError(`Work '${workId}' already owns a Pi session`);
     }
 
@@ -395,13 +389,6 @@ function buildPrompt(packet: AgentTask, options: PiWorkRunOptions): string {
     sections.push(
       "Attended conclusion for this work. Use it to author the requested data. Authority remains outside the proposal:",
       JSON.stringify(options.attendedContext),
-    );
-  }
-  if (options.correction !== undefined) {
-    sections.push(
-      "Correct the previous proposal using these diagnostics.",
-      `Previous response: ${JSON.stringify(options.correction.previousResponse)}`,
-      `MDLM diagnostics: ${JSON.stringify(options.correction.diagnostics)}`,
     );
   }
   return sections.join("\n\n");

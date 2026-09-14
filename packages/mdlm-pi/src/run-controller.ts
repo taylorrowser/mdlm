@@ -70,12 +70,14 @@ export class RunController {
       authorityName = string(authority.name, "authority name");
       attendedContext = (await io.attention(guidance)).conclusion;
     }
+    let execution: JsonObject | undefined;
     if (typeof guidance.executionCommand === "string" && !hasReceipt(guidance)) {
       const operation = randomUUID();
       const boundary = { package: object(guidance.package, "package"), snapshot: string(guidance.snapshot, "snapshot"), transport: mdlm.identity() };
       await journal.capture(operation, `sha256:${"0".repeat(64)}`, boundary, "execution");
       await journal.beginSubmission();
-      const executed = await mdlm.execute(string(guidance.subject, "execution subject"), operation);
+      const executed = await mdlm.execute(string(guidance.executionSubject ?? guidance.subject, "execution subject"), operation);
+      execution = executed;
       const captured = (await journal.load())!;
       if (executed.contract !== "mdlm-execution-result@1" || executed.operation !== operation) throw new Error("Execution result differs from pending operation");
       if (executionState(executed) !== "completed") return this.finish(executed, captured, false);
@@ -89,7 +91,7 @@ export class RunController {
     try {
       authored = await worker.run({
         id: operation,
-        context: { instruction: "Follow the package prompt. Return candidates and optional receipt evidence only. The controller adds exact action, operation, package, snapshot, inputs and attended authority.", guidance },
+        context: { instruction: "Follow the package prompt. Return candidates and optional receipt evidence only. The controller adds exact action, operation, package, snapshot, inputs and attended authority.", guidance, ...(execution === undefined ? {} : { execution }) },
         responseSchema: {
           type: "object", additionalProperties: false, required: ["candidates"],
           properties: {

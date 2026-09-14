@@ -61,7 +61,6 @@ async function main(arguments_: string[]): Promise<number> {
       repository,
       command: { program: parsed.mdlm },
       timeoutMs: environmentInteger("MDLM_PI_COMMAND_TIMEOUT_MS", 30_000),
-      attemptDirectory: path.join(stateDirectory, "attempts"),
     });
     let interruptedBy: NodeJS.Signals | undefined;
     const handlers = new Map<NodeJS.Signals, () => void>();

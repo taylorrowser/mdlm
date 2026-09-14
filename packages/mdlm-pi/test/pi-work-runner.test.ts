@@ -45,30 +45,6 @@ describe("PiWorkRunner", () => {
     expect(workRetryPolicy(5_000, 2).provider.timeoutMs).toBe(5_000);
   });
 
-  it("uses one session for a rejected response and its correction", async () => {
-    const first: JsonObject = { contract: "direct-result", operation: workId, first: true };
-    const corrected: JsonObject = { contract: "direct-result", operation: workId, corrected: true };
-    const responses = [first, corrected];
-    const prompts: string[] = [];
-    const session = scriptedSession(prompts);
-    const factory = vi.fn(async (_packet: AgentTask, capture: (value: JsonObject) => void) => {
-      session.prompt = vi.fn(async (prompt: string) => {
-        prompts.push(prompt);
-        capture(responses.shift()!);
-      });
-      return session;
-    });
-    const runner = new PiWorkRunner({ repository: ".", sessionFactory: factory });
-
-    await expect(runner.run(packet())).resolves.toEqual(first);
-    await expect(runner.run(packet(), {
-      correction: { previousResponse: first, diagnostics: [{ code: "invalid" }] },
-    })).resolves.toEqual(corrected);
-
-    expect(factory).toHaveBeenCalledOnce();
-    expect(prompts[1]).toContain('"code":"invalid"');
-  });
-
   it("does not copy attended authority metadata into the work Response", async () => {
     const response: JsonObject = {
       contract: "direct-result",

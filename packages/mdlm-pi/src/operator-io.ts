@@ -286,16 +286,7 @@ export class TerminalOperatorIO implements OperatorIO {
 
   async attention(outcome: JsonObject): Promise<AttendedConclusion> {
     this.output.write("\nMDLM requires attended authority.\n");
-    if (typeof outcome.explanation === "string") this.output.write(`${outcome.explanation}\n`);
-    if (outcome.authorityRequirement !== undefined) {
-      this.output.write(`${JSON.stringify(outcome.authorityRequirement, null, 2)}\n`);
-    }
-    if (outcome.attentionContext !== undefined) {
-      this.output.write(`${JSON.stringify(outcome.attentionContext, null, 2)}\n`);
-    }
-    if (outcome.checkpointConversation !== undefined) {
-      this.output.write(`${JSON.stringify(outcome.checkpointConversation, null, 2)}\n`);
-    }
+    this.output.write(`${JSON.stringify(outcome, null, 2)}\n`);
     if (this.mode === "terminal-delimiter") {
       this.output.write(
         `Enter the explicit conclusion from the named authority holder. `
