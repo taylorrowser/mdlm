@@ -96,7 +96,7 @@ export interface DirectGuidance {
   inputs: Record<string, string[]>;
   prompt: unknown;
   payloadSchemas: Record<string, unknown>;
-  sourceAssessmentTargets?: SourceAssessmentTargets;
+  sourceAssessmentTargets?: SourceAssessmentTargets | undefined;
   context: DatumEnvelope[];
   candidates: DirectCandidate[];
   authority?: DirectAction["authority"];

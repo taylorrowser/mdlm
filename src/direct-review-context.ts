@@ -22,7 +22,7 @@ export interface DirectReviewContext {
   inputs: DirectContext["inputs"];
   prompt: unknown;
   payloadSchemas: Record<string, unknown>;
-  sourceAssessmentTargets?: SourceAssessmentTargets;
+  sourceAssessmentTargets?: SourceAssessmentTargets | undefined;
   records: DatumEnvelope[];
   requirementGraphs: {selection: string; assessment: ReturnType<typeof assessRequirements>; groups: DatumEnvelope[]; requirements: (DatumEnvelope & {leaf: boolean})[]}[];
   sourceScopes: {implementation: string; scopes: DatumEnvelope[]; changes: unknown; comparison: unknown}[];
