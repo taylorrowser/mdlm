@@ -1,6 +1,5 @@
 ---
 id: approve-change
-scenario: approve-change
 version: 1
 skills:
 - skills/product-quality.md@1

@@ -1,0 +1,20 @@
+kind: action-definition
+id: observe-prototype
+version: 1
+description: Assess the exact prototype execution and recommend a next step
+capability: observation
+prompt_ref: prompts/direct-observation.md@2
+types:
+- OBS
+subjects: select("current-trials@2", {})
+inputs:
+  trial: subject
+  experiment: 'one("experiment-for@1", {trial: subject})'
+when: 'none("observations-for@1", {trial: subject})'
+links:
+  OBS:
+    observes: trial
+    against: experiment
+fixed_payload:
+  OBS:
+    publication: recorded

@@ -1,7 +1,6 @@
 ---
 id: record-feedback
 version: 1
-scenario: record-feedback
 ---
 
 # Record stakeholder feedback

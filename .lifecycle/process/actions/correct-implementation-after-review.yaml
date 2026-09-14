@@ -1,0 +1,24 @@
+kind: action-definition
+id: correct-implementation-after-review
+version: 1
+description: Correct implementation after content Review
+capability: implementation
+prompt_ref: prompts/correct-implementation-after-review.md@6
+types:
+- IMP
+subjects: select("current-implementations@1", {})
+inputs:
+  subject: subject
+  requirements: 'one("requirements-for@1", {implementation: subject})'
+  failure: 'one("fail-reviews@1", {subject: subject})'
+when: '!(none("fail-reviews@1", {subject: subject})) && (exists("fail-reviews@1", {subject: subject}))'
+priority: 100
+links:
+  IMP:
+    implements: requirements
+    corrects: failure
+revises:
+  IMP: subject
+fixed_payload:
+  IMP:
+    publication: recorded

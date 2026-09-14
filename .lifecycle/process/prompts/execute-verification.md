@@ -1,11 +1,10 @@
 ---
 id: execute-verification
-scenario: execute-verification
 version: 1
 ---
 
 # Run and assess Docker verification
 
-Run mdlm assignment run --json for this exact Assignment. The CLI prepares Docker, runs the committed verification command, captures raw stdout/stderr and exit status, and binds a receipt to the exact requirements, implementation and source. Inspect that receipt and give a brief assessment of whether the intended script ran and what its results mean. The script owns assertion logic. The CLI records outcome and receipt; submit only assessment and correction_target. Select none for pass. For fail or error, diagnose requirements or implementation as the correction target. A faulty script belongs to implementation correction. Preserve execution errors as errors. If Docker could not start, repair the environment and use mdlm assignment run --retry --json; preserve the failed attempt. Repeating the ordinary command reuses its completed receipt.
+Use the supplied direct execution command for the exact implementation and a new operation identity. The CLI prepares Docker, runs the committed verification command, captures stdout, stderr and exit status, and binds a receipt to the exact requirements, implementation and source. Inspect the receipt and assess whether the intended script ran and what its results mean. The script owns assertions. The CLI derives outcome and receipt; author the assessment and correction_target. Select none for pass. For fail or error, diagnose requirements or implementation as the correction target. A faulty script belongs to implementation correction. Preserve execution errors as errors. Inspect execution settlement after an uncertain response; never rerun an uncertain started operation. Repeating a completed operation returns its existing receipt.
 
-Fill the Assignment authorValuesScaffold using authorValuesSchema and submit it with mdlm assignment submit-proposal. The full responseSchema and responseScaffold are only for response diagnostics. The CLI supplies identities, exact required links and publication markers. Submit only authored fields. Keep the body empty when the structured payload contains the whole claim.
+Use the supplied direct proposal guidance and payload schema. The CLI supplies identities, exact required links and publication markers. Submit the authored values with mdlm proposal submit. Keep the body empty when the structured payload contains the whole claim.

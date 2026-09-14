@@ -4,22 +4,54 @@
   "title": "Kernel-owned MDLM datum envelope",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "revision", "revision_id", "type", "payload", "links", "created_by", "body"],
+  "required": [
+    "id",
+    "revision",
+    "revision_id",
+    "type",
+    "payload",
+    "links",
+    "created_by",
+    "body"
+  ],
   "properties": {
-    "id": {"type": "string", "pattern": "^[A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}$"},
-    "revision": {"type": "integer", "minimum": 1},
-    "revision_id": {"type": "string", "pattern": "^[A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$"},
-    "type": {"type": "string", "pattern": "^[A-Z]{3,8}$"},
-    "payload": {"type": "object"},
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}$"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "revision_id": {
+      "type": "string",
+      "pattern": "^[A-Z]{3,8}-[0-9A-HJKMNP-TV-Z]{10,12}-r[0-9]{5}$"
+    },
+    "type": {
+      "type": "string",
+      "pattern": "^[A-Z]{3,8}$"
+    },
+    "payload": {
+      "type": "object"
+    },
     "links": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["type", "target"],
+        "required": [
+          "type",
+          "target"
+        ],
         "properties": {
-          "type": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
-          "target": {"type": "string", "minLength": 1}
+          "type": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "target": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       },
       "uniqueItems": true
@@ -27,18 +59,46 @@
     "created_by": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["prompt_ref", "process_ref", "loaded_skill_refs", "policy_refs"],
-      "oneOf": [{"required": ["scenario"], "not": {"required": ["transaction"]}}, {"required": ["transaction"], "not": {"required": ["scenario"]}}],
+      "required": [
+        "transaction",
+        "prompt_ref",
+        "process_ref",
+        "loaded_skill_refs",
+        "policy_refs"
+      ],
       "properties": {
-        "transaction": {"const": "direct-proposal@1"},
-        "scenario": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"},
-        "prompt_ref": {"type": "string", "pattern": "^prompts/.+\\.md@[1-9][0-9]*$"},
-        "process_ref": {"type": "string", "minLength": 1},
-        "loaded_skill_refs": {"type": "array", "items": {"type": "string", "pattern": "^skills/.+\\.md@[1-9][0-9]*$"}, "uniqueItems": true},
-        "policy_refs": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"}, "uniqueItems": true}
+        "transaction": {
+          "const": "mdlm-direct-transaction@1"
+        },
+        "prompt_ref": {
+          "type": "string",
+          "pattern": "^prompts/.+\\.md@[1-9][0-9]*$"
+        },
+        "process_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "loaded_skill_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^skills/.+\\.md@[1-9][0-9]*$"
+          },
+          "uniqueItems": true
+        },
+        "policy_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"
+          },
+          "uniqueItems": true
+        }
       }
     },
-    "body": {"type": "string"}
+    "body": {
+      "type": "string"
+    }
   },
   "x-mdlm-kernel-invariants": [
     "id prefix equals type",

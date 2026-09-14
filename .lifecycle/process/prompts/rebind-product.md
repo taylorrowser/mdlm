@@ -1,7 +1,6 @@
 ---
 id: rebind-product
 version: 6
-scenario: rebind-product
 skills:
 - skills/product-quality.md@1
 - skills/typed-requirements.md@5

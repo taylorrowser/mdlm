@@ -15,7 +15,7 @@ query:
     types:
     - REV
   as: item
-  where: state(item, "validity") == "valid" && item.integrity.scenario_execution_valid == true
+  where: state(item, "validity") == "valid" && item.integrity.transaction_valid == true
   distinct: true
   order_by:
   - identity.revision_id

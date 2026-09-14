@@ -1,7 +1,6 @@
 ---
 id: frame-experiment
 version: 1
-scenario: frame-experiment
 ---
 
 # Frame one experiment

@@ -1,6 +1,5 @@
 ---
 id: amend-change
-scenario: amend-change
 version: 1
 skills:
 - skills/product-quality.md@1
