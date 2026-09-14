@@ -118,6 +118,10 @@ export interface KernelCapabilityBinding {
   acceptance_type?: string;
   review_type?: string;
   result_type?: string;
+  prompt_ref?: string;
+  subject_link?: string;
+  context_link?: string;
+  input_link?: string;
 }
 
 export interface ProcessPackage {
@@ -252,7 +256,7 @@ function validateKernelCapabilityBindings(
 ): ProcessDiagnostic[] {
   return Object.entries(kernelCapabilities).flatMap(([reference, binding]) => {
     const path = `manifest.kernel_capabilities.${reference}.type`;
-    if (reference !== exactBaselineCapability.reference && reference !== "docker-verification@1" && reference !== "requirement-trace@1" && reference !== "requirement-trace@2") {
+    if (reference !== exactBaselineCapability.reference && reference !== "direct-observation@1" && reference !== "docker-verification@1" && reference !== "requirement-trace@1" && reference !== "requirement-trace@2") {
       return [{
         code: "unknown-kernel-capability",
         path,
@@ -288,6 +292,16 @@ function validateKernelCapabilities(
       for (const field of (reference === "requirement-trace@2" ? ["requirement_type", "implementation_type", "scope_type", "decomposition_type", "change_type", "acceptance_type", "review_type", "result_type"] : ["requirement_type", "implementation_type", "scope_type"]) as (keyof KernelCapabilityBinding)[]) {
         if (!binding[field] || !processPackage.types[binding[field]!]) diagnostics.push({code: "incompatible-kernel-capability", path: bindingPath, message: `Requirement trace requires a declared ${field}`});
       }
+      continue;
+    }
+    if (reference === "direct-observation@1") {
+      for (const field of ["implementation_type", "requirement_type"] as const) {
+        if (!binding[field] || !processPackage.types[binding[field]!]) diagnostics.push({code: "incompatible-kernel-capability", path: bindingPath, message: `Direct observation requires declared ${field}`});
+      }
+      for (const field of ["prompt_ref", "subject_link", "context_link", "input_link"] as const) {
+        if (!binding[field]) diagnostics.push({code: "incompatible-kernel-capability", path: bindingPath, message: `Direct observation requires ${field}`});
+      }
+      for (const field of ["outcome", "receipt"]) if (!resolved.type.kernelManagedPayloadPaths.includes(field)) diagnostics.push({code: "incompatible-kernel-capability", path: bindingPath, message: `Direct observation requires managed ${field}`});
       continue;
     }
     if (reference === "docker-verification@1") {

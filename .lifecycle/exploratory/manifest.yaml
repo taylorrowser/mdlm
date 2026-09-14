@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-exploratory
-version: 0.2.0
+version: 0.3.0
 status: experimental
 description: Prototype experiments with exact observations and stakeholder
   feedback continuation.
@@ -26,6 +26,14 @@ references:
 language:
   expressions: mdlm-expression@1
 kernel_capabilities:
+  direct-observation@1:
+    type: OBS
+    implementation_type: TRY
+    requirement_type: EXP
+    subject_link: observes
+    context_link: against
+    input_link: explores
+    prompt_ref: prompts/direct-observation.md@1
   docker-verification@1:
     type: OBS
 compatibility:

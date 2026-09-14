@@ -50,7 +50,7 @@ it("continues nominations through stakeholder feedback while preserving exact pr
     expect(cli(["init", unknown, "--process", "invented", "--json"], undefined, 1, root).ok).toBe(false);
     await expect(fs.stat(unknown)).rejects.toMatchObject({ code: "ENOENT" });
     const initialized = cli(["init", lifecycle, "--process", "exploratory", "--json"], undefined, 0, root);
-    expect(initialized.package.reference).toBe("mdlm-exploratory@0.2.0");
+    expect(initialized.package.reference).toBe("mdlm-exploratory@0.3.0");
     await fs.mkdir(source);
     git(["init", "--quiet"]);
     git(["config", "user.name", "MDLM exploratory fixture"]);

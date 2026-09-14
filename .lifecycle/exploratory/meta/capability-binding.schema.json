@@ -43,6 +43,22 @@
     "result_type": {
       "type": "string",
       "pattern": "^[A-Z]{3,8}$"
+    },
+    "prompt_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "subject_link": {
+      "type": "string",
+      "minLength": 1
+    },
+    "context_link": {
+      "type": "string",
+      "minLength": 1
+    },
+    "input_link": {
+      "type": "string",
+      "minLength": 1
     }
   }
 }
