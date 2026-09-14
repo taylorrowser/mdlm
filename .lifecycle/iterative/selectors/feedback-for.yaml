@@ -1,0 +1,22 @@
+kind: selector-definition
+id: feedback-for
+version: 1
+description: feedback-for
+parameters:
+  - name: observation
+    kind: revision
+    types:
+      - OBS
+result_kind: revision
+query:
+  from:
+    relation: incoming-links
+    of: observation
+    link: responds-to
+    emit: source
+    types:
+      - FDB
+  as: item
+  distinct: true
+  order_by:
+    - identity.revision_id

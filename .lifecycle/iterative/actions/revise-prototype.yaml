@@ -1,0 +1,26 @@
+kind: action-definition
+id: revise-prototype
+version: 1
+description: revise-prototype
+capability: prototype
+prompt_ref: prompts/revise-prototype.md@1
+types:
+- TRY
+subjects: select("prototype-feedback@1", {})
+inputs:
+  subject: 'one("trial-for-observation@1", {observation: one("observation-for-feedback@1", {feedback:
+    subject})})'
+  experiment: 'one("experiment-for-observation@1", {observation: one("observation-for-feedback@1", {feedback:
+    subject})})'
+  feedback: subject
+when: '!(exists("trial-responses-for@1", {feedback: subject})) && (true)'
+priority: 100
+links:
+  TRY:
+    explores: experiment
+    responds-to: feedback
+revises:
+  TRY: subject
+fixed_payload:
+  TRY:
+    publication: recorded

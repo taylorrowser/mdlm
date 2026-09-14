@@ -1,0 +1,51 @@
+kind: type-definition
+id: EXP
+version: 2
+name: Experiment brief
+description: Experiment brief
+extends: titled-datum@1
+lifecycle:
+  authorship: authored
+  freeze_when: terminal-outcome
+  terminal_payload_field: publication
+  terminal_values:
+    - recorded
+payload_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  required:
+    - publication
+    - criterion
+    - question
+    - approach
+    - constraints
+    - allowance_minutes
+    - scope_cut
+  properties:
+    publication:
+      const: recorded
+    criterion: &a1
+      type: string
+      minLength: 1
+    question: *a1
+    approach: *a1
+    constraints: *a1
+    allowance_minutes:
+      type: integer
+      minimum: 1
+    scope_cut: *a1
+outgoing_links:
+  - id: responds-to
+    description: responds-to
+    targets:
+      - kind: datum
+        types:
+          - OBS
+          - FDB
+        identity: revision
+    cardinality:
+      minimum: 0
+      maximum: 1
+    freeze_resolution: already-exact
+    inverse_label: incoming-responds-to
+kernel_managed_payload_paths: []

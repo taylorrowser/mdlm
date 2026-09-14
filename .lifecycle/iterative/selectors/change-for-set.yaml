@@ -1,0 +1,23 @@
+kind: selector-definition
+id: change-for-set
+version: 1
+description: Exact change linked by candidate set
+parameters:
+- name: requirements
+  kind: revision
+  types:
+  - RQS
+result_kind: revision
+query:
+  from:
+    relation: outgoing-links
+    of: requirements
+    link: changes-under
+    emit: target
+    types:
+    - CHG
+  as: item
+  where: state(item, "validity") == "valid"
+  distinct: true
+  order_by:
+  - identity.revision_id

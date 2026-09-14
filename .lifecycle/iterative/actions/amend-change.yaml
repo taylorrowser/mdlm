@@ -1,0 +1,18 @@
+kind: action-definition
+id: amend-change
+version: 1
+description: Revise the change proposal for approval
+capability: change
+prompt_ref: prompts/amend-change.md@1
+types:
+- CHG
+subjects: select("current-changes@1", {})
+inputs:
+  subject: subject
+when: '!(none("fail-reviews@1", {subject: subject})) && (exists("fail-reviews@1", {subject: subject}))'
+priority: 110
+revises:
+  CHG: subject
+fixed_payload:
+  CHG:
+    publication: recorded

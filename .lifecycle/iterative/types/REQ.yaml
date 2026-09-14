@@ -1,0 +1,224 @@
+kind: type-definition
+id: REQ
+version: 2
+description: Requirement statement
+name: Requirement statement
+extends: titled-datum@1
+lifecycle:
+  authorship: authored
+  freeze_when: terminal-outcome
+  terminal_payload_field: publication
+  terminal_values:
+    - recorded
+payload_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  required:
+    - publication
+    - kind
+  properties:
+    publication:
+      const: recorded
+    kind:
+      type: string
+      enum:
+        - stakeholder
+        - software
+    statement: &a2
+      type: string
+      minLength: 1
+    ears:
+      type: object
+      additionalProperties: false
+      required:
+        - pattern
+        - system
+        - response
+      properties:
+        pattern:
+          enum:
+            - ubiquitous
+            - event
+            - state
+            - optional
+            - unwanted
+            - complex
+          type: string
+        system:
+          type: string
+          minLength: 1
+          description: Complete grammatical subject, including an article if needed.
+        response: &a1
+          type: string
+          minLength: 1
+        feature: *a1
+        state: *a1
+        event: *a1
+        unwanted: *a1
+      allOf:
+        - if:
+            properties:
+              pattern:
+                const: ubiquitous
+            required:
+              - pattern
+          then:
+            required: []
+            not:
+              anyOf:
+                - required:
+                    - feature
+                - required:
+                    - state
+                - required:
+                    - event
+                - required:
+                    - unwanted
+        - if:
+            properties:
+              pattern:
+                const: event
+            required:
+              - pattern
+          then:
+            required:
+              - event
+            not:
+              anyOf:
+                - required:
+                    - feature
+                - required:
+                    - state
+                - required:
+                    - unwanted
+        - if:
+            properties:
+              pattern:
+                const: state
+            required:
+              - pattern
+          then:
+            required:
+              - state
+            not:
+              anyOf:
+                - required:
+                    - feature
+                - required:
+                    - event
+                - required:
+                    - unwanted
+        - if:
+            properties:
+              pattern:
+                const: optional
+            required:
+              - pattern
+          then:
+            required:
+              - feature
+            not:
+              anyOf:
+                - required:
+                    - state
+                - required:
+                    - event
+                - required:
+                    - unwanted
+        - if:
+            properties:
+              pattern:
+                const: unwanted
+            required:
+              - pattern
+          then:
+            required:
+              - unwanted
+            not:
+              anyOf:
+                - required:
+                    - feature
+                - required:
+                    - state
+                - required:
+                    - event
+        - if:
+            properties:
+              pattern:
+                const: complex
+            required:
+              - pattern
+          then:
+            anyOf:
+              - required:
+                  - feature
+                  - state
+              - required:
+                  - feature
+                  - event
+              - required:
+                  - feature
+                  - unwanted
+              - required:
+                  - state
+                  - event
+              - required:
+                  - state
+                  - unwanted
+            not:
+              required:
+                - event
+                - unwanted
+      examples:
+        - pattern: event
+          event: the user submits a valid request
+          system: the product
+          response: return the requested result
+    rationale: *a2
+    source: *a2
+  allOf:
+    - if:
+        properties:
+          kind:
+            const: stakeholder
+        required:
+          - kind
+      then:
+        required:
+          - statement
+        not:
+          required:
+            - ears
+      else:
+        required:
+          - ears
+        not:
+          required:
+            - statement
+outgoing_links:
+  - id: changes-under
+    description: changes-under
+    targets:
+      - kind: datum
+        types:
+          - CHG
+        identity: revision
+    cardinality:
+      minimum: 0
+      maximum: 1
+    freeze_resolution: already-exact
+    inverse_label: incoming-changes-under
+  - id: informed-by
+    description: Optional exact exploratory origins; neither verification nor acceptance.
+    targets:
+      - kind: datum
+        types:
+          - EXP
+          - OBS
+        identity: revision
+    cardinality:
+      minimum: 0
+      maximum: many
+    freeze_resolution: already-exact
+    inverse_label: incoming-informed-by
+kernel_managed_payload_paths: []

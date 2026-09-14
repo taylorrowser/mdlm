@@ -1,0 +1,24 @@
+kind: action-definition
+id: rebind-product
+version: 1
+description: Bind unchanged or corrected product to revised expectations
+capability: implementation
+prompt_ref: prompts/rebind-product.md@6
+types:
+- IMP
+subjects: select("current-requirements@1", {})
+inputs:
+  requirements: subject
+  prior: 'one("prior-implementations-for@1", {requirements: subject})'
+when: '!(none("prior-implementations-for@1", {requirements: subject}) || exists("implementations-for@1",
+  {requirements: subject})) && (exists("pass-reviews@1", {subject: subject}) && none("fail-reviews@1",
+  {subject: subject}) && exists("prior-implementations-for@1", {requirements: subject}))'
+priority: 100
+links:
+  IMP:
+    implements: requirements
+revises:
+  IMP: prior
+fixed_payload:
+  IMP:
+    publication: recorded

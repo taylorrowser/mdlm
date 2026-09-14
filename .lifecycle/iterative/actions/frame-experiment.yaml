@@ -1,0 +1,14 @@
+kind: action-definition
+id: frame-experiment
+version: 1
+description: frame-experiment
+capability: experiment
+prompt_ref: prompts/frame-experiment.md@1
+types:
+- EXP
+inputs: {}
+when: '!(exists("current-experiments@1", {})) && (true)'
+priority: 100
+fixed_payload:
+  EXP:
+    publication: recorded

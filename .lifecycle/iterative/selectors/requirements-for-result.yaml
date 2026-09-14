@@ -1,0 +1,23 @@
+kind: selector-definition
+id: requirements-for-result
+version: 1
+description: requirements for result
+parameters:
+- name: result
+  kind: revision
+  types:
+  - RES
+result_kind: revision
+query:
+  from:
+    relation: outgoing-links
+    of: result
+    link: verifies
+    emit: target
+    types:
+    - RQS
+  as: item
+  where: 'state(item, "validity") == "valid" && none("newer-revisions@1", {subject: item})'
+  distinct: true
+  order_by:
+  - identity.revision_id

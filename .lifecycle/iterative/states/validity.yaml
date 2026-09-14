@@ -1,0 +1,17 @@
+kind: state-definition
+id: validity
+version: 1
+description: Kernel integrity and package identity.
+subject_as: subject
+cardinality: exactly-one
+default: valid
+values:
+- valid
+- invalid
+rules:
+- value: invalid
+  priority: 100
+  when: subject.integrity.parseable == false || subject.integrity.schema_valid == false || subject.integrity.identity_valid
+    == false || subject.integrity.references_valid == false || subject.integrity.hash_valid == false || subject.provenance.process_ref
+    != process.current_ref
+  explanation: Invalid integrity or a different Process Package identity.

@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mdlm.dev/meta/v3/query.schema.json",
+  "title": "MDLM relational query",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["from", "as"],
+  "properties": {
+    "from": {"$ref": "#/$defs/source"},
+    "as": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+    "where": {"$ref": "expression.schema.json"},
+    "distinct": {"type": "boolean"},
+    "order_by": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]*$"},
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "types": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[A-Z]{3,8}$"},
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "source": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["collection"],
+          "properties": {
+            "collection": {"enum": ["stable-data", "revisions", "baselines"]},
+            "types": {"$ref": "#/$defs/types"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["relation", "of", "emit"],
+          "properties": {
+            "relation": {"enum": ["outgoing-links", "incoming-links", "revisions", "dependency-changes"]},
+            "of": {"$ref": "expression.schema.json"},
+            "link": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+            "emit": {"enum": ["source", "target", "entity", "record"]},
+            "types": {"$ref": "#/$defs/types"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["selector", "arguments"],
+          "properties": {
+            "selector": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"},
+            "arguments": {
+              "type": "object",
+              "additionalProperties": {"$ref": "expression.schema.json"}
+            }
+          }
+        }
+      ]
+    }
+  }
+}

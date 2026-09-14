@@ -1,0 +1,25 @@
+kind: action-definition
+id: correct-rejected-product
+version: 1
+description: Correct a failed verification or stakeholder rejection
+capability: implementation
+prompt_ref: prompts/correct-product.md@6
+types:
+- IMP
+subjects: select("current-implementations@1", {})
+inputs:
+  subject: subject
+  requirements: 'one("requirements-for@1", {implementation: subject})'
+  failure: 'one("rejections-for@1", {implementation: subject})'
+when: '!(none("rejections-for@1", {implementation: subject})) && (exists("rejections-for@1", {implementation:
+  subject}))'
+priority: 100
+links:
+  IMP:
+    implements: requirements
+    corrects: failure
+revises:
+  IMP: subject
+fixed_payload:
+  IMP:
+    publication: recorded

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mdlm.dev/meta/v3/parameter.schema.json",
+  "title": "MDLM typed parameter",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "kind"],
+  "properties": {
+    "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+    "kind": {"enum": ["stable-datum", "revision", "baseline", "process", "scalar"]},
+    "types": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{3,8}$"}, "minItems": 1, "uniqueItems": true},
+    "scalar_type": {"enum": ["string", "number", "integer", "boolean"]}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"kind": {"const": "scalar"}}},
+      "then": {
+        "required": ["scalar_type"],
+        "not": {"required": ["types"]}
+      },
+      "else": {"not": {"required": ["scalar_type"]}}
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {"enum": ["process"]}
+        }
+      },
+      "then": {"not": {"required": ["types"]}}
+    }
+  ]
+}

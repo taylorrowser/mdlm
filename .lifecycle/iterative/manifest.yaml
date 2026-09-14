@@ -1,0 +1,66 @@
+kind: process-package-manifest
+id: mdlm-iterative
+version: 1.0.0
+status: experimental
+description: Explore a useful product, then progressively baseline necessary behavior.
+kernel_contract:
+  id: mdlm-kernel-process-interface
+  version: 1
+  primitive_catalog_ref: primitives/kernel-v1.yaml@1
+  envelope_schema_id: https://mdlm.dev/kernel/process-interface/v1/datum-envelope.schema.json
+  envelope_schema_copy: meta/datum-envelope.schema.json
+  package_may_override: false
+artifact_format:
+  media_type: text/markdown
+  metadata: yaml-frontmatter
+  merged_body_field: body
+  payload_field: payload
+  encoding: utf-8
+references:
+  process_asset: <path>@<positive-integer-version>
+  definition: <stable-definition-id>@<positive-integer-version>
+  datum_stable: <TYPE>-<Crockford-Base32-ID>
+  datum_revision: <stable-id>-r<five-digit-revision>
+language:
+  expressions: mdlm-expression@1
+kernel_capabilities:
+  docker-verification@1:
+    type: RES
+  requirement-trace@2:
+    type: RQS
+    requirement_type: REQ
+    implementation_type: IMP
+    scope_type: SCP
+    decomposition_type: DCP
+    change_type: CHG
+    acceptance_type: ACC
+    review_type: REV
+    result_type: RES
+compatibility:
+  minimum_kernel: 0.2.0
+  meta_schema_version: 3
+  json_schema_draft: 2020-12
+  unknown_definition_fields: reject
+  arbitrary_code_execution: forbidden
+  template_inheritance: single-parent-additive
+  repository_migration: fresh-only
+provenance:
+  companion_reference: .lifecycle/iterative/README.md
+  intent: useful-product-to-justified-baseline
+  normative_scope: this-package-only
+direct_contract: mdlm-direct@1
+terminal:
+  when: '(exists("current-requirements@1", {}) && every("current-requirements@1",
+    {}, req => exists("implementations-for@1", {requirements: req}) &&
+    every("implementations-for@1", {requirements: req}, imp =>
+    exists("acceptances-for@2", {implementation: imp}) &&
+    exists("passing-results@1", {implementation: imp}) &&
+    exists("pass-reviews@1", {subject: imp}) && none("fail-reviews@1", {subject:
+    imp}))) && every("current-requirements@1", {}, req =>
+    exists("pass-reviews@1", {subject: req}) && none("fail-reviews@1", {subject:
+    req}))) && every("current-changes@1", {}, change =>
+    exists("sets-for-change@1", {change: change}))'
+  outcome: profile-boundary-reached
+  reason: The current formal scope is independently reviewed, verified and
+    stakeholder accepted. Exploratory work is outside that claim; confirm the
+    agreed whole-product scope before declaring the experiment complete.

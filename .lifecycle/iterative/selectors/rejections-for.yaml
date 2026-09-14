@@ -1,0 +1,23 @@
+kind: selector-definition
+id: rejections-for
+version: 1
+description: Exact stakeholder rejections for an implementation
+parameters:
+- name: implementation
+  kind: revision
+  types:
+  - IMP
+result_kind: revision
+query:
+  from:
+    relation: incoming-links
+    of: implementation
+    link: accepts
+    emit: source
+    types:
+    - ACC
+  as: item
+  where: state(item, "validity") == "valid" && item.integrity.transaction_valid == true && item.payload.decision == "reject"
+  distinct: true
+  order_by:
+  - identity.revision_id

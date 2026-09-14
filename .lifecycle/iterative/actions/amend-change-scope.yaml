@@ -1,0 +1,21 @@
+kind: action-definition
+id: amend-change-scope
+version: 1
+description: Revise the change proposal for approval
+capability: change
+prompt_ref: prompts/amend-change.md@1
+types:
+- CHG
+subjects: select("current-requirements@1", {})
+inputs:
+  subject: 'one("change-for-set@1", {requirements: subject})'
+when: '!(none("fail-reviews@1", {subject: subject})) && (exists("fail-reviews@1", {subject: subject})
+  && !every("fail-reviews@1", {subject: subject}, failed => failed.payload.scope_amendment_required ==
+  false) && every("change-for-set@1", {requirements: subject}, change => none("newer-revisions@1", {subject:
+  change})))'
+priority: 100
+revises:
+  CHG: subject
+fixed_payload:
+  CHG:
+    publication: recorded

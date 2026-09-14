@@ -1,0 +1,17 @@
+kind: selector-definition
+id: current-implementations
+version: 1
+description: current implementations
+parameters: []
+result_kind: revision
+query:
+  from:
+    collection: revisions
+    types:
+    - IMP
+  as: item
+  where: 'state(item, "validity") == "valid" && none("newer-revisions@1", {subject: item}) && exists("requirements-for@1",
+    {implementation: item})'
+  distinct: true
+  order_by:
+  - identity.revision_id
