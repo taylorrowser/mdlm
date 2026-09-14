@@ -129,18 +129,25 @@ export async function runDirectJourney({process: processName = 'tiny', executabl
     return {repository_path: source, source_commit: sourceCommit, command: ['python3', 'count.py', 'red', 'blue'], verification_image: image, verification_command: ['python3', 'verify.py'], verification_script: 'verify.py'};
   }
   function reviewRequirements(set) {
-    const all = data(), reqs = set.links.filter(l => l.type === 'contains').map(l => all.find(d => d.revision_id === l.target));
-    const groups = set.links.filter(l => l.type === 'decomposition').map(l => all.find(d => d.revision_id === l.target));
+    const context = cli(['review', 'context', 'review-requirements@1', set.revision_id]);
+    const graph = context.requirementGraphs.find(g => g.selection === set.revision_id);
+    assert.ok(graph?.assessment, 'Review context must expose its exact required assessments');
+    const assessment = graph.assessment;
+    const reqs = graph.requirements.filter(d => assessment.requirements.includes(d.revision_id));
+    const groups = graph.groups.filter(d => assessment.groups.some(g => g.revision === d.revision_id));
     submit('review-requirements', set.revision_id, [candidate('requirements-review', 'REV', {
       outcome: 'pass', findings: 'The selected software behaviors jointly satisfy the fixture stakeholder statement; retirement removes the label and preserves counting.',
       requirement_assessments: reqs.map(d => ({requirement: d.revision_id, disposition: 'valid', rationale: 'Necessary within the selected stakeholder scope.'})),
       decomposition_assessments: groups.map(d => ({group: d.revision_id, disposition: 'adequate', membership_action: 'none', rationale: 'The immediate children cover the parent without an unused behavior.', children: d.links.filter(l => l.type === 'child').map(l => ({requirement: l.target, disposition: 'valid', rationale: 'This child contributes a selected behavior.'}))})),
     }, [link('reviews', set.revision_id)])]);
+    return assessment;
   }
   function finishProduct(set, implementation) {
     const receipt = execute(implementation, 'pass');
     const result = submit('execute-verification', implementation.revision_id, [candidate('verification', 'RES', {assessment: 'The committed Python assertions passed in the pinned container.', correction_target: 'none'}, [link('executes', implementation.revision_id), link('verifies', set.revision_id)])], {receipt}).find(d => d.type === 'RES');
-    const scopes = data().filter(d => d.type === 'SCP' && d.links.some(l => l.type === 'belongs-to' && l.target === implementation.revision_id));
+    const reviewContext = cli(['review', 'context', 'review-implementation@1', implementation.revision_id]);
+    const assessment = reviewContext.requirementGraphs.find(g => g.selection === set.revision_id)?.assessment;
+    const scopes = assessment?.change ? data().filter(d => assessment.sourceScopes.includes(d.revision_id)) : data().filter(d => d.type === 'SCP' && d.links.some(l => l.type === 'belongs-to' && l.target === implementation.revision_id));
     submit('review-implementation', implementation.revision_id, [candidate('implementation-review', 'REV', {outcome: 'pass', findings: 'The committed counting program and independent subprocess assertions support the selected requirements. The receipt binds this exact source.', source_assessments: scopes.map(d => ({source_scope: d.revision_id, disposition: 'valid', rationale: 'This source region implements or verifies its linked software behavior.'}))}, [link('reviews', implementation.revision_id), link('uses-evidence', result.revision_id)])]);
     return submit('accept-product', implementation.revision_id, [candidate('fixture-acceptance', 'ACC', {decision: 'accept', rationale: fixtureAuthority}, [link('accepts', implementation.revision_id), link('uses-evidence', result.revision_id), link('confirms', set.revision_id)])]).find(d => d.type === 'ACC');
   }
@@ -177,9 +184,10 @@ export async function runDirectJourney({process: processName = 'tiny', executabl
         candidate('requirements', 'RQS', {}, [link('retires', label.revision_id)], set.revision_id),
       ]);
       const nextSet = revised.find(d => d.type === 'RQS');
-      reviewRequirements(nextSet);
+      const reassessment = reviewRequirements(nextSet);
+      const dispositions = reassessment.sourceScopes.map(source_scope => ({source_scope, disposition: 'removed', rationale: 'The approved change retires the label behavior and removes this label-only source region.'}));
       const secondSource = sourceVersion(count.id);
-      const nextImp = submit('rebind-product', nextSet.revision_id, [candidate('implementation', 'IMP', {...secondSource, file_roles: {'count.py': 'production', 'verify.py': 'verification'}, impact_dispositions: []}, [link('implements', nextSet.revision_id)], imp.revision_id)]).find(d => d.type === 'IMP');
+      const nextImp = submit('rebind-product', nextSet.revision_id, [candidate('implementation', 'IMP', {...secondSource, file_roles: {'count.py': 'production', 'verify.py': 'verification'}, impact_dispositions: dispositions}, [link('implements', nextSet.revision_id)], imp.revision_id)]).find(d => d.type === 'IMP');
       finishProduct(nextSet, nextImp);
       assert.deepEqual(data().find(d => d.revision_id === label.revision_id), label, 'Retirement preserves the historical requirement');
     } else {
