@@ -40,9 +40,27 @@ mdlm execution run <exact-implementation-or-prototype> <operation-id> --json
 mdlm execution settlement <operation-id> --json
 ```
 
-Read the actual receipt and captured output. Include the exact receipt in the proposed result or observation. A failing execution is evidence to assess, not a reason to discard history. Recover an uncertain execution through settlement; never start another execution merely because its response was lost.
+Read the actual receipt and captured output. Guidance's `evidence` array lists available receipt locators; choose the exact receipt supporting the proposed result or observation. The proposal's `evidence` is an object with a `receipt` field:
 
-For stakeholder decisions, ask the named stakeholder using the exact guidance context. Include the supplied authority in proposal evidence and pass the matching `--authority <name>` flag. Authority comes from the attended answer, never from agent inference. Recorded engineering-demo delegation applies only to its named demo.
+```json
+{"evidence": {"receipt": "<exact git-blob: locator from guidance.evidence>"}}
+```
+
+Replace the placeholder with the complete selected locator string. This is a top-level proposal field, separate from the candidate payload. Keep the original captured execution when correcting the evidence envelope. A failing execution is evidence to assess, not a reason to discard history. Recover an uncertain execution through settlement; never start another execution merely because its response was lost.
+
+For stakeholder decisions, ask the named stakeholder using the exact guidance context. When the required authority name is `stakeholder`, include this top-level proposal field:
+
+```json
+{"evidence": {"authority": ["stakeholder"]}}
+```
+
+Submit with the matching explicit flag:
+
+```bash
+mdlm proposal submit proposal.json --authority stakeholder --json
+```
+
+Use the exact authority name from guidance for both the array and flag. Authority comes from the attended answer, never from agent inference. Recorded engineering-demo delegation applies only to its named demo.
 
 For independent review, give a fresh reviewer the export from `mdlm review context <action> <exact-subject> --json`. The review manager registers the exact proposal and verdict through `mdlm review register <proposal-file> <verdict-file> --json`. The author must not register its own judgment. Submit the exact registered proposal bytes.
 
