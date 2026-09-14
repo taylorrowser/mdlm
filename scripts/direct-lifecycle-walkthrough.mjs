@@ -10,7 +10,7 @@ const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const fixtureAuthority = 'Operator-selected engineering fixture. Stakeholder decisions are scripted fixture inputs, not acceptance by the actual product user. Review registration exercises a separate manager transport and exact verdict binding; it does not claim human or model review independence.';
 
 /** Ordinary public operations only. Preserve both repositories and external evidence on every outcome. */
-export async function runDirectJourney({process: processName = 'tiny', executable = process.env.MDLM_DIRECT_EXECUTABLE ?? process.env.MDLM_EXECUTABLE, root}) {
+export async function runDirectJourney({process: processName = 'tiny', corrections = false, executable = process.env.MDLM_DIRECT_EXECUTABLE ?? process.env.MDLM_EXECUTABLE, root}) {
   assert.ok(['tiny', 'exploratory'].includes(processName));
   assert.ok(path.isAbsolute(root), 'A fresh absolute root is required');
   assert.ok(executable && path.isAbsolute(executable), 'An exact absolute executable is required');
@@ -82,7 +82,7 @@ export async function runDirectJourney({process: processName = 'tiny', executabl
     const authorityArgs = g.authority?.kind === 'stakeholder' ? ['--authority', g.authority.name] : [];
     if (action === 'accept-product') {
       const before = cli(['expectations']);
-      const conflicting = {...candidates[0], localId: 'conflicting-rejection', payload: {...candidates[0].payload, decision: 'reject'}};
+      const conflicting = {...candidates[0], localId: 'conflicting-decision', payload: {...candidates[0].payload, decision: candidates[0].payload.decision === 'accept' ? 'reject' : 'accept'}};
       const rejected = cli(['proposal', 'submit', '-', ...authorityArgs], {...proposal, operation: `${operation}-multiple`, candidates: [...candidates, conflicting]}, {expected: 1});
       assert.equal(rejected.ok, false, 'One stakeholder operation cannot publish conflicting acceptance decisions');
       assert.equal(cli(['expectations']).snapshot, before.snapshot, 'Rejected batch cannot change lifecycle history');
@@ -124,41 +124,47 @@ export async function runDirectJourney({process: processName = 'tiny', executabl
     receipts.push(settled.value);
     return settled.value.evidence;
   }
-  function sourceVersion(leaf, extra, failure = false) {
-    const runtime = `import sys\nprint(len(sys.argv) - 1)\n`;
+  function sourceVersion(leaf, extra, failure = false, {zeroBug = false, quoted, zeroCheck = false} = {}) {
+    const runtime = `import sys\nprint(${zeroBug ? '(len(sys.argv) - 1) or 1' : 'len(sys.argv) - 1'})\n`;
     const verification = `import subprocess\nassert subprocess.check_output(['python3', 'count.py', 'red', 'blue'], text=True).strip() == '${failure ? '3' : '2'}'\n`;
     const region = (name, relation, target, code) => target ? `# mdlm:begin ${name} ${relation} ${target}\n${code}# mdlm:end ${name}\n` : code;
     writeFileSync(path.join(source, 'count.py'), region('count', 'implements', leaf, runtime) + (extra ? region('label', 'implements', extra, "print('items')\n") : ''));
     // The baseline checks the count independently of its separate label behavior.
-    const checks = extra ? verification.replace('.strip()', '.splitlines()[0]') : verification;
+    const checks = (extra ? verification.replace('.strip()', '.splitlines()[0]') : verification)
+      + (quoted === undefined ? '' : `assert subprocess.check_output(['python3', 'count.py', 'red blue'], text=True).strip() == '${quoted}'\n`)
+      + (zeroCheck ? `assert subprocess.check_output(['python3', 'count.py'], text=True).strip() == '0'\n` : '');
     writeFileSync(path.join(source, 'verify.py'), region('checks', 'verifies', leaf, checks) + (extra ? region('label-check', 'verifies', extra, "assert subprocess.check_output(['python3', 'count.py'], text=True).splitlines()[1] == 'items'\n") : ''));
     commit(source, 'Record exact product and executable expectations');
     const sourceCommit = git(['rev-parse', 'HEAD'], source);
     sourceCommits.push(sourceCommit);
     return {repository_path: source, source_commit: sourceCommit, command: ['python3', 'count.py', 'red', 'blue'], verification_image: image, verification_command: ['python3', 'verify.py'], verification_script: 'verify.py'};
   }
-  function reviewRequirements(set) {
+  function reviewRequirements(set, {failRequirement, findings} = {}) {
     const context = cli(['review', 'context', 'review-requirements@1', set.revision_id]);
     const graph = context.requirementGraphs.find(g => g.selection === set.revision_id);
     assert.ok(graph?.assessment, 'Review context must expose its exact required assessments');
     const assessment = graph.assessment;
     const reqs = graph.requirements.filter(d => assessment.requirements.includes(d.revision_id));
     const groups = graph.groups.filter(d => assessment.groups.some(g => g.revision === d.revision_id));
-    submit('review-requirements', set.revision_id, [candidate('requirements-review', 'REV', {
-      outcome: 'pass', findings: 'The selected software behaviors jointly satisfy the fixture stakeholder statement; retirement removes the label and preserves counting.',
-      requirement_assessments: reqs.map(d => ({requirement: d.revision_id, disposition: 'valid', rationale: 'Necessary within the selected stakeholder scope.'})),
-      decomposition_assessments: groups.map(d => ({group: d.revision_id, disposition: 'adequate', membership_action: 'none', rationale: 'The immediate children cover the parent without an unused behavior.', children: d.links.filter(l => l.type === 'child').map(l => ({requirement: l.target, disposition: 'valid', rationale: 'This child contributes a selected behavior.'}))})),
+    const records = submit('review-requirements', set.revision_id, [candidate('requirements-review', 'REV', {
+      outcome: failRequirement ? 'fail' : 'pass', findings: findings ?? 'The selected software behaviors jointly satisfy the fixture stakeholder statement; retirement removes the label and preserves counting.',
+      requirement_assessments: reqs.map(d => ({requirement: d.revision_id, disposition: d.revision_id === failRequirement ? 'needs-change' : 'valid', rationale: d.revision_id === failRequirement ? findings : 'Necessary within the selected stakeholder scope.'})),
+      decomposition_assessments: groups.map(d => ({group: d.revision_id, disposition: d.links.some(l => l.target === failRequirement) ? 'needs-change' : 'adequate', membership_action: 'none', rationale: failRequirement ? findings : 'The immediate children cover the parent without an unused behavior.', children: d.links.filter(l => l.type === 'child').map(l => ({requirement: l.target, disposition: l.target === failRequirement ? 'needs-change' : 'valid', rationale: l.target === failRequirement ? findings : 'This child contributes a selected behavior.'}))})),
     }, [link('reviews', set.revision_id)])]);
-    return assessment;
+    return {...assessment, review: records.find(d => d.type === 'REV')};
   }
-  function finishProduct(set, implementation) {
+  function finishProduct(set, implementation, {decision = 'accept', rationale = fixtureAuthority, checkZero = false} = {}) {
     const receipt = execute(implementation, 'pass');
     const result = submit('execute-verification', implementation.revision_id, [candidate('verification', 'RES', {assessment: 'The committed Python assertions passed in the pinned container.', correction_target: 'none'}, [link('executes', implementation.revision_id), link('verifies', set.revision_id)])], {receipt}).find(d => d.type === 'RES');
     const reviewContext = cli(['review', 'context', 'review-implementation@1', implementation.revision_id]);
     const assessment = reviewContext.requirementGraphs.find(g => g.selection === set.revision_id)?.assessment;
     const scopes = assessment?.change ? data().filter(d => assessment.sourceScopes.includes(d.revision_id)) : data().filter(d => d.type === 'SCP' && d.links.some(l => l.type === 'belongs-to' && l.target === implementation.revision_id));
     submit('review-implementation', implementation.revision_id, [candidate('implementation-review', 'REV', {outcome: 'pass', findings: 'The committed counting program and independent subprocess assertions support the selected requirements. The receipt binds this exact source.', source_assessments: scopes.map(d => ({source_scope: d.revision_id, disposition: 'valid', rationale: 'This source region implements or verifies its linked software behavior.'}))}, [link('reviews', implementation.revision_id), link('uses-evidence', result.revision_id)])]);
-    return submit('accept-product', implementation.revision_id, [candidate('fixture-acceptance', 'ACC', {decision: 'accept', rationale: fixtureAuthority}, [link('accepts', implementation.revision_id), link('uses-evidence', result.revision_id), link('confirms', set.revision_id)])]).find(d => d.type === 'ACC');
+    if (checkZero) {
+      const observed = run('python3', ['count.py'], source);
+      assert.equal(observed.stdout.trim(), decision === 'reject' ? '1' : '0', 'Record actual zero-input behavior before the fixture stakeholder decision');
+    }
+    return submit('accept-product', implementation.revision_id, [candidate('fixture-acceptance', 'ACC', {decision, rationale}, [link('accepts', implementation.revision_id), link('uses-evidence', result.revision_id), link('confirms', set.revision_id)])]).find(d => d.type === 'ACC');
   }
   try {
     run('docker', ['version', '--format', '{{.Server.Version}}'], root);
@@ -169,7 +175,41 @@ export async function runDirectJourney({process: processName = 'tiny', executabl
     cli(['init', lifecycle, ...(processName === 'exploratory' ? ['--process', 'exploratory'] : [])], undefined, {cwd: root});
     git(['config', 'user.name', 'Direct lifecycle fixture']);
     git(['config', 'user.email', 'fixture@localhost']);
-    if (processName === 'tiny') {
+    if (processName === 'tiny' && corrections) {
+      const software = response => ({kind: 'software', ears: {pattern: 'ubiquitous', system: 'The CLI', response}});
+      const initial = submit('draft-requirements', undefined, [
+        candidate('need', 'REQ', {kind: 'stakeholder', statement: 'Tell me how many items I supplied as command-line arguments; the executable is not an item.'}),
+        candidate('count', 'REQ', software('print the number of process arguments, including the executable')),
+        candidate('decomposition', 'DCP', {}, [link('parent', '$need'), link('child', '$count')]),
+        candidate('requirements', 'RQS', {}),
+      ]);
+      let requirement = initial.find(d => d.payload.title === 'count');
+      let set = initial.find(d => d.type === 'RQS');
+      const failedReview = reviewRequirements(set, {failRequirement: requirement.revision_id, findings: 'The software statement includes the executable, which directly contradicts the stakeholder. Count only supplied items. The existing decomposition remains sufficient.'}).review;
+      const corrected = submit('correct-requirements-after-review', set.revision_id, [
+        candidate('count', 'REQ', software('print the count of supplied command-line items on one line'), [], requirement.revision_id),
+        candidate('requirements', 'RQS', {}, [link('corrects', failedReview.revision_id)], set.revision_id),
+      ]);
+      requirement = corrected.find(d => d.type === 'REQ'); set = corrected.find(d => d.type === 'RQS');
+      reviewRequirements(set, {findings: 'The corrected statement excludes the executable and supports the stakeholder counting need. Quoted argument semantics remain an interpretation to check in use.'});
+      const implementation = payload => ({...payload, file_roles: {'count.py': 'production', 'verify.py': 'verification'}});
+      let imp = submit('implement-product', set.revision_id, [candidate('implementation', 'IMP', implementation(sourceVersion(requirement.id, undefined, false, {zeroBug: true, quoted: 2})), [link('implements', set.revision_id)])]).find(d => d.type === 'IMP');
+      const failedReceipt = execute(imp, 'fail');
+      const failedResult = submit('execute-verification', imp.revision_id, [candidate('verification', 'RES', {assessment: 'The two-argument count passed. The quoted red blue argument returned one while the script expected two by splitting its words. Stakeholder intention concerns supplied arguments, so clarify the expectation rather than changing correct quoted-argument behavior.', correction_target: 'requirements'}, [link('executes', imp.revision_id), link('verifies', set.revision_id)])], {receipt: failedReceipt}).find(d => d.type === 'RES');
+      const clarified = submit('correct-expectations', failedResult.revision_id, [
+        candidate('count', 'REQ', software('print the number of supplied command-line arguments on one line, counting each argument once even when its text contains spaces'), [], requirement.revision_id),
+        candidate('requirements', 'RQS', {}, [link('corrects', failedResult.revision_id)], set.revision_id),
+      ]);
+      requirement = clarified.find(d => d.type === 'REQ'); set = clarified.find(d => d.type === 'RQS');
+      reviewRequirements(set, {findings: 'Counting a quoted argument once clarifies the original stakeholder intention. This correction does not add a new feature or change the stakeholder statement.'});
+      imp = submit('rebind-product', set.revision_id, [candidate('implementation', 'IMP', implementation(sourceVersion(requirement.id, undefined, false, {zeroBug: true, quoted: 1})), [link('implements', set.revision_id)], imp.revision_id)]).find(d => d.type === 'IMP');
+      const rejected = finishProduct(set, imp, {decision: 'reject', checkZero: true, rationale: `Actual no-argument invocation printed one. The stakeholder supplied no items and needs zero. The script covered ordinary and quoted arguments but missed this defect. ${fixtureAuthority}`});
+      const repaired = submit('correct-rejected-product', imp.revision_id, [candidate('implementation', 'IMP', implementation(sourceVersion(requirement.id, undefined, false, {quoted: 1, zeroCheck: true})), [link('implements', set.revision_id), link('corrects', rejected.revision_id)], imp.revision_id)]).find(d => d.type === 'IMP');
+      finishProduct(set, repaired, {checkZero: true});
+      assert.equal(exact(failedReview.revision_id).payload.outcome, 'fail');
+      assert.equal(exact(failedResult.revision_id).payload.outcome, 'fail');
+      assert.equal(exact(rejected.revision_id).payload.decision, 'reject');
+    } else if (processName === 'tiny') {
       const initial = submit('draft-requirements', undefined, [
         candidate('need', 'REQ', {kind: 'stakeholder', statement: 'Count supplied command-line items and print an items label.'}),
         candidate('count', 'REQ', {kind: 'software', ears: {pattern: 'ubiquitous', system: 'The CLI', response: 'print the number of supplied command-line items on the first line'}}),
@@ -223,7 +263,7 @@ export async function runDirectJourney({process: processName = 'tiny', executabl
     let lifecycleData;
     if (existsSync(lifecycle)) { try { lifecycleData = [...new Set(revisions)].map(exact); } catch (error) { lifecycleData = {error: String(error)}; } }
     save('lifecycle-data.json', lifecycleData ?? []);
-    const result = {ok: !caught, outcome: terminal?.outcome ?? 'failed', process: processName, root, lifecycle, source, evidenceFile, publications, revisions, receipts, sourceCommits, commands, terminal, gitState, scope: fixtureAuthority, error: caught ? {message: caught.message, stack: caught.stack} : undefined};
+    const result = {ok: !caught, outcome: terminal?.outcome ?? 'failed', process: processName, corrections, root, lifecycle, source, evidenceFile, publications, revisions, receipts, sourceCommits, commands, terminal, gitState, scope: fixtureAuthority, error: caught ? {message: caught.message, stack: caught.stack} : undefined};
     save('result.json', result);
     if (caught) { caught.message += `\nPreserved journey evidence: ${evidenceFile}`; throw caught; }
     return result;
@@ -234,5 +274,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const args = process.argv.slice(2);
   const option = name => args.includes(name) ? args[args.indexOf(name) + 1] : undefined;
   const executable = option('--executable') ?? process.env.MDLM_DIRECT_EXECUTABLE ?? process.env.MDLM_EXECUTABLE;
-  runDirectJourney({process: option('--process') ?? 'tiny', executable, root: option('--root')}).then(result => console.log(JSON.stringify({ok: result.ok, outcome: result.outcome, publications: result.publications, receipts: result.receipts, commands: result.commands, evidenceFile: result.evidenceFile}))).catch(error => { console.error(error.stack); process.exitCode = 1; });
+  runDirectJourney({process: option('--process') ?? 'tiny', corrections: args.includes('--corrections'), executable, root: option('--root')}).then(result => console.log(JSON.stringify({ok: result.ok, outcome: result.outcome, publications: result.publications, receipts: result.receipts, commands: result.commands, evidenceFile: result.evidenceFile}))).catch(error => { console.error(error.stack); process.exitCode = 1; });
 }
