@@ -1,0 +1,95 @@
+import type { DatumEnvelope, ProcessPackage } from "./index.js";
+
+export interface DirectPackageIdentity { reference: string; digest: string; language: string }
+export type DirectActionKind = "requirements" | "implementation" | "verification-result" | "review" | "acceptance" | "change" | "experiment" | "prototype" | "observation" | "feedback";
+export interface DirectAction {
+  id: string;
+  version: number;
+  kind: "action-definition";
+  description?: string;
+  capability: DirectActionKind;
+  prompt_ref: string;
+  types: string[];
+  subjects?: string;
+  inputs?: Record<string, string>;
+  when?: string;
+  priority?: number;
+  optional?: boolean;
+  authority?: { kind: "independent-review" | "stakeholder"; name: string };
+  [key: string]: unknown;
+}
+export interface DirectCandidate {
+  localId: string;
+  type: string;
+  predecessor?: string;
+  payload: Record<string, unknown>;
+  links: {type: string; target: string}[];
+  body: string;
+}
+export interface DirectProposal {
+  operation: string;
+  action: string;
+  package: DirectPackageIdentity;
+  snapshot: string;
+  subject?: string;
+  inputs?: Record<string, string[]>;
+  candidates: DirectCandidate[];
+  evidence?: {receipt?: string; review?: unknown; authority?: string[]};
+}
+export interface DirectContext {
+  root: string;
+  pkg: ProcessPackage;
+  package: DirectPackageIdentity;
+  snapshot: string;
+  data: DatumEnvelope[];
+  action: DirectAction;
+  subject?: string;
+  inputs: Record<string, string[]>;
+}
+export interface DirectWorkItem {
+  action: string;
+  subject?: string;
+  reason: string;
+  blocked?: string[];
+  inputs?: Record<string, string[]>;
+  optional?: boolean;
+  priority?: number;
+}
+export interface DirectFinalizationContext extends DirectContext {
+  proposal: DirectProposal;
+  /** Kernel-assigned identities and resolved local references. */
+  outputs: DatumEnvelope[];
+}
+export interface DirectFinalizationResult {
+  outputs: DatumEnvelope[];
+  /** Only values derived by a kernel service may be listed here. */
+  managedOutputs: DatumEnvelope[];
+}
+export interface DirectTransaction {
+  contract: "mdlm-direct-transaction@1";
+  id: string;
+  operation: string;
+  action: string;
+  proposalDigest: string;
+  package: DirectPackageIdentity;
+  snapshot: string;
+  subject?: string;
+  inputs: Record<string, string[]>;
+  outputs: DatumEnvelope[];
+  evidence?: DirectProposal["evidence"];
+  authority?: unknown;
+}
+export interface DirectGuidance {
+  contract: "mdlm-direct-guidance@1";
+  action: string;
+  subject?: string;
+  package: DirectPackageIdentity;
+  snapshot: string;
+  inputs: Record<string, string[]>;
+  prompt: unknown;
+  payloadSchemas: Record<string, unknown>;
+  context: DatumEnvelope[];
+  candidates: DirectCandidate[];
+  authority?: DirectAction["authority"];
+  evidence?: unknown;
+}
