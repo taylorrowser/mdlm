@@ -1,0 +1,129 @@
+import { createHash } from "node:crypto";
+import type { DatumEnvelope, ProcessDiagnostic } from "./index.js";
+import type { DirectFinalizationContext, DirectFinalizationResult } from "./direct-contract.js";
+import { assessRequirements, approvedChanges, deriveSourceDispositionCandidates, validateChangeDatum } from "./change-assessment.js";
+import { requirementTraceBinding, latestRequirements, selectedRequirementGraph, deriveImplementationScopes, implementationSourceChanges } from "./requirement-trace.js";
+
+function reject(diagnostics: ProcessDiagnostic[]): never {
+  throw new Error(diagnostics.map(d => `${d.code}: ${d.message}`).join("; "));
+}
+
+/** Derive graph membership and committed source attribution within the caller's atomic batch. */
+export async function finalizeDirectDomain(context: DirectFinalizationContext): Promise<DirectFinalizationResult> {
+  const outputData = context.outputs.map(datum => ({datum: structuredClone(datum)}));
+  const managedOutputs: DatumEnvelope[] = [];
+  const trace = requirementTraceBinding(context.pkg);
+  if (trace) {
+    if (context.action.capability === "requirements" && outputData.filter(o => o.datum.type === trace.type).length !== 1) {
+      reject([{code: "trace-requirement-batch", message: "Requirement authoring must publish exactly one requirement graph with its authored requirements and groups"}]);
+    }
+    if (context.action.capability === "implementation" && outputData.filter(o => o.datum.type === trace.implementation_type).length !== 1) {
+      reject([{code: "trace-implementation-batch", message: "Implementation authoring must publish exactly one implementation; source scopes are generated"}]);
+    }
+    if (trace.change_type) {
+      const existing = context.data;
+      const inputs = new Set([...(context.subject ? [context.subject] : []), ...Object.values(context.inputs).flat()]);
+      for (const output of outputData.filter(o => o.datum.type === trace.change_type)) {
+        const subject = existing.find(d => inputs.has(d.revision_id) && d.type === trace.type);
+        const previous = existing.find(d => inputs.has(d.revision_id) && d.type === trace.change_type);
+        const baseline = previous?.links.find(l => l.type === "baseline")?.target ?? existing.find(d => d.type === trace.acceptance_type && d.payload.decision === "accept" && d.links.some(l => l.type === "confirms" && l.target === subject?.revision_id))?.revision_id;
+        if (!baseline) reject([{code: "change-baseline-required", message: "A change request needs an exact accepted baseline"}]);
+        if (output.datum.links.some(l => l.type === "baseline" && l.target !== baseline)) reject([{code: "change-baseline-mismatch", message: "Change baseline differs from the exact context"}]);
+        if (!output.datum.links.some(l => l.type === "baseline")) output.datum.links.push({type: "baseline", target: baseline});
+      }
+      const directChange = existing.find(d => inputs.has(d.revision_id) && d.type === trace.change_type);
+      const inheritedChange = existing.filter(d => inputs.has(d.revision_id)).sort((a, b) => Number(b.type === trace.type) - Number(a.type === trace.type)).flatMap(d => d.links.filter(l => l.type === "changes-under").map(l => l.target));
+      const change = directChange?.revision_id ?? inheritedChange[0];
+      if (change && !approvedChanges(existing, trace).some(c => c.revision_id === change) && outputData.some(o => [trace.requirement_type, trace.decomposition_type, trace.type, trace.implementation_type, trace.acceptance_type].includes(o.datum.type))) reject([{code: "change-approval-required", message: "Current change revision needs stakeholder approval before publication"}]);
+      if (change) for (const output of outputData.filter(o => [trace.requirement_type, trace.decomposition_type, trace.type, trace.implementation_type, trace.acceptance_type].includes(o.datum.type))) {
+        if (output.datum.links.some(l => l.type === "changes-under" && l.target !== change)) reject([{code: "change-authority-mismatch", message: "Output change authority differs from the direct context"}]);
+        if (!output.datum.links.some(l => l.type === "changes-under")) output.datum.links.push({type: "changes-under", target: change});
+      }
+    }
+    if (outputData.some((o) => o.datum.type === trace.scope_type)) reject([{code: "trace-generated-output", message: "Source scopes are generated from committed source, never authored"}]);
+    const allData = [...context.data, ...outputData.map((o) => o.datum)];
+    for (const output of outputData.filter((o) => o.datum.type === trace.type)) {
+      if (output.datum.links.some((l) => l.type === "contains")) reject([{code: "trace-generated-selection", message: "The CLI selects the complete requirement graph"}]);
+      output.datum.payload.title = "Requirement graph";
+      output.datum.payload.publication = "recorded";
+      const previousSet = context.data.filter(d => d.type === trace.type && d.id === output.datum.id).sort((a, b) => b.revision - a.revision)[0];
+      if (trace.decomposition_type) for (const link of previousSet?.links.filter(l => l.type === "retires") ?? []) if (!output.datum.links.some(l => l.type === link.type && l.target === link.target)) output.datum.links.push(link);
+      const retired = new Set(output.datum.links.filter(l => l.type === "retires").map(l => allData.find(d => d.revision_id === l.target)?.id));
+      output.datum.links.push(...latestRequirements(allData, trace).filter(d => !trace.decomposition_type || !retired.has(d.id)).map((d) => ({type: "contains", target: d.revision_id})));
+      if (trace.decomposition_type) {
+        const selected = new Map(latestRequirements(allData, trace).filter(d => !retired.has(d.id)).map(d => [d.id, d]));
+        const previousSets = context.data.filter(d => d.type === trace.type && d.id === output.datum.id).sort((a, b) => b.revision - a.revision);
+        const previousSet = previousSets[0];
+        const previousGroups = previousSet ? selectedRequirementGraph(context.data, previousSet, trace).groups : [];
+        const authoredGroups = outputData.filter(o => o.datum.type === trace.decomposition_type);
+        const parentId = (group: DatumEnvelope) => allData.find(d => d.revision_id === group.links.find(l => l.type === "parent")?.target)?.id;
+        const groups = [...authoredGroups.map(o => o.datum)];
+        for (const previous of previousGroups) {
+          if (retired.has(parentId(previous)) || groups.some(g => parentId(g) === parentId(previous))) continue;
+          const links = previous.links.filter(l => l.type !== "changes-under").map(link => {
+            const endpoint = allData.find(d => d.revision_id === link.target);
+            return {...link, target: endpoint ? selected.get(endpoint.id)?.revision_id ?? link.target : link.target};
+          });
+          if (JSON.stringify(links) === JSON.stringify(previous.links.filter(l => l.type !== "changes-under"))) { groups.push(previous); continue; }
+          const revision = Math.max(...allData.filter(d => d.id === previous.id).map(d => d.revision)) + 1;
+          const datum: DatumEnvelope = {...previous, revision, revision_id: `${previous.id}-r${String(revision).padStart(5, "0")}`, links: [...links, ...output.datum.links.filter(l => l.type === "changes-under")], created_by: {...output.datum.created_by}};
+          outputData.push({datum});
+          allData.push(datum); groups.push(datum);
+          managedOutputs.push(datum);
+        }
+        for (const group of groups) {
+          const prior = previousGroups.find(g => parentId(g) === parentId(group));
+          if (prior && group.id !== prior.id) reject([{code: "trace-group-lineage", message: `Revise existing group '${prior.revision_id}' for this parent instead of creating another lineage`}]);
+        }
+        if (output.datum.links.some(l => l.type === "decomposition")) reject([{code: "trace-generated-selection", message: "The CLI selects decomposition groups"}]);
+        output.datum.links.push(...groups.map(d => ({type: "decomposition", target: d.revision_id})));
+      }
+      const graph = selectedRequirementGraph(allData, output.datum, trace, true);
+      if (graph.diagnostics.length) reject(graph.diagnostics);
+      managedOutputs.push(output.datum);
+    }
+    for (const output of [...outputData].filter((o) => o.datum.type === trace.implementation_type)) {
+      if ("product_files" in output.datum.payload || "source_inventory" in output.datum.payload || "source_changes" in output.datum.payload) reject([{code: "trace-generated-inventory", message: "The CLI derives product_files and source_inventory from the source commit"}]);
+      const generated = await deriveImplementationScopes(output.datum, allData, trace);
+      if (generated.diagnostics.length) reject(generated.diagnostics);
+      if (trace.decomposition_type && "impact_dispositions" in output.datum.payload) {
+        output.datum.payload.impact_dispositions = deriveSourceDispositionCandidates(allData, trace, output.datum, generated.scopes);
+      }
+      output.datum.payload.product_files = generated.inventory.map((entry) => entry.path);
+      output.datum.payload.source_inventory = generated.inventory;
+      try {
+        output.datum.payload.source_changes = await implementationSourceChanges(output.datum, allData, trace, generated.scopes);
+      } catch (error) { reject([{code: "trace-source-diff-unavailable", message: String(error)}]); }
+      managedOutputs.push(output.datum);
+      for (const scope of generated.scopes) {
+        const localId = `scope-${createHash("sha256").update(`${output.datum.revision_id}\0${scope.path}\0${scope.name}`).digest("hex").slice(0, 20)}`;
+        const id = `${trace.scope_type}-${createHash("sha256").update(`${context.proposal.operation}\0${localId}`).digest("hex").slice(0, 12).toUpperCase()}`;
+        const datum: DatumEnvelope = {
+          id, revision: 1, revision_id: `${id}-r00001`, type: trace.scope_type,
+          payload: {title: `${scope.path}: ${scope.name}`, publication: "recorded", source_commit: output.datum.payload.source_commit, path: scope.path, blob: scope.blob, name: scope.name, role: scope.role, ranges: scope.ranges, inherited: scope.inherited},
+          links: [{type: "belongs-to", target: output.datum.revision_id}, ...scope.links],
+          created_by: {...output.datum.created_by}, body: "",
+        };
+        outputData.push({datum});
+        managedOutputs.push(datum);
+      }
+    }
+  }
+  if (trace?.decomposition_type) {
+    const allData = [...context.data, ...outputData.map(o => o.datum)];
+    for (const output of outputData.filter(o => o.datum.type === trace.review_type)) {
+      if ("scope_amendment_required" in output.datum.payload) reject([{code: "change-derived-review-field", message: "The CLI derives scope amendment work"}]);
+      const set = allData.find(d => d.type === trace.type && output.datum.links.some(l => l.type === "reviews" && l.target === d.revision_id));
+      const assessment = set ? assessRequirements(allData, trace, set) : undefined;
+      const allowed = new Set(assessment?.allowedRequirements.map(id => allData.find(d => d.revision_id === id)?.id));
+      output.datum.payload.scope_amendment_required = Boolean(assessment?.change && assessment.correction.requirements.some(id => !allowed.has(allData.find(d => d.revision_id === id)?.id)));
+      managedOutputs.push(output.datum);
+    }
+  }
+  if (trace) {
+    const data = [...context.data, ...outputData.map(output => output.datum)];
+    const diagnostics = outputData.flatMap(output => validateChangeDatum(data, trace, output.datum));
+    if (diagnostics.length) reject(diagnostics);
+  }
+  return {outputs: outputData.map(output => output.datum), managedOutputs};
+}
