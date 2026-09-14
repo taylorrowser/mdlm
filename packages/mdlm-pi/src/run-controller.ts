@@ -127,6 +127,10 @@ export class RunController {
       throw new Error("Result differs from pending proposal bytes");
     }
     if (pending.kind === "execution") {
+      if (reconciled && executionState(result) === "not-started") {
+        await this.options.journal.clear();
+        return this.report("not-started", { result, reconciled }, false);
+      }
       if (executionState(result) !== "completed") return this.report("settlement-required", { result, reconciled }, false);
     } else if (result.outcome !== "accepted" && result.outcome !== "not-published") {
       throw new Error("Unsupported proposal result");

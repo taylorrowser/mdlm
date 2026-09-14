@@ -98,6 +98,18 @@ describe("direct operator loop", () => {
     expect(deps.mdlm.discover).toHaveBeenCalledOnce();
     expect(await deps.journal.load()).toBeNull();
   });
+  it("clears an execution proven not started before a later invocation discovers work", async () => {
+    const deps = await harness();
+    await deps.journal.capture("exec-not-started", `sha256:${"0".repeat(64)}`, boundary, "execution");
+    await deps.journal.beginSubmission();
+    deps.mdlm.executionSettlement.mockResolvedValue({ ok: true, contract: "mdlm-execution-result@1", operation: "exec-not-started", value: { state: "not-started" } });
+    await expect(new RunController(deps).run()).resolves.toMatchObject({ status: "not-started", successful: false });
+    expect(await deps.journal.load()).toBeNull();
+    expect(deps.mdlm.discover).not.toHaveBeenCalled();
+    expect(deps.mdlm.execute).not.toHaveBeenCalled();
+    await expect(new RunController(deps).run()).resolves.toMatchObject({ status: "accepted" });
+    expect(deps.mdlm.discover).toHaveBeenCalledOnce();
+  });
   it("retains an ambiguous execution and settles without running it again", async () => {
     const deps = await harness();
     await deps.journal.capture("exec", `sha256:${"0".repeat(64)}`, boundary, "execution");
