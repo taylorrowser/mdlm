@@ -15,6 +15,9 @@ export interface DirectAction {
   when?: string;
   priority?: number;
   optional?: boolean;
+  links?: Record<string, Record<string,string>>;
+  revises?: Record<string,string>;
+  fixed_payload?: Record<string,Record<string,unknown>>;
   authority?: { kind: "independent-review" | "stakeholder"; name: string };
   [key: string]: unknown;
 }
@@ -92,6 +95,9 @@ export interface DirectGuidance {
   candidates: DirectCandidate[];
   authority?: DirectAction["authority"];
   evidence?: unknown;
+  executionCommand?: string;
+  executionSubject?: string;
+  receiptDetails?: unknown[];
 }
 export interface DirectExpectations {
   ok: true;
@@ -109,6 +115,7 @@ export interface DirectProposalResult {
   outcome: "accepted" | "not-published";
   transaction?: string;
   revisions?: string[];
+  proposalDigest?: string;
 }
 export interface DirectExecutionResult {
   ok: true;

@@ -9,14 +9,6 @@ import {
 import formatsPlugin from "ajv-formats";
 import { parse } from "yaml";
 import {
-  compileAssignmentProjection,
-  publicAssignmentRenderer,
-} from "./assignment-projection-compiler.js";
-import {
-  compileProcessConstraints,
-  type CompiledProcessContract,
-} from "./process-constraint-compiler.js";
-import {
   validateDefinitionGraph,
   validateUnreferencedSelectors,
 } from "./definition-graph.js";
@@ -26,7 +18,7 @@ import {
   readPackageMarkdownAsset,
 } from "./markdown-asset.js";
 import { validatePayloadInheritance } from "./payload-inheritance.js";
-import { validateScenarioContracts } from "./scenario-contract.js";
+import type { DirectAction } from "./direct-contract.js";
 
 export {
   evaluateLifecycle,
@@ -37,41 +29,8 @@ export {
   type LifecycleEvaluation,
   type LifecycleRecord,
   type LifecycleSnapshot,
-  type ObligationEvaluation,
-  type ObligationHistoryEvaluation,
-  type PhaseAttentionCheckpointEvaluation,
-  type PhaseEvaluation,
-  type PhaseExpressionEvidence,
-  type PhaseProgressionEvaluation,
   type SelectorEvaluationEvidence,
-  type TerminalOutcomeEvaluation,
 } from "./evaluator.js";
-export {
-  classifyOperatorOutcome,
-  type CheckpointConversation,
-  type OperatorExactSubject,
-  type OperatorOutcomeClassification,
-  type OperatorWorkFacts,
-} from "./operator-outcome.js";
-export {
-  compileAssignmentProjection,
-  publicAssignmentRenderer,
-  type AssignmentLinkRoute,
-  type AssignmentOutputRoute,
-  type AssignmentOutputTypeRoute,
-  type AssignmentProjectionPlan,
-  type AssignmentRendererContract,
-  type CompileAssignmentProjectionResult,
-} from "./assignment-projection-compiler.js";
-export {
-  compileProcessConstraints,
-  type CompiledProcessContract,
-  type CompileProcessConstraintsResult,
-  type ProcessConstraintCatalogs,
-  type ProcessConstraintCheck,
-  type ProcessConstraintKind,
-  type ProcessConstraintStatus,
-} from "./process-constraint-compiler.js";
 export type {
   BaselineCompositionDependencyChange,
   BaselineMembershipDependencyChange,
@@ -135,13 +94,8 @@ export interface ProcessPackage {
   policies: Record<string, VersionedDefinition>;
   states: Record<string, VersionedDefinition>;
   selectors: Record<string, VersionedDefinition>;
-  obligations: Record<string, VersionedDefinition>;
-  scenarios: Record<string, VersionedDefinition>;
-  phases: Record<string, VersionedDefinition>;
-  profiles: Record<string, VersionedDefinition>;
-  aliases: Record<string, VersionedDefinition>;
   primitives: Record<string, VersionedDefinition>;
-  constraintContract?: CompiledProcessContract;
+  actions: Record<string, DirectAction>;
 }
 
 export interface ResolvedType {
@@ -181,11 +135,7 @@ const definitionSchemas = {
   policies: "policy-definition.schema.json",
   states: "state-definition.schema.json",
   selectors: "selector-definition.schema.json",
-  obligations: "obligation-definition.schema.json",
-  scenarios: "scenario-definition.schema.json",
-  phases: "phase-definition.schema.json",
-  profiles: "profile-definition.schema.json",
-  aliases: "command-alias-definition.schema.json",
+  actions: "action-definition.schema.json",
   primitives: "primitive-catalog.schema.json",
 } as const;
 
@@ -474,73 +424,11 @@ function legacyExpressionAuthoringDiagnostics(
       checkArguments(from?.arguments, "query.from.arguments");
       break;
     }
-    case "obligation-definition": {
-      check(definition.for_each, "for_each");
-      check(definition.satisfied_when, "satisfied_when");
-      checkRules(definition.status_rules, "status_rules");
-      const resolver = typeof definition.resolve_with === "object" &&
-          definition.resolve_with !== null
-        ? definition.resolve_with as Record<string, unknown>
-        : undefined;
-      const dispatch = typeof resolver?.dispatch === "object" &&
-          resolver.dispatch !== null
-        ? resolver.dispatch as Record<string, unknown>
-        : undefined;
-      check(dispatch?.for_each, "resolve_with.dispatch.for_each");
-      checkArguments(resolver?.inputs, "resolve_with.inputs");
-      break;
-    }
-    case "scenario-definition": {
-      check(definition.completion, "completion");
-      const inputs = Array.isArray(definition.inputs) ? definition.inputs : [];
-      inputs.forEach((input, index) => {
-        if (typeof input !== "object" || input === null) return;
-        check(
-          (input as Record<string, unknown>).conditions,
-          `inputs[${index}].conditions`,
-        );
-      });
-      break;
-    }
-    case "command-alias-definition":
+    case "action-definition":
+      check(definition.subjects, "subjects");
+      check(definition.when, "when");
       checkArguments(definition.inputs, "inputs");
       break;
-    case "implementation-profile-definition": {
-      const terminalOutcomes = typeof definition.terminal_outcomes === "object" &&
-          definition.terminal_outcomes !== null
-        ? definition.terminal_outcomes as Record<string, unknown>
-        : {};
-      for (const outcome of ["profile_boundary", "lifecycle_complete"]) {
-        const declaration = typeof terminalOutcomes[outcome] === "object" &&
-            terminalOutcomes[outcome] !== null
-          ? terminalOutcomes[outcome] as Record<string, unknown>
-          : undefined;
-        check(
-          declaration?.condition,
-          `terminal_outcomes.${outcome}.condition`,
-        );
-      }
-      break;
-    }
-    case "phase-definition": {
-      check(definition.entry, "entry");
-      const checkpoints = Array.isArray(definition.attention_checkpoints)
-        ? definition.attention_checkpoints
-        : [];
-      checkpoints.forEach((checkpoint, index) => {
-        if (typeof checkpoint !== "object" || checkpoint === null) return;
-        check(
-          (checkpoint as Record<string, unknown>).readiness,
-          `attention_checkpoints[${index}].readiness`,
-        );
-      });
-      const gate = typeof definition.gate === "object" && definition.gate !== null
-        ? definition.gate as Record<string, unknown>
-        : undefined;
-      check(gate?.candidate_selector, "gate.candidate_selector");
-      check(gate?.completion, "gate.completion");
-      break;
-    }
   }
   return diagnostics;
 }
@@ -555,14 +443,14 @@ function isVersionedDefinition(value: unknown): value is VersionedDefinition {
   );
 }
 
-async function validateScenarioAssets(
+async function validateActionAssets(
   root: string,
-  scenarios: Record<string, VersionedDefinition>,
+  actions: Record<string, VersionedDefinition>,
 ): Promise<ProcessDiagnostic[]> {
   const diagnostics: ProcessDiagnostic[] = [];
-  for (const scenario of Object.values(scenarios)) {
-    if (typeof scenario.prompt_ref !== "string") continue;
-    const prompt = await readPackageMarkdownAsset(root, scenario.prompt_ref);
+  for (const action of Object.values(actions)) {
+    if (typeof action.prompt_ref !== "string") continue;
+    const prompt = await readPackageMarkdownAsset(root, action.prompt_ref);
     if (!prompt.ok) {
       diagnostics.push({
         code: `prompt-${prompt.reason}`,
@@ -571,8 +459,8 @@ async function validateScenarioAssets(
       });
       continue;
     }
-    const explicitSkills = Array.isArray(scenario.skills)
-      ? scenario.skills.flatMap((value) => {
+    const explicitSkills = Array.isArray(action.skills)
+      ? action.skills.flatMap((value) => {
         if (typeof value !== "object" || value === null) return [];
         const reference = (value as Record<string, unknown>).reference;
         return typeof reference === "string" ? [reference] : [];
@@ -583,7 +471,7 @@ async function validateScenarioAssets(
       diagnostics.push({
         code: "prompt-skills-invalid",
         path: path.join(root, prompt.asset.relativePath),
-        message: `Prompt '${scenario.prompt_ref}' must declare an ordered unique array of exact skill references`,
+        message: `Prompt '${action.prompt_ref}' must declare an ordered unique array of exact skill references`,
       });
       continue;
     }
@@ -592,9 +480,9 @@ async function validateScenarioAssets(
       JSON.stringify(explicitSkills) !== JSON.stringify(declaration.references)
     ) {
       diagnostics.push({
-        code: "scenario-skill-declaration-mismatch",
-        path: `scenarios.${scenario.id}.skills`,
-        message: `Scenario '${scenario.id}@${scenario.version}' skill metadata must match its prompt declaration`,
+        code: "action-skill-declaration-mismatch",
+        path: `actions.${action.id}.skills`,
+        message: `Action '${action.id}@${action.version}' skill metadata must match its prompt declaration`,
       });
     }
     for (const skillReference of explicitSkills.length > 0
@@ -611,23 +499,6 @@ async function validateScenarioAssets(
     }
   }
   return diagnostics;
-}
-
-function generatePhaseMembership(
-  definitions: Record<DefinitionGroup, Record<string, VersionedDefinition>>,
-): void {
-  for (const phase of Object.values(definitions.phases)) {
-    const inPhase = (definition: VersionedDefinition): boolean =>
-      Array.isArray(definition.phases) && definition.phases.includes(phase.id);
-    phase.scenarios = Object.values(definitions.scenarios)
-      .filter(inPhase)
-      .map((scenario) => `${scenario.id}@${scenario.version}`)
-      .sort();
-    phase.obligations = Object.values(definitions.obligations)
-      .filter(inPhase)
-      .map((obligation) => `${obligation.id}@${obligation.version}`)
-      .sort();
-  }
 }
 
 async function createMetaValidators(
@@ -684,6 +555,7 @@ export async function loadProcessPackage(
     ) as Record<string, unknown>;
     const manifestPath = path.join(root, "manifest.yaml");
     const manifest = await readYaml(manifestPath);
+    if ((manifest as Record<string, unknown>).direct_contract !== "mdlm-direct@1") return {ok:false, diagnostics:[{code:"unsupported-process-contract",message:"This kernel requires a fresh mdlm-direct@1 Process Package; use the pinned historical installation for old workflows"}]};
     const manifestValidator = validators.get("manifest.schema.json");
     if (!manifestValidator || !manifestValidator(manifest)) {
       diagnostics.push(
@@ -749,11 +621,7 @@ export async function loadProcessPackage(
           group === "states" ||
           group === "policies" ||
           group === "selectors" ||
-          group === "obligations" ||
-          group === "scenarios" ||
-          group === "phases" ||
-          group === "profiles" ||
-          group === "aliases"
+          group === "actions"
         ) {
           expressionDefinitions.push({ definition, filePath });
         }
@@ -765,7 +633,7 @@ export async function loadProcessPackage(
     }
 
     if (diagnostics.length > 0) return { ok: false, diagnostics };
-    generatePhaseMembership(definitions);
+
 
     const manifestCapabilities = typeof manifest === "object" &&
         manifest !== null &&
@@ -804,7 +672,7 @@ export async function loadProcessPackage(
             selectors: definitions.selectors,
             states: definitions.states,
             policies: definitions.policies,
-            scenarios: definitions.scenarios,
+            actions: definitions.actions,
             ...(exactBaselineType ? { exactBaselineType } : {}),
           },
         ),
@@ -813,22 +681,7 @@ export async function loadProcessPackage(
 
     diagnostics.push(...validateDefinitionGraph(manifest, definitions));
     diagnostics.push(...validatePayloadInheritance(definitions));
-    diagnostics.push(...validateScenarioContracts(definitions));
-    let constraintContract: CompiledProcessContract | undefined;
-    if (options.compatibility !== "historical-authoring") {
-      diagnostics.push(...validateUnreferencedSelectors(manifest, definitions));
-      const compiled = compileProcessConstraints({
-        catalogs: definitions,
-        renderer: publicAssignmentRenderer,
-        scenarioSources: definitionSources.scenarios,
-      });
-      constraintContract = compiled.contract;
-      if (!compiled.ok) diagnostics.push(...compiled.diagnostics);
-      diagnostics.push(...await validateScenarioAssets(
-        root,
-        definitions.scenarios,
-      ));
-    }
+    diagnostics.push(...await validateActionAssets(root, definitions.actions));
     if (diagnostics.length > 0) return { ok: false, diagnostics };
     if (
       typeof manifest !== "object" ||
@@ -858,7 +711,7 @@ export async function loadProcessPackage(
       >,
       envelopeSchema,
       ...definitions,
-      ...(constraintContract ? { constraintContract } : {}),
+      actions: definitions.actions as unknown as Record<string, DirectAction>,
     };
     diagnostics.push(...validateKernelCapabilities(processPackage));
     diagnostics.push(...validatePayloadCollectionDefinitions(processPackage, (id) => {

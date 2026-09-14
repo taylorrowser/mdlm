@@ -11,10 +11,6 @@ import {
 } from "ajv/dist/2020.js";
 import formatsPlugin from "ajv-formats";
 import { parse, stringify } from "yaml";
-import {
-  isObligationInstanceIdentity,
-  parseObligationInstanceIdentity,
-} from "./obligation-instance.js";
 import { structuralValuesEqual } from "./structural-equality.js";
 import { withRepositoryLock } from "./repository-lock.js";
 import { processPackageDigest } from "./process-package-digest.js";
@@ -31,7 +27,6 @@ import {
   type DatumEnvelope,
   type LifecycleRecord,
   type LifecycleSnapshot,
-  type ObligationEvaluation,
   type ProcessDiagnostic,
   type ProcessPackage,
   type ResolvedType,
@@ -44,15 +39,14 @@ export interface CreatedDatum {
   path: string;
 }
 
-export interface ScenarioMutationPublication {
+export interface TransactionPublication {
   created: CreatedDatum[];
   executionPath: string;
 }
 
 export type GraphIdentityKind =
   | "stable-datum"
-  | "revision"
-  | "obligation-instance";
+  | "revision";
 
 export interface GraphNode {
   identity: string;
@@ -86,7 +80,6 @@ export interface DatumProjections {
   views?: RenderedPayloadView[];
   backlinks: GraphLink[];
   states: Record<string, string | string[]>;
-  obligations: ObligationEvaluation[];
   kernelCapabilities: string[];
 }
 
@@ -134,7 +127,7 @@ export interface ParsedDatum {
   sourceDigest: string;
 }
 
-export interface KernelFinalizedScenarioOutput {
+export interface KernelFinalizedOutput {
   capability: "exact-baseline@1" | "docker-verification@1" | "requirement-trace@1" | "requirement-trace@2";
   datum: DatumEnvelope;
 }
@@ -431,7 +424,7 @@ export async function verifyRepositoryDataSources(
     ? {
       ok: false,
       diagnostics: [{
-        code: "scenario-repository-changed",
+        code: "transaction-repository-changed",
         path: changed,
         message: "Authoritative Lifecycle Data changed after repository inspection",
       }],
@@ -455,41 +448,6 @@ function targetDatum(
     : lifecycleData.find((datum) => datum.datum.id === target);
 }
 
-function obligationInstanceParts(
-  processPackage: ProcessPackage,
-  lifecycleData: LifecycleRecord[],
-  target: string,
-  expectedProcessRef?: string,
-): { obligation: string; subject: string } | undefined {
-  const parsed = parseObligationInstanceIdentity(target);
-  if (!parsed || (expectedProcessRef && parsed.processRef !== expectedProcessRef)) {
-    return undefined;
-  }
-  const reference = referenceParts(parsed.obligationReference);
-  const definition = reference ? processPackage.obligations[reference[0]] : undefined;
-  if (!reference || !definition || definition.version !== reference[1]) return undefined;
-  if (
-    parsed.subject.kind === "revision" &&
-    !lifecycleData.some(
-      (item) => item.datum.revision_id === parsed.subject.identity,
-    )
-  ) {
-    return undefined;
-  }
-  if (parsed.subject.kind === "phase") {
-    const phase = processPackage.phases[parsed.subject.phaseId];
-    if (!phase || phase.version !== parsed.subject.version) return undefined;
-  }
-  if (parsed.subject.kind === "process") {
-    const phase = processPackage.phases[parsed.subject.phaseId];
-    if (!phase || phase.version !== parsed.subject.phaseVersion) return undefined;
-  }
-  return {
-    obligation: parsed.obligationReference,
-    subject: parsed.subject.identity,
-  };
-}
-
 function graphNode(
   processPackage: ProcessPackage,
   lifecycleData: LifecycleRecord[],
@@ -507,9 +465,7 @@ function graphNode(
       ? { identity, identityKind: "stable-datum", type: datum.datum.type }
       : undefined;
   }
-  return obligationInstanceParts(processPackage, lifecycleData, identity)
-    ? { identity, identityKind: "obligation-instance" }
-    : undefined;
+  return undefined;
 }
 
 function linkDiagnostics(
@@ -535,22 +491,14 @@ function linkDiagnostics(
       continue;
     }
     const target = targetDatum(lifecycleData, link.target);
-    const obligation = obligationInstanceParts(
-      processPackage,
-      lifecycleData,
-      link.target,
-      processRef,
-    );
-    if (!target && !obligation) {
-      const validIdentity = stableIdentity.test(link.target) ||
-        revisionIdentity.test(link.target) ||
-        isObligationInstanceIdentity(link.target);
+    if (!target) {
+      const validIdentity = stableIdentity.test(link.target) || revisionIdentity.test(link.target);
       diagnostics.push({
         code: validIdentity ? "unknown-link-target" : "invalid-link-target-identity",
         path: `links[${index}].target`,
         message: validIdentity
           ? `Unknown link target '${link.target}'`
-          : `Link target '${link.target}' is not a Stable Datum, exact Revision, or exact Obligation Instance identity`,
+          : `Link target '${link.target}' is not a Stable Datum or exact Revision identity`,
       });
       continue;
     }
@@ -558,10 +506,6 @@ function linkDiagnostics(
     const compatible = targets.some((targetContract) => {
       if (typeof targetContract !== "object" || targetContract === null) return false;
       const value = targetContract as Record<string, unknown>;
-      if (value.kind === "obligation-instance") {
-        return obligation !== undefined &&
-          value.identity === "exact-obligation-instance";
-      }
       if (value.kind !== "datum" || !target) return false;
       const identity = value.identity;
       const identityMatches = identity === "either" ||
@@ -667,281 +611,26 @@ function recordValue(value: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
-function scenarioExecutionStructureValid(
-  processPackage: ProcessPackage,
-  execution: Record<string, unknown>,
-  authorityEvidence: Record<string, unknown> | undefined,
-): boolean {
-  const inputs = Array.isArray(execution.inputs) ? execution.inputs : [];
-  const completion = recordValue(execution.completion);
-  const evaluations = Array.isArray(completion?.evaluations)
-    ? completion.evaluations.map(recordValue)
-    : [];
-  const packageIdentity = recordValue(execution.package);
-  const response = recordValue(execution.response);
-  const commonValid =
-    execution.contract === "mdlm-scenario-execution@4" &&
-    execution.adapter === undefined &&
-    response?.contract === "mdlm-assignment-response@2" &&
-    typeof response.assignment === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-      .test(response.assignment) &&
-    /^sha256:[a-f0-9]{64}$/.test(String(response.digest)) &&
-    inputs.length > 0 && completion?.contractValid === true &&
-    completion.expressionPassed === true && typeof completion.expression === "string" &&
-    evaluations.length === inputs.length && evaluations.every(
-      (evaluation, invocation) =>
-        evaluation?.invocation === invocation && evaluation.result === true,
-    ) && packageIdentity?.reference ===
-      `${processPackage.manifest.id}@${processPackage.manifest.version}`;
-  if (!commonValid || !authorityEvidence) return commonValid;
-
-  const participation = Array.isArray(execution.participation)
-    ? execution.participation.map(recordValue)
-    : [];
-  if (
-    participation.length !== inputs.length || participation.some((item) => {
-      const requirement = recordValue(item?.authorityRequirement);
-      const schedule = recordValue(item?.attentionSchedule);
-      return !item || typeof item.policy !== "string" ||
-        !["autonomous", "delegated", "attended"].includes(
-          String(requirement?.mode),
-        ) || typeof requirement?.authority !== "string" ||
-        typeof requirement.delegationAllowed !== "boolean" ||
-        !["none", "immediate", "checkpoint"].includes(String(schedule?.timing));
-    })
-  ) return false;
-  const nonAutonomous = participation.flatMap((item, invocation) => {
-    const requirement = recordValue(item?.authorityRequirement);
-    return requirement?.mode === "autonomous"
-      ? []
-      : [{ invocation, requirement }];
-  });
-  const authority = recordValue(execution.authority);
-  if (nonAutonomous.length === 0) return authority === undefined;
-  const requirements = Array.isArray(authority?.requirements)
-    ? authority.requirements.map(recordValue)
-    : [];
-  const supplied = Array.isArray(authority?.supplied)
-    ? authority.supplied.filter((value): value is string => typeof value === "string")
-    : [];
-  const delegations = Array.isArray(authority?.delegations)
-    ? authority.delegations.filter((value): value is string => typeof value === "string")
-    : [];
-  const authoritySourcesValid = authority !== undefined &&
-    Array.isArray(authority.supplied) &&
-    supplied.length === authority.supplied.length &&
-    new Set(supplied).size === supplied.length &&
-    Array.isArray(authority.delegations) &&
-    delegations.length === authority.delegations.length &&
-    new Set(delegations).size === delegations.length &&
-    supplied.every((value) =>
-      nonAutonomous.some(({ requirement }) => requirement?.authority === value)
-    ) && delegations.every((value) =>
-      /^[A-Z]{3,8}-[0-9A-Z]{10,12}-r[0-9]{5}$/.test(value)
-    );
-  return authoritySourcesValid && requirements.length === nonAutonomous.length &&
-    nonAutonomous.every(({ invocation, requirement }) =>
-      requirements.some((candidate) => {
-        const evidence = recordValue(candidate?.evidence);
-        const authorization = recordValue(candidate?.authorization);
-        const sourceValid = authorization?.kind === "authority-supply"
-          ? authorization.authority === requirement?.authority &&
-            supplied.includes(String(authorization.authority))
-          : authorization?.kind === "standing-delegation" &&
-            requirement?.delegationAllowed === true &&
-            delegations.includes(String(authorization.revision));
-        return candidate?.invocation === invocation &&
-          candidate.mode === requirement?.mode &&
-          candidate.authority === requirement?.authority &&
-          candidate.delegationAllowed === requirement?.delegationAllowed &&
-          evidence?.output === authorityEvidence.output &&
-          evidence?.type === authorityEvidence.type && sourceValid;
-      })
-    );
-}
-
-async function exactDatumProcessPackage(
-  root: string,
-  processRef: string,
-  cache: Map<string, Promise<ProcessPackage | undefined>>,
-  digestCache: Map<string, Promise<string>>,
-): Promise<ProcessPackage | undefined> {
-  const separator = processRef.lastIndexOf("#sha256:");
-  if (separator < 1) return undefined;
-  const reference = processRef.slice(0, separator);
-  const digest = processRef.slice(separator + 1);
-  const key = `${reference}#${digest}`;
-  const cached = cache.get(key);
-  if (cached) return cached;
-  const resolution = (async () => {
-    const packageRoot = path.join(root, ".lifecycle/packages", reference);
-    const loaded = await loadProcessPackage(packageRoot, {
-      compatibility: "historical-authoring",
-    });
-    if (!loaded.ok) return undefined;
-    const loadedReference =
-      `${loaded.package.manifest.id}@${loaded.package.manifest.version}`;
-    const loadedDigest = await processPackageDigest(packageRoot);
-    digestCache.set(packageRoot, Promise.resolve(loadedDigest));
-    return loadedReference === reference && loadedDigest === digest
-      ? loaded.package
-      : undefined;
-  })();
-  cache.set(key, resolution);
-  return resolution;
-}
-
-interface ScenarioExecutionProvenance {
-  processPackage?: ProcessPackage;
-  valid: boolean;
-}
-
-interface CapturedTransactionSource {
-  source: string;
-}
-
-async function scenarioExecutionProvenance(
-  root: string,
-  item: ParsedDatum,
-  packageCache: Map<string, Promise<ProcessPackage | undefined>>,
-  digestCache: Map<string, Promise<string>>,
-  transactionSources: ReadonlyMap<string, CapturedTransactionSource>,
-): Promise<ScenarioExecutionProvenance> {
+interface CapturedTransactionSource { source: string }
+function directProvenance(item: ParsedDatum, pkg: ProcessPackage, packageDigest: string, sources: ReadonlyMap<string,CapturedTransactionSource>): boolean {
   const datum = item.lifecycleDatum.datum;
-  const processPackage = await exactDatumProcessPackage(
-    root,
-    datum.created_by.process_ref,
-    packageCache,
-    digestCache,
-  );
-  if (!processPackage) return { valid: false };
-  const transaction = /^\.lifecycle\/data\/\.transactions\/([^/]+)\//
-    .exec(item.relativePath)?.[1];
-  let execution: Record<string, unknown> | undefined;
-  if (transaction) {
-    try {
-      const parsed = JSON.parse(transactionSources.get(transaction)?.source ?? "") as unknown;
-      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-        execution = parsed as Record<string, unknown>;
-      }
-    } catch {
-      execution = undefined;
-    }
-  }
-  if (datum.created_by.transaction === "direct-proposal@1") {
-    const binding = (processPackage.kernelCapabilities["direct-observation@2"] ?? processPackage.kernelCapabilities["direct-observation@1"]);
-    const packageIdentity = recordValue(execution?.package);
-    const selectedDigest = await processPackageDigest(processPackage.root);
-    const valid = !!binding && datum.type === binding.type &&
-      authorityEvidenceScenarioReferences(processPackage, datum.type).length === 0 &&
-      execution?.contract === "direct-proposal@1" && execution.id === transaction &&
-      typeof execution.operation === "string" && /^[a-zA-Z0-9-]{1,80}$/.test(execution.operation) &&
-      transaction === `direct-${createHash("sha256").update(execution.operation).digest("hex")}` &&
-      typeof execution.proposalDigest === "string" && /^sha256:[a-f0-9]{64}$/.test(execution.proposalDigest) &&
-      packageIdentity?.digest === selectedDigest &&
-      `${packageIdentity?.reference}#${packageIdentity?.digest}` === datum.created_by.process_ref &&
-      structuralValuesEqual(execution.datum, datum) && execution.evidence === datum.payload.receipt &&
-      (processPackage.kernelCapabilities["direct-observation@2"] ? (datum.payload.outcome === "pass" || ["revise", "drop"].includes(datum.payload.recommendation as string)) : datum.payload.outcome === "pass" && datum.payload.recommendation === "keep") &&
-      datum.created_by.prompt_ref === binding.prompt_ref;
-    return {processPackage, valid};
-  }
-  const scenarioReference = typeof datum.created_by.scenario === "string"
-    ? datum.created_by.scenario
-    : "";
-  const scenarioParts = referenceParts(scenarioReference);
-  const scenario = scenarioParts
-    ? processPackage.scenarios[scenarioParts[0]]
-    : undefined;
-  const authorityEvidenceSource = scenario && scenario.version === scenarioParts?.[1]
-    ? scenario.authority_evidence
-    : undefined;
-  const authorityEvidence = typeof authorityEvidenceSource === "object" &&
-      authorityEvidenceSource !== null && !Array.isArray(authorityEvidenceSource)
-    ? authorityEvidenceSource as Record<string, unknown>
-    : undefined;
-  const outputs = Array.isArray(execution?.outputs) ? execution.outputs : [];
-  const matchingOutput = outputs.find((candidate) => {
-    if (typeof candidate !== "object" || candidate === null || Array.isArray(candidate)) {
-      return false;
-    }
-    const output = candidate as Record<string, unknown>;
-    const identity = typeof output.lifecycleDatum === "object" &&
-        output.lifecycleDatum !== null && !Array.isArray(output.lifecycleDatum)
-      ? output.lifecycleDatum as Record<string, unknown>
-      : undefined;
-    const invocation = output.invocation;
-    return Number.isInteger(invocation) && Number(invocation) >= 0 &&
-      Number(invocation) < (Array.isArray(execution?.inputs)
-        ? execution.inputs.length
-        : 0) && identity?.type === datum.type &&
-      identity?.revisionId === datum.revision_id &&
-      structuralValuesEqual(output.data, datum);
-  });
-  const matchingOutputRecord = recordValue(matchingOutput);
-  const declaredOutput = Array.isArray(scenario?.outputs)
-    ? scenario.outputs.map(recordValue).find((output) =>
-        output?.name === matchingOutputRecord?.name &&
-        Array.isArray(output?.types) && output.types.includes(datum.type)
-      )
-    : undefined;
-  const isAuthorityOutput = matchingOutputRecord?.name === authorityEvidence?.output &&
-    datum.type === authorityEvidence?.type;
-  const definition = typeof execution?.definition === "object" &&
-      execution.definition !== null && !Array.isArray(execution.definition)
-    ? execution.definition as Record<string, unknown>
-    : undefined;
-  const packageIdentity = recordValue(execution?.package);
-  let digest = digestCache.get(processPackage.root);
-  if (!digest) {
-    digest = processPackageDigest(processPackage.root);
-    digestCache.set(processPackage.root, digest);
-  }
-  const selectedPackageDigest = await digest;
-  if (
-    execution && scenarioExecutionStructureValid(
-      processPackage,
-      execution,
-      isAuthorityOutput ? authorityEvidence : undefined,
-    ) && execution.id === transaction && execution.status === "completed" &&
-    definition?.scenario === scenarioReference && declaredOutput &&
-    packageIdentity?.digest === selectedPackageDigest &&
-    `${packageIdentity?.reference}#${packageIdentity?.digest}` ===
-      datum.created_by.process_ref &&
-    matchingOutput
-  ) {
-    return { processPackage, valid: true };
-  }
-  return { processPackage, valid: false };
-}
-
-function authorityEvidenceExecutionDiagnostic(
-  item: ParsedDatum,
-  provenance: ScenarioExecutionProvenance,
-): ProcessDiagnostic | undefined {
-  const datum = item.lifecycleDatum.datum;
-  if (!provenance.processPackage) {
-    return datum.created_by.process_ref.includes("#sha256:")
-      ? {
-          code: "datum-authoring-package-unavailable",
-          path: item.relativePath,
-          message: `Revision '${datum.revision_id}' requires its exact installed authoring Process Package '${datum.created_by.process_ref}'`,
-        }
-      : undefined;
-  }
-  if (datum.created_by.transaction === "direct-proposal@1") return provenance.valid ? undefined : {code: "direct-proposal-provenance-invalid", path: item.relativePath, message: "Direct observation requires its exact atomic proposal transaction"};
-  const trace = requirementTraceBinding(provenance.processPackage);
-  if (
-    authorityEvidenceScenarioReferences(provenance.processPackage, datum.type).length === 0 &&
-    ![trace?.type, trace?.requirement_type, trace?.implementation_type, trace?.scope_type, trace?.decomposition_type, trace?.change_type].includes(datum.type)
-  ) return undefined;
-  return provenance.valid
-    ? undefined
-    : {
-        code: "authority-evidence-execution-required",
-        path: item.relativePath,
-        message: `Authority-evidence Revision '${datum.revision_id}' requires its matching completed Scenario execution transaction`,
-      };
+  const id = /^\.lifecycle\/data\/\.transactions\/([^/]+)\//.exec(item.relativePath)?.[1];
+  if (!id) return false;
+  try {
+    const tx = JSON.parse(sources.get(id)?.source ?? "");
+    const [actionId, actionVersion] = String(tx.action).split("@");
+    const action = pkg.actions[actionId!];
+    const identity = `${pkg.manifest.id}@${pkg.manifest.version}`;
+    return datum.created_by.transaction === "mdlm-direct-transaction@1" && tx.contract === "mdlm-direct-transaction@1" && tx.id === id &&
+      typeof tx.operation === "string" && /^[a-zA-Z0-9-]{1,80}$/.test(tx.operation) &&
+      id === `direct-${createHash("sha256").update(tx.operation).digest("hex")}` &&
+      typeof tx.proposalDigest === "string" && /^sha256:[a-f0-9]{64}$/.test(tx.proposalDigest) &&
+      tx.package?.reference === identity && tx.package?.digest === packageDigest &&
+      datum.created_by.process_ref === `${identity}#${packageDigest}` && !!action && Number(actionVersion) === action.version &&
+      action.types.includes(datum.type) && datum.created_by.prompt_ref === action.prompt_ref &&
+      (!action.authority || !!tx.authority) && Array.isArray(tx.outputs) &&
+      tx.outputs.filter((d: unknown) => structuralValuesEqual(d,datum)).length === 1;
+  } catch { return false; }
 }
 
 function sourceDigest(source: Uint8Array): string {
@@ -1006,39 +695,10 @@ export async function readRepositoryData(
     else parsed.push(result.value);
   }
   const capturedTransactions = await captureTransactionSources(root, parsed);
-  const authoringPackages = new Map<
-    string,
-    Promise<ProcessPackage | undefined>
-  >();
-  const selectedReference =
-    `${processPackage.manifest.id}@${processPackage.manifest.version}`;
-  const digestCache = new Map<string, Promise<string>>();
-  digestCache.set(processPackage.root, Promise.resolve(selectedDigest));
-  authoringPackages.set(
-    `${selectedReference}#${selectedDigest}`,
-    Promise.resolve(processPackage),
-  );
-  recordWork("repository.provenance.records", parsed.length);
-  const provenances = await measureAsync(
-    "repository.provenance",
-    () => Promise.all(parsed.map((item) => scenarioExecutionProvenance(
-      root,
-      item,
-      authoringPackages,
-      digestCache,
-      capturedTransactions ?? new Map(),
-    ))),
-  );
-  for (let index = 0; index < parsed.length; index += 1) {
-    const item = parsed[index]!;
-    const executionProvenance = provenances[index]!;
-    item.lifecycleDatum.integrity.scenario_execution_valid =
-      executionProvenance.valid;
-    const authorityDiagnostic = authorityEvidenceExecutionDiagnostic(
-      item,
-      executionProvenance,
-    );
-    if (authorityDiagnostic) diagnostics.push(authorityDiagnostic);
+  for (const item of parsed) {
+    const valid = directProvenance(item, processPackage, selectedDigest, capturedTransactions ?? new Map());
+    item.lifecycleDatum.integrity.transaction_valid = valid;
+    if (!valid) diagnostics.push({code:"direct-transaction-provenance-invalid",path:item.relativePath,message:"Lifecycle datum requires its exact authenticated direct publication transaction"});
   }
   applyStorageFacts(processPackage, parsed);
   const lifecycleData = parsed.map((item) => item.lifecycleDatum);
@@ -1068,7 +728,7 @@ export async function repositoryLifecycleSnapshot(
   root: string,
   processPackage: ProcessPackage,
   processRef: string,
-  phaseId: string,
+  phaseId?: string,
 ): Promise<RepositoryResult<LifecycleSnapshot>> {
   const loaded = await readRepositoryData(root, processPackage);
   return loaded.ok
@@ -1079,33 +739,17 @@ export async function repositoryLifecycleSnapshot(
 export function repositoryLifecycleSnapshotData(
   parsed: ParsedDatum[],
   processRef: string,
-  phaseId: string,
+  phaseId?: string,
 ): RepositoryResult<LifecycleSnapshot> {
   return {
     ok: true,
     value: {
       processRef,
-      phaseId,
       records: parsed.map((item) => item.lifecycleDatum),
       dependencyComparisons: [],
     },
     diagnostics: [],
   };
-}
-
-function authorityEvidenceScenarioReferences(
-  processPackage: ProcessPackage,
-  typeId: string,
-): string[] {
-  return Object.entries(processPackage.scenarios)
-    .filter(([, scenario]) => {
-      const evidence = scenario.authority_evidence;
-      return typeof evidence === "object" && evidence !== null &&
-        !Array.isArray(evidence) &&
-        (evidence as Record<string, unknown>).type === typeId;
-    })
-    .map(([id, scenario]) => `${id}@${scenario.version}`)
-    .sort();
 }
 
 function payloadPathPresent(
@@ -1124,19 +768,19 @@ function payloadPathPresent(
   return true;
 }
 
-export async function publishScenarioMutation(
+export async function publishTransaction(
   root: string,
   processPackage: ProcessPackage,
   expectedData: DatumEnvelope[],
   data: DatumEnvelope[],
   executionId: string,
   executionRecord: unknown,
-  kernelFinalizedOutputs: readonly KernelFinalizedScenarioOutput[] = [],
+  kernelFinalizedOutputs: readonly KernelFinalizedOutput[] = [],
   beforeCommit?: () => Promise<RepositoryResult<undefined>>,
-): Promise<RepositoryResult<ScenarioMutationPublication>> {
+): Promise<RepositoryResult<TransactionPublication>> {
   const loaded = await readRepositoryData(root, processPackage);
   if (!loaded.ok) return loaded;
-  return publishScenarioMutationData(
+  return publishTransactionData(
     root,
     processPackage,
     loaded.value,
@@ -1153,7 +797,7 @@ export async function publishScenarioMutation(
   );
 }
 
-export async function publishScenarioMutationData(
+export async function publishTransactionData(
   root: string,
   processPackage: ProcessPackage,
   parsed: ParsedDatum[],
@@ -1161,9 +805,9 @@ export async function publishScenarioMutationData(
   data: DatumEnvelope[],
   executionId: string,
   executionRecord: unknown,
-  kernelFinalizedOutputs: readonly KernelFinalizedScenarioOutput[] = [],
+  kernelFinalizedOutputs: readonly KernelFinalizedOutput[] = [],
   beforeCommit?: () => Promise<RepositoryResult<undefined>>,
-): Promise<RepositoryResult<ScenarioMutationPublication>> {
+): Promise<RepositoryResult<TransactionPublication>> {
   const currentData = parsed.map((item) => item.lifecycleDatum.datum)
     .sort((left, right) => left.revision_id.localeCompare(right.revision_id));
   const expected = expectedData.slice()
@@ -1172,9 +816,9 @@ export async function publishScenarioMutationData(
     return {
       ok: false,
       diagnostics: [{
-        code: "scenario-repository-changed",
+        code: "transaction-repository-changed",
         path: ".lifecycle/data",
-        message: "Lifecycle Data changed after Scenario inputs were validated; no outputs were published",
+        message: "Lifecycle Data changed after Transaction inputs were validated; no outputs were published",
       }],
     };
   }
@@ -1185,9 +829,9 @@ export async function publishScenarioMutationData(
   for (const datum of data) {
     if (proposedRevisions.has(datum.revision_id)) {
       diagnostics.push({
-        code: "scenario-output-identity-collision",
+        code: "transaction-output-identity-collision",
         path: datum.revision_id,
-        message: `Scenario outputs repeat exact Revision '${datum.revision_id}'`,
+        message: `Transaction outputs repeat exact Revision '${datum.revision_id}'`,
       });
     }
     proposedRevisions.add(datum.revision_id);
@@ -1197,7 +841,7 @@ export async function publishScenarioMutationData(
     if (lineage.length === 0) {
       if (datum.revision !== 1 || proposedIds.has(datum.id)) {
         diagnostics.push({
-          code: "scenario-output-lineage-invalid",
+          code: "transaction-output-lineage-invalid",
           path: datum.revision_id,
           message: `New Stable Datum '${datum.id}' must begin with exactly one Revision 1`,
         });
@@ -1211,11 +855,11 @@ export async function publishScenarioMutationData(
       const editable = lineage.find((item) => item.lifecycleDatum.storage.editable);
       if (type !== datum.type || datum.revision !== expectedRevision || editable) {
         diagnostics.push({
-          code: editable ? "editable-revision-exists" : "scenario-output-lineage-invalid",
+          code: editable ? "editable-revision-exists" : "transaction-output-lineage-invalid",
           path: datum.revision_id,
           message: editable
             ? `Stable Datum '${datum.id}' already has editable Revision '${editable.lifecycleDatum.datum.revision_id}'`
-            : `Scenario output Revision '${datum.revision_id}' does not continue the exact '${type}' lineage at Revision ${expectedRevision}`,
+            : `Transaction output Revision '${datum.revision_id}' does not continue the exact '${type}' lineage at Revision ${expectedRevision}`,
         });
       }
     }
@@ -1230,7 +874,7 @@ export async function publishScenarioMutationData(
           diagnostics.push({
             code: "kernel-managed-payload",
             path: `payload.${managedPath}`,
-            message: `Scenario output may not author kernel-managed payload path '${managedPath}'`,
+            message: `Transaction output may not author kernel-managed payload path '${managedPath}'`,
           });
         }
       }
@@ -1261,7 +905,7 @@ export async function publishScenarioMutationData(
   const temporaryDirectory = path.join(
     root,
     ".lifecycle",
-    `.scenario-${executionId}.${randomUUID()}.tmp`,
+    `.transaction-${executionId}.${randomUUID()}.tmp`,
   );
   const created = data.map((datum) => ({
     id: datum.id,
@@ -1304,10 +948,10 @@ export async function publishScenarioMutationData(
       ok: false,
       diagnostics: [{
         code: (error as NodeJS.ErrnoException).code === "EEXIST"
-          ? "scenario-output-collision"
-          : "scenario-publication-failed",
+          ? "transaction-output-collision"
+          : "transaction-publication-failed",
         path: transactionRelativePath,
-        message: `Scenario execution was not published: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Transaction was not published: ${error instanceof Error ? error.message : String(error)}`,
       }],
     };
   } finally {
@@ -1477,29 +1121,10 @@ function projectionsForLifecycleData(
 ): Map<string, DatumProjections> {
   return measure("repository.report-projections", () => {
     const statesByRevision = new Map<string, Record<string, string | string[]>>();
-    const obligationsByRevision = new Map<string, Map<string, ObligationEvaluation>>();
-    for (const phaseId of Object.keys(processPackage.phases).sort()) {
-      recordWork("lifecycle.phase-evaluations");
-      const evaluation = measure(
-        "lifecycle.evaluation",
-        () => evaluateLifecycle(processPackage, {
-          processRef: processReference,
-          phaseId,
-          records: lifecycleData,
-          dependencyComparisons: [],
-        }),
-      );
-      for (const subject of lifecycleData) {
-        const revisionId = subject.datum.revision_id;
-        const states = evaluation.artifacts[revisionId]?.states;
-        if (states) statesByRevision.set(revisionId, states);
-      }
-      for (const obligation of evaluation.obligations) {
-        const obligations = obligationsByRevision.get(obligation.subject) ??
-          new Map<string, ObligationEvaluation>();
-        obligations.set(obligation.id, obligation);
-        obligationsByRevision.set(obligation.subject, obligations);
-      }
+    const evaluation = evaluateLifecycle(processPackage, {processRef: processReference, records:lifecycleData, dependencyComparisons:[]});
+    for (const subject of lifecycleData) {
+      const states = evaluation.artifacts[subject.datum.revision_id]?.states;
+      if (states) statesByRevision.set(subject.datum.revision_id,states);
     }
     const graphLinks = durableGraphLinks(processPackage, lifecycleData);
     return new Map(lifecycleData.map((subject) => {
@@ -1512,8 +1137,6 @@ function projectionsForLifecycleData(
         ...(resolved.ok && resolved.type.payloadViews.length > 0 ? { views: renderPayloadViews(resolved.type, subject.datum.payload) } : {}),
         backlinks,
         states: statesByRevision.get(revisionId) ?? {},
-        obligations: [...(obligationsByRevision.get(revisionId)?.values() ?? [])]
-          .sort((left, right) => left.id.localeCompare(right.id)),
         kernelCapabilities: resolved.ok
           ? resolved.type.kernelCapabilities
           : [],

@@ -72,7 +72,6 @@ async function prepareRepository(
     { recursive: true },
   );
   await fs.mkdir(path.join(lifecycleRoot, "data"), { recursive: true });
-  await fs.mkdir(path.join(lifecycleRoot, "work"), { recursive: true });
   await fs.mkdir(path.join(lifecycleRoot, "generated"), { recursive: true });
   await writeJson(
     path.join(preparationRoot, selectionRelativePath),
