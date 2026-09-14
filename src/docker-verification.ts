@@ -106,7 +106,7 @@ export async function authenticateVerificationSource(
   return { sourceCommit, sourceTree, scriptSha256: createHash("sha256").update(script).digest("hex") };
 }
 
-/** Run one exact script in one disposable Docker container. Assignment receipts
+/** Run one exact script in one disposable Docker container. Operation receipts
  * and retry policy belong to the caller; this function never retries execution. */
 export async function executeDockerVerification(input: DockerVerificationInput): Promise<DockerVerificationResult> {
   const result: DockerVerificationResult = {
