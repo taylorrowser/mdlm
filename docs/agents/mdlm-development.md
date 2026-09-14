@@ -33,7 +33,7 @@ The experimental direct-observation capability uses read-only `mdlm expectations
 and `mdlm expectations show <exact-subject>` followed by `mdlm proposal submit`.
 Do not fabricate a workflow Assignment to author on that route. Its package and
 snapshot context protects publication, while prompts and gap identities provide
-guidance. Existing execution and review routes retain their Assignment contracts.
+guidance. The fresh exploratory direct-observation@2 capability also uses `mdlm execution run <exact-subject> <operation-id>` and `mdlm execution settlement <operation-id>`. Its `direct-work-available` next outcome points to expectations without leasing work. Other execution and review routes retain their Assignment contracts.
 Keep `deriveOperatorOutcome` pure. Keep repository authentication and exact lease
 recovery in `claimNextWork`, and canonical validation plus atomic publication in
 `submitAssignmentResponse`.
@@ -121,6 +121,12 @@ The integration lane owns expensive checks:
 - rerun affected groups on that same candidate tree after test-only diagnosis.
 
 Feature and fix writers rely on focused checks instead of repeating the full suite. Integration failures create focused follow-up work. They do not erase valid operational evidence.
+
+For a focused current tiny or exploratory test, use an explicit file filter with
+`vitest.cutover.config.ts`, or the default Vitest config. Check the suite include
+list before invoking a grouped filter; `vitest.fast.config.ts` contains historical
+full-process files and can select zero tests. On this host, check Docker access
+before bootstrap and use `sg docker` when the caller lacks the socket group.
 
 Build the exact worktree before a public CLI regression whose helper invokes
 `dist/mdlm.js`. A missing executable is preflight setup failure and supplies no

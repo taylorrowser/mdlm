@@ -1,4 +1,4 @@
-import { inspectDirectExpectations, submitDirectProposal, inspectDirectSettlement } from "./direct-proposal.js";
+import { inspectDirectExpectations, submitDirectProposal, inspectDirectSettlement, runDirectExecution, inspectDirectExecution } from "./direct-proposal.js";
 import type { AssignmentReviewContext } from "./assignment-review-context.js";
 import { requirementTraceBinding } from "./requirement-trace.js";
 import { inspectRequirementTrace } from "./requirement-trace-inspection.js";
@@ -166,8 +166,8 @@ interface CommandResultBase {
   ok: boolean;
   command?: string;
   reviewContext?: AssignmentReviewContext;
-  contract?: "mdlm-expectations@1" | "mdlm-expectation-guidance@1" | "mdlm-proposal-result@1" | "mdlm-assignment-review-context@1" | AssignmentOutcome["contract"] | AssignmentPacket["contract"] | AssignmentSubmission["contract"] | AssignmentDisposition["contract"] | AssignmentState["contract"] | OperatorStatus["contract"] | StartBriefing["contract"] | SubmissionOutcome["contract"];
-  outcome?: AssignmentOutcome["outcome"] | SubmissionOutcome["outcome"] | "invalid" | "not-published";
+  contract?: "mdlm-execution-result@1" | "mdlm-expectations@1" | "mdlm-expectation-guidance@1" | "mdlm-proposal-result@1" | "mdlm-assignment-review-context@1" | AssignmentOutcome["contract"] | AssignmentPacket["contract"] | AssignmentSubmission["contract"] | AssignmentDisposition["contract"] | AssignmentState["contract"] | OperatorStatus["contract"] | StartBriefing["contract"] | SubmissionOutcome["contract"];
+  outcome?: AssignmentOutcome["outcome"] | SubmissionOutcome["outcome"] | "invalid" | "not-published" | "direct-work-available";
   assignment?: { id: string; packet?: AssignmentPacket };
   authorityRequirement?: Extract<AssignmentOutcome, {
     outcome: "attention-required";
@@ -262,6 +262,8 @@ Agent-guided lifecycle commands:
   mdlm assignment register-review <assignment-id> <context-file> <verdict-file> --json
   mdlm assignment run [--retry] --json
   mdlm assignment submit-proposal <author-values-file|-> [--authority <authority-id>] --json
+  mdlm execution run <exact-subject> <operation-id> [--json]
+  mdlm execution settlement <operation-id> [--json]
   mdlm expectations [show <exact-subject>] [--json]
   mdlm proposal submit <proposal-file|-> [--json]
   mdlm proposal settlement <operation-id> [--json]
@@ -2188,6 +2190,13 @@ async function dispatchCommand(
         };
   }
   if (operands[0] === "doctor") return doctorRepository(repositoryRoot);
+  if (operands[0] === "execution") {
+    try {
+      if (operands[1] === "run" && operands.length === 4) return {...await runDirectExecution(repositoryRoot, operands[2]!, operands[3]!), command: "execution.run", diagnostics: []};
+      if (operands[1] === "settlement" && operands.length === 3) return {...await inspectDirectExecution(repositoryRoot, operands[2]!), command: "execution.settlement", diagnostics: []};
+      throw new Error("Expected execution run <exact-subject> <operation-id> or execution settlement <operation-id>");
+    } catch (error) { return {...failure("direct-execution-invalid", String(error)), command: "execution"}; }
+  }
   if (operands[0] === "expectations") {
     try {
       if (operands.length !== 1 && !(operands.length === 3 && operands[1] === "show")) throw new Error("Expected expectations [show <exact-subject>]");

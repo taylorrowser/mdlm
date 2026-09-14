@@ -85,7 +85,8 @@
     "gate": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["required", "candidate_selector", "candidate_as", "obligation", "completion"],
+      "required": ["required", "candidate_selector", "candidate_as", "completion"],
+      "allOf": [{"if": {"properties": {"required": {"const": true}}}, "then": {"required": ["obligation"]}}],
       "properties": {
         "required": {"type": "boolean"},
         "candidate_selector": {"$ref": "expression.schema.json"},

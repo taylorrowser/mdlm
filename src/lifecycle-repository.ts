@@ -830,7 +830,7 @@ async function scenarioExecutionProvenance(
     }
   }
   if (datum.created_by.transaction === "direct-proposal@1") {
-    const binding = processPackage.kernelCapabilities["direct-observation@1"];
+    const binding = (processPackage.kernelCapabilities["direct-observation@2"] ?? processPackage.kernelCapabilities["direct-observation@1"]);
     const packageIdentity = recordValue(execution?.package);
     const selectedDigest = await processPackageDigest(processPackage.root);
     const valid = !!binding && datum.type === binding.type &&
@@ -842,7 +842,7 @@ async function scenarioExecutionProvenance(
       packageIdentity?.digest === selectedDigest &&
       `${packageIdentity?.reference}#${packageIdentity?.digest}` === datum.created_by.process_ref &&
       structuralValuesEqual(execution.datum, datum) && execution.evidence === datum.payload.receipt &&
-      datum.payload.outcome === "pass" && datum.payload.recommendation === "keep" &&
+      (processPackage.kernelCapabilities["direct-observation@2"] ? (datum.payload.outcome === "pass" || ["revise", "drop"].includes(datum.payload.recommendation as string)) : datum.payload.outcome === "pass" && datum.payload.recommendation === "keep") &&
       datum.created_by.prompt_ref === binding.prompt_ref;
     return {processPackage, valid};
   }

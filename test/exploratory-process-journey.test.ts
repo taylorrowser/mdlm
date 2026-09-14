@@ -50,7 +50,7 @@ it("continues nominations through stakeholder feedback while preserving exact pr
     expect(cli(["init", unknown, "--process", "invented", "--json"], undefined, 1, root).ok).toBe(false);
     await expect(fs.stat(unknown)).rejects.toMatchObject({ code: "ENOENT" });
     const initialized = cli(["init", lifecycle, "--process", "exploratory", "--json"], undefined, 0, root);
-    expect(initialized.package.reference).toBe("mdlm-exploratory@0.3.0");
+    expect(initialized.package.reference).toBe("mdlm-exploratory@0.4.0");
     await fs.mkdir(source);
     git(["init", "--quiet"]);
     git(["config", "user.name", "MDLM exploratory fixture"]);
@@ -66,8 +66,9 @@ it("continues nominations through stakeholder feedback while preserving exact pr
         expect(JSON.stringify(next)).toContain("not product acceptance");
         break;
       }
-      expect(["assignment", "attention-required"]).toContain(next.outcome);
-      const packet = next.assignment.packet;
+      expect(["assignment", "attention-required", "direct-work-available"]).toContain(next.outcome);
+      const direct = next.outcome === "direct-work-available" ? cli(["expectations", "show", next.subjects[0], "--json"]) : undefined;
+      const packet = direct ? {scenario: {reference: "direct-observation"}, authorValuesScaffold: {outputs: [{payload: {}, body: ""}]}} : next.assignment.packet;
       const scenario = packet.scenario.reference;
       scenarios.push(scenario);
       const proposal = structuredClone(packet.authorValuesScaffold);
@@ -88,12 +89,11 @@ it("continues nominations through stakeholder feedback while preserving exact pr
         commits.push(commit);
         output.payload = { title: "Committed prototype", repository_path: source, source_commit: commit, command: ["python3", "count.py"], verification_image: image, verification_command: ["python3", "verify.py"], verification_script: "verify.py" };
         expect(await fs.readFile(path.join(source, "count.py"), "utf8")).not.toContain("mdlm:");
-      } else if (scenario === "observe-prototype@2") {
+      } else if (scenario === "direct-observation") {
         output.payload = { title: "Observed separator behavior", assessment: "Inspected the exact execution receipt and independent expected count.", observation_origin: "scripted", interaction_observation: "Human use has not been observed.", limitations: "One input example; no usability evidence.", recommendation: observation === 0 ? "revise" : "nominate", next_action: observation === 0 ? "Try a semicolon criterion without treating comma counting as an obligation." : "Nominate counting semicolons; stakeholder commitment remains undecided." };
         expect(output.payload).not.toHaveProperty("outcome");
         expect(output.payload).not.toHaveProperty("receipt");
-        expect(cli(["assignment", "submit-proposal", "-", "--json"], proposal, 1).outcome).toBe("rejected");
-        const execution = cli(["assignment", "run", "--json"]).value;
+        const execution = cli(["execution", "run", direct!.subject, `execution-${observation}`, "--json"]).value;
         receipts.push(execution);
         expect(execution.receipt.result.outcome).toBe("pass");
         expect(execution.receipt.result.sourceCommit).toBe(commits.at(-1));
@@ -112,13 +112,13 @@ it("continues nominations through stakeholder feedback while preserving exact pr
       } else throw new Error(`Unexpected scenario ${scenario}`);
       const submitArgs = ["assignment", "submit-proposal", "-", "--json"];
       if (scenario === "record-feedback@1") submitArgs.push("--authority", "stakeholder");
-      const submitted = cli(submitArgs, proposal);
+      const submitted = direct ? cli(["proposal", "submit", "-", "--json"], {operation: `observation-${observation}`, package: direct.package, snapshot: direct.snapshot, evidence: `git-blob:${receipts.at(-1)!.oid}`, datum: {...direct.candidate, payload: {...direct.candidate.payload, ...output.payload}, body: output.body}}) : cli(submitArgs, proposal);
       expect(submitted.outcome, JSON.stringify(submitted)).toBe("accepted");
       publications.push(submitted);
       expect(cli(["doctor", "--json"]).ok).toBe(true);
       git(["add", ".lifecycle/data"], lifecycle);
       git(["-c", "commit.gpgSign=false", "commit", "--quiet", "--no-verify", "-m", scenario], lifecycle);
-      if (scenario === "observe-prototype@2" && observation === 1) {
+      if (scenario === "direct-observation" && observation === 1) {
         const list = cli(["list", "--json"]);
         // The public list identifies the exact OBS; show remains identical after revision.
         firstObservationId = list.data.find((entry: Json) => entry.lifecycleDatum.datum.type === "OBS")?.lifecycleDatum.datum.revision_id;
@@ -127,11 +127,11 @@ it("continues nominations through stakeholder feedback while preserving exact pr
       }
     }
     expect(scenarios).toEqual([
-      "frame-experiment@1", "prepare-prototype@1", "observe-prototype@2",
-      "revise-experiment@2", "prepare-prototype@1", "observe-prototype@2",
-      "record-feedback@1", "revise-prototype@1", "observe-prototype@2",
+      "frame-experiment@1", "prepare-prototype@1", "direct-observation",
+      "revise-experiment@2", "prepare-prototype@1", "direct-observation",
+      "record-feedback@1", "revise-prototype@1", "direct-observation",
       "record-feedback@1", "revise-experiment@2", "prepare-prototype@1",
-      "observe-prototype@2", "record-feedback@1",
+      "direct-observation", "record-feedback@1",
     ]);
     expect(cli(["show", firstObservationId!, "--json"]).lifecycleDatum).toEqual(firstObservation);
     const datums: Json[] = cli(["list", "--json"]).data.map((entry: Json) => entry.lifecycleDatum.datum);
