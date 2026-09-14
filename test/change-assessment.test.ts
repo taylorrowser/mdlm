@@ -302,3 +302,30 @@ test("rejected change scope can narrow while every previously approved root rema
   const dropsApproved = d(change.id, {baseline: [id(f.acc)], changes: [id(f.peer)]}, {}, 4);
   expect(validateChangeDatum(f.data, binding, dropsApproved).map(d => d.code)).toContain("change-amendment-scope");
 });
+
+test("changed review guidance names affected baseline scopes, not current evidence scopes", async () => {
+  const {loadProcessPackage} = await import("../src/index.js");
+  const {sourceAssessmentTargets} = await import("../src/direct-guidance.js");
+  const loaded = await loadProcessPackage(`${process.cwd()}/.lifecycle/process`);
+  if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+  const f = fixture(); baseline(f);
+  // Seven affected baseline regions, followed by nine current evidence regions.
+  for (let n = 1; n < 7; n++) f.data.push(d(`SCP-base${n}`, {"belongs-to": [id(f.imp)], implements: [id(f.leaf)]}));
+  const change = request(f, f.leaf);
+  const selection = replace(f, change, f.leaf).set;
+  const implementation = d("IMP-product", {implements: [id(selection)]}, {}, 2);
+  const current = Array.from({length: 9}, (_, n) => d(`SCP-current${n}`, {"belongs-to": [id(implementation)], implements: ["REQ-leaf-r2"]}));
+  f.data.push(implementation, ...current);
+  const context = {root: ".", pkg: loaded.package, package: {reference: "fixture", digest: "fixture", language: "fixture"}, snapshot: "fixture", data: f.data, action: loaded.package.actions["review-implementation"]!, subject: id(implementation), inputs: {}};
+  const targets = sourceAssessmentTargets(context)!;
+  expect(targets.field).toBe("source_assessments[].source_scope");
+  expect(targets.sourceScopes).toEqual(assessRequirements(f.data, binding, selection).sourceScopes);
+  expect(targets.sourceScopes).toHaveLength(7);
+  expect(targets.sourceScopes.some(scope => current.some(datum => id(datum) === scope))).toBe(false);
+  expect(targets.instruction).toContain("affected baseline revision");
+  expect(sourceAssessmentTargets({...context, subject: id(f.imp)})).toBeUndefined();
+  const review = d("REV-changed", {reviews: [id(implementation)]}, {outcome: "pass", source_assessments: targets.sourceScopes.map(source_scope => ({source_scope, disposition: "valid"}))});
+  expect(validateChangeDatum(f.data, binding, review).filter(d => d.code === "change-source-review-coverage")).toEqual([]);
+  review.payload.source_assessments = current.map(scope => ({source_scope: id(scope), disposition: "valid"}));
+  expect(validateChangeDatum(f.data, binding, review).map(d => d.code)).toContain("change-source-review-coverage");
+});

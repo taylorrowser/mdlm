@@ -82,6 +82,11 @@ export interface DirectTransaction {
   evidence?: DirectProposal["evidence"];
   authority?: unknown;
 }
+export interface SourceAssessmentTargets {
+  field: "source_assessments[].source_scope";
+  sourceScopes: string[];
+  instruction: string;
+}
 export interface DirectGuidance {
   contract: "mdlm-direct-guidance@1";
   action: string;
@@ -91,6 +96,7 @@ export interface DirectGuidance {
   inputs: Record<string, string[]>;
   prompt: unknown;
   payloadSchemas: Record<string, unknown>;
+  sourceAssessmentTargets?: SourceAssessmentTargets;
   context: DatumEnvelope[];
   candidates: DirectCandidate[];
   authority?: DirectAction["authority"];

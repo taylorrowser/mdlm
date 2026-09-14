@@ -73,6 +73,8 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
     if (g.authority?.kind === 'independent-review') {
       const context = cli(['review', 'context', g.action, g.subject]);
       save(`${operation}-review-context.json`, context);
+      assert.deepEqual(context.payloadSchemas, g.payloadSchemas, 'Review and guidance must advertise the same authorable output schemas');
+      assert.deepEqual(context.sourceAssessmentTargets, g.sourceAssessmentTargets, 'Review and guidance must identify the same exact assessment targets');
       const verdictFile = path.join(evidenceRoot, `${operation}-reviewer-verdict.json`);
       save(path.basename(verdictFile), {candidates});
       const rejected = cli(['proposal', 'submit', proposalFile], undefined, {expected: 1});
@@ -158,6 +160,7 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
     const result = submit('execute-verification', implementation.revision_id, [candidate('verification', 'RES', {assessment: 'The committed Python assertions passed in the pinned container.', correction_target: 'none'}, [link('executes', implementation.revision_id), link('verifies', set.revision_id)])], {receipt}).find(d => d.type === 'RES');
     const reviewContext = cli(['review', 'context', 'review-implementation@1', implementation.revision_id]);
     const assessment = reviewContext.requirementGraphs.find(g => g.selection === set.revision_id)?.assessment;
+    if (assessment?.change) assert.deepEqual(reviewContext.sourceAssessmentTargets?.sourceScopes, assessment.sourceScopes, 'Changed review must identify affected baseline revisions');
     const scopes = assessment?.change ? data().filter(d => assessment.sourceScopes.includes(d.revision_id)) : data().filter(d => d.type === 'SCP' && d.links.some(l => l.type === 'belongs-to' && l.target === implementation.revision_id));
     submit('review-implementation', implementation.revision_id, [candidate('implementation-review', 'REV', {outcome: 'pass', findings: 'The committed counting program and independent subprocess assertions support the selected requirements. The receipt binds this exact source.', source_assessments: scopes.map(d => ({source_scope: d.revision_id, disposition: 'valid', rationale: 'This source region implements or verifies its linked software behavior.'}))}, [link('reviews', implementation.revision_id), link('uses-evidence', result.revision_id)])]);
     if (checkZero) {

@@ -27,3 +27,11 @@ Manifest declares `direct_contract: mdlm-direct@1` and `terminal: {when: <expres
 Actions may declare `links` from output type and link name to an exact input name, `revises` from output type to predecessor input, and `fixed_payload` per type. These constraints apply to authored outputs before publication. Every current action publishes one authored datum except the requirements capability, which publishes its requirement/group/set batch; kernel-derived source scopes remain in the same transaction.
 
 Stakeholder proposals carry `evidence.authority`, which must exactly match the explicitly supplied command flags. Adapters obtain those flags from attended transport, never from model-authored values. Accepted results and settlement return `proposalDigest` over the exact submitted UTF-8 JSON bytes. Review context is returned directly as `{ok:true,...context}`; execution guidance includes `executionSubject`, `executionCommand`, receipt locators and `receiptDetails` with captured output.
+
+Guidance and review-context `payloadSchemas` describe authorable candidate fields;
+computed fields remain present in the full records under review. For a changed
+implementation review, both exports include `sourceAssessmentTargets`: its
+`sourceScopes` are the exact affected baseline revisions requiring one
+`source_assessments` row each. Current scopes and before/after comparisons remain
+evidence for those judgments. Registration binds a verdict to its context;
+publication still validates field permissions and exact assessment coverage.
