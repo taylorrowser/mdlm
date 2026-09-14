@@ -5,13 +5,13 @@ version: 1
 
 # Attribute the committed source through ordinary requirement links
 
-Use the complete reviewed requirement graph supplied by the Assignment. Source annotations name its published stable REQ IDs; the CLI resolves those IDs only against the selected exact revisions. Production code implements software leaves. Verification code verifies leaves and may also name upper-level contracts. Verification setup, fixtures and assertion helpers contribute to their linked contract; they do not each prove it independently.
+Use the complete reviewed requirement graph supplied by the direct guidance. Source annotations name its published stable REQ IDs; the CLI resolves those IDs only against the selected exact revisions. Production code implements software leaves. Verification code verifies leaves and may also name upper-level contracts. Verification setup, fixtures and assertion helpers contribute to their linked contract; they do not each prove it independently.
 
 Declare file_roles for every tracked entry, using production, verification, documentation, build or configuration. The CLI derives product_files, source_inventory, physical ranges and SCP datums from the committed source. Include empty files in the inventory. Classify code honestly; documentation is a role to review, not an escape from attribution. The initial source format is Python comments. Unsupported executable formats, generated code and vendored code need explicit supported treatment before claiming complete coverage.
 
 Put every nonblank Python line inside an explicit closed, nonnested named region. Imports, comments, docstrings and support code count as content. Region names are unique within each file. Blank or whitespace-only lines outside regions are exempt; delimiters and blanks inside a region belong to that region. File-default directives are rejected. Use `python3 product.py` invocation without a shebang outside the regions.
 
-Regions and requirements have a many-to-many relationship. A region can contribute to several requirements, and a requirement can be implemented by several regions across files. Replace these example IDs with published IDs from the Assignment:
+Regions and requirements have a many-to-many relationship. A region can contribute to several requirements, and a requirement can be implemented by several regions across files. Replace these example IDs with published IDs from the exact guidance:
 
 ```python
 # mdlm:begin storage-support implements REQ-0000000001 REQ-0000000002

@@ -1,168 +1,122 @@
-import { readFile } from "node:fs/promises";
+import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { mkdtemp } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
-import type {
-  AssignmentSubmission,
-  JsonObject,
-  MdlmOperatorOutcome,
-  PreparedAssignmentSubmission,
-} from "../src/mdlm-client.js";
 import { RunController } from "../src/run-controller.js";
 import { RunJournal } from "../src/run-journal.js";
+import type { JsonObject } from "../src/mdlm-client.js";
 
-const fixtureRoot = path.resolve(import.meta.dirname, "../../../test/fixtures/operator-contract-v2");
-const digest = `sha256:${"e".repeat(64)}` as const;
 const transport = { repository: "/repo", command: { program: "mdlm", arguments: [] } };
-const boundary = { package: { reference: "package@1" }, repository: { head: "base" }, transport };
-
-describe("v2 operator loop", () => {
-  it("claims once, performs the included packet, and submits one accepted response", async () => {
-    const outcome = await fixture<MdlmOperatorOutcome>("assignment.json");
-    const response = await fixture<JsonObject>("assignment-response.json");
-    const accepted = await fixture<AssignmentSubmission>("submission-accepted.json");
-    const dependencies = await harness(outcome, [response], [accepted]);
-
-    const result = await new RunController(dependencies).run();
-
-    expect(result).toMatchObject({ status: "accepted", successful: true });
-    expect(dependencies.mdlm.next).toHaveBeenCalledOnce();
-    expect(dependencies.assignments.run).toHaveBeenCalledOnce();
-    expect(dependencies.mdlm.submit).toHaveBeenCalledOnce();
-  });
-
-  it("corrects a side-effect-free rejection without claiming or consuming authority again", async () => {
-    const outcome = await fixture<MdlmOperatorOutcome>("assignment.json");
-    const response = await fixture<JsonObject>("assignment-response.json");
-    const rejected = await fixture<AssignmentSubmission>("submission-rejected.json");
-    const accepted = await fixture<AssignmentSubmission>("submission-accepted.json");
-    const dependencies = await harness(outcome, [response, response], [rejected, accepted]);
-
-    await expect(new RunController(dependencies).run()).resolves.toMatchObject({ status: "accepted" });
-
-    expect(dependencies.mdlm.next).toHaveBeenCalledOnce();
-    expect(dependencies.mdlm.submit).toHaveBeenCalledTimes(2);
-    expect(dependencies.assignments.run).toHaveBeenNthCalledWith(2, expect.anything(), {
-      correction: {
-        previousResponse: response,
-        diagnostics: rejected.diagnostics,
-      },
-    });
-  });
-
-  it("passes attended authority as submit metadata and never adds it to the response", async () => {
-    const outcome = await fixture<MdlmOperatorOutcome>("attention-required.json");
-    if (outcome.outcome !== "attention-required") throw new Error("fixture outcome changed");
-    const response = { ...(await fixture<JsonObject>("assignment-response.json")), assignment: outcome.assignment.id };
-    const acceptedFixture = await fixture<AssignmentSubmission>("submission-accepted.json");
-    const accepted = { ...acceptedFixture, assignment: { id: outcome.assignment.id } };
-    const dependencies = await harness(outcome, [response], [accepted]);
-
-    await new RunController(dependencies).run();
-
-    expect(dependencies.mdlm.submit).toHaveBeenCalledWith(expect.anything(), "stakeholder");
-    expect(JSON.stringify(response)).not.toContain("authoritySupplies");
-  });
-
-  it("settles a started submission without calling next or replaying submit", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "mdlm-pi-settlement-"));
-    const journal = new RunJournal(directory);
-    await journal.capture("11111111-1111-4111-8111-111111111111", digest, boundary);
-    await journal.beginSubmission();
-    await journal.requireSettlement("33333333-3333-4333-8333-333333333333");
-    const accepted = await fixture<AssignmentSubmission>("submission-accepted.json");
-    const next = vi.fn(async (): Promise<MdlmOperatorOutcome> => { throw new Error("next replayed"); });
-    const submit = vi.fn(async (): Promise<AssignmentSubmission> => { throw new Error("submit replayed"); });
-    const settlement = vi.fn(async () => accepted);
-    const controller = new RunController({
-      mdlm: { identity: () => transport, next, submit, settlement, prepareSubmission },
-      assignments: { run: vi.fn() },
-      io: io(),
-      journal,
-    });
-
-    await expect(controller.run()).resolves.toMatchObject({ status: "accepted", successful: true });
-    expect(settlement).toHaveBeenCalledWith("33333333-3333-4333-8333-333333333333");
-    expect(next).not.toHaveBeenCalled();
-    expect(submit).not.toHaveBeenCalled();
-  });
-
-  it("keeps the journal when settlement names different response bytes", async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "mdlm-pi-settlement-drift-"));
-    const journal = new RunJournal(directory);
-    await journal.capture("11111111-1111-4111-8111-111111111111", digest, boundary);
-    await journal.beginSubmission();
-    const accepted = await fixture<AssignmentSubmission>("submission-accepted.json");
-    const wrong = { ...accepted, responseDigest: `sha256:${"f".repeat(64)}` };
-    const controller = new RunController({
-      mdlm: {
-        identity: () => transport,
-        next: vi.fn(),
-        submit: vi.fn(),
-        settlement: vi.fn(async () => wrong),
-        prepareSubmission,
-      },
-      assignments: { run: vi.fn() },
-      io: io(),
-      journal,
-    });
-
-    await expect(controller.run()).rejects.toThrow("pending Assignment response");
-    await expect(journal.load()).resolves.toMatchObject({ phase: "submitting" });
-  });
-
-  it.each([
-    ["profile-boundary-reached.json", true],
-    ["lifecycle-complete.json", true],
-    ["process-dead-end.json", false],
-    ["invalid.json", false],
-  ])("reports terminal fixture %s without invoking a worker", async (name, successful) => {
-    const outcome = await fixture<MdlmOperatorOutcome>(name);
-    const dependencies = await harness(outcome, [], []);
-    await expect(new RunController(dependencies).run()).resolves.toMatchObject({
-      status: outcome.outcome,
-      successful,
-    });
-    expect(dependencies.assignments.run).not.toHaveBeenCalled();
-  });
-});
-
-async function harness(
-  outcome: MdlmOperatorOutcome,
-  responses: JsonObject[],
-  submissions: AssignmentSubmission[],
-) {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "mdlm-pi-loop-"));
+const boundary = { package: { reference: "package@1" }, snapshot: "base", transport };
+const guidance: JsonObject = { contract: "mdlm-direct-guidance@1", action: "second", package: boundary.package, snapshot: "base", inputs: {}, candidates: [], payloadSchemas: {}, prompt: "Author useful data" };
+function prepared(proposal: JsonObject) {
+  const source = `${JSON.stringify(proposal)}\n`;
+  return { proposal, source, digest: `sha256:${createHash("sha256").update(source).digest("hex")}` as const };
+}
+async function harness() {
+  const journal = new RunJournal(await mkdtemp(path.join(os.tmpdir(), "mdlm-direct-loop-")));
   return {
     mdlm: {
       identity: () => transport,
-      next: vi.fn(async () => outcome),
-      prepareSubmission,
-      submit: vi.fn(async () => ({ ...submissions.shift()!, responseDigest: digest })),
-      settlement: vi.fn(async () => ({ ...submissions.shift()!, responseDigest: digest })),
+      discover: vi.fn(async (): Promise<JsonObject> => ({ contract: "mdlm-expectations@2", outcome: "work-available", items: [{ action: "first" }, { action: "second" }], optional: [] })),
+      guidance: vi.fn(async () => guidance), prepareSubmission: prepared,
+      submit: vi.fn(async (p: ReturnType<typeof prepared>, _authority?: string): Promise<JsonObject> => ({ ok: true, contract: "mdlm-proposal-result@2", operation: p.proposal.operation!, proposalDigest: p.digest, outcome: "accepted" })),
+      settlement: vi.fn(async (_operation: string): Promise<JsonObject> => ({})),
+      execute: vi.fn(async (_subject: string, _operation: string): Promise<JsonObject> => ({})),
+      executionSettlement: vi.fn(async (_operation: string): Promise<JsonObject> => ({})),
     },
-    assignments: {
-      run: vi.fn(async () => responses.shift()!),
-      close: vi.fn(async () => undefined),
-    },
-    io: io(),
-    journal: new RunJournal(directory),
+    worker: { run: vi.fn().mockResolvedValueOnce({ action: "second" }).mockResolvedValueOnce({ candidates: [] }), close: vi.fn(async () => {}) },
+    io: { progress: vi.fn(), attention: vi.fn(async () => ({ conclusion: "approve" })), stopped: vi.fn() }, journal,
   };
 }
 
-function prepareSubmission(response: JsonObject): PreparedAssignmentSubmission {
-  return { response, source: `${JSON.stringify(response)}\n`, digest };
-}
-
-function io() {
-  return {
-    progress: vi.fn(),
-    attention: vi.fn(async () => ({ conclusion: { statement: "approve" } })),
-    stopped: vi.fn(),
-  };
-}
-
-async function fixture<T>(name: string): Promise<T> {
-  return JSON.parse(await readFile(path.join(fixtureRoot, name), "utf8")) as T;
-}
+describe("direct operator loop", () => {
+  it("lets the agent choose the second available action and submits exact context", async () => {
+    const deps = await harness();
+    await expect(new RunController(deps).run()).resolves.toMatchObject({ status: "accepted", successful: true });
+    expect(deps.mdlm.guidance).toHaveBeenCalledWith("second", undefined);
+    expect(deps.mdlm.submit.mock.calls[0]![0].proposal).toMatchObject({ action: "second", package: boundary.package, snapshot: "base", candidates: [] });
+    expect(deps.mdlm.discover).toHaveBeenCalledOnce();
+    expect(await deps.journal.load()).toBeNull();
+  });
+  it("supplies stakeholder authority from attended IO and rejects invented authority", async () => {
+    const deps = await harness();
+    deps.mdlm.guidance.mockResolvedValue({ ...guidance, authority: { kind: "stakeholder", name: "stakeholder" } });
+    await new RunController(deps).run();
+    expect(deps.io.attention).toHaveBeenCalledOnce();
+    expect(deps.mdlm.submit.mock.calls[0]![1]).toBe("stakeholder");
+    expect(deps.mdlm.submit.mock.calls[0]![0].proposal.evidence).toEqual({ authority: ["stakeholder"] });
+    const forged = await harness();
+    forged.worker.run.mockReset().mockResolvedValueOnce({ action: "second" }).mockResolvedValueOnce({ candidates: [], evidence: { authority: ["stakeholder"] } });
+    await expect(new RunController(forged).run()).rejects.toThrow("unsupported evidence or authority");
+    expect(forged.mdlm.submit).not.toHaveBeenCalled();
+  });
+  it("settles a lost accepted response without discovery, agent work or replay", async () => {
+    const deps = await harness();
+    const digest = `sha256:${"a".repeat(64)}` as const;
+    await deps.journal.capture("op", digest, boundary);
+    await deps.journal.beginSubmission();
+    deps.mdlm.settlement.mockResolvedValue({ ok: true, contract: "mdlm-proposal-result@2", operation: "op", proposalDigest: digest, outcome: "accepted" });
+    await expect(new RunController(deps).run()).resolves.toMatchObject({ status: "accepted" });
+    expect(deps.mdlm.settlement).toHaveBeenCalledWith("op");
+    expect(deps.mdlm.discover).not.toHaveBeenCalled();
+    expect(deps.worker.run).not.toHaveBeenCalled();
+    expect(deps.mdlm.submit).not.toHaveBeenCalled();
+  });
+  it("preserves pending publication on mismatched settlement bytes", async () => {
+    const deps = await harness();
+    await deps.journal.capture("op", `sha256:${"a".repeat(64)}`, boundary);
+    await deps.journal.beginSubmission();
+    deps.mdlm.settlement.mockResolvedValue({ ok: true, contract: "mdlm-proposal-result@2", operation: "op", proposalDigest: "wrong", outcome: "accepted" });
+    await expect(new RunController(deps).run()).rejects.toThrow("pending proposal bytes");
+    expect(await deps.journal.load()).toMatchObject({ phase: "submitting" });
+  });
+  it("reports independent review without authoring its own verdict", async () => {
+    const deps = await harness();
+    deps.mdlm.guidance.mockResolvedValue({ ...guidance, authority: { kind: "independent-review", name: "reviewer" } });
+    await expect(new RunController(deps).run()).resolves.toMatchObject({ status: "independent-review-required", successful: false });
+    expect(deps.worker.run).toHaveBeenCalledOnce();
+    expect(deps.mdlm.submit).not.toHaveBeenCalled();
+  });
+  it("passes actual execution evidence to the author before publishing its assessment", async () => {
+    const deps = await harness();
+    deps.mdlm.guidance.mockResolvedValue({ ...guidance, executionCommand: "mdlm execution run IMP-A-r00001 <operation> --json", executionSubject: "IMP-A-r00001", evidence: [] });
+    deps.mdlm.execute.mockImplementation(async (_subject, operation) => ({ ok: true, contract: "mdlm-execution-result@1", operation, value: { receipt: { state: "completed", stdout: "observed output" }, evidence: "git-blob:receipt" } }));
+    await expect(new RunController(deps).run()).resolves.toMatchObject({ status: "accepted" });
+    expect(deps.mdlm.execute).toHaveBeenCalledWith("IMP-A-r00001", expect.any(String));
+    expect(deps.worker.run.mock.calls[1]![0].context.execution.value.receipt.stdout).toBe("observed output");
+    expect(deps.io.stopped).toHaveBeenCalledOnce();
+  });
+  it("preserves a rejected proposal until settlement proves nonpublication", async () => {
+    const deps = await harness();
+    deps.mdlm.submit.mockResolvedValue({ ok: false, diagnostics: [{ code: "invalid" }] });
+    await expect(new RunController(deps).run()).resolves.toMatchObject({ status: "rejected" });
+    const pending = (await deps.journal.load())!;
+    deps.mdlm.settlement.mockResolvedValue({ ok: true, contract: "mdlm-proposal-result@2", operation: pending.operation, outcome: "not-published" });
+    await expect(new RunController(deps).run()).resolves.toMatchObject({ status: "not-published" });
+    expect(deps.mdlm.discover).toHaveBeenCalledOnce();
+    expect(await deps.journal.load()).toBeNull();
+  });
+  it("clears an execution proven not started before a later invocation discovers work", async () => {
+    const deps = await harness();
+    await deps.journal.capture("exec-not-started", `sha256:${"0".repeat(64)}`, boundary, "execution");
+    await deps.journal.beginSubmission();
+    deps.mdlm.executionSettlement.mockResolvedValue({ ok: true, contract: "mdlm-execution-result@1", operation: "exec-not-started", value: { state: "not-started" } });
+    await expect(new RunController(deps).run()).resolves.toMatchObject({ status: "not-started", successful: false });
+    expect(await deps.journal.load()).toBeNull();
+    expect(deps.mdlm.discover).not.toHaveBeenCalled();
+    expect(deps.mdlm.execute).not.toHaveBeenCalled();
+    await expect(new RunController(deps).run()).resolves.toMatchObject({ status: "accepted" });
+    expect(deps.mdlm.discover).toHaveBeenCalledOnce();
+  });
+  it("retains an ambiguous execution and settles without running it again", async () => {
+    const deps = await harness();
+    await deps.journal.capture("exec", `sha256:${"0".repeat(64)}`, boundary, "execution");
+    await deps.journal.beginSubmission();
+    deps.mdlm.executionSettlement.mockResolvedValue({ ok: true, contract: "mdlm-execution-result@1", operation: "exec", value: { state: "started" } });
+    await expect(new RunController(deps).run()).resolves.toMatchObject({ status: "settlement-required" });
+    expect(await deps.journal.load()).toMatchObject({ kind: "execution" });
+    expect(deps.mdlm.execute).not.toHaveBeenCalled();
+  });
+});

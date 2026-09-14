@@ -1,27 +1,3 @@
 import { defineConfig } from "vitest/config";
-
-// The supported default process is tiny. Historical full-V tests outside this
-// list do not describe that package and are not part of its qualification gate.
-export default defineConfig({
-  test: {
-    include: [
-      "test/author-values-scaffold-public.test.ts",
-      "test/external-review-public.test.ts",
-      "test/tiny-process-package.test.ts",
-      "test/requirement-trace-v2.test.ts",
-      "test/change-assessment.test.ts",
-      "test/change-control-public.test.ts",
-      "test/tiny-process-journey.test.ts",
-      "test/exploratory-process-journey.test.ts",
-      "test/docker-verification-receipt.test.ts",
-      "test/docker-verification-dialogue.test.ts",
-      "test/operator-contract-v2.test.ts",
-      "test/operator-outcome-classification.test.ts",
-      "test/release-candidate-gate.test.ts",
-      "test/lifecycle-schema-diagnostics.test.ts",
-      "test/array-expression.test.ts",
-    ],
-    maxWorkers: 1,
-    testTimeout: 45_000,
-  },
-});
+import { testFiles } from "./vitest.suites.mjs";
+export default defineConfig({test:{include:testFiles,maxWorkers:1,testTimeout:90_000}});

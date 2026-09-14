@@ -1,13 +1,13 @@
 # Tiny product Process Package
 
-`mdlm-tiny@0.7.0` is the default Example Process Package. It targets small,
+`mdlm-tiny@1.0.0` is the default Example Process Package. It targets small,
 terminating Python command-line products with UTF-8 input and output, including
 line-oriented interactive CLIs verified with finite stdin/stdout dialogues.
 Long-running services and products requiring a TTY remain outside this profile. Requirements
 form an ordinary linked graph, authored and reviewed in one batch. Earlier
 package identities and accepted products retain their original history.
 
-The normal journey still has six Assignments:
+The package exposes direct data operations. A small product usually needs these results:
 
 1. Write one REQ per stakeholder or software statement in a batch. The CLI
    generates an RQS with contains links to the complete selected graph.
@@ -20,7 +20,7 @@ The normal journey still has six Assignments:
    in one REV.
 6. Record the stakeholder's explicit accept or reject decision in one ACC linked
    to the exact product, requirements and passing evidence. Rejection preserves
-   the decision and dispatches a same-lineage product correction under the
+   the decision and makes a same-lineage product correction available under the
    unchanged requirements, followed by fresh verification, review and decision.
 
 No per-requirement, per-scope or separately authored grouping turns are required.
@@ -48,7 +48,7 @@ nonnested named regions. Every nonblank source line, including imports and
 comments, must be in a region. Whitespace-only gaps are exempt and recorded in
 the generated inventory. File defaults are rejected. Regions may link several
 requirements; requirements may link several regions. The CLI computes all ranges
-and resolves IDs against the Assignment's exact graph. It atomically creates
+and resolves IDs against the exact graph selected in the proposal context. It atomically creates
 SCPs with belongs-to IMP and implements/verifies REQ links. See the automatically
 supplied `skills/source-trace.md@1` for syntax and review expectations.
 
@@ -65,13 +65,12 @@ means assertion failure, and other exits mean execution error. Handle unexpected
 exceptions separately. `skills/verification-starter.md@2` supplies an optional
 raw-byte example to adapt and annotate for the selected requirements.
 
-`mdlm assignment run --json` executes the exact snapshot in a pinned Docker image.
+`mdlm execution run <exact-IMP> <operation> --json` executes the exact snapshot in a pinned Docker image.
 Source is read-only at /workspace, /tmp is writable and network is disabled. Use
 a prebuilt runtime image; this route does not build custom images. The CLI stores
 raw stdout/stderr and exit status in an immutable receipt and supplies RES.outcome
 and RES.receipt. Authors supply an assessment and correction_target. Repeating the
-run command reuses its completed receipt. After an environment repair, the public
---retry option records a new attempt while preserving the failed one.
+run command reuses its completed receipt. Inspect `mdlm execution settlement <operation> --json` after an uncertain response. Never replay an uncertain started operation. Preserve a failed completed execution before using a new operation for a justified retry.
 
 All publications freeze immediately. A failed set Review creates a batch
 correction in the same RQS lineage. Revise changed REQs and membership groups in the CLI-supplied frontier, preserving unchanged revisions. Each review separately assesses individual children and collective decomposition adequacy. Wrong requirements receive a fresh set
@@ -82,7 +81,7 @@ execution, independent Review and stakeholder acceptance.
 
 ## Approved requirement changes
 
-After accepted ACC establishes a baseline, `mdlm change request --requirements <exact-RQS> --json` starts a bounded CHG proposal. The CLI binds its accepted baseline. The next Assignment obtains stakeholder approval, then revises its requested roots. Baseline-controlled publications without approved scoped authority are rejected.
+After accepted ACC establishes a baseline, the optional `request-change` action authors a bounded CHG proposal. The CLI binds its accepted baseline. The `approve-change` action records stakeholder approval before the `revise-requirements` action can revise its requested roots. Baseline-controlled publications without approved scoped authority are rejected.
 
 The CLI regenerates groups whose endpoints changed and queues exact assessments. Changed children trigger their own group review; unchanged children stop propagation and retain their exact deeper group reviews. Revising a shared child refreshes every direct parent group without revising those parents. A clarification may leave all children and code unchanged. Every group must remain collectively adequate even when each child remains valid.
 
@@ -94,17 +93,16 @@ need edits. Record actual inspected/changed locations and compare them with the
 prediction. Unstated semantic coupling remains a review concern.
 
 Lifecycle Complete means the current graph has a passing independently reviewed
-product accepted by the stakeholder. It never authorizes replay of a prior
-Assignment. The lifecycle repository HEAD must remain unchanged while an
-Assignment lease is open.
+product accepted by the stakeholder. It never authorizes replay of a prior operation. Proposals bind the package and lifecycle snapshot read by their guidance.
 
 Use operational evidence to improve this package. When authoring or review
 exposes avoidable friction, update its owning schema, prompt, skill or CLI in the
 same session. Keep the learning durable; add process breadth only when a
 concrete product need earns its cost.
 
-Requirements and implementation reviews declare `review_contract.external_artifact:
-registered-review@1`. The manager registers the externally returned exact verdict
+Requirements and implementation review actions declare independent-review authority. The manager registers the externally returned exact verdict
 through the CLI before the author submits it. See the root README section on
 independent review registration. This fresh-only package does not migrate earlier
 review publications.
+
+Use `mdlm expectations --json` to see available work and `mdlm expectations show <action> [<exact-subject>] --json` for its prompt, payload schemas and context. Submit a complete batch with `mdlm proposal submit <file> --json`. The agent chooses work; package eligibility, exact links, required authority and publication integrity remain enforced. Action definitions combine discovery and data constraints without reciprocal resolver declarations.

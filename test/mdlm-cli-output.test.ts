@@ -25,12 +25,10 @@ describe("MDLM CLI output", () => {
       parent,
     );
     expect(initialized.exitCode).toBe(0);
-    const started = await executeCommandApplication(["start", "--json"], repository);
-    expect(started.exitCode).toBe(0);
     return repository;
   }
 
-  it("keeps side-effecting next pending until piped stdout accepts every byte", async () => {
+  it("keeps the direct discovery result pending until piped stdout accepts every byte", async () => {
     const repository = await startedRepository();
     let releaseWrite: (() => void) | undefined;
     const chunks: Buffer[] = [];
@@ -42,7 +40,7 @@ describe("MDLM CLI output", () => {
     });
     let completed = false;
     const invocation = runMdlmCli({
-      arguments_: ["next", "--json"],
+      arguments_: ["expectations", "--json"],
       cwd: repository,
       stdout,
       stderr: new Writable({ write(_chunk, _encoding, callback) { callback(); } }),
@@ -57,11 +55,11 @@ describe("MDLM CLI output", () => {
     releaseWrite();
     expect(await invocation).toBe(0);
     const output = Buffer.concat(chunks).toString("utf8");
-    expect(output.length).toBeGreaterThan(40_000);
+    expect(output.length).toBeGreaterThan(0);
     expect(JSON.parse(output)).toMatchObject({
-      contract: "mdlm-next@2",
-      outcome: "assignment",
-      assignment: { id: expect.any(String) },
+      contract: "mdlm-expectations@2",
+      outcome: "work-available",
+      items: expect.any(Array),
     });
   });
 
@@ -78,7 +76,7 @@ process.stdout.write = (_chunk, encoding, callback) => {
 
     const next = spawnSync(
       process.execPath,
-      ["--import", pathToFileURL(probe).href, executable, "next", "--json"],
+      ["--import", pathToFileURL(probe).href, executable, "expectations", "--json"],
       { cwd: repository, encoding: "utf8", maxBuffer: 10 * 1024 * 1024 },
     );
 

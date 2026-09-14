@@ -16,11 +16,10 @@ import {
 import {
   provisionalLifecycleRecord,
   readRepositoryData,
-  type KernelFinalizedScenarioOutput,
+  type KernelFinalizedOutput,
   type ParsedDatum,
   type RepositoryResult,
 } from "./lifecycle-repository.js";
-import { isObligationInstanceIdentity } from "./obligation-instance.js";
 import { structuralValuesEqual } from "./structural-equality.js";
 import { recordWork } from "./performance-diagnostics.js";
 
@@ -224,7 +223,7 @@ function exactTargetResolution(
   parsed: ParsedDatum[],
   target: string,
 ): string | undefined {
-  if (revisionIdentity.test(target) || isObligationInstanceIdentity(target)) {
+  if (revisionIdentity.test(target)) {
     return target;
   }
   if (!stableIdentity.test(target)) return undefined;
@@ -316,7 +315,7 @@ function processAssetRefs(
     }
     for (const value of [
       datum.created_by.process_ref,
-      datum.created_by.scenario,
+      datum.created_by.transaction,
       datum.created_by.prompt_ref,
     ]) {
       if (typeof value === "string") refs.add(value);
@@ -338,14 +337,14 @@ async function sha256File(filePath: string): Promise<string> {
   return `sha256:${createHash("sha256").update(await fs.readFile(filePath)).digest("hex")}`;
 }
 
-export async function finalizeExactBaselineScenarioOutputData(
+export async function finalizeExactBaselineOutputData(
   root: string,
   processPackage: ProcessPackage,
   processRef: string,
   parsed: ParsedDatum[],
   proposedDatum: DatumEnvelope,
   verificationCache: BaselineVerificationCache = new Map(),
-): Promise<RepositoryResult<{ output: KernelFinalizedScenarioOutput; freeze: BaselineFreeze }>> {
+): Promise<RepositoryResult<{ output: KernelFinalizedOutput; freeze: BaselineFreeze }>> {
   const capability = exactBaselineType(processPackage);
   if (!capability.ok) return capability;
   if (proposedDatum.type !== capability.value) {
@@ -364,7 +363,7 @@ export async function finalizeExactBaselineScenarioOutputData(
       diagnostics: [{
         code: "kernel-managed-payload",
         path: "payload.snapshot",
-        message: "Scenario output may not author kernel-managed payload path 'snapshot'",
+        message: "Transaction output may not author kernel-managed payload path 'snapshot'",
       }],
     };
   }
@@ -461,15 +460,15 @@ export async function finalizeExactBaselineScenarioOutputData(
   };
 }
 
-export async function finalizeExactBaselineScenarioOutput(
+export async function finalizeExactBaselineOutput(
   root: string,
   processPackage: ProcessPackage,
   processRef: string,
   proposedDatum: DatumEnvelope,
-): Promise<RepositoryResult<{ output: KernelFinalizedScenarioOutput; freeze: BaselineFreeze }>> {
+): Promise<RepositoryResult<{ output: KernelFinalizedOutput; freeze: BaselineFreeze }>> {
   const loaded = await readRepositoryData(root, processPackage);
   if (!loaded.ok) return loaded;
-  return finalizeExactBaselineScenarioOutputData(
+  return finalizeExactBaselineOutputData(
     root,
     processPackage,
     processRef,
@@ -751,8 +750,7 @@ function frozenStableLinkResolutions(
   const remainingTargets = [...targets];
   for (const link of source.links) {
     if (
-      !revisionIdentity.test(link.target) &&
-      !isObligationInstanceIdentity(link.target)
+      !revisionIdentity.test(link.target)
     ) {
       continue;
     }
@@ -984,20 +982,8 @@ export function diffExactBaselinesData(
     });
   }
 
-  const phaseId = Object.keys(processPackage.phases).sort()[0];
-  if (!phaseId) {
-    return {
-      ok: false,
-      diagnostics: [{
-        code: "baseline-diff-phase-unavailable",
-        path: "phases",
-        message: "Package-derived baseline reassessment requires at least one Phase",
-      }],
-    };
-  }
   const evaluation = evaluateLifecycle(processPackage, {
     processRef,
-    phaseId,
     records: parsed.map((item) => item.lifecycleDatum),
     dependencyComparisons: comparisons,
   });

@@ -1,9 +1,8 @@
 kind: process-package-manifest
 id: mdlm-exploratory
-version: 0.4.0
+version: 1.0.0
 status: experimental
-description: Prototype experiments with exact observations and stakeholder
-  feedback continuation.
+description: Prototype experiments with exact observations and stakeholder feedback continuation.
 kernel_contract:
   id: mdlm-kernel-process-interface
   version: 1
@@ -22,19 +21,9 @@ references:
   definition: <stable-definition-id>@<positive-integer-version>
   datum_stable: <TYPE>-<Crockford-Base32-ID>
   datum_revision: <stable-id>-r<five-digit-revision>
-  obligation_instance: <obligation>@<version>:<exact-subject>:<process-ref>
 language:
   expressions: mdlm-expression@1
 kernel_capabilities:
-  direct-observation@2:
-    type: OBS
-    implementation_type: TRY
-    requirement_type: EXP
-    subject_link: observes
-    context_link: against
-    input_link: explores
-    subject_selector: current-trials@2
-    prompt_ref: prompts/direct-observation.md@2
   docker-verification@1:
     type: OBS
 compatibility:
@@ -45,10 +34,16 @@ compatibility:
   arbitrary_code_execution: forbidden
   template_inheritance: single-parent-additive
   repository_migration: fresh-only
-profiles:
-  default: exploratory@2
-  available:
-    - profiles/exploratory.yaml@2
 provenance:
   intent: exploratory-prototype-learning
   normative_scope: this-package-only
+direct_contract: mdlm-direct@1
+terminal:
+  when: 'exists("current-observations@1", {}) && every("current-trials@2", {}, trial => exists("observations-for@1",
+    {trial: trial})) && every("current-observations@1", {}, obs => obs.payload.recommendation == "keep"
+    || obs.payload.recommendation == "drop" || (obs.payload.recommendation == "nominate" && exists("feedback-for@1",
+    {observation: obs}) && every("feedback-for@1", {observation: obs}, feedback => feedback.payload.action
+    == "stop")))'
+  outcome: profile-boundary-reached
+  reason: Exploration stopped with keep/drop or explicit stakeholder stop after a nomination. This is
+    not product acceptance or a requirements baseline.

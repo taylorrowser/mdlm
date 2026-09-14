@@ -131,7 +131,7 @@ export function deriveSourceScopes(input: {
         seenTargets.add(target);
         const requirement = requirements.get(target);
         if (!requirement) {
-          report("source-scope-target", entry.path, `Requirement '${target}' is not a stable ID in the assignment's exact selection.`, line);
+          report("source-scope-target", entry.path, `Requirement '${target}' is not a stable ID in the proposal's exact requirement selection.`, line);
           continue;
         }
         const leaf = requirement.kind === "software" && requirement.isLeaf;

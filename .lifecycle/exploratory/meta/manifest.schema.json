@@ -4,7 +4,7 @@
   "title": "MDLM process package manifest",
   "type": "object",
   "additionalProperties": false,
-  "required": ["kind", "id", "version", "status", "description", "kernel_contract", "artifact_format", "references", "language", "compatibility", "profiles", "provenance"],
+  "required": ["kind", "id", "version", "status", "description", "kernel_contract", "artifact_format", "references", "language", "compatibility", "direct_contract", "terminal", "provenance"],
   "properties": {
     "kind": {"const": "process-package-manifest"},
     "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
@@ -33,7 +33,8 @@
         "repository_migration": {"enum": ["compatible", "fresh-only"]}
       }
     },
-    "profiles": {"type": "object"},
+    "direct_contract": {"const": "mdlm-direct@1"},
+    "terminal": {"type": "object", "additionalProperties": false, "required": ["when", "outcome", "reason"], "properties": {"when": {"type": "string", "minLength": 1}, "outcome": {"enum": ["lifecycle-complete", "profile-boundary-reached"]}, "reason": {"type": "string", "minLength": 1}}},
     "provenance": {"type": "object"}
   }
 }

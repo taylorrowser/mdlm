@@ -1,7 +1,6 @@
 ---
 id: revise-prototype
 version: 1
-scenario: revise-prototype
 ---
 
 # Revise the prototype under the same brief

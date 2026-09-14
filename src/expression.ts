@@ -229,7 +229,6 @@ export interface ExpressionDefinitionCatalogs {
   selectors: DefinitionCatalog;
   states: DefinitionCatalog;
   policies: DefinitionCatalog;
-  scenarios: DefinitionCatalog;
   exactBaselineType?: string;
 }
 
@@ -1204,9 +1203,8 @@ const entityPaths: Record<string, ValueType> = {
   "integrity.identity_valid": "boolean",
   "integrity.references_valid": "boolean",
   "integrity.hash_valid": "boolean",
-  "integrity.scenario_execution_valid": "boolean",
+  "integrity.transaction_valid": "boolean",
   "provenance.process_ref": "string",
-  "provenance.scenario": "string",
 };
 
 const scalarParameterValueTypes: Record<string, ValueType> = {
@@ -1225,12 +1223,7 @@ const baseBindings: Bindings = {
       "integrity.package_valid": "boolean",
     },
   },
-  phase: { valueType: "object", domainKind: "phase", paths: { id: "string" } },
-  execution: {
-    valueType: "object",
-    domainKind: "execution",
-    paths: { "integrity.contract_valid": "boolean" },
-  },
+
 };
 
 export interface ExpressionLanguageCapabilities {
@@ -1316,7 +1309,7 @@ function policyParameterBinding(
         scalarParameterValueTypes[String(parameter.scalar_type)] ?? "unknown",
     };
   }
-  if (kind === "process" || kind === "phase" || kind === "execution") {
+  if (kind === "process") {
     return structuredClone(baseBindings[kind]!);
   }
   const lifecycleTypes = Array.isArray(parameter.types)
@@ -1359,7 +1352,7 @@ function entityBinding(
   domainKind: string,
   lifecycleTypes?: string[],
 ): Binding {
-  if (domainKind === "phase" || domainKind === "process") {
+  if (domainKind === "process") {
     return structuredClone(baseBindings[domainKind]!);
   }
   if (domainKind === "record") {
@@ -1553,112 +1546,6 @@ function compileSelectorDefinition(
   );
 }
 
-function compileObligationDefinition(
-  definition: VersionedDefinition,
-  filePath: string,
-  catalogs: ExpressionDefinitionCatalogs,
-  diagnostics: ProcessDiagnostic[],
-): void {
-  const bindings: Bindings = { ...baseBindings };
-  const textualForEach = typeof definition.for_each === "string";
-  const compiledForEach = compileField(
-    definition,
-    "for_each",
-    `${filePath}#for_each`,
-    bindings,
-    catalogs,
-    diagnostics,
-    "array",
-  );
-  if (textualForEach && !compiledForEach) return;
-  const subjectKind = selectorResultKind(
-    definition.for_each,
-    catalogs.selectors,
-  );
-  if (typeof definition.subject_as === "string" && subjectKind) {
-    bindings[definition.subject_as] = entityBinding(
-      subjectKind,
-      compiledForEach?.root.lifecycleTypes,
-    );
-  }
-  compileField(
-    definition,
-    "satisfied_when",
-    `${filePath}#satisfied_when`,
-    bindings,
-    catalogs,
-    diagnostics,
-  );
-  const statusRules = Array.isArray(definition.status_rules)
-    ? definition.status_rules
-    : [];
-  statusRules.forEach((value, index) => {
-    if (typeof value !== "object" || value === null) return;
-    const rule = value as Record<string, unknown>;
-    compileField(
-      rule,
-      "when",
-      `${filePath}#status_rules[${index}].when`,
-      bindings,
-      catalogs,
-      diagnostics,
-    );
-    const blockers = Array.isArray(rule.blocked_by) ? rule.blocked_by : [];
-    blockers.forEach((blockerValue, blockerIndex) => {
-      if (typeof blockerValue !== "object" || blockerValue === null) return;
-      compileField(
-        blockerValue as Record<string, unknown>,
-        "subjects",
-        `${filePath}#status_rules[${index}].blocked_by[${blockerIndex}].subjects`,
-        bindings,
-        catalogs,
-        diagnostics,
-        "array",
-      );
-    });
-  });
-
-  const resolver = typeof definition.resolve_with === "object" &&
-      definition.resolve_with !== null
-    ? definition.resolve_with as Record<string, unknown>
-    : undefined;
-  const dispatch = typeof resolver?.dispatch === "object" &&
-      resolver.dispatch !== null
-    ? resolver.dispatch as Record<string, unknown>
-    : undefined;
-  if (dispatch) {
-    compileField(
-      dispatch,
-      "for_each",
-      `${filePath}#resolve_with.dispatch.for_each`,
-      bindings,
-      catalogs,
-      diagnostics,
-      "array",
-    );
-    const dispatchKind = selectorResultKind(
-      dispatch.for_each,
-      catalogs.selectors,
-    );
-    if (typeof dispatch.as === "string" && dispatchKind) {
-      const compiledDispatch = isCompiledTextExpression(dispatch.for_each)
-        ? dispatch.for_each
-        : undefined;
-      bindings[dispatch.as] = entityBinding(
-        dispatchKind,
-        compiledDispatch?.root.lifecycleTypes,
-      );
-    }
-  }
-  compileStringValues(
-    resolver?.inputs,
-    `${filePath}#resolve_with.inputs`,
-    bindings,
-    catalogs,
-    diagnostics,
-  );
-}
-
 function schemaExpressionType(schema: unknown): ValueType {
   if (typeof schema !== "object" || schema === null) return "unknown";
   const definition = schema as Record<string, unknown>;
@@ -1799,496 +1686,6 @@ function lifecyclePayloadPaths(
   );
 }
 
-function definitionEntityBindings(
-  values: unknown,
-  cardinalityAware: boolean,
-  catalogs: ExpressionDefinitionCatalogs,
-): Bindings {
-  const bindings: Bindings = { ...baseBindings };
-  for (const value of Array.isArray(values) ? values : []) {
-    if (typeof value !== "object" || value === null) continue;
-    const item = value as Record<string, unknown>;
-    if (typeof item.name !== "string") continue;
-    const lifecycleTypes = Array.isArray(item.types)
-      ? item.types.filter((type): type is string => typeof type === "string")
-      : undefined;
-    const cardinality = String(item.cardinality);
-    const many = cardinalityAware &&
-      ["one-or-more", "zero-or-more"].includes(cardinality);
-    const optional = cardinalityAware && cardinality === "zero-or-one";
-    const identity = String(item.identity);
-    const domainKind = identity === "stable"
-      ? "stable-datum"
-      : identity === "revision" && lifecycleTypes?.length === 1 &&
-          lifecycleTypes[0] === catalogs.exactBaselineType
-      ? "baseline"
-      : identity === "revision"
-      ? "revision"
-      : undefined;
-    bindings[item.name] = many
-      ? { valueType: "array", ...(lifecycleTypes ? { lifecycleTypes } : {}) }
-      : optional
-      ? { valueType: "unknown", ...(lifecycleTypes ? { lifecycleTypes } : {}) }
-      : {
-          valueType: "entity",
-          ...(domainKind ? { domainKind } : {}),
-          ...(lifecycleTypes ? { lifecycleTypes } : {}),
-          paths: {
-            ...entityPaths,
-            ...lifecyclePayloadPaths(lifecycleTypes, catalogs),
-          },
-          strictPayloadPaths: lifecycleTypes !== undefined,
-        };
-  }
-  return bindings;
-}
-
-function compileScenarioPolicyArguments(
-  argumentsValue: Record<string, unknown> | undefined,
-  policyReference: unknown,
-  path: string,
-  label: string,
-  bindings: Bindings,
-  catalogs: ExpressionDefinitionCatalogs,
-  diagnostics: ProcessDiagnostic[],
-): void {
-  const policyMatch = typeof policyReference === "string"
-    ? /^([a-z][a-z0-9-]*)@([1-9][0-9]*)$/.exec(policyReference)
-    : undefined;
-  const policy = policyMatch?.[1] ? catalogs.policies[policyMatch[1]] : undefined;
-  if (policy?.version !== Number(policyMatch?.[2]) || !argumentsValue) return;
-  for (const parameterValue of Array.isArray(policy.parameters) ? policy.parameters : []) {
-    if (typeof parameterValue !== "object" || parameterValue === null) continue;
-    const parameter = parameterValue as Record<string, unknown>;
-    const name = typeof parameter.name === "string" ? parameter.name : undefined;
-    if (!name || !(name in argumentsValue)) continue;
-    const kind = String(parameter.kind);
-    const parameterContract = policyParameterBinding(parameter, catalogs);
-    const compiled = compileField(
-      argumentsValue,
-      name,
-      `${path}.${name}`,
-      bindings,
-      catalogs,
-      diagnostics,
-      parameterContract.valueType,
-    );
-    if (!compiled) continue;
-    const executionExpression = findCompiledExpressionBindingReference(
-      compiled,
-      "execution",
-      catalogs,
-    );
-    if (executionExpression) {
-      diagnostics.push({
-        code: `${label}-execution-binding-forbidden`,
-        path: executionExpression.contract?.definitionPath ?? `${path}.${name}`,
-        line: executionExpression.root.span.start.line,
-        column: executionExpression.root.span.start.column,
-        source: executionExpression.source,
-        message: `${label === "participation" ? "Participation" : "Review Policy"} argument '${name}' cannot depend on execution because it is evaluated before Scenario execution`,
-      });
-      continue;
-    }
-    const compatibleDomains = kind === "revision"
-      ? ["revision", "baseline"]
-      : [kind];
-    const compatibleDomain = kind === "scalar" ||
-      (compiled.root.domainKind !== undefined &&
-        compatibleDomains.includes(compiled.root.domainKind));
-    const compatibleValueType = compiled.root.valueType !== "unknown" &&
-      valueTypeCompatible(
-        compiled.root.valueType,
-        parameterContract.valueType,
-      );
-    const allowedTypes = parameterContract.lifecycleTypes ?? [];
-    const compatibleTypes = allowedTypes.length === 0 ||
-      (compiled.root.lifecycleTypes !== undefined &&
-        compiled.root.lifecycleTypes.every((type) => allowedTypes.includes(type)));
-    if (!compatibleValueType || !compatibleDomain || !compatibleTypes) {
-      diagnostics.push({
-        code: `${label}-policy-argument-type`,
-        path: `${path}.${name}`,
-        line: compiled.root.span.start.line,
-        column: compiled.root.span.start.column,
-        source: compiled.source,
-        message: `${label === "participation" ? "Participation" : "Review Policy"} argument '${name}' does not match Policy parameter kind '${kind}'`,
-      });
-    }
-  }
-}
-
-function compileScenarioDefinition(
-  definition: VersionedDefinition,
-  filePath: string,
-  catalogs: ExpressionDefinitionCatalogs,
-  diagnostics: ProcessDiagnostic[],
-): void {
-  const conditionBindings = definitionEntityBindings(
-    definition.inputs,
-    false,
-    catalogs,
-  );
-  const inputs = Array.isArray(definition.inputs) ? definition.inputs : [];
-  inputs.forEach((value, index) => {
-    if (typeof value !== "object" || value === null) return;
-    compileField(
-      value as Record<string, unknown>,
-      "conditions",
-      `${filePath}#inputs[${index}].conditions`,
-      conditionBindings,
-      catalogs,
-      diagnostics,
-    );
-  });
-  const participationBindings = definitionEntityBindings(
-    definition.inputs,
-    true,
-    catalogs,
-  );
-  const participation = typeof definition.participation === "object" &&
-      definition.participation !== null
-    ? definition.participation as Record<string, unknown>
-    : undefined;
-  const participationArguments = typeof participation?.arguments === "object" &&
-      participation.arguments !== null && !Array.isArray(participation.arguments)
-    ? participation.arguments as Record<string, unknown>
-    : undefined;
-  compileScenarioPolicyArguments(
-    participationArguments,
-    participation?.policy_ref,
-    `${filePath}#participation.arguments`,
-    "participation",
-    participationBindings,
-    catalogs,
-    diagnostics,
-  );
-  let reviewPolicyArguments =
-    typeof definition.review_policy_arguments === "object" &&
-      definition.review_policy_arguments !== null &&
-      !Array.isArray(definition.review_policy_arguments)
-      ? definition.review_policy_arguments as Record<string, unknown>
-      : undefined;
-  if (!reviewPolicyArguments && typeof definition.review_policy_ref === "string") {
-    const policyMatch = /^([a-z][a-z0-9-]*)@([1-9][0-9]*)$/.exec(
-      definition.review_policy_ref,
-    );
-    const reviewPolicy = policyMatch?.[1]
-      ? catalogs.policies[policyMatch[1]]
-      : undefined;
-    const singleInputNames = new Set(
-      inputs.flatMap((value) => {
-        if (typeof value !== "object" || value === null) return [];
-        const input = value as Record<string, unknown>;
-        return typeof input.name === "string" && input.cardinality === "one"
-          ? [input.name]
-          : [];
-      }),
-    );
-    const parameterNames = Array.isArray(reviewPolicy?.parameters)
-      ? reviewPolicy.parameters.flatMap((value) => {
-        if (typeof value !== "object" || value === null) return [];
-        const name = (value as Record<string, unknown>).name;
-        return typeof name === "string" ? [name] : [];
-      })
-      : [];
-    if (
-      reviewPolicy?.version === Number(policyMatch?.[2]) &&
-      new Set(parameterNames).size === parameterNames.length &&
-      parameterNames.every((name) => singleInputNames.has(name))
-    ) {
-      reviewPolicyArguments = Object.fromEntries(
-        parameterNames.map((name) => [name, name]),
-      );
-      definition.review_policy_arguments = reviewPolicyArguments;
-    }
-  }
-  compileScenarioPolicyArguments(
-    reviewPolicyArguments,
-    definition.review_policy_ref,
-    `${filePath}#review_policy_arguments`,
-    "review",
-    participationBindings,
-    catalogs,
-    diagnostics,
-  );
-  const completionBindings = {
-    ...definitionEntityBindings(
-      definition.inputs,
-      true,
-      catalogs,
-    ),
-    ...definitionEntityBindings(
-      definition.outputs,
-      true,
-      catalogs,
-    ),
-  };
-  compileField(
-    definition,
-    "completion",
-    `${filePath}#completion`,
-    completionBindings,
-    catalogs,
-    diagnostics,
-  );
-}
-
-function compileAliasDefinition(
-  definition: VersionedDefinition,
-  filePath: string,
-  catalogs: ExpressionDefinitionCatalogs,
-  diagnostics: ProcessDiagnostic[],
-): void {
-  const argumentsValue = typeof definition.arguments === "object" &&
-      definition.arguments !== null && !Array.isArray(definition.arguments)
-    ? definition.arguments as Record<string, unknown>
-    : {};
-  const argumentPaths: Record<string, ValueType> = {};
-  const reservedArguments = new Set([
-    "adapter",
-    "authorize",
-    "delegation",
-    "initiate",
-    "input",
-    "json",
-    "obligation",
-  ]);
-  for (const [name, value] of Object.entries(argumentsValue)) {
-    if (reservedArguments.has(name)) {
-      diagnostics.push({
-        code: "alias-reserved-argument",
-        path: `${filePath}#arguments.${name}`,
-        message: `Package Command Alias argument '${name}' conflicts with a kernel-owned invocation option`,
-      });
-    }
-    const argument = typeof value === "object" && value !== null
-      ? value as Record<string, unknown>
-      : {};
-    argumentPaths[name] = ["one-or-more", "zero-or-more"].includes(
-        String(argument.cardinality),
-      )
-      ? "array"
-      : "string";
-  }
-  const bindings: Bindings = {
-    args: { valueType: "object", domainKind: "command-arguments", paths: argumentPaths },
-  };
-  const scenarioMatch = typeof definition.scenario === "string"
-    ? /^([a-z][a-z0-9-]*)@([1-9][0-9]*)$/.exec(definition.scenario)
-    : undefined;
-  const scenario = scenarioMatch?.[1]
-    ? catalogs.scenarios[scenarioMatch[1]]
-    : undefined;
-  if (!scenario || scenario.version !== Number(scenarioMatch?.[2])) return;
-  const scenarioInputs = new Map(
-    (Array.isArray(scenario.inputs) ? scenario.inputs : []).flatMap((value) => {
-      if (typeof value !== "object" || value === null) return [];
-      const input = value as Record<string, unknown>;
-      return typeof input.name === "string" ? [[input.name, input] as const] : [];
-    }),
-  );
-  const inputs = typeof definition.inputs === "object" &&
-      definition.inputs !== null && !Array.isArray(definition.inputs)
-    ? definition.inputs as Record<string, unknown>
-    : {};
-  for (const name of Object.keys(inputs)) {
-    const contract = scenarioInputs.get(name);
-    if (!contract) {
-      diagnostics.push({
-        code: "alias-unknown-scenario-input",
-        path: `${filePath}#inputs.${name}`,
-        message: `Package Command Alias '${definition.id}' binds unknown Scenario input '${name}'`,
-      });
-      continue;
-    }
-    const compiled = compileField(
-      inputs,
-      name,
-      `${filePath}#inputs.${name}`,
-      bindings,
-      catalogs,
-      diagnostics,
-      ["one-or-more", "zero-or-more"].includes(String(contract.cardinality))
-        ? "array"
-        : "string",
-    );
-    if (compiled && expressionDependencies(compiled.root).length > 0) {
-      diagnostics.push({
-        code: "alias-host-function-forbidden",
-        path: `${filePath}#inputs.${name}`,
-        message: "Package Command Alias expressions may bind declared arguments and literals but may not invoke evaluator host functions",
-      });
-    }
-  }
-}
-
-function compileProfileDefinition(
-  definition: VersionedDefinition,
-  filePath: string,
-  catalogs: ExpressionDefinitionCatalogs,
-  diagnostics: ProcessDiagnostic[],
-): void {
-  const terminalOutcomes = typeof definition.terminal_outcomes === "object" &&
-      definition.terminal_outcomes !== null
-    ? definition.terminal_outcomes as Record<string, unknown>
-    : {};
-  for (const outcome of ["profile_boundary", "lifecycle_complete"]) {
-    const declaration = typeof terminalOutcomes[outcome] === "object" &&
-        terminalOutcomes[outcome] !== null
-      ? terminalOutcomes[outcome] as Record<string, unknown>
-      : undefined;
-    if (!declaration) continue;
-    compileField(
-      declaration,
-      "condition",
-      `${filePath}#terminal_outcomes.${outcome}.condition`,
-      { ...baseBindings },
-      catalogs,
-      diagnostics,
-    );
-  }
-}
-
-function compilePhaseDefinition(
-  definition: VersionedDefinition,
-  filePath: string,
-  catalogs: ExpressionDefinitionCatalogs,
-  diagnostics: ProcessDiagnostic[],
-): void {
-  compileField(
-    definition,
-    "entry",
-    `${filePath}#entry`,
-    { ...baseBindings },
-    catalogs,
-    diagnostics,
-  );
-  const attentionCheckpoints = Array.isArray(definition.attention_checkpoints)
-    ? definition.attention_checkpoints
-    : [];
-  attentionCheckpoints.forEach((value, index) => {
-    if (typeof value !== "object" || value === null) return;
-    compileField(
-      value as Record<string, unknown>,
-      "readiness",
-      `${filePath}#attention_checkpoints[${index}].readiness`,
-      { ...baseBindings },
-      catalogs,
-      diagnostics,
-    );
-  });
-  if (typeof definition.gate !== "object" || definition.gate === null) return;
-  const gate = definition.gate as Record<string, unknown>;
-  compileField(
-    gate,
-    "candidate_selector",
-    `${filePath}#gate.candidate_selector`,
-    { ...baseBindings },
-    catalogs,
-    diagnostics,
-    "array",
-  );
-  const bindings: Bindings = { ...baseBindings };
-  const candidateKind = selectorResultKind(
-    gate.candidate_selector,
-    catalogs.selectors,
-  );
-  if (typeof gate.candidate_as === "string" && candidateKind) {
-    bindings[gate.candidate_as] = entityBinding(candidateKind);
-  }
-  compileField(
-    gate,
-    "completion",
-    `${filePath}#gate.completion`,
-    bindings,
-    catalogs,
-    diagnostics,
-  );
-  if (typeof definition.progression !== "object" || definition.progression === null) {
-    return;
-  }
-  const progression = definition.progression as Record<string, unknown>;
-  compileField(
-    progression,
-    "readiness",
-    `${filePath}#progression.readiness`,
-    { ...baseBindings },
-    catalogs,
-    diagnostics,
-  );
-  if (
-    typeof progression.authorization !== "object" ||
-    progression.authorization === null
-  ) return;
-  const authorization = progression.authorization as Record<string, unknown>;
-  compileField(
-    authorization,
-    "condition",
-    `${filePath}#progression.authorization.condition`,
-    { ...baseBindings },
-    catalogs,
-    diagnostics,
-  );
-  compileField(
-    authorization,
-    "subjects",
-    `${filePath}#progression.authorization.subjects`,
-    { ...baseBindings },
-    catalogs,
-    diagnostics,
-    "array",
-  );
-  const policyMatch = typeof authorization.policy_ref === "string"
-    ? /^([a-z][a-z0-9-]*)@([1-9][0-9]*)$/.exec(authorization.policy_ref)
-    : undefined;
-  const policy = policyMatch?.[1] ? catalogs.policies[policyMatch[1]] : undefined;
-  const argumentsValue = typeof authorization.arguments === "object" &&
-      authorization.arguments !== null && !Array.isArray(authorization.arguments)
-    ? authorization.arguments as Record<string, unknown>
-    : undefined;
-  if (policy?.version === Number(policyMatch?.[2]) && argumentsValue) {
-    for (const parameterValue of Array.isArray(policy.parameters) ? policy.parameters : []) {
-      if (typeof parameterValue !== "object" || parameterValue === null) continue;
-      const parameter = parameterValue as Record<string, unknown>;
-      const name = typeof parameter.name === "string" ? parameter.name : undefined;
-      if (!name || !(name in argumentsValue)) continue;
-      const contract = policyParameterBinding(parameter, catalogs);
-      const compiled = compileField(
-        argumentsValue,
-        name,
-        `${filePath}#progression.authorization.arguments.${name}`,
-        { ...baseBindings },
-        catalogs,
-        diagnostics,
-        contract.valueType,
-      );
-      if (!compiled) continue;
-      const kind = String(parameter.kind);
-      const compatibleDomains = kind === "revision"
-        ? ["revision", "baseline"]
-        : [kind];
-      const compatibleDomain = kind === "scalar" ||
-        (compiled.root.domainKind !== undefined &&
-          compatibleDomains.includes(compiled.root.domainKind));
-      const allowedTypes = contract.lifecycleTypes ?? [];
-      const compatibleTypes = allowedTypes.length === 0 ||
-        (compiled.root.lifecycleTypes !== undefined &&
-          compiled.root.lifecycleTypes.every((type) => allowedTypes.includes(type)));
-      if (!compatibleDomain || !compatibleTypes) {
-        diagnostics.push({
-          code: "phase-progression-policy-argument-type",
-          path: `${filePath}#progression.authorization.arguments.${name}`,
-          line: compiled.root.span.start.line,
-          column: compiled.root.span.start.column,
-          source: compiled.source,
-          message: `Phase progression argument '${name}' does not match Policy parameter kind '${kind}'`,
-        });
-      }
-    }
-  }
-}
-
 export function compileDefinitionExpressions(
   definition: VersionedDefinition,
   filePath: string,
@@ -2297,16 +1694,11 @@ export function compileDefinitionExpressions(
   const diagnostics: ProcessDiagnostic[] = [];
   if (definition.kind === "selector-definition") {
     compileSelectorDefinition(definition, filePath, catalogs, diagnostics);
-  } else if (definition.kind === "obligation-definition") {
-    compileObligationDefinition(definition, filePath, catalogs, diagnostics);
-  } else if (definition.kind === "scenario-definition") {
-    compileScenarioDefinition(definition, filePath, catalogs, diagnostics);
-  } else if (definition.kind === "phase-definition") {
-    compilePhaseDefinition(definition, filePath, catalogs, diagnostics);
-  } else if (definition.kind === "implementation-profile-definition") {
-    compileProfileDefinition(definition, filePath, catalogs, diagnostics);
-  } else if (definition.kind === "command-alias-definition") {
-    compileAliasDefinition(definition, filePath, catalogs, diagnostics);
+  } else if (definition.kind === "action-definition") {
+    compileField(definition, "subjects", `${filePath}#subjects`, baseBindings, catalogs, diagnostics, "array");
+    const bindings = { ...baseBindings, subject: entityBinding("revision") };
+    compileStringValues(definition.inputs, `${filePath}#inputs`, bindings, catalogs, diagnostics);
+    compileField(definition, "when", `${filePath}#when`, bindings, catalogs, diagnostics);
   } else {
     compileRules(
       definition,
@@ -2994,4 +2386,13 @@ export function evaluateCompiledTextExpression(
   host: ExpressionHost,
 ): boolean {
   return evaluateCompiledTextValue(expression, context, host) === true;
+}
+
+export function compileExpressionValue(source: string, catalogs: ExpressionDefinitionCatalogs, bindings: Record<string, "entity" | "array" | "string" | "boolean"> = {}): { expression?: CompiledTextExpression; diagnostics: ProcessDiagnostic[] } {
+  const diagnostics: ProcessDiagnostic[] = [];
+  const holder: Record<string, unknown> = { value: source };
+  const context: Bindings = { ...baseBindings };
+  for (const [name, valueType] of Object.entries(bindings)) context[name] = valueType === "entity" ? entityBinding("revision") : { valueType };
+  const expression = compileField(holder, "value", "expression#value", context, catalogs, diagnostics);
+  return { ...(expression ? { expression } : {}), diagnostics };
 }

@@ -19,7 +19,7 @@ export interface PiTerminalTelemetry {
   retriesConsumed: number | null;
   provider: string | null;
   model: string | null;
-  completeAssignmentObserved: boolean | null;
+  completionObserved: boolean | null;
 }
 
 export interface PiOperationalFailureDocument {
@@ -66,7 +66,7 @@ export function redactOperationalErrorMessage(value: string): string {
 }
 
 export function unavailableTerminalTelemetry(
-  completeAssignmentObserved: boolean | null = null,
+  completionObserved: boolean | null = null,
 ): PiTerminalTelemetry {
   return {
     stopReason: null,
@@ -74,7 +74,7 @@ export function unavailableTerminalTelemetry(
     retriesConsumed: null,
     provider: null,
     model: null,
-    completeAssignmentObserved,
+    completionObserved,
   };
 }
 

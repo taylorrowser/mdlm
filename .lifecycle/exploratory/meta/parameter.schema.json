@@ -7,7 +7,7 @@
   "required": ["name", "kind"],
   "properties": {
     "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
-    "kind": {"enum": ["stable-datum", "revision", "baseline", "execution", "phase", "process", "scalar"]},
+    "kind": {"enum": ["stable-datum", "revision", "baseline", "process", "scalar"]},
     "types": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{3,8}$"}, "minItems": 1, "uniqueItems": true},
     "scalar_type": {"enum": ["string", "number", "integer", "boolean"]}
   },
@@ -23,7 +23,7 @@
     {
       "if": {
         "properties": {
-          "kind": {"enum": ["process", "phase", "execution"]}
+          "kind": {"enum": ["process"]}
         }
       },
       "then": {"not": {"required": ["types"]}}

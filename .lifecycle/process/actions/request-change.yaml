@@ -1,0 +1,18 @@
+kind: action-definition
+id: request-change
+version: 1
+description: Propose a bounded change to an accepted product
+capability: change
+prompt_ref: prompts/request-change.md@1
+types:
+- CHG
+subjects: select("current-requirements@1", {})
+inputs:
+  subject: subject
+optional: true
+when: 'exists("implementations-for@1", {requirements: subject}) && every("implementations-for@1", {requirements:
+  subject}, imp => exists("acceptances-for@2", {implementation: imp})) && every("current-changes@1", {},
+  change => exists("sets-for-change@1", {change: change}))'
+fixed_payload:
+  CHG:
+    publication: recorded

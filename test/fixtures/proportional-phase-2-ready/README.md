@@ -1,9 +1,0 @@
-# Proportional Phase 2 ready fixture
-
-This fixture is the immutable repository checkpoint immediately after the compiled public route published the zero-interface planning DWP and its required reviews. The retained test allocates and prepares the exact `execute-decomposition-work-package@2` Assignment, asserts the empty interface set and exact current DWP/parent/architecture bindings, submits the SYS through stdin, commits it, and reads it through the compiled public command.
-
-`manifest.json` binds the compressed and uncompressed archive hashes, deterministic gzip header, sorted confined entry set, installed Process Package reference and digest, Git tree, exact checkpoint revisions, and capture commit/tree/route. The installer also validates every transaction as a completed Assignment response and checks that each captured Markdown Revision is owned by its transaction output.
-
-The archive contains `.lifecycle` source state only. It deliberately omits `.git` and the captured active Assignment lease. Installation writes a fresh repository, verifies the installed package digest, creates one deterministic Git foundation, and lets the retained public `next` command allocate a current lease against that foundation. It is test-only replay state, not a trusted digest shortcut or production cache.
-
-Use `reconstructZeroInterfacePhaseTwoRouteForCapture` in `test/helpers/proportional-phase-2-routes.ts` as the exact reconstruction source for regeneration. Add capture instrumentation immediately after `prepareScenarioAfterReviews` reaches the decomposition execution Scenario, before its SYS submission. Copy the repository at that point, omit `.lifecycle/work/active-assignment.json`, sort entries by confined repository-relative path, serialize exact UTF-8 sources, and compress with `gzip -n -9`. Update every manifest identity field from that exact capture.

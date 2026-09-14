@@ -1,7 +1,6 @@
 ---
 id: revise-experiment
 version: 2
-scenario: revise-experiment
 ---
 
 # Revise the experiment

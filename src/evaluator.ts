@@ -14,19 +14,6 @@ import type {
   ProcessPackage,
   VersionedDefinition,
 } from "./index.js";
-import { selectedImplementationProfile } from "./implementation-profile.js";
-import {
-  formatObligationInstanceIdentity,
-  phaseObligationSubjectIdentity,
-  processObligationSubjectIdentity,
-} from "./obligation-instance.js";
-import { effectiveOutgoingLinks } from "./payload-inheritance.js";
-import {
-  participationResult,
-  scenarioParticipation as projectScenarioParticipation,
-  type ScenarioParticipation,
-} from "./participation.js";
-
 export interface DatumEnvelope {
   id: string;
   revision: number;
@@ -50,130 +37,27 @@ export interface LifecycleRecord {
     identity_valid: boolean;
     references_valid: boolean;
     hash_valid: boolean;
-    scenario_execution_valid?: boolean;
+    transaction_valid?: boolean;
   };
 }
 
 export interface HistoricalLifecycleSnapshot {
   snapshotRef: string;
   processRef: string;
-  phaseId: string;
   records: LifecycleRecord[];
   dependencyComparisons: DependencyComparison[];
 }
 
 export interface LifecycleSnapshot {
   processRef: string;
-  phaseId: string;
   records: LifecycleRecord[];
   dependencyComparisons: DependencyComparison[];
-  execution?: {
-    integrity: { contract_valid: boolean };
-  };
   historicalSnapshots?: HistoricalLifecycleSnapshot[];
 }
 
 export interface ArtifactEvaluation {
   states: Record<string, string | string[]>;
   stateExplanations: Record<string, string | string[]>;
-}
-
-export interface ScenarioOutputExplanation {
-  name: string;
-  types: string[];
-  cardinality: string;
-  requiredLinks: {
-    link: string;
-    target: { input: string } | { output: string };
-  }[];
-  permittedLinks?: {
-    link: string;
-    target: { input: string } | { output: string };
-  }[];
-}
-
-export interface ResolverScenarioExplanation {
-  scenario: string;
-  promptRef: string;
-  expectedOutputs: ScenarioOutputExplanation[];
-}
-
-export function scenarioOutputExplanations(
-  scenario: VersionedDefinition | undefined,
-): ScenarioOutputExplanation[] {
-  return array(scenario?.outputs).flatMap((outputValue) => {
-    const output = object(outputValue);
-    const name = string(output?.name);
-    const cardinality = string(output?.cardinality);
-    if (!name || !cardinality) return [];
-    const types = array(output?.types).filter(
-      (type): type is string => typeof type === "string",
-    );
-    const requiredLinks = array(output?.required_links).flatMap<
-      ScenarioOutputExplanation["requiredLinks"][number]
-    >((linkValue) => {
-      const link = object(linkValue);
-      const linkId = string(link?.link);
-      const target = object(link?.target);
-      const input = string(target?.input);
-      const targetOutput = string(target?.output);
-      if (!linkId) return [];
-      if (input) return [{ link: linkId, target: { input } }];
-      return targetOutput
-        ? [{ link: linkId, target: { output: targetOutput } }]
-        : [];
-    });
-    const permittedLinks = array(output?.permitted_links).flatMap<
-      ScenarioOutputExplanation["requiredLinks"][number]
-    >((linkValue) => {
-      const link = object(linkValue);
-      const linkId = string(link?.link);
-      const target = object(link?.target);
-      const input = string(target?.input);
-      const targetOutput = string(target?.output);
-      if (!linkId) return [];
-      if (input) return [{ link: linkId, target: { input } }];
-      return targetOutput
-        ? [{ link: linkId, target: { output: targetOutput } }]
-        : [];
-    });
-    return [{
-      name,
-      types,
-      cardinality,
-      requiredLinks,
-      ...(permittedLinks.length > 0 ? { permittedLinks } : {}),
-    }];
-  });
-}
-
-export interface WaiverExplanation {
-  policy: string;
-  result: {
-    permitted: boolean;
-    approvalRequired: boolean;
-    applicable: boolean;
-    scope: string | null;
-    evidence: ExactTypedEntity[];
-  };
-}
-
-export interface ObligationEvaluation {
-  id: string;
-  obligation: string;
-  subject: string;
-  satisfied: boolean;
-  status: string;
-  eventualResolver: string;
-  actionableResolver: string | null;
-  dispatchable: boolean;
-  blockedBy: string[];
-  blockerChains: string[][];
-  unresolvedBindings: string[];
-  resolver: ResolverScenarioExplanation;
-  waiver: WaiverExplanation;
-  participation?: ScenarioParticipation[];
-  explanation: string;
 }
 
 export interface ExactTypedEntity {
@@ -191,126 +75,14 @@ export interface SelectorEvaluationEvidence {
   result: ExactTypedEntity[];
 }
 
-export interface PhaseExpressionEvidence {
-  source: string;
-  result: boolean | ExactTypedEntity[];
-  selectors: SelectorEvaluationEvidence[];
-}
-
-export interface PolicyEvaluationEvidence {
-  policy: string;
-  arguments: Record<string, unknown>;
-  result: Record<string, unknown>;
-}
-
-export interface PhaseGateEvaluation {
-  candidate: ExactTypedEntity;
-  complete: boolean;
-  explanation: string;
-  obligationInstance: string;
-  status: string;
-  eventualResolver: string;
-  actionableResolver: string | null;
-  dispatchable: boolean;
-  blockedBy: string[];
-  blockerChains: string[][];
-  unresolvedBindings: string[];
-  evidence: PhaseExpressionEvidence & {
-    result: boolean;
-    policies: PolicyEvaluationEvidence[];
-  };
-}
-
-export interface PhaseProgressionEvaluation {
-  nextPhase: string;
-  gateComplete: boolean;
-  ready: boolean;
-  authorized: boolean;
-  complete: boolean;
-  explanation: string;
-  readiness: PhaseExpressionEvidence;
-  authorization: PhaseExpressionEvidence;
-  authority: {
-    policy: string;
-    scenario: string;
-    evidenceSelector: string;
-    subjects: ExactTypedEntity[];
-    evidence: ExactTypedEntity[];
-    authorityRequirement: ScenarioParticipation["authorityRequirement"];
-    attentionSchedule: ScenarioParticipation["attentionSchedule"];
-    attentionRequired: boolean;
-  };
-}
-
-export interface PhaseAttentionCheckpointEvaluation {
-  id: string;
-  active: boolean;
-  explanation: string;
-  evidence: PhaseExpressionEvidence & { result: boolean };
-}
-
-export interface PhaseEvaluation {
-  id: string;
-  version: number;
-  attentionCheckpoints: PhaseAttentionCheckpointEvaluation[];
-  entry: {
-    satisfied: boolean;
-    explanation: string;
-    evidence: PhaseExpressionEvidence;
-  };
-  candidateSelection: {
-    entities: ExactTypedEntity[];
-    explanation: string;
-    evidence: PhaseExpressionEvidence;
-  };
-  gate: {
-    required: boolean;
-    evaluations: PhaseGateEvaluation[];
-  };
-  progression: PhaseProgressionEvaluation | null;
-}
-
-export interface ObligationHistoryEvaluation {
-  snapshotRef: string;
-  processRef: string;
-  phaseId: string;
-  instances: ObligationEvaluation[];
-  diagnostics: ProcessDiagnostic[];
-}
-
-interface TerminalOutcomeBase {
-  explanation: string;
-  evidence: {
-    profile: string;
-    condition: PhaseExpressionEvidence & { result: true };
-  };
-}
-
-export type TerminalOutcomeEvaluation =
-  | TerminalOutcomeBase & {
-      outcome: "profile-boundary-reached";
-      omittedCoverage: {
-        profile: string[];
-        phase: string[];
-      };
-    }
-  | TerminalOutcomeBase & {
-      outcome: "lifecycle-complete";
-    };
-
 export interface LifecycleEvaluation {
-  phase: PhaseEvaluation | null;
-  terminalOutcome: TerminalOutcomeEvaluation | null;
   artifacts: Record<string, ArtifactEvaluation>;
   dependencyChanges: DependencyChangeRecord[];
-  obligations: ObligationEvaluation[];
-  obligationHistory: ObligationHistoryEvaluation[];
-  looseEnds: ObligationEvaluation[];
   diagnostics: ProcessDiagnostic[];
 }
 
 export interface ProcessDefinitionEvidence {
-  kind: "expression" | "obligation" | "policy" | "relation" | "selector" | "state";
+  kind: "expression" | "policy" | "relation" | "selector" | "state";
   definition: string;
   source?: string;
   span?: {
@@ -325,17 +97,12 @@ export interface ProcessDefinitionEvidence {
 export interface ProcessDirectEvaluation {
   target: {
     definition: string;
-    kind: "obligation" | "policy" | "relation" | "selector" | "state";
+    kind: "policy" | "relation" | "selector" | "state";
   };
   arguments: Record<string, unknown>;
   result: unknown;
   traversedDefinitions: string[];
   evidence: ProcessDefinitionEvidence[];
-}
-
-export interface ScenarioReviewPolicyEvaluation {
-  arguments: Record<string, unknown>;
-  result: Record<string, unknown>;
 }
 
 export interface ProcessExpressionEvaluation {
@@ -359,7 +126,7 @@ export interface ProcessExpressionEvaluation {
   evidence: ProcessDefinitionEvidence[];
 }
 
-type EntityKind = "phase" | "process" | "record" | "revision" | "stable-datum";
+type EntityKind = "process" | "record" | "revision" | "stable-datum";
 
 interface Entity {
   entityKind: EntityKind;
@@ -376,19 +143,12 @@ interface Entity {
   payload?: Record<string, unknown>;
   storage?: LifecycleRecord["storage"];
   integrity?: LifecycleRecord["integrity"] | { package_valid: boolean };
-  provenance?: { process_ref: string; scenario?: string };
+  provenance?: { process_ref: string };
   datum?: DatumEnvelope;
   record?: object;
 }
 
 type EvaluationContext = Record<string, unknown>;
-
-interface PendingObligation {
-  evaluation: ObligationEvaluation;
-  definition: VersionedDefinition;
-  context: EvaluationContext;
-  statusRule?: Record<string, unknown>;
-}
 
 function object(value: unknown): Record<string, unknown> | undefined {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -431,16 +191,8 @@ class LifecycleEvaluator {
   private readonly exactBaselineType: string | undefined;
   private readonly dependencyChanges: DependencyChangeRecord[];
   private readonly comparisonDiagnostics: ProcessDiagnostic[];
-  private selectorEvidence: SelectorEvaluationEvidence[] | undefined;
-  private selectorEvidenceMemo: Set<string> | undefined;
-  private policyEvidence: PolicyEvaluationEvidence[] | undefined;
   private definitionEvidence: ProcessDefinitionEvidence[] | undefined;
   private readonly expressionDefinitions = new Map<object, string>();
-  private readonly obligationDefinitionEvidence = new Map<
-    string,
-    ProcessDefinitionEvidence[]
-  >();
-
   constructor(
     private readonly processPackage: ProcessPackage,
     private readonly snapshot: LifecycleSnapshot,
@@ -472,33 +224,13 @@ class LifecycleEvaluator {
         integrity: record.integrity,
         provenance: {
           process_ref: record.datum.created_by.process_ref,
-          ...(string(record.datum.created_by.scenario)
-            ? { scenario: string(record.datum.created_by.scenario)! }
-            : {}),
         },
         datum: record.datum,
       };
       this.byRevision.set(record.datum.revision_id, entity);
       return entity;
     });
-    const phaseVersion = number(processPackage.phases[snapshot.phaseId]?.version);
-    const processSubject: Entity = {
-      entityKind: "process",
-      key: processObligationSubjectIdentity(snapshot.phaseId, phaseVersion),
-      current_ref: snapshot.processRef,
-      integrity: { package_valid: true },
-    };
-    const phaseSubject: Entity = {
-      entityKind: "phase",
-      key: phaseObligationSubjectIdentity(snapshot.phaseId, phaseVersion),
-      id: snapshot.phaseId,
-      version: phaseVersion,
-    };
-    this.baseContext = {
-      process: processSubject,
-      phase: phaseSubject,
-      ...(snapshot.execution ? { execution: snapshot.execution } : {}),
-    };
+    this.baseContext = { process: { entityKind: "process", key: snapshot.processRef, current_ref: snapshot.processRef, integrity: { package_valid: true } } };
     for (const definition of this.expressionBearingDefinitions()) {
       this.indexDefinitionExpressions(
         definition,
@@ -512,10 +244,7 @@ class LifecycleEvaluator {
       ...Object.values(this.processPackage.selectors),
       ...Object.values(this.processPackage.policies),
       ...Object.values(this.processPackage.states),
-      ...Object.values(this.processPackage.obligations),
-      ...Object.values(this.processPackage.scenarios),
-      ...Object.values(this.processPackage.phases),
-      ...Object.values(this.processPackage.profiles),
+      ...Object.values(this.processPackage.actions),
     ];
   }
 
@@ -550,7 +279,7 @@ class LifecycleEvaluator {
     if (!isCompiledTextExpression(expression) || !expression.contract) {
       throw new Error(`Definition field '${target}' is not an expression`);
     }
-    const evaluatorBindings = new Set(["execution", "phase", "process"]);
+    const evaluatorBindings = new Set(["process"]);
     const availableBindings = new Set(
       Object.keys(expression.contract.bindings).filter(
         (name) => !evaluatorBindings.has(name),
@@ -636,137 +365,6 @@ class LifecycleEvaluator {
     }
   }
 
-  evaluateResolverInputs(
-    obligationReference: string,
-    subjectIdentity: string,
-  ): Record<string, unknown>[] {
-    const obligation = this.requireDefinitionReference(
-      this.processPackage.obligations,
-      obligationReference,
-      "Obligation",
-    );
-    const subject = this.resolveObligationSubject(subjectIdentity);
-    if (!this.isEntity(subject)) {
-      throw new Error(
-        `Obligation '${obligationReference}' subject '${subjectIdentity}' is not available in the lifecycle snapshot`,
-      );
-    }
-    const subjectAs = string(obligation.subject_as) ?? "subject";
-    return this.resolverInputBindings(obligation, {
-      ...this.baseContext,
-      [subjectAs]: subject,
-    }).map((bindings) =>
-      Object.fromEntries(
-        Object.entries(bindings).map(([name, value]) => [
-          name,
-          this.evidenceValue(value),
-        ]),
-      )
-    );
-  }
-
-  private evaluateScenarioPolicyArguments(
-    scenarioReference: string,
-    policyReference: string,
-    argumentsValue: Record<string, unknown>,
-    invocationBindings: Record<string, unknown>[],
-    label: string,
-  ): Record<string, unknown>[] {
-    return invocationBindings.map((bindings) => {
-      const policyArguments = Object.fromEntries(
-        Object.entries(argumentsValue).map(([name, expression]) => {
-          if (!isCompiledTextExpression(expression)) {
-            throw new Error(
-              `Scenario '${scenarioReference}' ${label} argument '${name}' is not compiled`,
-            );
-          }
-          const resolvedBindings = Object.fromEntries(
-            Object.entries(bindings).map(([bindingName, value]) => {
-              const contract = expression.contract?.bindings[bindingName];
-              return [
-                bindingName,
-                this.resolveSuppliedValue(
-                  this.expressionBindingValue(value),
-                  contract?.domainKind === "stable-datum",
-                  contract?.domainKind,
-                ),
-              ];
-            }),
-          );
-          return [
-            name,
-            this.value(expression, { ...this.baseContext, ...resolvedBindings }),
-          ];
-        }),
-      );
-      this.requirePolicyArguments(policyReference, policyArguments);
-      return policyArguments;
-    });
-  }
-
-  evaluateScenarioParticipation(
-    scenarioReference: string,
-    invocationBindings: Record<string, unknown>[],
-  ): ScenarioParticipation[] | undefined {
-    const match = /^([a-z][a-z0-9-]*)@([1-9][0-9]*)$/.exec(
-      scenarioReference,
-    );
-    const scenario = match?.[1]
-      ? this.processPackage.scenarios[match[1]]
-      : undefined;
-    if (!scenario || scenario.version !== Number(match?.[2])) return undefined;
-    const participation = object(scenario.participation);
-    const policyReference = string(participation?.policy_ref);
-    const argumentsValue = object(participation?.arguments);
-    if (!policyReference || !argumentsValue) return undefined;
-    return this.evaluateScenarioPolicyArguments(
-      scenarioReference,
-      policyReference,
-      argumentsValue,
-      invocationBindings,
-      "participation",
-    ).map((policyArguments) =>
-      projectScenarioParticipation(
-        policyReference,
-        this.policyResult(policyReference, policyArguments),
-        string(scenario.batching) ?? "single",
-      )
-    );
-  }
-
-  evaluateScenarioReviewPolicy(
-    scenarioReference: string,
-    invocationBindings: Record<string, unknown>[],
-  ): ScenarioReviewPolicyEvaluation[] | undefined {
-    const match = /^([a-z][a-z0-9-]*)@([1-9][0-9]*)$/.exec(
-      scenarioReference,
-    );
-    const scenario = match?.[1]
-      ? this.processPackage.scenarios[match[1]]
-      : undefined;
-    if (!scenario || scenario.version !== Number(match?.[2])) return undefined;
-    const policyReference = string(scenario.review_policy_ref);
-    const argumentsValue = object(scenario.review_policy_arguments);
-    if (!policyReference || !argumentsValue) return undefined;
-    return this.evaluateScenarioPolicyArguments(
-      scenarioReference,
-      policyReference,
-      argumentsValue,
-      invocationBindings,
-      "review Policy",
-    ).map((arguments_) => ({
-      arguments: Object.fromEntries(
-        Object.entries(arguments_).map(([name, value]) => [
-          name,
-          this.expressionBindingValue(value),
-        ]),
-      ),
-      result: this.evidenceValue(
-        this.policyResult(policyReference, arguments_),
-      ) as Record<string, unknown>,
-    }));
-  }
-
   evaluateDirectDefinition(
     kind: ProcessDirectEvaluation["target"]["kind"],
     reference: string,
@@ -775,9 +373,7 @@ class LifecycleEvaluator {
     const resolvedArguments = Object.fromEntries(
       Object.entries(suppliedArguments).map(([name, value]) => [
         name,
-        kind === "obligation" && name === "subject"
-          ? this.resolveObligationSubject(value)
-          : this.resolveSuppliedValue(value),
+        this.resolveSuppliedValue(value),
       ]),
     );
     const evidence: ProcessDefinitionEvidence[] = [];
@@ -818,31 +414,6 @@ class LifecycleEvaluator {
           throw new Error(`Computed State evaluation requires an exact '--subject' Revision`);
         }
         result = this.state(definition.id, subject);
-      } else {
-        const definition = this.requireDefinitionReference(
-          this.processPackage.obligations,
-          reference,
-          "Obligation",
-        );
-        const lifecycle = this.evaluate();
-        const subject = this.isEntity(resolvedArguments.subject)
-          ? this.obligationSubjectId(resolvedArguments.subject)
-          : undefined;
-        const matches = lifecycle.obligations.filter((obligation) =>
-          obligation.obligation === definition.id &&
-          (subject === undefined || obligation.subject === subject)
-        );
-        result = subject === undefined ? matches : matches[0] ?? null;
-        const scopedEvidence = matches.flatMap((obligation) =>
-          this.obligationDefinitionEvidence.get(obligation.id) ?? []
-        );
-        evidence.splice(0, evidence.length, ...scopedEvidence);
-        evidence.push({
-          kind: "obligation",
-          definition: reference,
-          arguments: this.evidenceValue(resolvedArguments) as Record<string, unknown>,
-          result: this.evidenceValue(result),
-        });
       }
       const projectedResult = this.evidenceValue(result);
       return {
@@ -873,35 +444,7 @@ class LifecycleEvaluator {
   }
 
   evaluate(): LifecycleEvaluation {
-    if (this.comparisonDiagnostics.length > 0) {
-      return {
-        phase: null,
-        terminalOutcome: null,
-        artifacts: {},
-        dependencyChanges: [],
-        obligations: [],
-        obligationHistory: [],
-        looseEnds: [],
-        diagnostics: this.comparisonDiagnostics,
-      };
-    }
-    if (!this.processPackage.phases[this.snapshot.phaseId]) {
-      return {
-        phase: null,
-        terminalOutcome: null,
-        artifacts: {},
-        dependencyChanges: this.dependencyChanges,
-        obligations: [],
-        obligationHistory: [],
-        looseEnds: [],
-        diagnostics: [{
-          code: "unknown-phase",
-          path: "phaseId",
-          message: `Unknown Phase '${this.snapshot.phaseId}'`,
-        }],
-      };
-    }
-
+    if (this.comparisonDiagnostics.length > 0) return { artifacts: {}, dependencyChanges: [], diagnostics: this.comparisonDiagnostics };
     const artifacts: Record<string, ArtifactEvaluation> = {};
     for (const entity of this.entities) {
       const revisionId = entity.identity?.revision_id;
@@ -916,511 +459,14 @@ class LifecycleEvaluator {
       artifacts[revisionId] = { states, stateExplanations };
     }
 
-    const pendingObligations: PendingObligation[] = [];
-    for (const definition of Object.values(this.processPackage.obligations)) {
-      if (!array(definition.phases).includes(this.snapshot.phaseId)) continue;
-      const forEach = definition.for_each;
-      const selectionEvidenceStart = this.definitionEvidence?.length ?? 0;
-      const subjects = isCompiledTextExpression(forEach)
-        ? array(this.value(forEach, this.baseContext))
-          .filter((value): value is Entity => this.isEntity(value))
-        : this.invokeSelector(forEach, this.baseContext);
-      const selectionEvidence = this.definitionEvidence?.slice(
-        selectionEvidenceStart,
-      ) ?? [];
-      const subjectAs = string(definition.subject_as) ?? "subject";
-      for (const subject of subjects) {
-        const subjectEvidenceStart = this.definitionEvidence?.length ?? 0;
-        const context = { ...this.baseContext, [subjectAs]: subject };
-        const satisfied = this.expression(definition.satisfied_when, context);
-        const resolverObject = object(definition.resolve_with);
-        const eventualResolver = string(resolverObject?.scenario) ?? "";
-        const subjectId = this.obligationSubjectId(subject);
-        const instanceId = this.obligationInstanceId(
-          `${definition.id}@${definition.version}`,
-          subjectId,
-        );
-        const waiver = this.waiverExplanation(
-          definition,
-          instanceId,
-          subject,
-        );
-        const statusResult = satisfied
-          ? {
-              status: "satisfied",
-              reason: "The obligation's satisfaction expression is true.",
-            }
-          : waiver.result.applicable
-          ? {
-              status: "waived",
-              reason: "An exact structured waiver is currently applicable under the package-defined Waiver Policy.",
-            }
-          : this.obligationStatus(definition, context);
-        pendingObligations.push({
-          evaluation: {
-            id: instanceId,
-            obligation: definition.id,
-            subject: subjectId,
-            satisfied,
-            status: statusResult.status,
-            eventualResolver,
-            actionableResolver: null,
-            dispatchable: false,
-            blockedBy: [],
-            blockerChains: [],
-            unresolvedBindings: [],
-            resolver: this.resolverExplanation(definition),
-            waiver,
-            explanation: statusResult.reason,
-          },
-          definition,
-          context,
-          ...(statusResult.rule ? { statusRule: statusResult.rule } : {}),
-        });
-        this.obligationDefinitionEvidence.set(instanceId, [
-          ...selectionEvidence,
-          ...(this.definitionEvidence?.slice(subjectEvidenceStart) ?? []),
-        ]);
-      }
-    }
-
-    const byInstanceId = new Map(
-      pendingObligations.map((pending) => [pending.evaluation.id, pending]),
-    );
-    for (const pending of pendingObligations) {
-      if (
-        pending.evaluation.satisfied ||
-        pending.evaluation.status === "waived"
-      ) continue;
-      const resolutionEvidenceStart = this.definitionEvidence?.length ?? 0;
-      pending.evaluation.blockedBy = this.blockingInstanceIds(
-        pending.statusRule,
-        pending.context,
-        byInstanceId,
-      );
-      pending.evaluation.unresolvedBindings =
-        this.unresolvedResolverBindings(pending.definition, pending.context);
-      if (pending.evaluation.unresolvedBindings.length === 0) {
-        const participation = this.resolverParticipation(
-          pending.definition,
-          pending.context,
-        );
-        if (participation) pending.evaluation.participation = participation;
-      }
-      this.obligationDefinitionEvidence.get(pending.evaluation.id)?.push(
-        ...(this.definitionEvidence?.slice(resolutionEvidenceStart) ?? []),
-      );
-      pending.evaluation.dispatchable =
-        ["ready", "awaiting-review", "stale"].includes(
-          pending.evaluation.status,
-        ) &&
-        pending.evaluation.blockedBy.length === 0 &&
-        pending.evaluation.unresolvedBindings.length === 0;
-    }
-    for (const pending of pendingObligations) {
-      if (
-        pending.evaluation.satisfied ||
-        pending.evaluation.status === "waived"
-      ) continue;
-      pending.evaluation.blockerChains = this.blockerChains(
-        pending.evaluation,
-        byInstanceId,
-      );
-      pending.evaluation.actionableResolver = this.actionableResolver(
-        pending.evaluation,
-        byInstanceId,
-      );
-    }
-    const obligations = pendingObligations.map((pending) => pending.evaluation);
-    const phase = this.evaluatePhase(obligations);
-    const terminal = this.evaluateTerminalOutcome();
-    const declaredCheckpoints = new Set(
-      phase.attentionCheckpoints.map((checkpoint) => checkpoint.id),
-    );
-    const scheduledParticipation = [
-      ...obligations.flatMap((obligation) =>
-        (obligation.participation ?? []).map((participation) => ({
-          policy: participation.policy,
-          attentionSchedule: participation.attentionSchedule,
-        }))
-      ),
-      ...(phase.progression ? [{
-        policy: phase.progression.authority.policy,
-        attentionSchedule: phase.progression.authority.attentionSchedule,
-      }] : []),
-    ];
-    const checkpointDiagnostics = [...new Map(
-      scheduledParticipation.flatMap((participation) => {
-        const checkpoint = participation.attentionSchedule.checkpoint;
-        return participation.attentionSchedule.timing === "checkpoint" &&
-            checkpoint && !declaredCheckpoints.has(checkpoint)
-          ? [[`${participation.policy}\0${checkpoint}`, {
-              code: "participation-checkpoint-undeclared",
-              path: `phases.${phase.id}.attention_checkpoints`,
-              message: `Participation Policy '${participation.policy}' selected checkpoint '${checkpoint}', which is not declared by the selected Phase '${phase.id}@${phase.version}'`,
-            }] as const]
-          : [];
-      }),
-    ).values()];
-
-    const routing = object(
-      this.processPackage.phases[this.snapshot.phaseId]?.routing,
-    ) ?? {};
-    const declaredStatusOrder = array(routing.status_order);
-    const statusOrder = Object.fromEntries(
-      declaredStatusOrder.map((status, index) => [String(status), index]),
-    );
-    const looseEnds = obligations
-      .filter(
-        (obligation) =>
-          !obligation.satisfied && obligation.status !== "waived",
-      )
-      .sort(
-        (left, right) =>
-          (statusOrder[left.status] ?? 99) - (statusOrder[right.status] ?? 99) ||
-          left.subject.localeCompare(right.subject) ||
-          left.obligation.localeCompare(right.obligation),
-      );
-
-    return {
-      phase,
-      terminalOutcome: terminal.outcome,
-      artifacts,
-      dependencyChanges: this.dependencyChanges,
-      obligations,
-      obligationHistory: this.evaluateObligationHistory(),
-      looseEnds,
-      diagnostics: [
-        ...this.comparisonDiagnostics,
-        ...checkpointDiagnostics,
-        ...terminal.diagnostics,
-      ],
-    };
+    return { artifacts, dependencyChanges: this.dependencyChanges, diagnostics: [] };
   }
 
-  private evaluateTerminalOutcome(): {
-    outcome: TerminalOutcomeEvaluation | null;
-    diagnostics: ProcessDiagnostic[];
-  } {
-    const selectedProfile = selectedImplementationProfile(this.processPackage);
-    const profileReference = selectedProfile?.reference ?? "";
-    const profile = selectedProfile?.definition;
-    const declarations = object(profile?.terminal_outcomes);
-    const matches = (
-      ["profile_boundary", "lifecycle_complete"] as const
-    ).flatMap((key) => {
-      const declaration = object(declarations?.[key]);
-      if (!declaration || !isCompiledTextExpression(declaration.condition)) {
-        return [];
-      }
-      const condition = this.evaluateWithSelectorEvidence(
-        declaration.condition,
-        () => this.expression(declaration.condition, this.baseContext),
-      );
-      return condition.result
-        ? [{ key, explanation: string(declaration.explanation) ?? "", condition }]
-        : [];
-    });
-    if (matches.length > 1) {
-      return {
-        outcome: null,
-        diagnostics: [{
-          code: "ambiguous-terminal-outcomes",
-          path: profileReference,
-          message: "Profile Boundary and Lifecycle Complete conditions both hold for the exact current lifecycle state",
-        }],
-      };
-    }
-    const match = matches[0];
-    if (!match) return { outcome: null, diagnostics: [] };
-    const evidence = {
-      profile: profileReference,
-      condition: { ...match.condition, result: true as const },
-    };
-    if (match.key === "lifecycle_complete") {
-      return {
-        outcome: {
-          outcome: "lifecycle-complete",
-          explanation: match.explanation,
-          evidence,
-        },
-        diagnostics: [],
-      };
-    }
-    const strings = (value: unknown): string[] =>
-      array(value).filter((item): item is string => typeof item === "string");
-    return {
-      outcome: {
-        outcome: "profile-boundary-reached",
-        explanation: match.explanation,
-        omittedCoverage: {
-          profile: strings(profile?.disabled_capabilities),
-          phase: strings(
-            this.processPackage.phases[this.snapshot.phaseId]?.omitted_capabilities,
-          ),
-        },
-        evidence,
-      },
-      diagnostics: [],
-    };
-  }
-
-  private evaluateObligationHistory(): ObligationHistoryEvaluation[] {
-    return (this.snapshot.historicalSnapshots ?? []).map((snapshot) => {
-      const evaluation = evaluateLifecycle(this.processPackage, {
-        processRef: snapshot.processRef,
-        phaseId: snapshot.phaseId,
-        records: snapshot.records,
-        dependencyComparisons: snapshot.dependencyComparisons,
-      });
-      return {
-        snapshotRef: snapshot.snapshotRef,
-        processRef: snapshot.processRef,
-        phaseId: snapshot.phaseId,
-        instances: evaluation.obligations,
-        diagnostics: evaluation.diagnostics,
-      };
-    });
-  }
-
-  private evaluatePhase(
-    obligations: ObligationEvaluation[],
-  ): PhaseEvaluation {
-    const definition = this.processPackage.phases[this.snapshot.phaseId]!;
-    const entry = this.evaluateWithSelectorEvidence(
-      definition.entry,
-      () => this.expression(definition.entry, this.baseContext),
-    );
-    const attentionCheckpoints = array(definition.attention_checkpoints)
-      .flatMap((value) => {
-        const checkpoint = object(value);
-        const id = string(checkpoint?.id);
-        if (!id) return [];
-        const readiness = this.evaluateWithSelectorEvidence(
-          checkpoint?.readiness,
-          () => this.expression(checkpoint?.readiness, this.baseContext),
-        );
-        return [{
-          id,
-          active: readiness.result,
-          explanation: readiness.result
-            ? "The package-authored checkpoint readiness expression is true."
-            : "The package-authored checkpoint readiness expression is false.",
-          evidence: readiness,
-        }];
-      });
-    const gate = object(definition.gate)!;
-    const selection = this.evaluateWithSelectorEvidence(
-      gate.candidate_selector,
-      () => array(this.value(gate.candidate_selector, this.baseContext))
-        .filter((value): value is Entity => this.isEntity(value)),
-    );
-    const candidates = selection.result
-      .map((entity) => this.exactTypedEntity(entity))
-      .filter((entity): entity is ExactTypedEntity => entity !== undefined);
-    const candidateAs = string(gate.candidate_as) ?? "candidate";
-    const gateObligation = string(gate.obligation) ?? "";
-    const gateEvaluations = selection.result.flatMap((candidate) => {
-      const exactCandidate = this.exactTypedEntity(candidate);
-      const candidateRevision = candidate.identity?.revision_id;
-      if (!exactCandidate || !candidateRevision) return [];
-      const completion = this.evaluateWithGateEvidence(
-        gate.completion,
-        () => this.expression(gate.completion, {
-          ...this.baseContext,
-          [candidateAs]: candidate,
-        }),
-      );
-      const obligationInstance = this.obligationInstanceId(
-        gateObligation,
-        candidateRevision,
-      );
-      const obligation = obligations.find(
-        (item) => item.id === obligationInstance,
-      );
-      return [{
-        candidate: exactCandidate,
-        complete: completion.result,
-        explanation: completion.result
-          ? "The package-defined gate completion expression is satisfied for this exact candidate."
-          : "The package-defined gate completion expression is not satisfied for this exact candidate.",
-        obligationInstance,
-        status: obligation?.status ?? "unresolved",
-        eventualResolver: obligation?.eventualResolver ?? "",
-        actionableResolver: obligation?.actionableResolver ?? null,
-        dispatchable: obligation?.dispatchable ?? false,
-        blockedBy: obligation?.blockedBy ?? [],
-        blockerChains: obligation?.blockerChains ?? [],
-        unresolvedBindings: obligation?.unresolvedBindings ?? [
-          "obligation-instance",
-        ],
-        evidence: completion,
-      }];
-    });
-    const progression = object(definition.progression);
-    let progressionEvaluation: PhaseProgressionEvaluation | null = null;
-    if (progression) {
-      const readiness = this.evaluateWithSelectorEvidence(
-        progression.readiness,
-        () => this.expression(progression.readiness, this.baseContext),
-      );
-      const authorization = object(progression.authorization)!;
-      const authorizationCondition = this.evaluateWithSelectorEvidence(
-        authorization.condition,
-        () => this.expression(authorization.condition, this.baseContext),
-      );
-      const policyReference = string(authorization.policy_ref) ?? "";
-      const policyArguments = Object.fromEntries(
-        Object.entries(object(authorization.arguments) ?? {}).map(([name, value]) => [
-          name,
-          this.value(value, this.baseContext),
-        ]),
-      );
-      const projectedParticipation = participationResult(
-        this.policyResult(policyReference, policyArguments),
-      );
-      if (!projectedParticipation) {
-        throw new Error(
-          `Phase progression Participation Policy '${policyReference}' returned an invalid standardized result`,
-        );
-      }
-      const evidenceSelector = string(authorization.evidence_selector) ?? "";
-      const subjects = array(this.value(authorization.subjects, this.baseContext))
-        .filter((value): value is Entity => this.isEntity(value))
-        .map((entity) => this.exactTypedEntity(entity))
-        .filter((entity): entity is ExactTypedEntity => entity !== undefined);
-      const evidenceByRevision = new Map<string, ExactTypedEntity>();
-      for (const selector of authorizationCondition.selectors) {
-        if (selector.selector !== evidenceSelector) continue;
-        for (const evidence of selector.result) {
-          evidenceByRevision.set(evidence.identity.revision_id, evidence);
-        }
-      }
-      const evidence = [...evidenceByRevision.values()].sort((left, right) =>
-        left.identity.revision_id.localeCompare(right.identity.revision_id)
-      );
-      const gateComplete = gate.required === true
-        ? gateEvaluations.length > 0 && gateEvaluations.every((item) => item.complete)
-        : true;
-      const ready = readiness.result;
-      const authorized = authorizationCondition.result && evidence.length > 0;
-      const complete = gateComplete && ready && authorized;
-      progressionEvaluation = {
-        nextPhase: string(progression.next_phase) ?? "",
-        gateComplete,
-        ready,
-        authorized,
-        complete,
-        explanation: complete
-          ? "The package-defined Phase progression condition and exact authorization are satisfied."
-          : !ready
-          ? "Phase progression is waiting for its package-defined readiness condition."
-          : !authorized
-          ? "Phase progression is waiting for exact authorization evidence."
-          : "Phase progression is waiting for the required gate to complete.",
-        readiness: {
-          source: readiness.source,
-          result: readiness.result,
-          selectors: readiness.selectors,
-        },
-        authorization: {
-          source: authorizationCondition.source,
-          result: authorizationCondition.result,
-          selectors: authorizationCondition.selectors,
-        },
-        authority: {
-          policy: policyReference,
-          scenario: string(authorization.scenario) ?? "",
-          evidenceSelector,
-          subjects,
-          evidence,
-          ...projectedParticipation,
-          attentionRequired: ready && !authorized &&
-            projectedParticipation.authorityRequirement.mode !== "autonomous",
-        },
-      };
-    }
-    return {
-      id: definition.id,
-      version: number(definition.version),
-      attentionCheckpoints,
-      entry: {
-        satisfied: entry.result,
-        explanation: entry.result
-          ? "The package-defined phase entry expression is satisfied."
-          : "The package-defined phase entry expression is not satisfied.",
-        evidence: {
-          source: entry.source,
-          result: entry.result,
-          selectors: entry.selectors,
-        },
-      },
-      candidateSelection: {
-        entities: candidates,
-        explanation: candidates.length > 0
-          ? `The package-defined candidate selection expression returned ${candidates.length} exact ${candidates.length === 1 ? "entity" : "entities"}.`
-          : "The package-defined candidate selection expression returned no exact entities.",
-        evidence: {
-          source: selection.source,
-          result: candidates,
-          selectors: selection.selectors,
-        },
-      },
-      gate: {
-        required: gate.required === true,
-        evaluations: gateEvaluations,
-      },
-      progression: progressionEvaluation,
-    };
-  }
-
-  private evaluateWithSelectorEvidence<T>(
-    expression: unknown,
-    evaluate: () => T,
-  ): { source: string; result: T; selectors: SelectorEvaluationEvidence[] } {
-    if (!isCompiledTextExpression(expression)) {
-      throw new Error("Expected a compiled mdlm-expression@1 value");
-    }
-    const previousEvidence = this.selectorEvidence;
-    const previousEvidenceMemo = this.selectorEvidenceMemo;
-    const selectors: SelectorEvaluationEvidence[] = [];
-    this.selectorEvidence = selectors;
-    this.selectorEvidenceMemo = new Set();
-    try {
-      const result = evaluate();
-      selectors.sort((left, right) => {
-        const leftKey = JSON.stringify(left);
-        const rightKey = JSON.stringify(right);
-        return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
-      });
-      return { source: expression.source, result, selectors };
-    } finally {
-      this.selectorEvidence = previousEvidence;
-      this.selectorEvidenceMemo = previousEvidenceMemo;
-    }
-  }
-
-  private evaluateWithGateEvidence(
-    expression: unknown,
-    evaluate: () => boolean,
-  ): PhaseExpressionEvidence & {
-    result: boolean;
-    policies: PolicyEvaluationEvidence[];
-  } {
-    const previousPolicyEvidence = this.policyEvidence;
-    const policies: PolicyEvaluationEvidence[] = [];
-    this.policyEvidence = policies;
-    try {
-      const evidence = this.evaluateWithSelectorEvidence(expression, evaluate);
-      policies.sort((left, right) => {
-        const leftKey = JSON.stringify(left);
-        const rightKey = JSON.stringify(right);
-        return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
-      });
-      return { ...evidence, policies };
-    } finally {
-      this.policyEvidence = previousPolicyEvidence;
-    }
+  evaluateValue(expression: unknown, bindings: Record<string, unknown>): unknown {
+    return this.evidenceValue(this.value(expression, {
+      ...this.baseContext,
+      ...Object.fromEntries(Object.entries(bindings).map(([name, value]) => [name, this.resolveSuppliedValue(value)])),
+    }));
   }
 
   private exactTypedEntity(entity: Entity): ExactTypedEntity | undefined {
@@ -1451,15 +497,6 @@ class LifecycleEvaluator {
     }
   }
 
-  private resolveObligationSubject(value: unknown): unknown {
-    if (typeof value === "string") {
-      for (const binding of [this.baseContext.phase, this.baseContext.process]) {
-        if (this.isEntity(binding) && binding.key === value) return binding;
-      }
-    }
-    return this.resolveSuppliedValue(value);
-  }
-
   private resolveSuppliedValue(
     value: unknown,
     permitStableIdentity = false,
@@ -1467,7 +504,7 @@ class LifecycleEvaluator {
   ): unknown {
     if (typeof value === "string") {
       if (this.byRevision.has(value)) return this.byRevision.get(value);
-      if (domainKind === "phase" || domainKind === "process") {
+      if (domainKind === "process") {
         const binding = this.baseContext[domainKind];
         if (this.isEntity(binding) && binding.key === value) return binding;
       }
@@ -1489,21 +526,6 @@ class LifecycleEvaluator {
       : value;
   }
 
-  private expressionBindingValue(value: unknown): unknown {
-    if (this.isEntity(value)) {
-      return value.identity?.revision_id ?? value.key;
-    }
-    const identity = object(object(value)?.identity);
-    if (typeof identity?.revision_id === "string") return identity.revision_id;
-    if (typeof identity?.id === "string") return identity.id;
-    const key = object(value)?.key;
-    if (typeof key === "string") return key;
-    if (Array.isArray(value)) {
-      return value.map((item) => this.expressionBindingValue(item));
-    }
-    return value;
-  }
-
   private evidenceValue(value: unknown): unknown {
     if (this.isEntity(value)) return this.exactTypedEntity(value) ?? { key: value.key };
     if (Array.isArray(value)) return value.map((item) => this.evidenceValue(item));
@@ -1516,286 +538,6 @@ class LifecycleEvaluator {
           ]),
         )
       : value;
-  }
-
-  private waiverExplanation(
-    definition: VersionedDefinition,
-    obligationInstance: string,
-    subject: Entity,
-  ): WaiverExplanation {
-    const policyReference = string(definition.waiver_policy_ref) ?? "";
-    const policy = this.processPackage.policies[
-      policyReference ? referenceId(policyReference) : ""
-    ];
-    const waiverEvidence = this.waiverEvidence(obligationInstance);
-    const evaluatedResults = waiverEvidence.map((waiver) =>
-      this.policyResult(policyReference, {
-        instance: obligationInstance,
-        obligation: `${definition.id}@${definition.version}`,
-        subject,
-        waiver,
-      })
-    );
-    const result = evaluatedResults.find(
-      (candidate) => candidate.applicable === true,
-    ) ?? object(policy?.default) ?? {};
-    const evidence = waiverEvidence
-      .map((entity) => this.exactTypedEntity(entity))
-      .filter((entity): entity is ExactTypedEntity => entity !== undefined);
-    return {
-      policy: policyReference,
-      result: {
-        permitted: result.permitted === true,
-        approvalRequired: result.approval_required === true,
-        applicable: result.applicable === true,
-        scope: string(result.scope) ?? null,
-        evidence,
-      },
-    };
-  }
-
-  private waiverEvidence(obligationInstance: string): Entity[] {
-    return this.entities.filter((entity) => {
-      const type = entity.identity?.type;
-      const definition = type ? this.processPackage.types[type] : undefined;
-      if (!definition || !entity.datum) return false;
-      const waiverLinks = new Set(
-        effectiveOutgoingLinks(definition, this.processPackage.templates)
-          .filter((contract) =>
-            array(contract.targets).some((targetValue) => {
-              const target = object(targetValue);
-              return target?.kind === "obligation-instance" &&
-                target.identity === "exact-obligation-instance";
-            })
-          )
-          .map((contract) => string(contract.id))
-          .filter((id): id is string => id !== undefined),
-      );
-      return entity.datum.links.some(
-        (link) => waiverLinks.has(link.type) && link.target === obligationInstance,
-      );
-    }).sort((left, right) => left.key.localeCompare(right.key));
-  }
-
-  private resolverExplanation(
-    definition: VersionedDefinition,
-  ): ResolverScenarioExplanation {
-    const resolver = object(definition.resolve_with);
-    const scenarioReference = string(resolver?.scenario) ?? "";
-    const scenario = this.processPackage.scenarios[
-      scenarioReference ? referenceId(scenarioReference) : ""
-    ];
-    const expectedOutputs = scenarioOutputExplanations(scenario);
-    return {
-      scenario: scenarioReference,
-      promptRef: string(scenario?.prompt_ref) ?? "",
-      expectedOutputs,
-    };
-  }
-
-  private obligationSubjectId(subject: Entity): string {
-    return subject.identity?.revision_id ?? subject.key;
-  }
-
-  private obligationInstanceId(
-    obligationReference: string,
-    subjectId: string,
-  ): string {
-    return formatObligationInstanceIdentity(
-      obligationReference,
-      subjectId,
-      this.snapshot.processRef,
-    );
-  }
-
-  private blockingInstanceIds(
-    statusRule: Record<string, unknown> | undefined,
-    context: EvaluationContext,
-    byInstanceId: Map<string, PendingObligation>,
-  ): string[] {
-    const blockerIds = new Set<string>();
-    for (const blockerValue of array(statusRule?.blocked_by)) {
-      const blocker = object(blockerValue);
-      const obligation = string(blocker?.obligation);
-      if (!obligation || blocker?.subjects === undefined) continue;
-      const subjects = array(this.value(blocker.subjects, context))
-        .filter((value): value is Entity => this.isEntity(value));
-      for (const subject of subjects) {
-        const instanceId = this.obligationInstanceId(
-          obligation,
-          this.obligationSubjectId(subject),
-        );
-        const pending = byInstanceId.get(instanceId);
-        if (
-          pending &&
-          !pending.evaluation.satisfied &&
-          pending.evaluation.status !== "waived"
-        ) blockerIds.add(instanceId);
-      }
-    }
-    return [...blockerIds].sort();
-  }
-
-  private resolverInputBindings(
-    definition: VersionedDefinition,
-    context: EvaluationContext,
-  ): Record<string, unknown>[] {
-    const resolver = object(definition.resolve_with);
-    const dispatch = object(resolver?.dispatch);
-    let bindingContexts = [context];
-    if (dispatch) {
-      const dispatchItems = array(this.value(dispatch.for_each, context))
-        .filter((value): value is Entity => this.isEntity(value));
-      const alias = string(dispatch.as);
-      if (dispatchItems.length === 0 || !alias) return [];
-      bindingContexts = dispatchItems.map((item) => ({
-        ...context,
-        [alias]: item,
-      }));
-    }
-    return bindingContexts.map((bindingContext) =>
-      Object.fromEntries(
-        Object.entries(object(resolver?.inputs) ?? {}).map(([name, binding]) =>
-          [name, this.value(binding, bindingContext)]
-        ),
-      )
-    );
-  }
-
-  private unresolvedResolverBindings(
-    definition: VersionedDefinition,
-    context: EvaluationContext,
-  ): string[] {
-    const resolver = object(definition.resolve_with);
-    const bindings = this.resolverInputBindings(definition, context);
-    if (object(resolver?.dispatch) && bindings.length === 0) return ["dispatch"];
-    const scenarioReference = string(resolver?.scenario);
-    const scenarioId = scenarioReference
-      ? /^([a-z][a-z0-9-]*)@/.exec(scenarioReference)?.[1]
-      : undefined;
-    const scenario = scenarioId
-      ? this.processPackage.scenarios[scenarioId]
-      : undefined;
-    const cardinalities = new Map(
-      array(scenario?.inputs).flatMap((inputValue) => {
-        const input = object(inputValue);
-        const name = string(input?.name);
-        const cardinality = string(input?.cardinality);
-        return name && cardinality ? [[name, cardinality] as const] : [];
-      }),
-    );
-    const unresolved = new Set<string>();
-    for (const binding of bindings) {
-      for (const [name, value] of Object.entries(binding)) {
-        const optional = ["zero-or-one", "zero-or-more"].includes(
-          cardinalities.get(name) ?? "",
-        );
-        if (
-          !optional &&
-          (value === undefined || value === null ||
-            (Array.isArray(value) && value.length === 0))
-        ) {
-          unresolved.add(name);
-        }
-      }
-    }
-    return [...unresolved].sort();
-  }
-
-  private resolverParticipation(
-    obligation: VersionedDefinition,
-    context: EvaluationContext,
-  ): ScenarioParticipation[] | undefined {
-    const scenarioReference = string(object(obligation.resolve_with)?.scenario);
-    const scenarioMatch = scenarioReference
-      ? /^([a-z][a-z0-9-]*)@([1-9][0-9]*)$/.exec(scenarioReference)
-      : undefined;
-    const scenario = scenarioMatch?.[1]
-      ? this.processPackage.scenarios[scenarioMatch[1]]
-      : undefined;
-    if (
-      !scenarioReference || !scenario ||
-      scenario.version !== Number(scenarioMatch?.[2])
-    ) return undefined;
-    if (!object(scenario.participation)) return undefined;
-    return this.evaluateScenarioParticipation(
-      scenarioReference,
-      this.resolverInputBindings(obligation, context),
-    );
-  }
-
-  private blockerChains(
-    evaluation: ObligationEvaluation,
-    byInstanceId: Map<string, PendingObligation>,
-    visited = new Set<string>(),
-  ): string[][] {
-    if (visited.has(evaluation.id)) return [];
-    const nextVisited = new Set(visited).add(evaluation.id);
-    const chains = evaluation.blockedBy.flatMap((blockerId) => {
-      const blocker = byInstanceId.get(blockerId)?.evaluation;
-      if (!blocker) return [[blockerId]];
-      const descendants = this.blockerChains(
-        blocker,
-        byInstanceId,
-        nextVisited,
-      );
-      return descendants.length === 0
-        ? [[blockerId]]
-        : descendants.map((chain) => [blockerId, ...chain]);
-    });
-    return chains.sort((left, right) => {
-      const leftKey = left.join("\u0000");
-      const rightKey = right.join("\u0000");
-      return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
-    });
-  }
-
-  private actionableResolver(
-    evaluation: ObligationEvaluation,
-    byInstanceId: Map<string, PendingObligation>,
-    visited = new Set<string>(),
-  ): string | null {
-    if (evaluation.dispatchable) return evaluation.eventualResolver;
-    if (visited.has(evaluation.id)) return null;
-    const nextVisited = new Set(visited).add(evaluation.id);
-    for (const blockerId of evaluation.blockedBy) {
-      const blocker = byInstanceId.get(blockerId)?.evaluation;
-      if (!blocker) continue;
-      const resolver = this.actionableResolver(
-        blocker,
-        byInstanceId,
-        nextVisited,
-      );
-      if (resolver) return resolver;
-    }
-    return null;
-  }
-
-  private obligationStatus(
-    definition: VersionedDefinition,
-    context: EvaluationContext,
-  ): {
-    status: string;
-    reason: string;
-    rule?: Record<string, unknown>;
-  } {
-    const rules = array(definition.status_rules)
-      .map(object)
-      .filter((rule): rule is Record<string, unknown> => rule !== undefined)
-      .sort((left, right) => number(right.priority) - number(left.priority));
-    for (const rule of rules) {
-      if (this.expression(rule.when, context)) {
-        return {
-          status: string(rule.status) ?? string(definition.default_status) ?? "blocked",
-          reason: string(rule.reason) ?? "The obligation is not satisfied.",
-          rule,
-        };
-      }
-    }
-    return {
-      status: string(definition.default_status) ?? "blocked",
-      reason: `No status rule matched; using the default status for ${definition.id}.`,
-    };
   }
 
   private state(dimension: string, subject: Entity): string | string[] {
@@ -1902,7 +644,7 @@ class LifecycleEvaluator {
     const definition = this.requireDefinitionReference(
       this.processPackage.policies,
       reference,
-      "Participation Policy",
+      "Policy",
     );
     for (const parameterValue of array(definition.parameters)) {
       const parameter = object(parameterValue);
@@ -1926,10 +668,8 @@ class LifecycleEvaluator {
           entity.identity?.type === this.exactBaselineType
         : kind === "stable-datum"
         ? entity?.entityKind === "stable-datum"
-        : kind === "phase" || kind === "process"
+        : kind === "process"
         ? entity?.entityKind === kind
-        : kind === "execution"
-        ? object(value) !== undefined
         : false;
       const allowedTypes = array(parameter?.types).filter(
         (type): type is string => typeof type === "string",
@@ -1949,6 +689,7 @@ class LifecycleEvaluator {
     reference: string,
     argumentsContext: EvaluationContext,
   ): Record<string, unknown> {
+    this.requirePolicyArguments(reference, argumentsContext);
     const id = referenceId(reference);
     const definition = this.processPackage.policies[id];
     if (!definition) throw new Error(`Unknown policy '${reference}'`);
@@ -1961,13 +702,6 @@ class LifecycleEvaluator {
     const result = object(match?.result) ?? object(definition.default) ?? {};
     const evidenceArguments = this.evidenceValue(argumentsContext) as Record<string, unknown>;
     const evidenceResult = this.evidenceValue(result) as Record<string, unknown>;
-    if (this.policyEvidence) {
-      this.policyEvidence.push({
-        policy: reference,
-        arguments: evidenceArguments,
-        result: evidenceResult,
-      });
-    }
     if (this.definitionEvidence) {
       this.definitionEvidence.push({
         kind: "policy",
@@ -2062,15 +796,8 @@ class LifecycleEvaluator {
       .map(([name, item]) => `${name}=${this.valueKey(item)}`)
       .join(",")}`;
     if (this.selectorStack.has(recursionKey)) throw new Error(`Selector recursion at ${recursionKey}`);
-    const collectingSelectorEvidence = this.selectorEvidence !== undefined;
     const collectingDefinitionEvidence = this.definitionEvidence !== undefined;
-    const memoized = collectingSelectorEvidence
-      ? this.selectorEvidenceMemo?.has(recursionKey)
-        ? this.selectorMemo.get(recursionKey)
-        : undefined
-      : collectingDefinitionEvidence
-      ? undefined
-      : this.selectorMemo.get(recursionKey);
+    const memoized = collectingDefinitionEvidence ? undefined : this.selectorMemo.get(recursionKey);
     if (memoized) return [...memoized];
     this.selectorStack.add(recursionKey);
     try {
@@ -2081,13 +808,6 @@ class LifecycleEvaluator {
       const exactResult = result
         .map((entity) => this.exactTypedEntity(entity))
         .filter((entity): entity is ExactTypedEntity => entity !== undefined);
-      if (this.selectorEvidence) {
-        this.selectorEvidence.push({
-          selector: reference,
-          arguments: this.evidenceValue(argumentsContext) as Record<string, unknown>,
-          result: exactResult,
-        });
-      }
       if (this.definitionEvidence) {
         this.definitionEvidence.push({
           kind: "selector",
@@ -2098,7 +818,6 @@ class LifecycleEvaluator {
       }
       if (!collectingDefinitionEvidence) {
         this.selectorMemo.set(recursionKey, [...result]);
-        this.selectorEvidenceMemo?.add(recursionKey);
       }
       return result;
     } finally {
@@ -2269,9 +988,6 @@ class LifecycleEvaluator {
             record: change,
             ...change,
           }));
-      case "scenario-inputs":
-      case "scenario-outputs":
-        return [];
       default:
         throw new Error(`Unknown primitive relation '${name}'`);
     }
@@ -2337,36 +1053,6 @@ class LifecycleEvaluator {
   }
 }
 
-export function evaluateResolverInputs(
-  processPackage: ProcessPackage,
-  snapshot: LifecycleSnapshot,
-  obligationReference: string,
-  subjectIdentity: string,
-): Record<string, unknown>[] {
-  return new LifecycleEvaluator(processPackage, snapshot)
-    .evaluateResolverInputs(obligationReference, subjectIdentity);
-}
-
-export function evaluateScenarioParticipation(
-  processPackage: ProcessPackage,
-  snapshot: LifecycleSnapshot,
-  scenarioReference: string,
-  invocationBindings: Record<string, unknown>[],
-): ScenarioParticipation[] | undefined {
-  return new LifecycleEvaluator(processPackage, snapshot)
-    .evaluateScenarioParticipation(scenarioReference, invocationBindings);
-}
-
-export function evaluateScenarioReviewPolicy(
-  processPackage: ProcessPackage,
-  snapshot: LifecycleSnapshot,
-  scenarioReference: string,
-  invocationBindings: Record<string, unknown>[],
-): ScenarioReviewPolicyEvaluation[] | undefined {
-  return new LifecycleEvaluator(processPackage, snapshot)
-    .evaluateScenarioReviewPolicy(scenarioReference, invocationBindings);
-}
-
 export function evaluateProcessDefinition(
   processPackage: ProcessPackage,
   snapshot: LifecycleSnapshot,
@@ -2406,13 +1092,8 @@ export function evaluateLifecycle(
     return new LifecycleEvaluator(processPackage, snapshot).evaluate();
   } catch (error) {
     return {
-      phase: null,
-      terminalOutcome: null,
       artifacts: {},
       dependencyChanges: [],
-      obligations: [],
-      obligationHistory: [],
-      looseEnds: [],
       diagnostics: [
         {
           code: "evaluation-error",
@@ -2421,4 +1102,8 @@ export function evaluateLifecycle(
       ],
     };
   }
+}
+
+export function evaluateExpressionValue(processPackage: ProcessPackage, snapshot: LifecycleSnapshot, expression: unknown, bindings: Record<string, unknown> = {}): unknown {
+  return new LifecycleEvaluator(processPackage, snapshot).evaluateValue(expression, bindings);
 }

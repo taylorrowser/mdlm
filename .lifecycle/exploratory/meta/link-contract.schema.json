@@ -16,9 +16,9 @@
         "additionalProperties": false,
         "required": ["kind", "identity"],
         "properties": {
-          "kind": {"enum": ["datum", "obligation-instance"]},
+          "kind": {"enum": ["datum"]},
           "types": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{3,8}$"}, "minItems": 1, "uniqueItems": true},
-          "identity": {"enum": ["stable", "revision", "either", "exact-obligation-instance"]}
+          "identity": {"enum": ["stable", "revision", "either"]}
         },
         "allOf": [
           {"if": {"properties": {"kind": {"const": "datum"}}}, "then": {"required": ["types"]}}

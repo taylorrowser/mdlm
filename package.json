@@ -25,7 +25,6 @@
     "test:fast": "node scripts/cutover-tests.mjs fast",
     "test:cutover": "node scripts/cutover-tests.mjs cutover",
     "test:watch": "vitest --config vitest.fast.config.ts",
-    "process-fixture:check": "node --disable-warning=ExperimentalWarning --experimental-transform-types scripts/process-fixture.mjs check",
     "typecheck": "tsc --noEmit",
     "typecheck:mdlm-pi": "npm run typecheck --workspace=mdlm-pi",
     "frontier:start": "node scripts/frontier-loop.mjs start",

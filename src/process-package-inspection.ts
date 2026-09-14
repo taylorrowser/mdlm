@@ -48,11 +48,7 @@ const definitionCatalogGroups = [
   "policies",
   "states",
   "selectors",
-  "obligations",
-  "scenarios",
-  "phases",
-  "profiles",
-  "aliases",
+  "actions",
   "primitives",
 ] as const;
 

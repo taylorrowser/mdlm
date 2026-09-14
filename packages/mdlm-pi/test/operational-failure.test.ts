@@ -10,13 +10,13 @@ describe("MDLM-Pi operational failure contract", () => {
   it("serializes unavailable terminal evidence explicitly", () => {
     expect(operationalFailureDocument({
       code: "PI_SETTLED_WITHOUT_COMPLETION",
-      message: "Pi settled without calling complete_assignment",
+      message: "Pi settled without calling complete_work",
     })).toEqual({
       contract: "mdlm-pi-operational-failure@1",
       status: "operational-failure",
       error: {
         code: "PI_SETTLED_WITHOUT_COMPLETION",
-        message: "Pi settled without calling complete_assignment",
+        message: "Pi settled without calling complete_work",
       },
       telemetry: {
         stopReason: null,
@@ -24,7 +24,7 @@ describe("MDLM-Pi operational failure contract", () => {
         retriesConsumed: null,
         provider: null,
         model: null,
-        completeAssignmentObserved: null,
+        completionObserved: null,
       },
     });
   });

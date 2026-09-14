@@ -39,7 +39,7 @@
           "additionalProperties": false,
           "required": ["relation", "of", "emit"],
           "properties": {
-            "relation": {"enum": ["outgoing-links", "incoming-links", "revisions", "baseline-members", "baseline-evidence", "baseline-memberships", "baseline-composed", "dependency-changes", "scenario-inputs", "scenario-outputs"]},
+            "relation": {"enum": ["outgoing-links", "incoming-links", "revisions", "dependency-changes"]},
             "of": {"$ref": "expression.schema.json"},
             "link": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
             "emit": {"enum": ["source", "target", "entity", "record"]},

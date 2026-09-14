@@ -1,0 +1,28 @@
+kind: action-definition
+id: accept-product
+version: 1
+description: Accept the working tiny product
+capability: acceptance
+prompt_ref: prompts/accept-product.md@2
+types:
+- ACC
+subjects: select("current-implementations@1", {})
+inputs:
+  implementation: subject
+  requirements: 'one("requirements-for@1", {implementation: subject})'
+  result: 'one("passing-results@1", {implementation: subject})'
+when: '!(exists("acceptances-for@2", {implementation: subject})) && (exists("pass-reviews@1", {subject:
+  subject}) && none("fail-reviews@1", {subject: subject}) && exists("passing-results@1", {implementation:
+  subject}) && none("rejections-for@1", {implementation: subject}))'
+priority: 100
+links:
+  ACC:
+    accepts: implementation
+    uses-evidence: result
+    confirms: requirements
+fixed_payload:
+  ACC:
+    publication: recorded
+authority:
+  kind: stakeholder
+  name: stakeholder

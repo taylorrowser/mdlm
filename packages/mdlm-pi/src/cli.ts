@@ -8,10 +8,10 @@ import {
   type AttendedInputMode,
 } from "./operator-io.js";
 import {
-  PiAssignmentRunner,
-  PiAssignmentRunnerError,
+  PiWorkRunner,
+  PiWorkRunnerError,
   type ThinkingLevel,
-} from "./pi-assignment-runner.js";
+} from "./pi-work-runner.js";
 import { operationalFailureDocument } from "./operational-failure.js";
 import { RunController } from "./run-controller.js";
 import { RunJournal } from "./run-journal.js";
@@ -21,7 +21,7 @@ const exitStatus = {
   operationalFailure: 1,
   processDeadEnd: 2,
   invalid: 3,
-  assignmentStopped: 4,
+  workStopped: 4,
   lockConflict: 5,
 } as const;
 
@@ -45,10 +45,10 @@ async function main(arguments_: string[]): Promise<number> {
       ...(inputMode === undefined ? {} : { mode: inputMode }),
       signal: interruption.signal,
     });
-    const assignments = new PiAssignmentRunner({
+    const worker = new PiWorkRunner({
       repository,
-      assignmentTimeoutMs: environmentInteger(
-        "MDLM_PI_ASSIGNMENT_TIMEOUT_MS",
+      workTimeoutMs: environmentInteger(
+        "MDLM_PI_WORK_TIMEOUT_MS",
         15 * 60_000,
       ),
       providerRetries: environmentInteger("MDLM_PI_PROVIDER_RETRIES", 2),
@@ -61,7 +61,6 @@ async function main(arguments_: string[]): Promise<number> {
       repository,
       command: { program: parsed.mdlm },
       timeoutMs: environmentInteger("MDLM_PI_COMMAND_TIMEOUT_MS", 30_000),
-      attemptDirectory: path.join(stateDirectory, "attempts"),
     });
     let interruptedBy: NodeJS.Signals | undefined;
     const handlers = new Map<NodeJS.Signals, () => void>();
@@ -70,7 +69,7 @@ async function main(arguments_: string[]): Promise<number> {
         interruptedBy = signal;
         interruption.abort();
         mdlm.abort();
-        void assignments.dispose();
+        void worker.dispose();
       };
       handlers.set(signal, handler);
       process.once(signal, handler);
@@ -78,7 +77,7 @@ async function main(arguments_: string[]): Promise<number> {
     try {
       const controller = new RunController({
         mdlm,
-        assignments,
+        worker,
         io,
         journal: new RunJournal(stateDirectory),
         signal: interruption.signal,
@@ -88,7 +87,7 @@ async function main(arguments_: string[]): Promise<number> {
         if (stopped.successful) return 0;
         if (stopped.status === "process-dead-end") return exitStatus.processDeadEnd;
         if (stopped.status === "invalid") return exitStatus.invalid;
-        return exitStatus.assignmentStopped;
+        return exitStatus.workStopped;
       } catch (error) {
         if (interruptedBy === undefined) throw error;
         io.stopped("interrupted", { signal: interruptedBy });
@@ -97,7 +96,7 @@ async function main(arguments_: string[]): Promise<number> {
     } finally {
       for (const [signal, handler] of handlers) process.removeListener(signal, handler);
       mdlm.abort();
-      await assignments.dispose();
+      await worker.dispose();
     }
   } finally {
     await lock.release();
@@ -190,7 +189,7 @@ try {
   process.exitCode = await main(process.argv.slice(2));
 } catch (error) {
   const lockConflict = error instanceof Error && error.name === "RunLockError";
-  const code = error instanceof PiAssignmentRunnerError
+  const code = error instanceof PiWorkRunnerError
     ? error.code
     : error instanceof CliUsageError
       ? error.code
@@ -205,7 +204,7 @@ try {
     : operationalFailureDocument({
         code,
         message: error instanceof Error ? error.message : String(error),
-        ...(error instanceof PiAssignmentRunnerError && error.telemetry !== undefined
+        ...(error instanceof PiWorkRunnerError && error.telemetry !== undefined
           ? { telemetry: error.telemetry }
           : {}),
       });

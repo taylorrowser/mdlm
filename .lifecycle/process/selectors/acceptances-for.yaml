@@ -17,7 +17,7 @@ query:
     types:
     - ACC
   as: item
-  where: state(item, "validity") == "valid" && item.integrity.scenario_execution_valid == true && item.payload.decision == "accept"
+  where: state(item, "validity") == "valid" && item.integrity.transaction_valid == true && item.payload.decision == "accept"
   distinct: true
   order_by:
   - identity.revision_id

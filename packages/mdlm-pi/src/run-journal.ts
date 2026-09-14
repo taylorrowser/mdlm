@@ -4,14 +4,14 @@ import path from "node:path";
 import type { JsonObject } from "./mdlm-client.js";
 
 export type RunJournalRecord = {
-  contract: "mdlm-pi-submission-journal@1";
-  phase: "captured" | "submitting" | "settlement-required";
-  assignmentId: string;
-  responseDigest: `sha256:${string}`;
+  contract: "mdlm-pi-operation-journal@1";
+  phase: "captured" | "submitting";
+  kind: "proposal" | "execution";
+  operation: string;
+  proposalDigest: `sha256:${string}`;
   package: JsonObject;
-  repository: JsonObject;
+  snapshot: string;
   transport: JsonObject;
-  settlementIdentity?: string;
 };
 
 /** The only durable harness state: whether submission may still be repeated. */
@@ -33,28 +33,29 @@ export class RunJournal {
       throw error;
     }
     const value: unknown = JSON.parse(source);
-    if (!isRecord(value) || value.contract !== "mdlm-pi-submission-journal@1" ||
-        !["captured", "submitting", "settlement-required"].includes(String(value.phase)) ||
-        typeof value.assignmentId !== "string" || value.assignmentId.length === 0 ||
-        typeof value.responseDigest !== "string" || !/^sha256:[0-9a-f]{64}$/.test(value.responseDigest) ||
-        !isRecord(value.package) || !isRecord(value.repository) || !isRecord(value.transport) ||
-        (value.phase === "settlement-required" &&
-          (typeof value.settlementIdentity !== "string" || value.settlementIdentity.length === 0))) {
+    if (!isRecord(value) || value.contract !== "mdlm-pi-operation-journal@1" ||
+        !["captured", "submitting"].includes(String(value.phase)) ||
+        typeof value.operation !== "string" || value.operation.length === 0 ||
+        typeof value.proposalDigest !== "string" || !/^sha256:[0-9a-f]{64}$/.test(value.proposalDigest) ||
+        !isRecord(value.package) || typeof value.snapshot !== "string" || !isRecord(value.transport) ||
+        !["proposal", "execution"].includes(String(value.kind))) {
       throw new Error(`Malformed submission journal: ${this.#file}`);
     }
     return value as RunJournalRecord;
   }
 
   async capture(
-    assignmentId: string,
-    responseDigest: `sha256:${string}`,
-    boundary: { package: JsonObject; repository: JsonObject; transport: JsonObject },
+    operation: string,
+    proposalDigest: `sha256:${string}`,
+    boundary: { package: JsonObject; snapshot: string; transport: JsonObject },
+    kind: "proposal" | "execution" = "proposal",
   ): Promise<void> {
     await this.#write({
-      contract: "mdlm-pi-submission-journal@1",
+      contract: "mdlm-pi-operation-journal@1",
       phase: "captured",
-      assignmentId,
-      responseDigest,
+      kind,
+      operation,
+      proposalDigest,
       ...boundary,
     });
   }
@@ -62,11 +63,6 @@ export class RunJournal {
   async beginSubmission(): Promise<void> {
     const current = await this.#required("captured");
     await this.#write({ ...current, phase: "submitting" });
-  }
-
-  async requireSettlement(identity: string): Promise<void> {
-    const current = await this.#required("submitting");
-    await this.#write({ ...current, phase: "settlement-required", settlementIdentity: identity });
   }
 
   async clear(): Promise<void> {

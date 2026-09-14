@@ -1,9 +1,8 @@
 kind: process-package-manifest
 id: mdlm-tiny
-version: 0.7.0
+version: 1.0.0
 status: experimental
-description: Small products with batched normal-link requirements and complete source
-  attribution.
+description: Small products with batched normal-link requirements and complete source attribution.
 kernel_contract:
   id: mdlm-kernel-process-interface
   version: 1
@@ -22,7 +21,6 @@ references:
   definition: <stable-definition-id>@<positive-integer-version>
   datum_stable: <TYPE>-<Crockford-Base32-ID>
   datum_revision: <stable-id>-r<five-digit-revision>
-  obligation_instance: <obligation>@<version>:<exact-subject>:<process-ref>
 language:
   expressions: mdlm-expression@1
 kernel_capabilities:
@@ -46,12 +44,19 @@ compatibility:
   arbitrary_code_execution: forbidden
   template_inheritance: single-parent-additive
   repository_migration: fresh-only
-profiles:
-  default: tiny@2
-  available:
-  - profiles/tiny.yaml@2
 provenance:
   source_document: docs/adr/0004-tiny-product-process-package.md
   companion_reference: .lifecycle/process/README.md
   intent: reliable-tiny-product-delivery
   normative_scope: this-package-only
+direct_contract: mdlm-direct@1
+terminal:
+  when: '(exists("current-requirements@1", {}) && every("current-requirements@1", {}, req => exists("implementations-for@1",
+    {requirements: req}) && every("implementations-for@1", {requirements: req}, imp => exists("acceptances-for@2",
+    {implementation: imp}) && exists("passing-results@1", {implementation: imp}) && exists("pass-reviews@1",
+    {subject: imp}) && none("fail-reviews@1", {subject: imp}))) && every("current-requirements@1", {},
+    req => exists("pass-reviews@1", {subject: req}) && none("fail-reviews@1", {subject: req}))) && every("current-changes@1",
+    {}, change => exists("sets-for-change@1", {change: change}))'
+  outcome: lifecycle-complete
+  reason: Every current requirement set has a passing independently reviewed implementation explicitly
+    accepted by the stakeholder.

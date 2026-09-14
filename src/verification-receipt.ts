@@ -4,10 +4,10 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { executeDockerVerification, authenticateVerificationSource } from "./docker-verification.js";
 import { repositoryGitEnvironment } from "./git-environment.js";
-import type { VersionedDefinition } from "./index.js";
 
 const exec = promisify(execFile);
-export type VerificationBinding = ({assignment: string; operation?: never} | {operation: string; assignment?: never}) & {
+export interface VerificationBinding {
+  operation: string;
   package: unknown;
   inputs: unknown;
   repositoryPath: string;
@@ -16,23 +16,9 @@ export type VerificationBinding = ({assignment: string; operation?: never} | {op
   command: string[];
   scriptPath: string;
 }
-export function verificationContract(scenario: VersionedDefinition): {implementation_input: string; requirements_input: string; output: string} | undefined {
-  const marker = scenario.kernel_execution as Record<string, unknown> | undefined;
-  return marker?.kind === "docker-verification@1" ? marker as unknown as {implementation_input: string; requirements_input: string; output: string} : undefined;
-}
-export const verificationRef = (binding: VerificationBinding) => binding.operation === undefined ? `refs/mdlm/verification/${binding.assignment}` : `refs/mdlm/execution/${binding.operation}`;
-const ref = (assignment: string) => `refs/mdlm/verification/${assignment}`;
+export const verificationRef = (binding: VerificationBinding) => `refs/mdlm/execution/${binding.operation}`;
 async function git(root: string, args: string[]) {
   return (await exec("git", ["-C", root, ...args], {env: repositoryGitEnvironment(), maxBuffer: 16 * 1024 * 1024})).stdout.trim();
-}
-export async function readVerificationReceipt(root: string, assignment: string) {
-  const found = await exec("git", ["-C", root, "rev-parse", "--verify", "--quiet", `${ref(assignment)}/latest`], {env: repositoryGitEnvironment()}).catch(error => {
-    if (error.code === 1) return undefined;
-    throw error;
-  });
-  if (!found) return undefined;
-  const oid = found.stdout.trim();
-  return readVerificationReceiptBlob(root, oid);
 }
 export async function readVerificationReceiptBlob(root: string, oid: string) {
   if (!/^[a-f0-9]{40}$/.test(oid)) throw new Error("Verification receipt must name an exact Git blob");
@@ -52,7 +38,7 @@ export async function runVerificationReceipt(root: string, binding: Verification
   }
   const attempt = (previous?.receipt.attempt ?? 0) + 1;
   const persist = async (receipt: object, expected: string) => {
-    const directory = path.join(root, ".lifecycle/work", binding.operation === undefined ? "verification" : "execution", binding.assignment ?? binding.operation);
+    const directory = path.join(root, ".lifecycle/work", "execution", binding.operation);
     await fs.mkdir(directory, {recursive: true});
     const file = path.join(directory, `${attempt}-${"result" in receipt ? "receipt" : "started"}.json`);
     await fs.writeFile(file, JSON.stringify(receipt, null, 2) + "\n", {flag: "wx"});
@@ -85,13 +71,3 @@ export async function validateVerificationReceipt(binding: VerificationBinding, 
   return {outcome: result.outcome, receipt: `git-blob:${saved.oid}`, saved};
 }
 
-export function verificationBinding(assignment: string, packageIdentity: unknown, scenario: VersionedDefinition, dryRun: Pick<import("./scenario-dry-run.js").ScenarioDryRun, "invocations">): VerificationBinding {
-  const contract = verificationContract(scenario);
-  if (!contract || dryRun.invocations.length !== 1) throw new Error("Docker verification requires one declared invocation");
-  const inputs = dryRun.invocations[0]!.inputs;
-  const implementation = inputs.find(input => input.name === contract.implementation_input)?.values;
-  const requirements = inputs.find(input => input.name === contract.requirements_input)?.values;
-  if (implementation?.length !== 1 || requirements?.length !== 1) throw new Error("Docker verification requires exact implementation and requirements inputs");
-  const payload = implementation[0]!.data.payload as Record<string, unknown>;
-  return {assignment, package: packageIdentity, inputs: inputs.map(input => ({name: input.name, revisions: input.values.map(value => value.identity.revision_id)})), repositoryPath: payload.repository_path as string, sourceCommit: payload.source_commit as string, image: payload.verification_image as string, command: payload.verification_command as string[], scriptPath: payload.verification_script as string};
-}
