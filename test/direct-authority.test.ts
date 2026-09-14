@@ -32,7 +32,8 @@ test("review registration preserves exact verdict bytes and refuses changed cont
 });
 
 test("stakeholder decisions require exact supplied authority and cannot borrow reviewer proof", async () => {
-  const context = {root:".",pkg:{},package:identity,snapshot:"exact",data:[],inputs:{},action:{...action,id:"accept",capability:"acceptance",authority:{kind:"stakeholder",name:"stakeholder"}}} as DirectContext;
+  const pkg: DirectContext["pkg"] = {root:".",manifest:{id:"fixture",version:"1.0.0"},kernelCapabilities:{},envelopeSchema:{},templates:{},types:{},policies:{},states:{},selectors:{},primitives:{},actions:{}};
+  const context: DirectContext = {root:".",pkg,package:identity,snapshot:"exact",data:[],inputs:{},action:{...action,id:"accept",capability:"acceptance",authority:{kind:"stakeholder",name:"stakeholder"}}};
   const proposal:DirectProposal = {operation:"decision",action:"accept@1",package:identity,snapshot:"exact",candidates:[]};
   await expect(validateDirectAuthority(context,proposal,JSON.stringify(proposal))).rejects.toThrow("explicit authority");
   const wrong = {...proposal,evidence:{authority:["reviewer"]}};
