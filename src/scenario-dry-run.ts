@@ -268,7 +268,7 @@ async function resolvePolicyAssets(
   };
 }
 
-async function resolvePrompt(
+export async function resolvePrompt(
   processPackage: ProcessPackage,
   reference: string,
 ): Promise<{ prompt?: ResolvedPrompt; diagnostics: ProcessDiagnostic[] }> {

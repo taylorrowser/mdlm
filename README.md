@@ -20,6 +20,60 @@ constraints before atomic publication. Reviewers judge whether requirements expr
 justify acceptance. The CLI captures script output and classifies its exit status.
 Reviewers check whether the script proves the intended behavior.
 
+## Direct observation experiment
+
+The exploratory package also supports authoring a passing `keep` observation
+from an existing exact prototype and authenticated execution receipt, without
+claiming an authoring Assignment. Execution and review still use their existing
+routes. This experiment does not grant acceptance or support arbitrary reviews.
+
+After bootstrap, from the lifecycle repository:
+
+```sh
+mdlm expectations --json
+mdlm expectations show TRY-EXACTREVISION-r00001 --json
+mdlm proposal submit proposal.json --json
+mdlm proposal settlement my-observation-1 --json
+```
+
+Use the actual subject returned by `expectations`. Guidance contains the
+package-owned prompt, author payload schema, exact trial/experiment, matching
+receipt references and a candidate scaffold with fixed values filled in. Reading
+it allocates no Assignment. Fill the candidate's remaining fields and submit:
+
+```json
+{
+  "operation": "my-observation-1",
+  "package": "copy the guidance package object here",
+  "snapshot": "copy the guidance snapshot here",
+  "evidence": "copy one matching git-blob receipt reference here",
+  "datum": "copy and fill the guidance candidate object here"
+}
+```
+
+The strings above mark fields to replace with actual objects or values. No gap
+selection token is required. The kernel validates the proposed data, derives
+receipt/outcome, checks the snapshot under the writer lock and publishes an
+immutable transaction. A changed snapshot requires fresh guidance. After an
+uncertain response, inspect settlement with the original operation ID; identical
+resubmission returns the same result, while changed candidate data under that ID
+is rejected. Do not claim success from a missing response.
+
+For a complete disposable example with actual Docker bootstrap and captured
+commands, build and run from this checkout with Docker access:
+
+```sh
+npm run build
+node scripts/direct-proposal-walkthrough.mjs
+```
+
+The command prints a preserved temporary directory containing `commands.json`,
+`result.json`, the product and the lifecycle repository. It bootstraps two exact
+prototype/receipt pairs separately, then publishes observations, rejects wrong
+receipt and stale proposals, and recovers a deliberately discarded response.
+No existing demo is changed. Prompt guidance and exact schemas are read-only;
+OBS is the only direct datum supported in this first experiment.
+
 ## Operator contract
 
 The `mdlm` executable exposes the supported contract. A normal repository uses

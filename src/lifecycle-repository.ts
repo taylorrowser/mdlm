@@ -829,6 +829,23 @@ async function scenarioExecutionProvenance(
       execution = undefined;
     }
   }
+  if (datum.created_by.transaction === "direct-proposal@1") {
+    const binding = processPackage.kernelCapabilities["direct-observation@1"];
+    const packageIdentity = recordValue(execution?.package);
+    const selectedDigest = await processPackageDigest(processPackage.root);
+    const valid = !!binding && datum.type === binding.type &&
+      authorityEvidenceScenarioReferences(processPackage, datum.type).length === 0 &&
+      execution?.contract === "direct-proposal@1" && execution.id === transaction &&
+      typeof execution.operation === "string" && /^[a-zA-Z0-9-]{1,80}$/.test(execution.operation) &&
+      transaction === `direct-${createHash("sha256").update(execution.operation).digest("hex")}` &&
+      typeof execution.proposalDigest === "string" && /^sha256:[a-f0-9]{64}$/.test(execution.proposalDigest) &&
+      packageIdentity?.digest === selectedDigest &&
+      `${packageIdentity?.reference}#${packageIdentity?.digest}` === datum.created_by.process_ref &&
+      structuralValuesEqual(execution.datum, datum) && execution.evidence === datum.payload.receipt &&
+      datum.payload.outcome === "pass" && datum.payload.recommendation === "keep" &&
+      datum.created_by.prompt_ref === binding.prompt_ref;
+    return {processPackage, valid};
+  }
   const scenarioReference = typeof datum.created_by.scenario === "string"
     ? datum.created_by.scenario
     : "";
@@ -912,6 +929,7 @@ function authorityEvidenceExecutionDiagnostic(
         }
       : undefined;
   }
+  if (datum.created_by.transaction === "direct-proposal@1") return provenance.valid ? undefined : {code: "direct-proposal-provenance-invalid", path: item.relativePath, message: "Direct observation requires its exact atomic proposal transaction"};
   const trace = requirementTraceBinding(provenance.processPackage);
   if (
     authorityEvidenceScenarioReferences(provenance.processPackage, datum.type).length === 0 &&

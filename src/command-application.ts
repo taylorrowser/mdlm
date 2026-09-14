@@ -1,3 +1,4 @@
+import { inspectDirectExpectations, submitDirectProposal, inspectDirectSettlement } from "./direct-proposal.js";
 import type { AssignmentReviewContext } from "./assignment-review-context.js";
 import { requirementTraceBinding } from "./requirement-trace.js";
 import { inspectRequirementTrace } from "./requirement-trace-inspection.js";
@@ -165,8 +166,8 @@ interface CommandResultBase {
   ok: boolean;
   command?: string;
   reviewContext?: AssignmentReviewContext;
-  contract?: "mdlm-assignment-review-context@1" | AssignmentOutcome["contract"] | AssignmentPacket["contract"] | AssignmentSubmission["contract"] | AssignmentDisposition["contract"] | AssignmentState["contract"] | OperatorStatus["contract"] | StartBriefing["contract"] | SubmissionOutcome["contract"];
-  outcome?: AssignmentOutcome["outcome"] | SubmissionOutcome["outcome"] | "invalid";
+  contract?: "mdlm-expectations@1" | "mdlm-expectation-guidance@1" | "mdlm-proposal-result@1" | "mdlm-assignment-review-context@1" | AssignmentOutcome["contract"] | AssignmentPacket["contract"] | AssignmentSubmission["contract"] | AssignmentDisposition["contract"] | AssignmentState["contract"] | OperatorStatus["contract"] | StartBriefing["contract"] | SubmissionOutcome["contract"];
+  outcome?: AssignmentOutcome["outcome"] | SubmissionOutcome["outcome"] | "invalid" | "not-published";
   assignment?: { id: string; packet?: AssignmentPacket };
   authorityRequirement?: Extract<AssignmentOutcome, {
     outcome: "attention-required";
@@ -261,6 +262,9 @@ Agent-guided lifecycle commands:
   mdlm assignment register-review <assignment-id> <context-file> <verdict-file> --json
   mdlm assignment run [--retry] --json
   mdlm assignment submit-proposal <author-values-file|-> [--authority <authority-id>] --json
+  mdlm expectations [show <exact-subject>] [--json]
+  mdlm proposal submit <proposal-file|-> [--json]
+  mdlm proposal settlement <operation-id> [--json]
   mdlm scenario submit [response-file|-] [--authority <authority-id>] [--json]
   mdlm scenario settlement <assignment-or-execution-id> [--json]
   mdlm doctor [--json]
@@ -2184,6 +2188,20 @@ async function dispatchCommand(
         };
   }
   if (operands[0] === "doctor") return doctorRepository(repositoryRoot);
+  if (operands[0] === "expectations") {
+    try {
+      if (operands.length !== 1 && !(operands.length === 3 && operands[1] === "show")) throw new Error("Expected expectations [show <exact-subject>]");
+      return {...await inspectDirectExpectations(repositoryRoot, operands[2]), command: "expectations", diagnostics: []};
+    } catch (error) { return {...failure("direct-expectation-invalid", String(error)), command: "expectations"}; }
+  }
+  if (operands[0] === "proposal") {
+    try {
+      if (operands[1] === "settlement" && operands.length === 3) return {...await inspectDirectSettlement(repositoryRoot, operands[2]!), command: "proposal.settlement", diagnostics: []};
+      if (operands[1] !== "submit" || operands.length !== 3) throw new Error("Expected proposal submit <file|-> or proposal settlement <operation>");
+      const source = operands[2] === "-" ? standardInput ?? "" : await fs.readFile(path.resolve(repositoryRoot, operands[2]!), "utf8");
+      return {...await submitDirectProposal(repositoryRoot, source), command: "proposal.submit", diagnostics: []};
+    } catch (error) { return {...failure("direct-proposal-invalid", String(error)), command: "proposal"}; }
+  }
   if (operands[0] === "status") {
     const statusArguments = arguments_.filter((argument) => argument !== "--json");
     return statusArguments.length === 1

@@ -21,7 +21,7 @@ The host operating policy at `/home/ubuntu/git/mdlm-successor-demos/operations/O
 
 ## Operator-contract work
 
-Keep the ordinary public path to one `mdlm next --json` call and one
+The default Assignment route uses one `mdlm next --json` call and one
 `mdlm assignment submit-proposal --json` call. An execution Assignment also uses
 `mdlm assignment run --json` to prepare Docker, capture the committed script and
 produce the receipt before the author assesses it. `mdlm-next@2` includes the
@@ -29,6 +29,11 @@ complete `mdlm-assignment-packet@3`; the harness returns only transient authored
 values; MDLM derives the exact `mdlm-assignment-response@2` and submits it through
 `submitAssignmentResponse`; submission returns `mdlm-submission-outcome@1`.
 Retain `mdlm scenario submit` for exact-response diagnostics and typed inability.
+The experimental direct-observation capability uses read-only `mdlm expectations`
+and `mdlm expectations show <exact-subject>` followed by `mdlm proposal submit`.
+Do not fabricate a workflow Assignment to author on that route. Its package and
+snapshot context protects publication, while prompts and gap identities provide
+guidance. Existing execution and review routes retain their Assignment contracts.
 Keep `deriveOperatorOutcome` pure. Keep repository authentication and exact lease
 recovery in `claimNextWork`, and canonical validation plus atomic publication in
 `submitAssignmentResponse`.

@@ -27,8 +27,10 @@
     "created_by": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["scenario", "prompt_ref", "process_ref", "loaded_skill_refs", "policy_refs"],
+      "required": ["prompt_ref", "process_ref", "loaded_skill_refs", "policy_refs"],
+      "oneOf": [{"required": ["scenario"], "not": {"required": ["transaction"]}}, {"required": ["transaction"], "not": {"required": ["scenario"]}}],
       "properties": {
+        "transaction": {"const": "direct-proposal@1"},
         "scenario": {"type": "string", "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"},
         "prompt_ref": {"type": "string", "pattern": "^prompts/.+\\.md@[1-9][0-9]*$"},
         "process_ref": {"type": "string", "minLength": 1},

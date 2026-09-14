@@ -4,6 +4,7 @@ import { runMdlmCli } from "./cli-main.js";
 const arguments_ = process.argv.slice(2);
 const submitArguments = arguments_.filter((argument) => argument !== "--json");
 const readsAssignmentResponse =
+  (submitArguments[0] === "proposal" && submitArguments[1] === "submit" && submitArguments[2] === "-") ||
   (submitArguments[0] === "scenario" &&
     submitArguments[1] === "submit" &&
     (submitArguments[2] === undefined || submitArguments[2] === "-")) ||

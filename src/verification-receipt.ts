@@ -66,6 +66,11 @@ export async function runVerificationReceipt(root: string, binding: Verification
 }
 export async function requireVerificationReceipt(root: string, binding: VerificationBinding, receiptOid?: string) {
   const saved = receiptOid === undefined ? await readVerificationReceipt(root, binding.assignment) : await readVerificationReceiptBlob(root, receiptOid);
+  return validateVerificationReceipt(binding, saved);
+}
+
+/** Authenticate an already selected receipt, independently of authoring orchestration. */
+export async function validateVerificationReceipt(binding: VerificationBinding, saved: Awaited<ReturnType<typeof readVerificationReceiptBlob>> | undefined) {
   if (saved?.receipt.state !== "completed" || !saved.receipt.result || !isDeepStrictEqual(saved.receipt.binding, binding)) throw new Error("Run this exact Assignment with 'mdlm assignment run --json' before submitting verification");
   const result = saved.receipt.result;
   const current = result.sourceTree !== null && result.scriptSha256 !== null ? await authenticateVerificationSource(binding) : {};
