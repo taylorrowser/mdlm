@@ -1,239 +1,169 @@
-import type {
-  AssignmentPacket,
-  AssignmentSubmission,
-  JsonObject,
-  JsonValue,
-  MdlmOperatorOutcome,
-  PreparedAssignmentSubmission,
-} from "./mdlm-client.js";
-import { MdlmClient } from "./mdlm-client.js";
+import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
+import type { JsonObject, JsonValue } from "./mdlm-client.js";
+import { MdlmClient } from "./mdlm-client.js";
 import type { OperatorIO } from "./operator-io.js";
-import type { AssignmentCorrection, PiAssignmentRunOptions } from "./pi-assignment-runner.js";
-import { PiAssignmentRunner } from "./pi-assignment-runner.js";
+import { PiWorkRunner } from "./pi-work-runner.js";
 import { RunJournal, type RunJournalRecord } from "./run-journal.js";
 
-type MdlmPort = Pick<MdlmClient,
-  "identity" | "next" | "prepareSubmission" | "submit" | "settlement"
->;
-type AssignmentPort = Pick<PiAssignmentRunner, "run"> & {
-  close?: (assignmentId: string) => Promise<void>;
-};
-type JournalPort = Pick<RunJournal,
-  "load" | "capture" | "beginSubmission" | "requireSettlement" | "clear"
->;
-
+type MdlmPort = Pick<MdlmClient, "identity" | "discover" | "guidance" | "prepareSubmission" | "submit" | "settlement" | "execute" | "executionSettlement">;
 export interface RunControllerOptions {
   mdlm: MdlmPort;
-  assignments: AssignmentPort;
+  worker: Pick<PiWorkRunner, "run" | "close">;
   io: OperatorIO;
-  journal: JournalPort;
+  journal: Pick<RunJournal, "load" | "capture" | "beginSubmission" | "clear">;
   signal?: AbortSignal;
 }
+export interface RunStop { status: string; details: JsonObject; successful: boolean }
 
-export interface RunStop {
-  status: string;
-  details: JsonObject;
-  successful: boolean;
-}
-
-/** One claim, one complete response at a time, and no replay after submission starts. */
+/** The agent chooses work; this controller transports one direct operation. */
 export class RunController {
-  readonly #mdlm: MdlmPort;
-  readonly #assignments: AssignmentPort;
-  readonly #io: OperatorIO;
-  readonly #journal: JournalPort;
-  readonly #signal: AbortSignal | undefined;
-
-  constructor(options: RunControllerOptions) {
-    this.#mdlm = options.mdlm;
-    this.#assignments = options.assignments;
-    this.#io = options.io;
-    this.#journal = options.journal;
-    this.#signal = options.signal;
-  }
+  constructor(private readonly options: RunControllerOptions) {}
 
   async run(): Promise<RunStop> {
-    this.#ensureRunning();
-    const pending = await this.#journal.load();
-    if (pending?.phase === "captured") {
-      // No publication process started. Reclaiming the same Assignment is safe.
-      await this.#journal.clear();
-    } else if (pending !== null) {
-      if (!isDeepStrictEqual(pending.transport, this.#mdlm.identity())) {
-        throw new Error("Pending submission transport identity changed");
-      }
-      const identity = pending.settlementIdentity ?? pending.assignmentId;
-      return this.#report(await this.#settle(identity, pending));
+    const { mdlm, worker, io, journal } = this.options;
+    this.ensureRunning();
+    const pending = await journal.load();
+    if (pending?.phase === "captured") await journal.clear();
+    else if (pending !== null) {
+      if (!isDeepStrictEqual(pending.transport, mdlm.identity())) throw new Error("Pending operation transport identity changed");
+      const result = pending.kind === "execution"
+        ? await mdlm.executionSettlement(pending.operation)
+        : await mdlm.settlement(pending.operation);
+      return this.finish(result, pending, true);
     }
 
-    const outcome = await this.#mdlm.next();
-    if (outcome.outcome !== "assignment" && outcome.outcome !== "attention-required") {
-      return this.#report(stopForOutcome(outcome));
+    const available = await mdlm.discover();
+    if (available.contract !== "mdlm-expectations@2") throw new Error("Unsupported discovery contract");
+    if (available.outcome !== "work-available") {
+      return this.report(String(available.outcome), { discovery: available },
+        available.outcome === "profile-boundary-reached" || available.outcome === "lifecycle-complete");
     }
-
-    const packet = outcome.assignment.packet;
-    this.#io.progress(`Assignment ${outcome.assignment.id}: ${packet.scenario.reference}`);
-    let options: PiAssignmentRunOptions = {};
-    let authority: string | undefined;
-    if (outcome.outcome === "attention-required") {
-      authority = attendedAuthority(outcome);
-      const attended = await this.#io.attention(outcome);
-      options = { attendedContext: { conclusion: attended.conclusion } };
-    }
-    return this.#report(await this.#perform(packet, options, authority));
-  }
-
-  async #perform(
-    packet: AssignmentPacket,
-    initialOptions: PiAssignmentRunOptions,
-    authority: string | undefined,
-  ): Promise<RunStop> {
-    let options = initialOptions;
-    while (true) {
-      this.#ensureRunning();
-      let response: JsonObject;
-      try {
-        response = await this.#assignments.run(packet, options);
-      } catch (error) {
-        await this.#assignments.close?.(packet.assignment.id);
-        throw error;
-      }
-      const prepared = this.#mdlm.prepareSubmission(response);
-      await this.#journal.capture(packet.assignment.id, prepared.digest, {
-        package: packet.package,
-        repository: packet.repository,
-        transport: this.#mdlm.identity(),
+    const items = array(available.items, "available items").map(value => object(value, "work item"));
+    const eligible = items.filter(item => !Array.isArray(item.blocked) || item.blocked.length === 0);
+    if (eligible.length === 0) return this.report("blocked", { discovery: available }, false);
+    const selectionId = randomUUID();
+    let selection: JsonObject;
+    try {
+      selection = await worker.run({
+        id: selectionId,
+        context: { instruction: "Choose the work most useful to the stakeholder goal. Priority is a suggestion. Return its action and exact subject if present.", discovery: available },
+        responseSchema: { type: "object", oneOf: eligible.map(item => ({
+          type: "object", additionalProperties: false,
+          properties: { action: { const: item.action }, ...(item.subject ? { subject: { const: item.subject } } : {}) },
+          required: item.subject ? ["action", "subject"] : ["action"],
+        })) },
       });
-      await this.#journal.beginSubmission();
-      const submission = await this.#mdlm.submit(prepared, authority);
-      assertSubmissionBinding(packet, prepared, submission);
-
-      if (submission.outcome === "accepted") {
-        await this.#journal.clear();
-        await this.#assignments.close?.(packet.assignment.id);
-        return { status: "accepted", details: { submission }, successful: true };
-      }
-      if (submission.outcome === "settlement-required") {
-        const settlement = object(submission.settlement, "submission.settlement");
-        const identity = string(settlement.execution, "submission.settlement.execution");
-        await this.#journal.requireSettlement(identity);
-        await this.#assignments.close?.(packet.assignment.id);
-        return settlementStop(submission);
-      }
-
-      await this.#journal.clear();
-      const correction: AssignmentCorrection = {
-        previousResponse: response,
-        diagnostics: submission.diagnostics ?? [],
-      };
-      options = {
-        ...(initialOptions.attendedContext === undefined
-          ? {}
-          : { attendedContext: initialOptions.attendedContext }),
-        correction,
-      };
+    } finally { await worker.close(selectionId); }
+    const chosen = eligible.find(item => item.action === selection.action && item.subject === selection.subject);
+    if (!chosen) throw new Error("Agent selected work outside the available context");
+    let guidance = await mdlm.guidance(string(chosen.action, "action"), optionalString(chosen.subject));
+    this.assertGuidance(guidance, chosen);
+    const authority = guidance.authority === undefined ? undefined : object(guidance.authority, "authority");
+    if (authority?.kind === "independent-review") {
+      return this.report("independent-review-required", { guidance }, false);
     }
-  }
-
-  async #settle(
-    identity: string,
-    pending: RunJournalRecord,
-  ): Promise<RunStop> {
-    const submission = await this.#mdlm.settlement(identity);
-    assertSettledSubmissionBinding(pending, submission);
-    if (submission.outcome === "settlement-required") {
-      const current = await this.#journal.load();
-      if (current?.phase === "submitting") {
-        const settlement = object(submission.settlement, "submission.settlement");
-        await this.#journal.requireSettlement(string(
-          settlement.execution,
-          "submission.settlement.execution",
-        ));
-      }
-      return settlementStop(submission);
+    let attendedContext: JsonValue | undefined;
+    let authorityName: string | undefined;
+    if (authority !== undefined) {
+      if (authority.kind !== "stakeholder") throw new Error("Unknown required authority");
+      authorityName = string(authority.name, "authority name");
+      attendedContext = (await io.attention(guidance)).conclusion;
     }
-    await this.#journal.clear();
-    return submission.outcome === "accepted"
-      ? { status: "accepted", details: { submission, reconciled: true }, successful: true }
-      : { status: "rejected", details: { submission, reconciled: true }, successful: false };
-  }
-
-  #report(stop: RunStop): RunStop {
-    this.#io.stopped(stop.status, stop.details);
-    return stop;
-  }
-
-  #ensureRunning(): void {
-    if (this.#signal?.aborted) throw new Error("MDLM Pi run was interrupted");
-  }
-}
-
-function assertSettledSubmissionBinding(
-  pending: RunJournalRecord,
-  submission: AssignmentSubmission,
-): void {
-  if (submission.assignment.id !== pending.assignmentId ||
-      submission.responseDigest !== pending.responseDigest) {
-    throw new Error("Settlement outcome differs from the pending Assignment response");
-  }
-  if (submission.outcome === "accepted" || submission.outcome === "settlement-required") {
-    const settlement = object(submission.settlement, "submission.settlement");
-    if (string(settlement.assignment, "submission.settlement.assignment") !== pending.assignmentId) {
-      throw new Error("Settlement outcome carries a different Assignment identity");
+    if (typeof guidance.executionCommand === "string" && !hasReceipt(guidance)) {
+      const operation = randomUUID();
+      const boundary = { package: object(guidance.package, "package"), snapshot: string(guidance.snapshot, "snapshot"), transport: mdlm.identity() };
+      await journal.capture(operation, `sha256:${"0".repeat(64)}`, boundary, "execution");
+      await journal.beginSubmission();
+      const executed = await mdlm.execute(string(guidance.subject, "execution subject"), operation);
+      const captured = (await journal.load())!;
+      if (executed.contract !== "mdlm-execution-result@1" || executed.operation !== operation) throw new Error("Execution result differs from pending operation");
+      if (executionState(executed) !== "completed") return this.finish(executed, captured, false);
+      await journal.clear();
+      guidance = await mdlm.guidance(string(chosen.action, "action"), optionalString(chosen.subject));
+      this.assertGuidance(guidance, chosen);
     }
-    if (pending.settlementIdentity !== undefined &&
-        string(settlement.execution, "submission.settlement.execution") !== pending.settlementIdentity) {
-      throw new Error("Settlement outcome carries a different execution identity");
+    this.ensureRunning();
+    const operation = randomUUID();
+    let authored: JsonObject;
+    try {
+      authored = await worker.run({
+        id: operation,
+        context: { instruction: "Follow the package prompt. Return candidates and optional receipt evidence only. The controller adds exact action, operation, package, snapshot, inputs and attended authority.", guidance },
+        responseSchema: {
+          type: "object", additionalProperties: false, required: ["candidates"],
+          properties: {
+            candidates: { type: "array", items: { type: "object" } },
+            evidence: { type: "object", additionalProperties: false, properties: { receipt: { type: "string" } } },
+          },
+        },
+      }, attendedContext === undefined ? {} : { attendedContext });
+    } finally { await worker.close(operation); }
+    const evidence = authored.evidence === undefined ? {} : object(authored.evidence, "evidence");
+    if (Object.keys(evidence).some(key => key !== "receipt")) throw new Error("Agent supplied unsupported evidence or authority");
+    const proposal: JsonObject = {
+      operation, action: guidance.action!, package: guidance.package!, snapshot: guidance.snapshot!,
+      ...(guidance.subject === undefined ? {} : { subject: guidance.subject }),
+      inputs: guidance.inputs!, candidates: array(authored.candidates, "candidates"),
+      evidence: { ...evidence, ...(authorityName ? { authority: [authorityName] } : {}) },
+    };
+    const prepared = mdlm.prepareSubmission(proposal);
+    await journal.capture(operation, prepared.digest, { package: object(guidance.package, "package"), snapshot: string(guidance.snapshot, "snapshot"), transport: mdlm.identity() });
+    await journal.beginSubmission();
+    const result = await mdlm.submit(prepared, authorityName);
+    return this.finish(result, (await journal.load())!, false);
+  }
+
+  private async finish(result: JsonObject, pending: RunJournalRecord, reconciled: boolean): Promise<RunStop> {
+    if (result.ok === false) {
+      // Resolve nonpublication through settlement before permitting another operation.
+      return this.report("rejected", { result, reconciled }, false);
     }
+    const contract = pending.kind === "execution" ? "mdlm-execution-result@1" : "mdlm-proposal-result@2";
+    if (result.contract !== contract || result.operation !== pending.operation) throw new Error("Result differs from pending operation");
+    if (pending.kind === "proposal" && result.outcome === "accepted" && result.proposalDigest !== pending.proposalDigest) {
+      throw new Error("Result differs from pending proposal bytes");
+    }
+    if (pending.kind === "execution") {
+      if (executionState(result) !== "completed") return this.report("settlement-required", { result, reconciled }, false);
+    } else if (result.outcome !== "accepted" && result.outcome !== "not-published") {
+      throw new Error("Unsupported proposal result");
+    }
+    await this.options.journal.clear();
+    return this.report(pending.kind === "execution" ? "executed" : String(result.outcome), { result, reconciled },
+      pending.kind === "execution" || result.outcome === "accepted");
+  }
+
+  private assertGuidance(guidance: JsonObject, chosen: JsonObject): void {
+    if (guidance.contract !== "mdlm-direct-guidance@1" || guidance.action !== chosen.action || guidance.subject !== chosen.subject) {
+      throw new Error("Guidance differs from selected work");
+    }
+    object(guidance.package, "package"); string(guidance.snapshot, "snapshot"); object(guidance.inputs, "inputs");
+  }
+  private ensureRunning(): void { if (this.options.signal?.aborted) throw new Error("MDLM Pi run was interrupted"); }
+  private report(status: string, details: JsonObject, successful: boolean): RunStop {
+    this.options.io.stopped(status, details);
+    return { status, details, successful };
   }
 }
-
-function stopForOutcome(outcome: MdlmOperatorOutcome): RunStop {
-  const successful = outcome.outcome === "profile-boundary-reached" ||
-    outcome.outcome === "lifecycle-complete";
-  return { status: outcome.outcome, details: { outcome }, successful };
+function hasReceipt(guidance: JsonObject): boolean {
+  return Array.isArray(guidance.evidence) && guidance.evidence.length > 0;
 }
-
-function attendedAuthority(outcome: JsonObject): string {
-  const requirement = object(outcome.authorityRequirement, "attention.authorityRequirement");
-  if (requirement.mode !== "attended") {
-    throw new Error("Attention Required lacks an attended authority requirement");
-  }
-  return string(requirement.authority, "attention.authorityRequirement.authority");
-}
-
-function assertSubmissionBinding(
-  packet: AssignmentPacket,
-  prepared: PreparedAssignmentSubmission,
-  submission: AssignmentSubmission,
-): void {
-  if (submission.assignment.id !== packet.assignment.id) {
-    throw new Error("Submission outcome names a different Assignment");
-  }
-  if (submission.responseDigest !== prepared.digest) {
-    throw new Error("Submission outcome names different response bytes");
-  }
-}
-
-function settlementStop(submission: AssignmentSubmission): RunStop {
-  return {
-    status: "settlement-required",
-    details: { submission },
-    successful: false,
-  };
-}
-
 function object(value: JsonValue | undefined, label: string): JsonObject {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error(`${label} must be an object`);
-  }
+  if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error(`${label} must be an object`);
+  return value;
+}
+function string(value: JsonValue | undefined, label: string): string {
+  if (typeof value !== "string" || value.length === 0) throw new Error(`${label} must be a nonempty string`);
+  return value;
+}
+function optionalString(value: JsonValue | undefined): string | undefined { return value === undefined ? undefined : string(value, "subject"); }
+function array(value: JsonValue | undefined, label: string): JsonValue[] {
+  if (!Array.isArray(value)) throw new Error(`${label} must be an array`);
   return value;
 }
 
-function string(value: JsonValue | undefined, label: string): string {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`${label} must be a nonempty string`);
-  }
-  return value;
+function executionState(result: JsonObject): JsonValue | undefined {
+  const value = object(result.value, "execution result");
+  return value.receipt === undefined ? value.state : object(value.receipt, "receipt").state;
 }

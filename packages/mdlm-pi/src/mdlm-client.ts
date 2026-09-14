@@ -2,7 +2,6 @@ import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, open, readFile } from "node:fs/promises";
 import path from "node:path";
-import { isDeepStrictEqual } from "node:util";
 
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
@@ -21,34 +20,8 @@ export interface MdlmClientOptions {
   attemptDirectory?: string;
 }
 
-export type AssignmentOutcome = {
-  contract: "mdlm-next@2";
-  outcome: "assignment";
-  assignment: { id: string; packet: AssignmentPacket };
-} & JsonObject;
-
-export type MdlmNext = AssignmentOutcome | ({
-  contract: "mdlm-next@2";
-  outcome: "attention-required";
-  assignment: { id: string; packet: AssignmentPacket };
-} & JsonObject);
-export type MdlmTerminalOutcome = ({
-  contract: "mdlm-next@2";
-  outcome: "profile-boundary-reached" | "lifecycle-complete" | "process-dead-end" | "invalid";
-} & JsonObject);
-export type MdlmOperatorOutcome = MdlmNext | MdlmTerminalOutcome;
-
-export type AssignmentPacket = {
-  contract: "mdlm-assignment-packet@3";
-  assignment: JsonObject & { id: string };
-  package: JsonObject;
-  repository: JsonObject;
-  scenario: JsonObject & { reference: string };
-  responseSchema: JsonObject;
-} & JsonObject;
-
-export interface PreparedAssignmentSubmission {
-  response: JsonObject;
+export interface PreparedProposal {
+  proposal: JsonObject;
   source: string;
   digest: `sha256:${string}`;
 }
@@ -63,12 +36,6 @@ export interface SubmissionProcess {
 export interface SubmissionAttemptObserver {
   started(process: SubmissionProcess): Promise<void>;
 }
-
-export type AssignmentSubmission = JsonObject & {
-  contract: "mdlm-submission-outcome@1";
-  outcome: "accepted" | "rejected" | "settlement-required";
-  assignment: { id: string };
-};
 
 export class MdlmClientError extends Error {
   constructor(
@@ -124,37 +91,45 @@ export class MdlmClient {
     };
   }
 
-  async next(): Promise<MdlmOperatorOutcome> {
-    const result = await this.#invoke(["next", "--json"]);
-    return parseNext(result.output);
+  async discover(): Promise<JsonObject> {
+    return this.#read(["expectations", "--json"]);
   }
 
-  prepareSubmission(response: JsonObject): PreparedAssignmentSubmission {
-    const source = `${JSON.stringify(response)}\n`;
+  async guidance(action: string, subject?: string): Promise<JsonObject> {
+    return this.#read(["expectations", "show", action, ...(subject ? [subject] : []), "--json"]);
+  }
+
+  prepareSubmission(proposal: JsonObject): PreparedProposal {
+    const source = `${JSON.stringify(proposal)}\n`;
     const digest = `sha256:${createHash("sha256").update(source).digest("hex")}` as const;
-    return { response, source, digest };
+    return { proposal, source, digest };
   }
 
-  async submit(
-    response: PreparedAssignmentSubmission,
-    authority?: string,
-    observer?: SubmissionAttemptObserver,
-  ): Promise<AssignmentSubmission> {
-    const digest = `sha256:${createHash("sha256").update(response.source).digest("hex")}`;
-    if (digest !== response.digest) {
-      throw new MdlmClientError("Prepared Assignment response digest does not match its exact source");
-    }
+  async submit(proposal: PreparedProposal, authority?: string): Promise<JsonObject> {
+    const digest = `sha256:${createHash("sha256").update(proposal.source).digest("hex")}`;
+    if (digest !== proposal.digest) throw new MdlmClientError("Prepared proposal digest does not match its exact source");
     const result = await this.#invoke(
-      ["scenario", "submit", "-", ...(authority === undefined ? [] : ["--authority", authority]), "--json"],
-      response.source,
-      observer,
+      ["proposal", "submit", "-", ...(authority ? ["--authority", authority] : []), "--json"], proposal.source,
     );
-    return parseSubmission(result.output);
+    return result.output;
   }
 
-  async settlement(identity: string): Promise<AssignmentSubmission> {
-    const result = await this.#invoke(["scenario", "settlement", identity, "--json"]);
-    return parseSubmission(result.output);
+  async settlement(operation: string): Promise<JsonObject> {
+    return this.#read(["proposal", "settlement", operation, "--json"]);
+  }
+
+  async execute(subject: string, operation: string): Promise<JsonObject> {
+    return this.#read(["execution", "run", subject, operation, "--json"]);
+  }
+
+  async executionSettlement(operation: string): Promise<JsonObject> {
+    return this.#read(["execution", "settlement", operation, "--json"]);
+  }
+
+  async #read(args: string[]): Promise<JsonObject> {
+    const result = await this.#invoke(args);
+    if (result.exitCode !== 0) throw new MdlmClientError("MDLM command failed", result.output);
+    return result.output;
   }
 
   async #invoke(
@@ -354,116 +329,6 @@ export class MdlmClient {
   }
 }
 
-function parseNext(output: JsonObject): MdlmOperatorOutcome {
-  expectLiteral(output, "contract", "mdlm-next@2");
-  const outcome = expectString(output, "outcome");
-  assertOperatorOutcome(outcome, output);
-  if (outcome === "assignment" || outcome === "attention-required") {
-    const assignment = expectObject(output, "assignment");
-    const assignmentId = expectString(assignment, "id");
-    const packet = parsePacket(expectObject(assignment, "packet"));
-    if (packet.assignment.id !== assignmentId) {
-      throw contractError("Assignment packet identity differs from its outcome", output);
-    }
-    if (!isDeepStrictEqual(packet.package, expectObject(output, "package")) ||
-        !isDeepStrictEqual(packet.repository, expectObject(output, "repository"))) {
-      throw contractError("Assignment packet boundary differs from its outcome", output);
-    }
-  }
-  return output as MdlmOperatorOutcome;
-}
-
-function parsePacket(output: JsonObject): AssignmentPacket {
-  expectLiteral(output, "contract", "mdlm-assignment-packet@3");
-  expectString(expectObject(output, "assignment"), "id");
-  expectObject(output, "package");
-  expectObject(output, "repository");
-  const scenario = expectObject(output, "scenario");
-  expectString(scenario, "reference");
-  expectObject(scenario, "prompt");
-  expectArray(scenario, "skills");
-  expectArray(output, "exactInputs");
-  expectObject(output, "schemas");
-  expectArray(output, "outputs");
-  expectObject(output, "responseSchema");
-  const scaffold = expectObject(output, "responseScaffold");
-  expectLiteral(scaffold, "contract", "mdlm-assignment-response@2");
-  if (expectString(scaffold, "assignment") !== expectString(expectObject(output, "assignment"), "id")) {
-    throw contractError("Response scaffold names a different Assignment", output);
-  }
-  return output as AssignmentPacket;
-}
-
-function parseSubmission(output: JsonObject): AssignmentSubmission {
-  expectLiteral(output, "contract", "mdlm-submission-outcome@1");
-  expectString(expectObject(output, "assignment"), "id");
-  const outcome = expectString(output, "outcome");
-  if (!["accepted", "rejected", "settlement-required"].includes(outcome)) {
-    throw contractError(`Unsupported submission outcome '${outcome}'`, output);
-  }
-  expectString(output, "responseDigest");
-  if (outcome === "accepted" || outcome === "settlement-required") {
-    const settlement = expectObject(output, "settlement");
-    expectString(settlement, "assignment");
-    expectString(settlement, "execution");
-  }
-  if (outcome === "accepted") expectObject(output, "receipt");
-  if (outcome === "rejected") {
-    if (!Array.isArray(output.diagnostics)) {
-      throw contractError("Expected rejected diagnostics to be an array", output);
-    }
-    expectLiteral(output, "retryable", true);
-    expectLiteral(output, "correctionConsumed", false);
-  }
-  if (outcome === "settlement-required") {
-    const orchestration = expectObject(output, "orchestration");
-    expectLiteral(orchestration, "action", "inspect-settlement");
-    expectLiteral(orchestration, "replay", false);
-  }
-  return output as AssignmentSubmission;
-}
-
-function assertOperatorOutcome(outcome: string, output: JsonObject): void {
-  if (![
-    "assignment",
-    "attention-required",
-    "profile-boundary-reached",
-    "lifecycle-complete",
-    "process-dead-end",
-    "invalid",
-  ].includes(outcome)) {
-    throw contractError(`Unsupported MDLM outcome '${outcome}'`, output);
-  }
-}
-
 function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function expectObject(parent: JsonObject, key: string): JsonObject {
-  const value = parent[key];
-  if (!isObject(value)) throw contractError(`Expected '${key}' to be an object`, parent);
-  return value;
-}
-
-function expectString(parent: JsonObject, key: string): string {
-  const value = parent[key];
-  if (typeof value !== "string") throw contractError(`Expected '${key}' to be a string`, parent);
-  return value;
-}
-
-function expectArray(parent: JsonObject, key: string): JsonValue[] {
-  const value = parent[key];
-  if (!Array.isArray(value)) throw contractError(`Expected '${key}' to be an array`, parent);
-  return value;
-}
-
-function expectLiteral(parent: JsonObject, key: string, expected: string | boolean): void {
-  if (parent[key] !== expected) {
-    throw contractError(`Expected '${key}' to equal ${JSON.stringify(expected)}`, parent);
-  }
-}
-
-function contractError(message: string, output: JsonObject): MdlmClientError {
-  return new MdlmClientError(`Invalid MDLM command contract: ${message}`, output);
 }

@@ -21,28 +21,11 @@ The host operating policy at `/home/ubuntu/git/mdlm-successor-demos/operations/O
 
 ## Operator-contract work
 
-The default Assignment route uses one `mdlm next --json` call and one
-`mdlm assignment submit-proposal --json` call. An execution Assignment also uses
-`mdlm assignment run --json` to prepare Docker, capture the committed script and
-produce the receipt before the author assesses it. `mdlm-next@2` includes the
-complete `mdlm-assignment-packet@3`; the harness returns only transient authored
-values; MDLM derives the exact `mdlm-assignment-response@2` and submits it through
-`submitAssignmentResponse`; submission returns `mdlm-submission-outcome@1`.
-Retain `mdlm scenario submit` for exact-response diagnostics and typed inability.
-The experimental direct-observation capability uses read-only `mdlm expectations`
-and `mdlm expectations show <exact-subject>` followed by `mdlm proposal submit`.
-Do not fabricate a workflow Assignment to author on that route. Its package and
-snapshot context protects publication, while prompts and gap identities provide
-guidance. The fresh exploratory direct-observation@2 capability also uses `mdlm execution run <exact-subject> <operation-id>` and `mdlm execution settlement <operation-id>`. Its `direct-work-available` next outcome points to expectations without leasing work. Other execution and review routes retain their Assignment contracts.
-Keep `deriveOperatorOutcome` pure. Keep repository authentication and exact lease
-recovery in `claimNextWork`, and canonical validation plus atomic publication in
-`submitAssignmentResponse`.
+Use the direct CLI described in `operator/MDLM.md` and `docs/contracts/direct-work.md`. Discovery and guidance are read-only. The agent chooses useful work; the kernel validates exact package/snapshot/subject, candidate graphs, receipts, authority and atomic publication. Package priorities are display suggestions.
 
-The kernel owns integrity, identity, authority binding, atomicity, terminal
-precedence, and no-replay settlement. The Process Package owns process-specific
-eligibility and ordering. The harness transports packets and responses. Remove
-ordinary-path code that ranks work, reconstructs packets, copies authority from
-prose, predicts durable IDs, or recreates a status/next/prepare state machine.
+Preserve exact submitted proposal bytes and caller operation IDs. Recover uncertain commands through proposal or execution settlement before doing more work. Independent review must remain separate from the author, and real stakeholder decisions come from the stakeholder. Historical products remain pinned to their installed release and are not rewritten by the fresh-only cutover.
+
+Keep adapters as transports. They may expose package guidance, collect attended input and preserve operation journals. They do not recreate eligibility rules or deterministic work selection.
 
 ## Keep four kinds of work moving
 
@@ -132,10 +115,7 @@ Build the exact worktree before a public CLI regression whose helper invokes
 `dist/mdlm.js`. A missing executable is preflight setup failure and supplies no
 behavioral evidence.
 
-In repository tests, protect the pure decision with direct
-`deriveOperatorOutcome` cases and freeze the serialized public contract through
-real `claimNextWork` packets and `submitAssignmentResponse` outcomes. Keep one
-compiled public transaction per fixed trust boundary. Use lower-level helpers
+In repository tests, protect meaningful graph and evidence checks through their stable interfaces and freeze the direct public contract with compiled CLI transactions. Keep one compiled public transaction per fixed trust boundary. Use lower-level helpers
 only for malformed, stale, replay, authority, provenance, or other failure
 behavior that the public transaction cannot isolate.
 
@@ -175,7 +155,7 @@ Before an installed or disposable journey starts, arm symmetric outcome capture.
 An unexpected outcome writes the exact terminal JSON, accepted transaction trace,
 repository and package identities, and artifact digests, then preserves the
 repository. Success writes the same identities, full accepted trace, and exact
-boundary Assignment to a deterministic path outside the disposable root, and
+boundary and operation to a deterministic path outside the disposable root, and
 preserves the repository until the evidence is audited. Cleanup happens only
 after the corresponding durable outcome record is verified. Repair missing
 capture before starting another fresh journey.
@@ -225,7 +205,7 @@ boundary it reaches.
 
 ## Portfolio discipline
 
-The machine-readable portfolio and concise human summary are the operating index. Before the first run, every lane records its product, purpose, expected endpoint, expected known failure, sole owner, paths, source commit and tree, Process Package identity and digest, artifact digests, runner commit, model, harness, and public targets. During operation it records the current phase, Assignment, last accepted publication, state, issue, and next action.
+The machine-readable portfolio and concise human summary are the operating index. Before the first run, every lane records its product, purpose, expected endpoint, expected known failure, sole owner, paths, source commit and tree, Process Package identity and digest, artifact digests, runner commit, model, harness, and public targets. During operation it records the current lifecycle boundary, selected work, operation and last accepted publication, state, issue, and next action.
 
 Use these states plainly: active, attended, blocked, stopped, terminal, complete, or superseded. Use `complete` only for an operational endpoint defined under [Targeted demos](#targeted-demos). A missing process is not a state. Runner output, snapshots, Git state, and package status decide the state.
 
@@ -246,16 +226,7 @@ coverage and exempt blank gaps, while review judges responsibility boundaries. K
 use the direct implementation and verification route. Historical reports
 describe the packages that produced them.
 
-Tiny 0.5.0 uses accepted ACC evidence as the baseline boundary. Before baseline,
-use ordinary authoring and correction. Afterwards, use `mdlm change request
---requirements <exact-current-RQS-revision> --json` and the returned request
-Assignment, followed by stakeholder approval through `next`. Follow the packet's
-approved targets and correction frontier. The CLI refreshes exact group endpoints
-and derives local reassessment work; unchanged children preserve deeper groups.
-Record semantic assessments rather than manufacturing requirement revisions to
-refresh links. Retire requirements explicitly through RQS links and resolve their
-selected group references. This package is fresh-only; preserve historical runs
-on their selected package. See [the change-control decision](../adr/0006-baseline-changes-and-decomposition-groups.md).
+The tiny package uses stakeholder acceptance as its baseline boundary. Afterwards, choose the optional change action, obtain the stakeholder decision, and follow the approved targets and correction frontier. Preserve unaffected requirement and decomposition history. Retire requirements explicitly and resolve their selected group references. Historical runs retain their own selected package and accepted records.
 
 The CLI owns mechanical checks before publication: schema and field validity,
 exact references, complete requirement graphs, source attribution, fixed values,
