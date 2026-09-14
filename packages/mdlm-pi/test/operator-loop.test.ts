@@ -79,6 +79,25 @@ describe("direct operator loop", () => {
     expect(deps.worker.run).toHaveBeenCalledOnce();
     expect(deps.mdlm.submit).not.toHaveBeenCalled();
   });
+  it("passes actual execution evidence to the author before publishing its assessment", async () => {
+    const deps = await harness();
+    deps.mdlm.guidance.mockResolvedValue({ ...guidance, executionCommand: "mdlm execution run IMP-A-r00001 <operation> --json", executionSubject: "IMP-A-r00001", evidence: [] });
+    deps.mdlm.execute.mockImplementation(async (_subject, operation) => ({ ok: true, contract: "mdlm-execution-result@1", operation, value: { receipt: { state: "completed", stdout: "observed output" }, evidence: "git-blob:receipt" } }));
+    await expect(new RunController(deps).run()).resolves.toMatchObject({ status: "accepted" });
+    expect(deps.mdlm.execute).toHaveBeenCalledWith("IMP-A-r00001", expect.any(String));
+    expect(deps.worker.run.mock.calls[1]![0].context.execution.value.receipt.stdout).toBe("observed output");
+    expect(deps.io.stopped).toHaveBeenCalledOnce();
+  });
+  it("preserves a rejected proposal until settlement proves nonpublication", async () => {
+    const deps = await harness();
+    deps.mdlm.submit.mockResolvedValue({ ok: false, diagnostics: [{ code: "invalid" }] });
+    await expect(new RunController(deps).run()).resolves.toMatchObject({ status: "rejected" });
+    const pending = (await deps.journal.load())!;
+    deps.mdlm.settlement.mockResolvedValue({ ok: true, contract: "mdlm-proposal-result@2", operation: pending.operation, outcome: "not-published" });
+    await expect(new RunController(deps).run()).resolves.toMatchObject({ status: "not-published" });
+    expect(deps.mdlm.discover).toHaveBeenCalledOnce();
+    expect(await deps.journal.load()).toBeNull();
+  });
   it("retains an ambiguous execution and settles without running it again", async () => {
     const deps = await harness();
     await deps.journal.capture("exec", `sha256:${"0".repeat(64)}`, boundary, "execution");
