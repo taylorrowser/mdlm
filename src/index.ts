@@ -122,6 +122,7 @@ export interface KernelCapabilityBinding {
   subject_link?: string;
   context_link?: string;
   input_link?: string;
+  subject_selector?: string;
 }
 
 export interface ProcessPackage {
@@ -256,7 +257,7 @@ function validateKernelCapabilityBindings(
 ): ProcessDiagnostic[] {
   return Object.entries(kernelCapabilities).flatMap(([reference, binding]) => {
     const path = `manifest.kernel_capabilities.${reference}.type`;
-    if (reference !== exactBaselineCapability.reference && reference !== "direct-observation@1" && reference !== "docker-verification@1" && reference !== "requirement-trace@1" && reference !== "requirement-trace@2") {
+    if (reference !== exactBaselineCapability.reference && reference !== "direct-observation@1" && reference !== "direct-observation@2" && reference !== "docker-verification@1" && reference !== "requirement-trace@1" && reference !== "requirement-trace@2") {
       return [{
         code: "unknown-kernel-capability",
         path,
@@ -294,7 +295,11 @@ function validateKernelCapabilities(
       }
       continue;
     }
-    if (reference === "direct-observation@1") {
+    if (reference === "direct-observation@1" || reference === "direct-observation@2") {
+      if (reference === "direct-observation@2") {
+        const [id, version] = (binding.subject_selector ?? "").split("@");
+        if (!id || processPackage.selectors[id]?.version !== Number(version)) diagnostics.push({code: "incompatible-kernel-capability", path: bindingPath, message: "Direct execution requires an exact subject selector"});
+      }
       for (const field of ["implementation_type", "requirement_type"] as const) {
         if (!binding[field] || !processPackage.types[binding[field]!]) diagnostics.push({code: "incompatible-kernel-capability", path: bindingPath, message: `Direct observation requires declared ${field}`});
       }

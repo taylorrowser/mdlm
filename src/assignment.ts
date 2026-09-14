@@ -1,3 +1,4 @@
+import { directWorkSubjects } from "./operator-outcome.js";
 import { registerExternalReview, requireExternalReview, requiresExternalReview } from "./external-review.js";
 import { assessRequirements, changeImpact, type RequirementAssessments } from "./change-assessment.js";
 import { buildAssignmentReviewContext, type AssignmentReviewContext } from "./assignment-review-context.js";
@@ -168,6 +169,7 @@ export interface AttentionContext {
 }
 
 export type OperatorOutcome =
+  | OperatorOutcomeBase & {outcome: "direct-work-available"; subjects: string[]; guidance: "mdlm expectations --json"}
   | OperatorOutcomeBase & {
       outcome: "publication-required";
       materializedExecutions: {
@@ -285,6 +287,7 @@ export interface OperatorStatus {
           kind: "lifecycle-complete";
         }>["evidence"];
       }
+    | {outcome: "direct-work-available"; subjects: string[]; guidance: "mdlm expectations --json"}
     | {
         outcome: "process-dead-end";
         explanation: string;
@@ -1594,21 +1597,12 @@ export function deriveOperatorOutcome(
     evaluation,
     authenticatedSnapshot.records,
   );
-  return {
-    ok: true,
-    value: {
-      evaluation,
-      work,
-      classification: classifyOperatorOutcome(
-        work,
-        evaluation.terminalOutcome,
-        evaluation.phase?.attentionCheckpoints
-          .filter((checkpoint) => checkpoint.active)
-          .map((checkpoint) => checkpoint.id) ?? [],
-      ),
-    },
-    diagnostics: [],
-  };
+  let classification = classifyOperatorOutcome(work, evaluation.terminalOutcome, evaluation.phase?.attentionCheckpoints.filter(checkpoint => checkpoint.active).map(checkpoint => checkpoint.id) ?? []);
+  if (classification.kind === "process-dead-end") {
+    const subjects = directWorkSubjects(exactProcessPackage, authenticatedSnapshot);
+    if (subjects.length) classification = {kind: "direct-work-available", subjects, guidance: "mdlm expectations --json"};
+  }
+  return {ok: true, value: {evaluation, work, classification}, diagnostics: []};
 }
 
 async function operatorStateFromSnapshot(
@@ -2326,7 +2320,9 @@ async function claimNextWorkLocked(
       contract: "mdlm-next@2" as const,
       phase: phaseReference(state.value.evaluation),
     };
-    const value: AssignmentOutcome = classification.kind === "process-dead-end"
+    const value: AssignmentOutcome = classification.kind === "direct-work-available"
+      ? {...base, outcome: "direct-work-available", subjects: classification.subjects, guidance: classification.guidance}
+      : classification.kind === "process-dead-end"
       ? {
           ...base,
           outcome: "process-dead-end",
@@ -2479,6 +2475,7 @@ function statusOutcome(
   activeLease: AssignmentLease | undefined,
 ): OperatorStatus["currentOutcome"] {
   const classification = state.classification;
+  if (classification.kind === "direct-work-available") return {outcome: "direct-work-available", subjects: classification.subjects, guidance: classification.guidance};
   if (classification.kind === "process-dead-end") {
     return {
       outcome: "process-dead-end",

@@ -7,8 +7,7 @@ import { repositoryGitEnvironment } from "./git-environment.js";
 import type { VersionedDefinition } from "./index.js";
 
 const exec = promisify(execFile);
-export interface VerificationBinding {
-  assignment: string;
+export type VerificationBinding = ({assignment: string; operation?: never} | {operation: string; assignment?: never}) & {
   package: unknown;
   inputs: unknown;
   repositoryPath: string;
@@ -21,6 +20,7 @@ export function verificationContract(scenario: VersionedDefinition): {implementa
   const marker = scenario.kernel_execution as Record<string, unknown> | undefined;
   return marker?.kind === "docker-verification@1" ? marker as unknown as {implementation_input: string; requirements_input: string; output: string} : undefined;
 }
+export const verificationRef = (binding: VerificationBinding) => binding.operation === undefined ? `refs/mdlm/verification/${binding.assignment}` : `refs/mdlm/execution/${binding.operation}`;
 const ref = (assignment: string) => `refs/mdlm/verification/${assignment}`;
 async function git(root: string, args: string[]) {
   return (await exec("git", ["-C", root, ...args], {env: repositoryGitEnvironment(), maxBuffer: 16 * 1024 * 1024})).stdout.trim();
@@ -39,22 +39,26 @@ export async function readVerificationReceiptBlob(root: string, oid: string) {
   const source = await git(root, ["cat-file", "blob", oid]);
   return {oid, receipt: JSON.parse(source) as {binding: VerificationBinding; attempt: number; result?: Awaited<ReturnType<typeof executeDockerVerification>>; state: string}};
 }
+export async function readBoundVerificationReceipt(root: string, binding: VerificationBinding) {
+  const oid = await git(root, ["rev-parse", "--verify", "--quiet", `${verificationRef(binding)}/latest`]).catch(error => { if (error.code === 1) return undefined; throw error; });
+  return oid ? readVerificationReceiptBlob(root, oid) : undefined;
+}
 export async function runVerificationReceipt(root: string, binding: VerificationBinding, retry: boolean) {
-  const previous = await readVerificationReceipt(root, binding.assignment);
+  const previous = await readBoundVerificationReceipt(root, binding);
   if (previous) {
-    if (!isDeepStrictEqual(previous.receipt.binding, binding)) throw new Error("Verification receipt inputs do not match this Assignment");
+    if (!isDeepStrictEqual(previous.receipt.binding, binding)) throw new Error("Verification receipt inputs do not match this execution identity");
     if (previous.receipt.result && (!retry || previous.receipt.result.started)) return previous;
-    if (!retry) throw new Error("Previous verification attempt did not complete. Inspect its receipt; use assignment run --retry after environment repair");
+    if (!retry) throw new Error("Previous verification attempt did not complete. Inspect settlement; execution must not be replayed automatically.");
   }
   const attempt = (previous?.receipt.attempt ?? 0) + 1;
   const persist = async (receipt: object, expected: string) => {
-    const directory = path.join(root, ".lifecycle/work/verification", binding.assignment);
+    const directory = path.join(root, ".lifecycle/work", binding.operation === undefined ? "verification" : "execution", binding.assignment ?? binding.operation);
     await fs.mkdir(directory, {recursive: true});
     const file = path.join(directory, `${attempt}-${"result" in receipt ? "receipt" : "started"}.json`);
     await fs.writeFile(file, JSON.stringify(receipt, null, 2) + "\n", {flag: "wx"});
     const oid = await git(root, ["hash-object", "-w", file]);
-    await git(root, ["update-ref", `${ref(binding.assignment)}/attempt-${attempt}-${"result" in receipt ? "receipt" : "started"}`, oid, "0".repeat(40)]);
-    await git(root, ["update-ref", `${ref(binding.assignment)}/latest`, oid, expected]);
+    await git(root, ["update-ref", `${verificationRef(binding)}/attempt-${attempt}-${"result" in receipt ? "receipt" : "started"}`, oid, "0".repeat(40)]);
+    await git(root, ["update-ref", `${verificationRef(binding)}/latest`, oid, expected]);
     return oid;
   };
   // The attempt marker is durable before Docker starts. An interrupted process cannot silently rerun it.
@@ -65,13 +69,13 @@ export async function runVerificationReceipt(root: string, binding: Verification
   return {oid, receipt};
 }
 export async function requireVerificationReceipt(root: string, binding: VerificationBinding, receiptOid?: string) {
-  const saved = receiptOid === undefined ? await readVerificationReceipt(root, binding.assignment) : await readVerificationReceiptBlob(root, receiptOid);
+  const saved = receiptOid === undefined ? await readBoundVerificationReceipt(root, binding) : await readVerificationReceiptBlob(root, receiptOid);
   return validateVerificationReceipt(binding, saved);
 }
 
 /** Authenticate an already selected receipt, independently of authoring orchestration. */
 export async function validateVerificationReceipt(binding: VerificationBinding, saved: Awaited<ReturnType<typeof readVerificationReceiptBlob>> | undefined) {
-  if (saved?.receipt.state !== "completed" || !saved.receipt.result || !isDeepStrictEqual(saved.receipt.binding, binding)) throw new Error("Run this exact Assignment with 'mdlm assignment run --json' before submitting verification");
+  if (saved?.receipt.state !== "completed" || !saved.receipt.result || !isDeepStrictEqual(saved.receipt.binding, binding)) throw new Error("A completed receipt for this exact execution is required before publishing verification");
   const result = saved.receipt.result;
   const current = result.sourceTree !== null && result.scriptSha256 !== null ? await authenticateVerificationSource(binding) : {};
   // Source authentication returns the same immutable fields recorded by the executor.

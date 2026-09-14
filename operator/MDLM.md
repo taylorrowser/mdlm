@@ -12,6 +12,16 @@ the exact returned Assignment, write only the authored proposal values, submit
 them, and run `mdlm next --json` again. A Review, commit, or Phase change does
 not end the loop.
 
+On `direct-work-available`, choose a subject using `mdlm expectations --json`
+and read `mdlm expectations show <exact-subject> --json`. Follow the package prompt.
+Use `mdlm execution run <exact-subject> <operation-id> --json` if evidence is
+missing. Inspect the captured receipt and submit the completed candidate using
+`mdlm proposal submit <proposal-file> --json`. These commands allocate no
+Assignment. Recover a discarded response with `mdlm execution settlement
+<operation-id> --json` or `mdlm proposal settlement <operation-id> --json`.
+A completed operation is reused; an uncertain started execution must not be
+rerun. Commit accepted Lifecycle Data and reevaluate normally.
+
 On Attention Required, ask the authority named in `authorityRequirement` using
 only the returned attention context. Resume the exact Assignment after the
 answer. Never invent or self-supply authority.

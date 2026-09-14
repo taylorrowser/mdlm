@@ -59,6 +59,10 @@
     "input_link": {
       "type": "string",
       "minLength": 1
+    },
+    "subject_selector": {
+      "type": "string",
+      "minLength": 1
     }
   }
 }

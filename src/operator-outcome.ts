@@ -1,4 +1,5 @@
-import type { TerminalOutcomeEvaluation } from "./evaluator.js";
+import type { ProcessPackage } from "./index.js";
+import { evaluateProcessDefinition, type LifecycleSnapshot, type TerminalOutcomeEvaluation } from "./evaluator.js";
 import type { ScenarioParticipation } from "./participation.js";
 
 export interface OperatorAuthorityRequirement {
@@ -71,7 +72,16 @@ export interface CheckpointConversation {
   };
 }
 
+export function directWorkSubjects(pkg: ProcessPackage, snapshot: LifecycleSnapshot): string[] {
+  const config = pkg.kernelCapabilities["direct-observation@2"];
+  if (!config?.subject_selector) return [];
+  const subjects = evaluateProcessDefinition(pkg, snapshot, "selector", config.subject_selector, {}).result as {identity: {revision_id: string}}[];
+  return subjects.map(item => item.identity.revision_id).filter(revision => !snapshot.records.some(record => record.datum.type === config.type && record.datum.links.some(link => link.type === config.subject_link && link.target === revision)));
+}
+
 export type OperatorOutcomeClassification =
+  | {kind: "direct-work-available"; subjects: string[]; guidance: "mdlm expectations --json"}
+
   | {
       kind: "assignment";
       work: OperatorWorkFacts;

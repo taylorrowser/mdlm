@@ -1,98 +1,96 @@
 import {spawnSync} from 'node:child_process';
-import {mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, cpSync, rmSync, existsSync} from 'node:fs';
+import {mkdtempSync, mkdirSync, writeFileSync, readFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import {fileURLToPath} from 'node:url';
 
-// Bootstrap uses supported execution Assignments. The measured authoring interval does not.
-const root = mkdtempSync(path.join(tmpdir(), 'mdlm-direct-observation-'));
-const executable = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist/mdlm.js');
+const root = mkdtempSync(path.join(tmpdir(), 'mdlm-direct-execution-'));
+const executable = process.env.MDLM_EXECUTABLE ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist/mdlm.js');
 const captures = [];
 const lifecycle = path.join(root, 'lifecycle');
-const other = path.join(root, 'bootstrap-other');
 const source = path.join(root, 'product');
 let stage = 'bootstrap';
-function run(file, args, cwd, input) {
-  const r = spawnSync(file,args,{cwd,input,encoding:'utf8',timeout:90000,maxBuffer:16*1024*1024});
+function run(file, args, cwd, input, discard = false) {
+  const r = spawnSync(file,args,{cwd,input,encoding:'utf8',timeout:90000,maxBuffer:16*1024*1024,...(discard ? {stdio:['pipe','ignore','pipe']} : {})});
+  captures.push({stage,file,args,cwd,input,status:r.status,stdout:r.stdout,stderr:r.stderr,...(discard ? {response:'intentionally discarded at caller'} : {})});
+  writeFileSync(path.join(root,'commands.json'),JSON.stringify(captures,null,2)+'\n');
   if (r.error) throw r.error;
   return r;
 }
 function git(args,cwd=lifecycle) {const r=run('git',args,cwd); assert.equal(r.status,0,r.stderr); return r.stdout.trim();}
-function cli(args, value, cwd=lifecycle, expected=0) {
-  const input = value === undefined ? undefined : JSON.stringify(value);
-  const r=run(process.execPath,[executable,...args,'--json'],cwd,input);
-  captures.push({stage,args,cwd,input,status:r.status,stdout:r.stdout,stderr:r.stderr});
-  writeFileSync(path.join(root,'commands.json'),JSON.stringify(captures,null,2)+'\n');
+function cli(args, value, expected=0, cwd=lifecycle, discard=false) {
+  const r=run(process.execPath,[executable,...args,'--json'],cwd,value === undefined ? undefined : JSON.stringify(value),discard);
   assert.equal(r.status,expected,r.stdout+r.stderr);
-  return JSON.parse(r.stdout);
+  return discard ? undefined : JSON.parse(r.stdout);
 }
-function commit(cwd,message) {git(['add','.lifecycle/data'],cwd);git(['-c','commit.gpgSign=false','commit','--quiet','--no-verify','-m',message],cwd);}
-function names(cwd) {return cli(['list'],undefined,cwd).data.map(d=>d.lifecycleDatum.datum);}
+function commit(message) {git(['add','.lifecycle/data']);git(['-c','commit.gpgSign=false','commit','--quiet','--no-verify','-m',message]);}
+function data() {return cli(['list']).data.map(d=>d.lifecycleDatum.datum);}
+function proposal(g,operation,evidence,recommendation) {return {operation,package:g.package,snapshot:g.snapshot,evidence,datum:{...g.candidate,payload:{...g.candidate.payload,title:'Direct observation',assessment:recommendation==='revise' ? 'The exact script printed a passing fixture result. Test a failing revision next.' : 'The revised script reported assertion failure. Preserve that result and stop this engineering fixture.',observation_origin:'scripted',interaction_observation:'No user or agent interactive product session.',limitations:'Execution mechanics only; this is not product acceptance.',recommendation,next_action:recommendation==='revise'?'Try a failure.':'Stop after the captured failure.'},body:'Published directly without workflow Assignment.'}};}
 try {
+  const docker = run("docker", ["version", "--format", "{{.Server.Version}}"], root);
+  assert.equal(docker.status, 0, "Docker access is required before lifecycle initialization. On this host use sg docker. " + docker.stderr);
   mkdirSync(source);
-  git(['init','--quiet'],source); git(['config','user.name','Direct observation fixture'],source);git(['config','user.email','fixture@localhost'],source);
-  writeFileSync(path.join(source,'verify.py'),"print('PASS: bounded evidence fixture')\n");
-  git(['add','verify.py'],source);git(['-c','commit.gpgSign=false','commit','--quiet','--no-verify','-m','Fixture verification'],source);
-  const sourceCommit=git(['rev-parse','HEAD'],source);
-  const receipts=[];
-  for (const [index,cwd] of [lifecycle,other].entries()) {
-    cli(['init',cwd,'--process','exploratory'],undefined,root);
+  git(['init','--quiet'],source);git(['config','user.name','Direct execution fixture'],source);git(['config','user.email','fixture@localhost'],source);
+  cli(['init',lifecycle,'--process','exploratory'],undefined,0,root);
+  const receipts=[],observations=[],sourceCommits=[];
+  let firstDatum;
+  for (let iteration=0;iteration<2;iteration++) {
+    stage='bootstrap';
+    writeFileSync(path.join(source,'verify.py'),iteration === 0 ? "print('PASS: bounded fixture')\n" : "import sys\nprint('FAIL: intentional assertion mismatch')\nsys.exit(1)\n");
+    git(['add','verify.py'],source);git(['-c','commit.gpgSign=false','commit','--quiet','--no-verify','-m',`Fixture ${iteration}`],source);
+    const sourceCommit=git(['rev-parse','HEAD'],source);sourceCommits.push(sourceCommit);
     for (let step=0;step<2;step++) {
-      const next=cli(['next'],undefined,cwd); const values=next.assignment.packet.authorValuesScaffold;
-      values.completionEvidence={summary:'Supported fixture bootstrap'};
-      values.outputs[0].body='Seeded fixture, not a user experience claim.';
-      values.outputs[0].payload=step===0 ? {title:`Experiment ${index}`,criterion:'Print a deterministic fixture result',question:'Can observations publish directly?',approach:'Seed a tiny committed verifier',constraints:'No user acceptance',allowance_minutes:10,scope_cut:'Direct observation authoring only'} : {title:`Prototype ${index}`,repository_path:source,source_commit:sourceCommit,command:['python3','verify.py'],verification_image:'python@sha256:7415fbc3c9e4979cc717d92377ab2bc7b2b4a2af1ac03cc52b5f3f88efedaf3a',verification_command:['python3','verify.py'],verification_script:'verify.py'};
-      cli(['assignment','submit-proposal','-'],values,cwd);commit(cwd,'Bootstrap exact inputs');
+      const next=cli(['next']);assert.equal(next.outcome,'assignment');
+      const values=next.assignment.packet.authorValuesScaffold;
+      values.completionEvidence={summary:'Ordinary public fixture bootstrap'};
+      values.outputs[0].body='Engineering fixture, not a user experience claim.';
+      values.outputs[0].payload=step===0 ? {title:`Experiment ${iteration}`,criterion:'Capture the exact bounded script outcome',question:'Can execution and observations work without Assignments?',approach:'Run a committed fixture script',constraints:'No user acceptance',allowance_minutes:10,scope_cut:'Execution and observation only'} : {title:`Prototype ${iteration}`,repository_path:source,source_commit:sourceCommit,command:['python3','verify.py'],verification_image:'python@sha256:7415fbc3c9e4979cc717d92377ab2bc7b2b4a2af1ac03cc52b5f3f88efedaf3a',verification_command:['python3','verify.py'],verification_script:'verify.py'};
+      assert.equal(cli(['assignment','submit-proposal','-'],values).outcome,'accepted');commit('Publish exact inputs');
     }
-    cli(['next'],undefined,cwd);
-    const result=cli(['assignment','run'],undefined,cwd).value;
-    assert.equal(result.receipt.result.outcome,'pass');receipts.push(result);
+    const next=cli(['next']);assert.equal(next.outcome,'direct-work-available');assert.equal(next.subjects.length,1);assert.equal(next.assignment,undefined);
+    assert.equal(cli(['status']).currentOutcome.outcome,'direct-work-available');
+    stage='direct-execute-observe';
+    const before=git(['status','--porcelain']);
+    const g=cli(['expectations','show',next.subjects[0]]);
+    assert.equal(g.evidence.length,0);assert.equal(git(['status','--porcelain']),before);
+    const operation=`execute-${iteration}`;
+    assert.equal(cli(['execution','settlement',operation]).value.state,'not-started');
+    cli(['execution','run',g.subject,operation],undefined,0,lifecycle,true);
+    const settled=cli(['execution','settlement',operation]).value;
+    const repeated=cli(['execution','run',g.subject,operation]).value;
+    assert.deepEqual(repeated,settled);assert.equal(settled.receipt.attempt,1);
+    assert.equal(settled.receipt.binding.assignment,undefined);assert.equal(settled.receipt.binding.operation,operation);
+    assert.equal(settled.receipt.result.outcome,iteration===0?'pass':'fail');
+    assert.equal(settled.receipt.result.sourceCommit,sourceCommit);
+    const refsBefore=git(['for-each-ref','--format=%(refname) %(objectname)','refs/mdlm/execution']);
+    assert.deepEqual(cli(['execution','settlement',operation]).value,settled);
+    assert.equal(git(['for-each-ref','--format=%(refname) %(objectname)','refs/mdlm/execution']),refsBefore);
+    const fresh=cli(['expectations','show',g.subject]);assert.deepEqual(fresh.evidence,[settled.evidence]);
+    assert.equal(git(['status','--porcelain']),before);
+    const candidate=proposal(fresh,`observe-${iteration}`,settled.evidence,iteration===0?'revise':'drop');
+    if (iteration===1) {
+      cli(['execution','run',g.subject,'execute-0'],undefined,1);
+      assert.deepEqual(cli(['execution','settlement','execute-0']).value,receipts[0]);
+      cli(['proposal','submit','-'],{...candidate,operation:'wrong-receipt',evidence:receipts[0].evidence},1);
+      cli(['proposal','submit','-'],proposal(fresh,'failed-keep',settled.evidence,'keep'),1);
+    }
+    cli(['proposal','submit','-'],candidate,0,lifecycle,true);
+    const accepted=cli(['proposal','settlement',candidate.operation]);assert.equal(accepted.outcome,'accepted');
+    assert.deepEqual(cli(['proposal','submit','-'],candidate),{...accepted,command:'proposal.submit'});
+    cli(['proposal','submit','-'],{...candidate,datum:{...candidate.datum,body:'Changed bytes'}},1);
+    const published=data().find(d=>d.revision_id===accepted.revision);
+    assert.equal(published.payload.outcome,settled.receipt.result.outcome);assert.equal(published.payload.receipt,settled.evidence);
+    assert.deepEqual(published.links,g.candidate.links);
+    if (firstDatum) assert.deepEqual(data().find(d=>d.revision_id===firstDatum.revision_id),firstDatum);
+    else firstDatum=published;
+    receipts.push(settled);observations.push(published);
+    assert.equal(cli(['expectations']).items.length,0);cli(['doctor']);commit('Publish direct observation');
   }
-  // Combine independently authenticated bootstrap records and receipt refs into one disposable fixture.
-  for (const entry of readdirSync(path.join(other,'.lifecycle/data/.transactions'))) cpSync(path.join(other,'.lifecycle/data/.transactions',entry),path.join(lifecycle,'.lifecycle/data/.transactions',entry),{recursive:true,errorOnExist:true,force:false});
-  git(['fetch','--quiet',other,'+refs/mdlm/verification/*:refs/mdlm/verification/*']);
-  // End the bootstrap authoring allocation; no old Assignment remains required by the new route.
-  const work=path.join(lifecycle,'.lifecycle/work');
-  for (const entry of readdirSync(work)) if (entry.includes('assignment')) rmSync(path.join(work,entry),{recursive:true,force:true});
-  commit(lifecycle,'Combine two independent bootstrap subjects');
-  cli(['doctor']);
-  const bootstrapData=names(lifecycle);
-  stage='direct-authoring';
-  const before=git(['status','--porcelain']);
-  const gaps=cli(['expectations']);assert.equal(gaps.items.length,2);
-  const selected=gaps.items[1].subject;
-  const guidance=cli(['expectations','show',selected]);
-  assert.match(guidance.prompt.content,/Do not run or claim an Assignment/);
-  assert.equal(guidance.payloadSchema.properties.recommendation.const,'keep');
-  assert.equal(guidance.context.trial.revision_id,selected);assert.equal(guidance.evidence.length,1);
-  assert.equal(git(['status','--porcelain']),before);
-  function proposal(g,operation) {return {operation,package:g.package,snapshot:g.snapshot,evidence:g.evidence[0],datum:{...g.candidate,payload:{...g.candidate.payload,title:'Direct observation',assessment:'The authenticated verifier printed its expected fixture result.',observation_origin:'scripted',interaction_observation:'No user or agent interactive product session.',limitations:'Only a deterministic fixture; not product acceptance.',recommendation:'keep',next_action:'Inspect the authoring mechanism.'},body:'Published directly without workflow Assignment.'}};}
-  const candidate=proposal(guidance,'first-observation');
-  const firstGuidance=cli(['expectations','show',gaps.items[0].subject]);
-  const wrong={...candidate,operation:'wrong-evidence',evidence:firstGuidance.evidence[0]};
-  cli(['proposal','submit','-'],wrong,lifecycle,1);assert.equal(cli(['expectations']).items.length,2);
-  const accepted=cli(['proposal','submit','-'],candidate);assert.equal(accepted.outcome,'accepted');
-  const shown=cli(['show',accepted.revision]);assert.ok(JSON.stringify(shown).includes('direct-proposal@1'));
-  assert.equal(cli(['expectations']).items.length,1);
-  // Simulate a lost successful response at the caller: discard it and recover by durable operation identity.
-  assert.equal(cli(['proposal','settlement',candidate.operation]).revision,accepted.revision);
-  assert.equal(cli(['proposal','submit','-'],candidate).revision,accepted.revision);
-  cli(['proposal','submit','-'],{...candidate,datum:{...candidate.datum,body:'Changed bytes'}},lifecycle,1);
-  cli(['proposal','submit','-'],proposal(firstGuidance,'stale-observation'),lifecycle,1);
-  const fresh=cli(['expectations','show',gaps.items[0].subject]);
-  const secondCandidate=proposal(fresh,'second-observation');
-  // Drop the CLI response channel after submission, then recover solely through settlement.
-  const lost=spawnSync(process.execPath,[executable,'proposal','submit','-','--json'],{cwd:lifecycle,input:JSON.stringify(secondCandidate),encoding:'utf8',stdio:['pipe','ignore','pipe'],timeout:90000});
-  captures.push({stage,args:['proposal','submit','-'],cwd:lifecycle,input:JSON.stringify(secondCandidate),status:lost.status,stdout:null,stderr:lost.stderr,response:'intentionally discarded at caller'});
-  writeFileSync(path.join(root,'commands.json'),JSON.stringify(captures,null,2)+'\n');
-  assert.equal(lost.status,0,lost.stderr);
-  const second=cli(['proposal','settlement','second-observation']);assert.equal(second.outcome,'accepted');
-  assert.equal(cli(['expectations']).items.length,0);
-  cli(['doctor']);
-  const data=names(lifecycle);assert.equal(data.filter(d=>d.type==='OBS').length,2);
-  for (const old of bootstrapData) assert.deepEqual(data.find(d=>d.revision_id===old.revision_id),old);
-  assert.ok(captures.filter(c=>c.stage==='direct-authoring').every(c=>!['assignment','next','scenario'].includes(c.args[0])));
-  writeFileSync(path.join(root,'result.json'),JSON.stringify({ok:true,root,lifecycle,source,sourceCommit,receipts:receipts.map(r=>r.oid),observations:[accepted.revision,second.revision],bootstrapCommands:captures.filter(c=>c.stage==='bootstrap').length,authoringCommands:captures.filter(c=>c.stage==='direct-authoring').length,scope:'Actual Docker bootstrap; direct authoring with real storage, read-only guidance, wrong receipt, stale snapshot and nonduplicate settlement checks. No user acceptance.'},null,2)+'\n');
+  stage='closure';
+  assert.equal(cli(['next']).outcome,'profile-boundary-reached');
+  assert.equal(git(['for-each-ref','--format=%(refname)','refs/mdlm/verification']),'');
+  assert.ok(captures.filter(c=>c.stage==='direct-execute-observe' && c.file===process.execPath).every(c=>!['assignment','next','scenario'].includes(c.args[1])));
+  writeFileSync(path.join(root,'result.json'),JSON.stringify({ok:true,root,lifecycle,source,sourceCommits,receipts,observations,scope:'Ordinary bootstrap, direct pass/revise then fail/drop, exact binding rejection and completed operation recovery. No user acceptance.'},null,2)+'\n');
   console.log(JSON.stringify({ok:true,root,lifecycle,result:path.join(root,'result.json')},null,2));
 } catch(error) {writeFileSync(path.join(root,'failure.txt'),String(error.stack||error));console.error(root,error);process.exitCode=1;}

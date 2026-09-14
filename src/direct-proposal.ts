@@ -8,7 +8,8 @@ import { selectedRepositoryPackage } from "./selected-package.js";
 import { readRepositoryData, publishScenarioMutationData } from "./lifecycle-repository.js";
 import { withRepositoryLock } from "./repository-lock.js";
 import { resolvePrompt } from "./scenario-dry-run.js";
-import { readVerificationReceiptBlob, validateVerificationReceipt, type VerificationBinding } from "./verification-receipt.js";
+import { readVerificationReceiptBlob, validateVerificationReceipt, type VerificationBinding, runVerificationReceipt, verificationRef } from "./verification-receipt.js";
+import { directWorkSubjects } from "./operator-outcome.js";
 import { repositoryGitEnvironment } from "./git-environment.js";
 
 const exec = promisify(execFile);
@@ -18,7 +19,7 @@ const transactionKind = "direct-proposal@1";
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
 function fail(message: string): never { throw new Error(message); }
 function binding(pkg: ProcessPackage): KernelCapabilityBinding {
-  const value = pkg.kernelCapabilities[capability];
+  const value = pkg.kernelCapabilities["direct-observation@2"] ?? pkg.kernelCapabilities[capability];
   if (!value || !value.implementation_type || !value.requirement_type || !value.subject_link || !value.context_link || !value.input_link || !value.prompt_ref) fail("Package does not support direct observation guidance and publication");
   // This route grants no independent review or stakeholder authority.
   if (Object.values(pkg.scenarios).some(s => object(s.authority_evidence) && s.authority_evidence.type === value.type)) fail("Authority evidence cannot use direct observation publication");
@@ -48,23 +49,16 @@ async function git(root: string, args: string[]) {
 async function receiptFor(root: string, oid: string, packageIdentity: unknown, trial: DatumEnvelope, experiment: DatumEnvelope) {
   const saved = await readVerificationReceiptBlob(root, oid);
   const b = saved.receipt.binding;
-  if (!b || !/^[a-zA-Z0-9-]+$/.test(b.assignment) || !Number.isInteger(saved.receipt.attempt) || saved.receipt.attempt < 1) fail("Invalid receipt provenance");
-  const registered = await git(root, ["rev-parse", "--verify", `refs/mdlm/verification/${b.assignment}/attempt-${saved.receipt.attempt}-receipt`]);
+  const execution = b?.operation ?? b?.assignment;
+  if (!b || !execution || !/^[a-zA-Z0-9-]{1,80}$/.test(execution) || !Number.isInteger(saved.receipt.attempt) || saved.receipt.attempt < 1) fail("Invalid receipt provenance");
+  const registered = await git(root, ["rev-parse", "--verify", `${verificationRef(b)}/attempt-${saved.receipt.attempt}-receipt`]);
   if (registered !== oid) fail("Receipt is not registered to its original execution");
-  const payload = trial.payload;
-  const expected: VerificationBinding = {
-    assignment: b.assignment, package: packageIdentity,
-    inputs: [{name: "trial", revisions: [trial.revision_id]}, {name: "experiment", revisions: [experiment.revision_id]}],
-    repositoryPath: payload.repository_path as string, sourceCommit: payload.source_commit as string,
-    image: payload.verification_image as string, command: payload.verification_command as string[], scriptPath: payload.verification_script as string,
-  };
-  // Historical execution identity is retained. No new authoring Assignment is allocated.
+  const expected = executionBinding(packageIdentity, trial, experiment, b.operation === undefined ? {assignment: b.assignment!} : {operation: b.operation});
   const verified = await validateVerificationReceipt(expected, saved);
-  if (verified.outcome !== "pass") fail("Direct keep observations require a passing receipt; other outcomes use the existing execution route");
   return verified;
 }
 async function availableReceipts(root: string, packageIdentity: unknown, trial: DatumEnvelope, experiment: DatumEnvelope) {
-  const refs = await git(root, ["for-each-ref", "--format=%(objectname)", "refs/mdlm/verification"]);
+  const refs = await git(root, ["for-each-ref", "--format=%(objectname)", "refs/mdlm/verification", "refs/mdlm/execution"]);
   const results: string[] = [];
   for (const oid of new Set(refs.split("\n").filter(Boolean))) {
     try { await receiptFor(root, oid, packageIdentity, trial, experiment); results.push(`git-blob:${oid}`); } catch { /* Other subjects and incomplete attempts are not this evidence. */ }
@@ -74,7 +68,8 @@ async function availableReceipts(root: string, packageIdentity: unknown, trial: 
 export async function inspectDirectExpectations(root: string, subject?: string) {
   const current = await state(root);
   const config = binding(current.processPackage);
-  const missing = current.data.filter(d => d.type === config.implementation_type && !current.data.some(o => o.type === config.type && o.links.some(l => l.type === config.subject_link && l.target === d.revision_id)));
+  const pending = current.processPackage.kernelCapabilities["direct-observation@2"] ? directWorkSubjects(current.processPackage, {processRef: current.packageIdentity.reference, phaseId: Object.keys(current.processPackage.phases)[0]!, records: current.parsed.map(p => p.lifecycleDatum), dependencyComparisons: []}) : current.data.filter(d => d.type === config.implementation_type && !current.data.some(o => o.type === config.type && o.links.some(l => l.type === config.subject_link && l.target === d.revision_id))).map(d => d.revision_id);
+  const missing = pending.map(revision => current.data.find(d => d.revision_id === revision)!);
   const common = {package: current.packageIdentity, snapshot: current.snapshot};
   if (!subject) return {ok: true, contract: "mdlm-expectations@1" as const, ...common, items: missing.map(d => ({subject: d.revision_id, type: config.type, guidance: `mdlm expectations show ${d.revision_id} --json`}))};
   if (!missing.some(d => d.revision_id === subject)) fail("No supported missing observation for this exact subject");
@@ -85,11 +80,11 @@ export async function inspectDirectExpectations(root: string, subject?: string) 
   if (!prompt.prompt || prompt.diagnostics.length) fail(JSON.stringify(prompt.diagnostics));
   const schema = structuredClone(resolved.type.payloadSchema) as Record<string, any>;
   for (const field of resolved.type.kernelManagedPayloadPaths) { delete schema.properties?.[field]; if (Array.isArray(schema.required)) schema.required = schema.required.filter((x: string) => x !== field); }
-  if (schema.properties?.recommendation) schema.properties.recommendation = {const: "keep"};
+  if (!current.processPackage.kernelCapabilities["direct-observation@2"] && schema.properties?.recommendation) schema.properties.recommendation = {const: "keep"};
   return {ok: true, contract: "mdlm-expectation-guidance@1" as const, ...common, subject, prompt: prompt.prompt, payloadSchema: schema,
-    context: {trial, experiment}, evidence: await availableReceipts(root, current.packageIdentity, trial, experiment),
+    executionCommand: `mdlm execution run ${subject} <operation-id> --json`, context: {trial, experiment}, evidence: await availableReceipts(root, current.packageIdentity, trial, experiment),
     candidate: {type: config.type, links: [{type: config.subject_link, target: trial.revision_id}, {type: config.context_link, target: experiment.revision_id}], payload: Object.fromEntries(Object.entries(schema.properties ?? {}).flatMap(([key, value]) => object(value) && "const" in value ? [[key, value.const]] : [])), body: ""},
-    managedFields: resolved.type.kernelManagedPayloadPaths, limits: "Only passing keep observations; no user acceptance or independent review. Guidance is not authority; no gap token is required."};
+    managedFields: resolved.type.kernelManagedPayloadPaths, limits: "No user acceptance or independent review. Failed or errored executions allow revise or drop only. Guidance is not authority; no gap token is required."};
 }
 interface DirectProposal {
   operation: string;
@@ -131,7 +126,8 @@ export async function submitDirectProposal(root: string, source: string) {
     const current = await state(root);
     const config = binding(current.processPackage);
     if (!isDeepStrictEqual(proposal.package, current.packageIdentity) || proposal.snapshot !== current.snapshot) fail("Proposal snapshot or package changed; refresh before publication");
-    if (proposal.datum.type !== config.type || proposal.datum.payload.recommendation !== "keep") fail("This direct route supports only keep observations");
+    if (proposal.datum.type !== config.type) fail("This direct route supports only observations");
+    if (!current.processPackage.kernelCapabilities["direct-observation@2"] && proposal.datum.payload.recommendation !== "keep") fail("This package supports only direct keep observations");
     const trialLinks = proposal.datum.links.filter(l => l.type === config.subject_link);
     if (trialLinks.length !== 1) fail("Candidate must identify one exact prototype");
     const {trial, experiment} = exactSubjects(current.data, config, trialLinks[0]!.target);
@@ -142,6 +138,7 @@ export async function submitDirectProposal(root: string, source: string) {
     if (resolved.type.kernelManagedPayloadPaths.some(k => k in proposal.datum.payload)) fail("Candidate may not author kernel-managed payload");
     if (!/^git-blob:[a-f0-9]{40}$/.test(proposal.evidence)) fail("Evidence must identify an exact receipt blob");
     const receipt = await receiptFor(root, proposal.evidence.slice(9), current.packageIdentity, trial, experiment);
+    if (receipt.outcome !== "pass" && !["revise", "drop"].includes(proposal.datum.payload.recommendation as string)) fail("Failed or errored execution requires revise or drop");
     const prompt = await resolvePrompt(current.processPackage, config.prompt_ref!);
     if (!prompt.prompt || prompt.diagnostics.length) fail("Direct observation prompt unavailable");
     const id = `${config.type}-${createHash("sha256").update(proposal.operation).digest("hex").slice(0,12).toUpperCase()}`;
@@ -157,4 +154,30 @@ export async function submitDirectProposal(root: string, source: string) {
     if (!published.ok) fail(JSON.stringify(published.diagnostics));
     return {ok: true, contract: "mdlm-proposal-result@1" as const, outcome: "accepted" as const, operation: proposal.operation, transaction: executionId, revision: datum.revision_id};
   });
+}
+
+function executionBinding(packageIdentity: unknown, trial: DatumEnvelope, experiment: DatumEnvelope, owner: {assignment: string} | {operation: string}): VerificationBinding {
+  const payload = trial.payload;
+  return {...owner, package: packageIdentity, inputs: [{name: "trial", revisions: [trial.revision_id]}, {name: "experiment", revisions: [experiment.revision_id]}], repositoryPath: payload.repository_path as string, sourceCommit: payload.source_commit as string, image: payload.verification_image as string, command: payload.verification_command as string[], scriptPath: payload.verification_script as string};
+}
+function checkOperation(operation: string) { if (!/^[a-zA-Z0-9-]{1,80}$/.test(operation)) fail("Invalid execution operation identity"); }
+export async function runDirectExecution(root: string, subject: string, operation: string) {
+  checkOperation(operation);
+  return withRepositoryLock(root, "refs/mdlm/assignment-lease-lock", async () => {
+    const current = await state(root);
+    if (!current.processPackage.kernelCapabilities["direct-observation@2"]) fail("Package does not support direct execution");
+    const {trial, experiment} = exactSubjects(current.data, binding(current.processPackage), subject);
+    const saved = await runVerificationReceipt(root, executionBinding(current.packageIdentity, trial, experiment, {operation}), false);
+    return {ok: true, contract: "mdlm-execution-result@1" as const, operation, value: {...saved, evidence: `git-blob:${saved.oid}`}};
+  });
+}
+export async function inspectDirectExecution(root: string, operation: string) {
+  checkOperation(operation);
+  const current = await state(root);
+  if (!current.processPackage.kernelCapabilities["direct-observation@2"]) fail("Package does not support direct execution");
+  const oid = await git(root, ["rev-parse", "--verify", "--quiet", `refs/mdlm/execution/${operation}/latest`]).catch(error => { if (error.code === 1) return undefined; throw error; });
+  if (!oid) return {ok: true, contract: "mdlm-execution-result@1" as const, operation, value: {state: "not-started"}};
+  const saved = await readVerificationReceiptBlob(root, oid);
+  if (saved.receipt.binding.operation !== operation || !isDeepStrictEqual(saved.receipt.binding.package, current.packageIdentity)) fail("Execution settlement binding changed");
+  return {ok: true, contract: "mdlm-execution-result@1" as const, operation, value: {...saved, evidence: saved.receipt.state === "completed" ? `git-blob:${oid}` : undefined}};
 }

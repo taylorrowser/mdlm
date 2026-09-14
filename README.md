@@ -20,30 +20,29 @@ constraints before atomic publication. Reviewers judge whether requirements expr
 justify acceptance. The CLI captures script output and classifies its exit status.
 Reviewers check whether the script proves the intended behavior.
 
-## Direct observation experiment
+## Direct execution and observation
 
-The exploratory package also supports authoring a passing `keep` observation
-from an existing exact prototype and authenticated execution receipt, without
-claiming an authoring Assignment. Execution and review still use their existing
-routes. This experiment does not grant acceptance or support arbitrary reviews.
-
-After bootstrap, from the lifecycle repository:
+The fresh exploratory package uses Assignments to frame an experiment and prepare
+an exact prototype. When `next` returns `direct-work-available`, choose a subject
+and use the package guidance. Execution and observation allocate no Assignment.
 
 ```sh
 mdlm expectations --json
 mdlm expectations show TRY-EXACTREVISION-r00001 --json
+mdlm execution run TRY-EXACTREVISION-r00001 trial-1 --json
+mdlm execution settlement trial-1 --json
+mdlm expectations show TRY-EXACTREVISION-r00001 --json
 mdlm proposal submit proposal.json --json
-mdlm proposal settlement my-observation-1 --json
+mdlm proposal settlement observation-1 --json
 ```
 
-Use the actual subject returned by `expectations`. Guidance contains the
-package-owned prompt, author payload schema, exact trial/experiment, matching
-receipt references and a candidate scaffold with fixed values filled in. Reading
-it allocates no Assignment. Fill the candidate's remaining fields and submit:
+Replace the example revision with an actual subject. Guidance contains the
+package-owned prompt, payload schema, exact trial and experiment, matching
+receipt references and a candidate scaffold. Fill that scaffold and submit:
 
 ```json
 {
-  "operation": "my-observation-1",
+  "operation": "observation-1",
   "package": "copy the guidance package object here",
   "snapshot": "copy the guidance snapshot here",
   "evidence": "copy one matching git-blob receipt reference here",
@@ -51,28 +50,42 @@ it allocates no Assignment. Fill the candidate's remaining fields and submit:
 }
 ```
 
-The strings above mark fields to replace with actual objects or values. No gap
-selection token is required. The kernel validates the proposed data, derives
-receipt/outcome, checks the snapshot under the writer lock and publishes an
-immutable transaction. A changed snapshot requires fresh guidance. After an
-uncertain response, inspect settlement with the original operation ID; identical
-resubmission returns the same result, while changed candidate data under that ID
-is rejected. Do not claim success from a missing response.
+The strings mark fields to replace with actual objects or values. MDLM binds
+execution to the exact package, trial, experiment, source commit, pinned image,
+command and verification script. The receipt retains source tree, script hash,
+actual image identity, output and exit classification. An exit of 0 passes;
+1 fails; other exits or execution problems are errors. Outcome and receipt are
+managed fields. A passing script permits keep, revise, drop or nominate. A failed
+or errored execution permits revise or drop. Nomination requests stakeholder
+feedback; it does not accept a product or baseline a requirement.
 
-For a complete disposable example with actual Docker bootstrap and captured
-commands, build and run from this checkout with Docker access:
+Reading guidance changes no lifecycle state. Publication checks the observed
+snapshot and exact receipt, then writes an immutable transaction. After an
+uncertain response, inspect settlement with the original operation ID. Repeating
+a completed operation returns its original receipt or publication; changed
+inputs under that ID are rejected. A started execution without a completed
+receipt remains uncertain and must not be rerun. There is no direct retry switch.
+After an environment error, preserve its receipt and repair the environment
+before deliberately choosing a new operation. Inspect and commit accepted
+Lifecycle Data, then run `mdlm next --json` for revision, feedback or a terminal
+boundary.
+
+Run a complete disposable example from a built checkout with Docker access:
 
 ```sh
 npm run build
 node scripts/direct-proposal-walkthrough.mjs
+# On the development host when this shell lacks the Docker group:
+sg docker -c 'node scripts/direct-proposal-walkthrough.mjs'
 ```
 
-The command prints a preserved temporary directory containing `commands.json`,
-`result.json`, the product and the lifecycle repository. It bootstraps two exact
-prototype/receipt pairs separately, then publishes observations, rejects wrong
-receipt and stale proposals, and recovers a deliberately discarded response.
-No existing demo is changed. Prompt guidance and exact schemas are read-only;
-OBS is the only direct datum supported in this first experiment.
+It preserves `commands.json`, `result.json`, product source and lifecycle history
+in the printed temporary directory. The ordinary journey captures pass/revise,
+then fail/drop, rejects a wrong historical receipt and changed operation input,
+and recovers deliberately discarded responses without repeating execution.
+Docker access is checked before lifecycle initialization. This tests engineering
+mechanics, not user acceptance. Existing tiny and historical exploratory
+repositories retain their selected package and Assignment routes.
 
 ## Operator contract
 
@@ -94,8 +107,7 @@ one loop:
 8. reevaluate explicitly with `mdlm next --json`.
 
 `mdlm status` remains read-only inspection. `mdlm next` authenticates one exact
-repository and Process Package, derives one of the six Operator Outcome
-families, and leases work only when it can advance. Assignment and Attention
+repository and Process Package, derives an Operator Outcome, and leases work only when it can advance. Assignment and Attention
 Required outcomes include the complete packet: prompt, skills, exact inputs,
 schemas, Policies, participation, authority requirements, outputs, completion
 conditions, authorValuesSchema, and authorValuesScaffold. Full response schema and
@@ -128,8 +140,9 @@ mdlm start --json
 mdlm next --json
 ```
 
-Default initialization still selects tiny. The exploratory package uses the same
-`next`, `assignment run`, `submit-proposal`, `doctor` and Git commit loop.
+Default initialization still selects tiny. The exploratory package uses `next` for framing and revision Assignments,
+then direct execution and observation as described above. `doctor` and ordinary
+Git commits still close publication boundaries.
 
 - **EXP, experiment brief:** a revisable stakeholder criterion, learning question,
   provisional approach, constraints, time allowance and scope cut.

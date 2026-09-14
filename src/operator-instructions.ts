@@ -1,4 +1,5 @@
 export type OperatorInstructionAction =
+  | "inspect-direct-work"
   | "publish-materialized-executions"
   | "execute-assignment"
   | "obtain-attention"
@@ -16,6 +17,7 @@ export interface OperatorInstructions {
 
 export interface OperatorInstructionSource {
   outcome?:
+    | "direct-work-available"
     | "publication-required"
     | "assignment"
     | "attention-required"
@@ -45,6 +47,10 @@ const loopReminder = "Own the lifecycle loop. For continuing outcomes, complete 
 export function operatorInstructions(
   source: OperatorInstructionSource,
 ): OperatorInstructions {
+  if (source.outcome === "direct-work-available") return {
+    ...base, action: "inspect-direct-work", disposition: "continuation", commands: ["mdlm expectations --json"],
+    text: "Choose an exact subject from expectations and read its package guidance. Execute it directly if evidence is missing, assess the receipt, and publish the observation. Commit accepted Lifecycle Data and reevaluate with mdlm next --json. No Assignment is required for execution or observation; uncertain execution requires settlement inspection, never automatic replay.",
+  };
   if (source.outcome === "publication-required") {
     const executions = source.materializedExecutions ?? [];
     return {
