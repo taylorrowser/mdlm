@@ -33,9 +33,9 @@ for (const processName of ["tiny", "exploratory"] as const) {
     // The driver writes the same durable result before returning or throwing.
     // Emit its location before assertions so failed operation stays discoverable.
     const captured = await fs.readFile(evidenceFile,"utf8").then(source=>JSON.parse(source)).catch(()=>undefined);
-    console.log(`DIRECT_JOURNEY_CONTEXT ${JSON.stringify({process:processName,mode,executable,status:invocation.status})}`);
-    if (captured) console.log(`DIRECT_JOURNEY_EVIDENCE ${captured.evidenceFile}`);
-    else console.log(`DIRECT_JOURNEY_CAPTURE_MISSING ${evidenceFile}`);
+    process.stdout.write(`DIRECT_JOURNEY_CONTEXT ${JSON.stringify({process:processName,mode,executable,status:invocation.status})}\n`);
+    if (captured) process.stdout.write(`DIRECT_JOURNEY_EVIDENCE ${captured.evidenceFile}\n`);
+    else process.stdout.write(`DIRECT_JOURNEY_CAPTURE_MISSING ${evidenceFile}\n`);
     expect(invocation.error).toBeUndefined();
     expect(invocation.status, invocation.stdout + invocation.stderr).toBe(0);
     const result = JSON.parse(invocation.stdout.trim().split("\n").at(-1)!);
