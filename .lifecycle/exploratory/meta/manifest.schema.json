@@ -4,115 +4,37 @@
   "title": "MDLM process package manifest",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "kind",
-    "id",
-    "version",
-    "status",
-    "description",
-    "kernel_contract",
-    "artifact_format",
-    "references",
-    "language",
-    "compatibility",
-    "provenance",
-    "direct_contract",
-    "terminal"
-  ],
+  "required": ["kind", "id", "version", "status", "description", "kernel_contract", "artifact_format", "references", "language", "compatibility", "direct_contract", "terminal", "provenance"],
   "properties": {
-    "kind": {
-      "const": "process-package-manifest"
-    },
-    "id": {
-      "type": "string",
-      "pattern": "^[a-z][a-z0-9-]*$"
-    },
-    "version": {
-      "type": "string",
-      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
-    },
-    "status": {
-      "enum": [
-        "experimental",
-        "supported",
-        "deprecated"
-      ]
-    },
-    "description": {
-      "type": "string",
-      "minLength": 1
-    },
-    "kernel_contract": {
-      "type": "object"
-    },
-    "artifact_format": {
-      "type": "object"
-    },
-    "references": {
-      "type": "object"
-    },
+    "kind": {"const": "process-package-manifest"},
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+    "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "status": {"enum": ["experimental", "supported", "deprecated"]},
+    "description": {"type": "string", "minLength": 1},
+    "kernel_contract": {"type": "object"},
+    "artifact_format": {"type": "object"},
+    "references": {"type": "object"},
     "kernel_capabilities": {
       "type": "object",
-      "propertyNames": {
-        "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"
-      },
-      "additionalProperties": {
-        "$ref": "capability-binding.schema.json"
-      }
+      "propertyNames": {"pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"},
+      "additionalProperties": {"$ref": "capability-binding.schema.json"}
     },
     "language": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "expressions"
-      ],
+      "required": ["expressions"],
       "properties": {
-        "expressions": {
-          "const": "mdlm-expression@1"
-        }
+        "expressions": {"const": "mdlm-expression@1"}
       }
     },
     "compatibility": {
       "type": "object",
       "properties": {
-        "repository_migration": {
-          "enum": [
-            "compatible",
-            "fresh-only"
-          ]
-        }
+        "repository_migration": {"enum": ["compatible", "fresh-only"]}
       }
     },
-    "provenance": {
-      "type": "object"
-    },
-    "direct_contract": {
-      "const": "mdlm-direct@1"
-    },
-    "terminal": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "when",
-        "outcome",
-        "reason"
-      ],
-      "properties": {
-        "when": {
-          "type": "string",
-          "minLength": 1
-        },
-        "outcome": {
-          "enum": [
-            "lifecycle-complete",
-            "profile-boundary-reached"
-          ]
-        },
-        "reason": {
-          "type": "string",
-          "minLength": 1
-        }
-      }
-    }
+    "direct_contract": {"const": "mdlm-direct@1"},
+    "terminal": {"type": "object", "additionalProperties": false, "required": ["when", "outcome", "reason"], "properties": {"when": {"type": "string", "minLength": 1}, "outcome": {"enum": ["lifecycle-complete", "profile-boundary-reached"]}, "reason": {"type": "string", "minLength": 1}}},
+    "provenance": {"type": "object"}
   }
 }
