@@ -5,7 +5,7 @@ import { promisify, isDeepStrictEqual } from "node:util";
 import { resolveType, type DatumEnvelope } from "./index.js";
 import type { DirectContext, DirectTransaction } from "./direct-contract.js";
 import { readImplementationSource, requirementTraceBinding, selectedRequirementGraph } from "./requirement-trace.js";
-import { changeImpact } from "./change-assessment.js";
+import { assessRequirements, changeImpact } from "./change-assessment.js";
 import { compareImplementationScopes } from "./requirement-trace-inspection.js";
 import { readVerificationReceiptBlob, validateVerificationReceipt, verificationRef } from "./verification-receipt.js";
 import { repositoryGitEnvironment } from "./git-environment.js";
@@ -22,7 +22,7 @@ export interface DirectReviewContext {
   prompt: unknown;
   payloadSchemas: Record<string, unknown>;
   records: DatumEnvelope[];
-  requirementGraphs: {selection: string; groups: DatumEnvelope[]; requirements: (DatumEnvelope & {leaf: boolean})[]}[];
+  requirementGraphs: {selection: string; assessment: ReturnType<typeof assessRequirements>; groups: DatumEnvelope[]; requirements: (DatumEnvelope & {leaf: boolean})[]}[];
   sourceScopes: {implementation: string; scopes: DatumEnvelope[]; changes: unknown; comparison: unknown}[];
   prospectiveChange?: unknown;
   sources: {implementation: string; repositoryPath: string; sourceCommit: string; files: {path: string; role: string; mode: string; blob: string; content: string}[]}[];
@@ -58,7 +58,7 @@ export async function buildDirectReviewContext(context: DirectContext): Promise<
   for (const set of sets) {
     const graph = selectedRequirementGraph(data, set, trace);
     if (graph.diagnostics.length) throw new Error(`Review requirement graph '${set.revision_id}' is invalid: ${JSON.stringify(graph.diagnostics)}`);
-    result.requirementGraphs.push({selection: set.revision_id, groups: graph.groups, requirements: graph.requirements.map(datum => ({...datum, leaf: graph.leaves.has(datum.revision_id)}))});
+    result.requirementGraphs.push({selection: set.revision_id, assessment: assessRequirements(data, trace, set), groups: graph.groups, requirements: graph.requirements.map(datum => ({...datum, leaf: graph.leaves.has(datum.revision_id)}))});
   }
   for (const implementation of implementations) {
     const baseline = (implementation.payload.source_changes as {baseline_implementation?: unknown} | undefined)?.baseline_implementation;
