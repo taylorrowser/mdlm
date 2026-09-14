@@ -80,6 +80,14 @@ export async function runDirectJourney({process: processName = 'tiny', executabl
       cli(['review', 'register', proposalFile, verdictFile], undefined, {env: {MDLM_REVIEW_REGISTRAR: '1'}});
     }
     const authorityArgs = g.authority?.kind === 'stakeholder' ? ['--authority', g.authority.name] : [];
+    if (action === 'accept-product') {
+      const before = cli(['expectations']);
+      const conflicting = {...candidates[0], localId: 'conflicting-rejection', payload: {...candidates[0].payload, decision: 'reject'}};
+      const rejected = cli(['proposal', 'submit', '-', ...authorityArgs], {...proposal, operation: `${operation}-multiple`, candidates: [...candidates, conflicting]}, {expected: 1});
+      assert.equal(rejected.ok, false, 'One stakeholder operation cannot publish conflicting acceptance decisions');
+      assert.equal(cli(['expectations']).snapshot, before.snapshot, 'Rejected batch cannot change lifecycle history');
+      assert.equal(cli(['proposal', 'settlement', `${operation}-multiple`]).outcome, 'not-published');
+    }
     if (action === 'observe-prototype' && receipts.length > 1) {
       const before = data();
       assert.equal(cli(['proposal', 'submit', '-'], {...proposal, operation: 'mismatched-receipt', evidence: {receipt: receipts[0].evidence}}, {expected: 1}).ok, false);
