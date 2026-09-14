@@ -24,8 +24,22 @@ for (const processName of ["tiny", "exploratory"] as const) {
       command("npm",["install","--prefix",install,"--ignore-scripts","--no-audit","--no-fund","--offline",archive]);
       executable = path.join(install,"node_modules/mdlm/dist/mdlm.js");
     }
-    const output = command(process.execPath,[path.join(process.cwd(),"scripts/direct-lifecycle-walkthrough.mjs"),"--process",processName,"--executable",executable,"--root",path.join(root,"journey")]);
-    const result = JSON.parse(output.trim().split("\n").at(-1)!);
+    const journeyRoot = path.join(root,"journey");
+    const invocation = spawnSync(process.execPath,[path.join(process.cwd(),"scripts/direct-lifecycle-walkthrough.mjs"),"--process",processName,"--executable",executable,"--root",journeyRoot],{
+      cwd:root,encoding:"utf8",timeout:240_000,maxBuffer:30*1024*1024,env:process.env,
+    });
+    const mode = process.env.MDLM_DIRECT_EXECUTABLE ? "supplied-executable" : process.env.MDLM_DIRECT_INSTALLED === "1" ? "installed" : "source";
+    const evidenceFile = path.join(`${journeyRoot}-evidence`,"result.json");
+    // The driver writes the same durable result before returning or throwing.
+    // Emit its location before assertions so failed operation stays discoverable.
+    const captured = await fs.readFile(evidenceFile,"utf8").then(source=>JSON.parse(source)).catch(()=>undefined);
+    console.log(`DIRECT_JOURNEY_CONTEXT ${JSON.stringify({process:processName,mode,executable,status:invocation.status})}`);
+    if (captured) console.log(`DIRECT_JOURNEY_EVIDENCE ${captured.evidenceFile}`);
+    else console.log(`DIRECT_JOURNEY_CAPTURE_MISSING ${evidenceFile}`);
+    expect(invocation.error).toBeUndefined();
+    expect(invocation.status, invocation.stdout + invocation.stderr).toBe(0);
+    const result = JSON.parse(invocation.stdout.trim().split("\n").at(-1)!);
+    expect(captured?.evidenceFile).toBe(result.evidenceFile);
     expect(result.outcome).toBe(processName === "tiny" ? "lifecycle-complete" : "profile-boundary-reached");
     expect(result.publications.length).toBeGreaterThan(0);
     expect(result.receipts.length).toBeGreaterThan(0);
