@@ -27,14 +27,13 @@ it("names missing and unexpected schema fields in diagnostic paths", () => {
         },
       },
     },
-    policies: {}, states: {}, selectors: {}, obligations: {}, scenarios: {},
-    phases: {}, profiles: {}, aliases: {}, primitives: {},
+    policies: {}, states: {}, selectors: {}, actions: {}, primitives: {},
   };
   const datum: DatumEnvelope = {
     id: "REQ-0000000001", revision_id: "REQ-0000000001-r00001", revision: 1,
     type: "REQ", links: [], body: "",
     created_by: {
-      scenario: "author@1", prompt_ref: "author@1",
+      transaction: "mdlm-direct-transaction@1", prompt_ref: "author@1",
       process_ref: "schema-diagnostics@1.0.0", loaded_skill_refs: [], policy_refs: [],
     },
     payload: { cases: [{ "std/out~": "3\n" }, { stdout: 3 }] },

@@ -24,22 +24,12 @@ export const PROCESS_REPOSITORY_HOOK_TIMEOUT_MS = 40_000;
 // process/repository test boundary.
 export const PROCESS_REPOSITORY_CHILD_TIMEOUT_MS = 60_000;
 
-export const CONTENDED_IN_PROCESS_SETUP_LIMITS = Object.freeze({
-  // Twice the 12,520 ms contended file observation, strictly rounded upward.
-  "test/evaluate-phase.test.ts": 30_000,
-  // The 10,300 ms failed max-3 setup observation is status evidence only.
-  // Apply the central 30,000 ms contended setup limit without treating the
-  // failed file wall as a successful timing input.
-  "test/evaluate-scoped-obligation.test.ts": 30_000,
-  // Twice the measured 4,505 ms hook, strictly rounded upward.
-  "test/load-scenario-participation.test.ts": 20_000,
-});
+export const CONTENDED_IN_PROCESS_SETUP_LIMITS = Object.freeze({});
 
 const PROCESS_REPOSITORY_KIND = ROOT_TEST_OBSERVATION_KINDS.PROCESS_REPOSITORY;
 const CANONICAL_IN_PROCESS_KIND = ROOT_TEST_OBSERVATION_KINDS.CANONICAL_IN_PROCESS;
 
 const processRepositoryRuntimeClasses = new Set([
-  "assignment-publication-heavy",
   "baseline-integrity-heavy",
   "process-repository-heavy",
   "process-repository-safe",
@@ -228,22 +218,7 @@ const childProcessOptionsArgument = Object.freeze({
   spawnSync: 2,
 });
 
-const nonChildTimeoutDispositions = Object.freeze([
-  {
-    file: "test/mdlm-assignment.test.ts",
-    search: "function waitForPath(\n  target: string,\n  message: string,\n  timeoutMs = 10_000,",
-    kind: "synchronization-barrier-default",
-    effectiveTimeout: "10,000 ms",
-    disposition: "filesystem synchronization barrier; not a child-process option",
-  },
-  {
-    file: "test/mdlm-assignment.test.ts",
-    search: "function waitForDirectoryEntry(\n  directory: string,\n  predicate: (entry: string) => boolean,\n  message: string,\n  timeoutMs = 10_000,",
-    kind: "synchronization-barrier-default",
-    effectiveTimeout: "10,000 ms",
-    disposition: "filesystem synchronization barrier; not a child-process option",
-  },
-]);
+const nonChildTimeoutDispositions = Object.freeze([]);
 
 function sourceLine(sourceFile, node) {
   return sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;

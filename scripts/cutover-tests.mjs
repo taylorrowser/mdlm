@@ -30,13 +30,13 @@ run("npm", ["run", "typecheck"]);
 run("npm", ["run", "typecheck:mdlm-pi"]);
 run("npm", ["run", "build"]);
 run("./node_modules/.bin/vitest", [
-  "run", "--config", "vitest.cutover.config.ts",
+  "run", "--config", args[0] === "cutover" ? "vitest.cutover.config.ts" : "vitest.fast.config.ts",
 ]);
 if (args[0] === "cutover") {
   run("npm", ["run", "build:mdlm-pi"]);
   run("npm", ["exec", "--workspace=mdlm-pi", "--", "vitest", "run",
     "--testTimeout=180000", "test/mdlm-client-v2.test.ts", "test/operator-loop.test.ts"]);
-  run("./node_modules/.bin/vitest", ["run", "test/change-control-public.test.ts"], {
-    MDLM_TINY_INSTALLED: "1",
+  run("./node_modules/.bin/vitest", ["run", "test/direct-lifecycle-public.test.ts"], {
+    MDLM_DIRECT_INSTALLED: "1",
   });
 }

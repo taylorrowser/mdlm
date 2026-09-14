@@ -7,7 +7,7 @@ describe("bounded array predicates", () => {
     const diagnostics = compileDefinitionExpressions(
       { kind: "policy-definition", id: "case-shape", version: 1, rules: [rule] },
       "case-shape.yaml",
-      { templates: {}, types: {}, selectors: {}, states: {}, policies: {}, scenarios: {} },
+      { templates: {}, types: {}, selectors: {}, states: {}, policies: {} },
     );
     return { diagnostics, expression: rule.when };
   }
