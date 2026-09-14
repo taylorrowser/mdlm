@@ -26,6 +26,9 @@ Coverage retained across the cutover:
 - Public journeys exercise current tiny and exploratory packages through direct
   commands, real execution, decisions and corrections. They use explicit fixture
   stakeholder delegation and do not claim real user acceptance.
+- A custom two-action package fixture proves public discovery/guidance stay read-only
+  and the kernel accepts the second eligible action. The existing package initializer
+  sets up this fixture because custom package paths are not a CLI init feature.
 - Package loading and runtime scans reject restoration of old workflow machinery.
 - CLI output flush, schema diagnostics, expression predicates and release identity
   guards preserve the independent boundaries they protected before the cutover.
