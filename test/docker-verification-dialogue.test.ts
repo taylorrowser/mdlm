@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import os from "node:os";
@@ -89,4 +90,37 @@ it("partial verification cannot use an omitted committed dependency", async () =
   expect(missing).toMatchObject({outcome: "error", exitCode: 2, started: true});
   expect(Buffer.from(missing.stderrBase64, "base64").toString()).toContain("dependency");
   expect(included).toMatchObject({outcome: "pass", exitCode: 0});
+}, 45_000);
+
+it("executes committed nested files under a restrictive caller umask", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-umask-proof-"));
+  const git = (...args: string[]) => execFileSync("git", ["-C", root, ...args], {encoding: "utf8"}).trim();
+  git("init", "--quiet");
+  await fs.mkdir(path.join(root, "nested"));
+  await fs.writeFile(path.join(root, "nested/value.txt"), "committed value\n");
+  await fs.writeFile(path.join(root, "nested/helper.sh"), "#!/bin/sh\ncat nested/value.txt\n");
+  await fs.chmod(path.join(root, "nested/helper.sh"), 0o755);
+  const script = "import os, pathlib, subprocess\nassert os.getuid() == 65534\nassert pathlib.Path('nested/value.txt').read_text() == 'committed value\\n'\nassert subprocess.check_output(['./nested/helper.sh']) == b'committed value\\n'\nprint('PASS: committed nested files')\n";
+  await fs.writeFile(path.join(root, "nested/verify.py"), script);
+  git("add", ".");
+  git("-c", "user.name=MDLM test", "-c", "user.email=test@example.invalid", "commit", "--quiet", "-m", "Restrictive umask fixture");
+  const input = {
+    repositoryPath: root, sourceCommit: git("rev-parse", "HEAD"),
+    image: "python@sha256:7415fbc3c9e4979cc717d92377ab2bc7b2b4a2af1ac03cc52b5f3f88efedaf3a",
+    command: ["python3", "nested/verify.py"], scriptPath: "nested/verify.py", timeoutMs: 20_000,
+  };
+  const previousUmask = process.umask(0o077);
+  let result;
+  try {
+    result = await executeDockerVerification(input);
+  } finally {
+    process.umask(previousUmask);
+  }
+  const evidence = path.join(root, "evidence.json");
+  await fs.writeFile(evidence, JSON.stringify({input, result}, null, 2) + "\n");
+  console.log(`Restrictive umask evidence: ${evidence}`);
+  expect(result, JSON.stringify(result)).toMatchObject({outcome: "pass", started: true, exitCode: 0, sourceCommit: input.sourceCommit});
+  expect(result.scriptSha256).toBe(createHash("sha256").update(script).digest("hex"));
+  expect(Buffer.from(result.stdoutBase64, "base64").toString()).toBe("PASS: committed nested files\n");
+  expect(result.stderrBase64).toBe("");
 }, 45_000);
