@@ -30,7 +30,7 @@ for (const {processName, corrections} of [
       executable = path.join(install,"node_modules/mdlm/dist/mdlm.js");
     }
     const journeyRoot = path.join(root,"journey");
-    const invocation = spawnSync(process.execPath,[path.join(process.cwd(),"scripts/direct-lifecycle-walkthrough.mjs"),"--process",processName,"--executable",executable,"--root",journeyRoot,...(corrections ? ["--corrections"] : [])],{
+    const invocation = spawnSync(process.execPath,[path.join(process.cwd(),"scripts/direct-lifecycle-walkthrough.mjs"),"--process",processName,"--executable",executable,"--root",journeyRoot,...(corrections ? ["--corrections"] : []), ...(processName === "iterative" ? ["--operational-use"] : [])],{
       cwd:root,encoding:"utf8",timeout:240_000,maxBuffer:30*1024*1024,env:process.env,
     });
     const mode = process.env.MDLM_DIRECT_EXECUTABLE ? "supplied-executable" : process.env.MDLM_DIRECT_INSTALLED === "1" ? "installed" : "source";
@@ -47,6 +47,7 @@ for (const {processName, corrections} of [
     expect(captured?.evidenceFile).toBe(result.evidenceFile);
     expect(result.outcome).toBe(processName === "tiny" ? "lifecycle-complete" : "profile-boundary-reached");
     expect(result.publications.length).toBeGreaterThan(0);
+    if (processName === "iterative") expect(captured.operationalUses).toHaveLength(3);
     expect(result.receipts.length).toBeGreaterThan(0);
     expect(result.commands.length).toBeGreaterThan(0);
     expect(await fs.stat(result.evidenceFile)).toMatchObject({size:expect.any(Number)});

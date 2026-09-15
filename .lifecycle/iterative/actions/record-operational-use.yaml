@@ -1,0 +1,20 @@
+kind: action-definition
+id: record-operational-use
+version: 1
+description: Record a distinct use of an exact product without changing its verification or acceptance
+capability: feedback
+prompt_ref: prompts/record-operational-use.md@1
+types:
+  - OPU
+subjects: select("operational-subjects@1", {})
+inputs:
+  product: subject
+  prior_uses: 'select("operational-uses-for@1", {product: subject})'
+optional: true
+priority: 100
+links:
+  OPU:
+    observes: product
+fixed_payload:
+  OPU:
+    publication: recorded

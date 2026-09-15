@@ -1,0 +1,63 @@
+kind: type-definition
+id: OPU
+version: 1
+name: Operational use
+description: An authored account of actual use of one exact product revision, separate from verification and acceptance.
+extends: titled-datum@1
+lifecycle:
+  authorship: authored
+  freeze_when: terminal-outcome
+  terminal_payload_field: publication
+  terminal_values:
+    - recorded
+payload_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  required:
+    - publication
+    - actor_kind
+    - actor
+    - occurred_at
+    - scenario
+    - observed_outcome
+    - evidence_reference
+    - assessment
+    - limitations
+  properties:
+    publication:
+      const: recorded
+    actor_kind:
+      enum:
+        - agent
+        - user
+        - scripted
+    actor: &text
+      type: string
+      minLength: 1
+    occurred_at:
+      type: string
+      format: date-time
+    scenario: *text
+    observed_outcome:
+      enum:
+        - observed
+        - problem
+        - inconclusive
+    evidence_reference: *text
+    assessment: *text
+    limitations: *text
+outgoing_links:
+  - id: observes
+    description: Exact product revision used; its source commit covers the full repository even when formal acceptance is narrower.
+    targets:
+      - kind: datum
+        types:
+          - TRY
+          - IMP
+        identity: revision
+    cardinality:
+      minimum: 1
+      maximum: 1
+    freeze_resolution: already-exact
+    inverse_label: incoming-operational-use
+kernel_managed_payload_paths: []

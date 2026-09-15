@@ -1,6 +1,6 @@
 # Iterative Process Package
 
-`mdlm init /path/to/lifecycle --process iterative` starts a fresh `mdlm-iterative@1.1.0` repository. It combines the existing exploratory and formal routes. Existing tiny and exploratory products retain their selected package bytes and history.
+`mdlm init /path/to/lifecycle --process iterative` starts a fresh `mdlm-iterative@1.2.0` repository. It combines the existing exploratory and formal routes. Existing tiny and exploratory products retain their selected package bytes and history.
 
 Discuss the intended product and agree its smallest useful scope. Choose vertical slices that resolve uncertainty, build a usable integrated prototype, then use it while progressively formalizing necessary behavior. EXP records provisional criteria and choices, TRY binds committed runnable source, OBS records actual execution and observations, and FDB records stakeholder feedback. These planning practices guide agent choices; they are not additional kernel gates.
 
@@ -22,3 +22,13 @@ Passing exploratory execution permits nomination for stakeholder feedback. Choos
 The package is a deliberately separate copy of the two small example packages, with one shared selector definition and the changes described above. This keeps its identity self-contained without adding package inheritance machinery. Evolve it from fresh operational evidence.
 
 Implementation-only maintenance reuses a requirements PASS only from a valid earlier RQS in the same lineage, no later than the accepted baseline named by the current approved CHG. Its selected exact REQ and DCP revisions must equal both that baseline and the candidate. A FAIL on the reviewed selection, baseline, candidate or change prevents reuse. Changed graphs require fresh review. This rule also supports consecutive unchanged maintenance without copying reviews or following a reuse chain. A new RQS and IMP, complete source scopes, canonical verification, fresh independent implementation review and explicit stakeholder acceptance remain required.
+
+`record-operational-use` optionally records a distinct actual session as OPU against
+an exact TRY or IMP, including historical revisions. Guidance includes prior uses
+of that same revision. Record the actor, time, scenario, actual transcript, durable
+evidence reference and limitations. These are authored accounts, not kernel-attested
+execution. Repeated use needs neither a new source revision nor a canonical receipt.
+The linked IMP identifies the full source even when its formal scope is narrower;
+operating provisional behavior does not accept it. OPU does not require stakeholder
+feedback or change the formal completion conditions. OBS and RES retain their
+separate execution-assessment contracts.
