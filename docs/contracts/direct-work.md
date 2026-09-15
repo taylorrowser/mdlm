@@ -35,3 +35,9 @@ implementation review, both exports include `sourceAssessmentTargets`: its
 `source_assessments` row each. Current scopes and before/after comparisons remain
 evidence for those judgments. Registration binds a verdict to its context;
 publication still validates field permissions and exact assessment coverage.
+
+## Explicit formal source selection
+
+The opt-in requirement-trace@3 capability retains the v2 graph contract and permits IMP acceptance_scope partial with an exact nonempty formal_files list. Whole-product coverage remains the default and forbids a file selection. The complete committed source inventory and every file role remain visible. Partial inventory entries expose formal true or false; only formal files derive SCP data. The verifier must be formal. Unsupported binary entries, symlinks and submodules remain unsupported even when provisional.
+
+Execution receipts bind formalFiles alongside the exact IMP, RQS, source commit, command and image. The executor removes unselected committed files before mounting the source snapshot. An exercised dependency on omitted source cannot pass. This does not prove unexercised branches or infer dependency completeness; independent review judges the declared claim against all visible source. Review context exposes acceptanceScope and a formal flag on every source file. Acceptance applies to the exact IMP and commit, never automatically to a later commit with similar files. A partial profile boundary is not whole-product completion.

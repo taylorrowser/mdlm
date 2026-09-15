@@ -83,7 +83,7 @@ async function guidance(current: State,ref: string,subject?: string) {
   const prompt=await resolvePrompt(current.pkg,context.action.prompt_ref);
   if (!prompt.prompt || prompt.diagnostics.length) fail(JSON.stringify(prompt.diagnostics));
   const schemas:Record<string,unknown>={}; const candidates:DirectCandidate[]=[];
-  const trace=current.pkg.kernelCapabilities["requirement-trace@2"]??current.pkg.kernelCapabilities["requirement-trace@1"];
+  const trace=current.pkg.kernelCapabilities["requirement-trace@3"]??current.pkg.kernelCapabilities["requirement-trace@2"]??current.pkg.kernelCapabilities["requirement-trace@1"];
   for (const type of context.action.types) {
     if (type===trace?.scope_type) continue;
     const resolved=resolveType(current.pkg,type); if(!resolved.ok) fail(JSON.stringify(resolved.diagnostics));
@@ -170,13 +170,13 @@ export async function submitDirectProposal(root:string,source:string,authorities
   });
 }
 async function git(root:string,args:string[]){return(await exec("git",["-C",root,...args],{env:repositoryGitEnvironment(),maxBuffer:16*1024*1024})).stdout.trim();}
-function executionSubject(context:DirectContext){const types=[context.pkg.kernelCapabilities["requirement-trace@2"]?.implementation_type,Object.values(context.pkg.actions).find(a=>a.capability==="prototype")?.types[0]];const d=context.data.find(d=>types.includes(d.type)&&([context.subject,...Object.values(context.inputs).flat()].includes(d.revision_id)));if(!d)fail("Execution requires one exact implementation/prototype");return d;}
+function executionSubject(context:DirectContext){const types=[(context.pkg.kernelCapabilities["requirement-trace@3"]??context.pkg.kernelCapabilities["requirement-trace@2"])?.implementation_type,Object.values(context.pkg.actions).find(a=>a.capability==="prototype")?.types[0]];const d=context.data.find(d=>types.includes(d.type)&&([context.subject,...Object.values(context.inputs).flat()].includes(d.revision_id)));if(!d)fail("Execution requires one exact implementation/prototype");return d;}
 function executionBinding(current:Pick<State,"pkg"|"package"|"data">,implementation:DatumEnvelope,operation:string):VerificationBinding{
   const exploratory=implementation.type===Object.values(current.pkg.actions).find(a=>a.capability==="prototype")?.types[0];
   const action=Object.values(current.pkg.actions).find(a=>a.capability===(exploratory?"prototype":"implementation"));
   const link=Object.keys(action?.links?.[implementation.type]??{}).find(l=>l===(exploratory?"explores":"implements"))??(exploratory?"explores":"implements");
   const context=implementation.links.filter(l=>l.type===link);if(context.length!==1)fail("Execution needs one exact requirements/experiment context");
-  const p=implementation.payload;return {operation,package:current.package,inputs:[{name:exploratory?"trial":"implementation",revisions:[implementation.revision_id]},{name:exploratory?"experiment":"requirements",revisions:[context[0]!.target]}],repositoryPath:p.repository_path as string,sourceCommit:p.source_commit as string,image:p.verification_image as string,command:p.verification_command as string[],scriptPath:p.verification_script as string};
+  const p=implementation.payload;return {operation,package:current.package,inputs:[{name:exploratory?"trial":"implementation",revisions:[implementation.revision_id]},{name:exploratory?"experiment":"requirements",revisions:[context[0]!.target]}],repositoryPath:p.repository_path as string,sourceCommit:p.source_commit as string,image:p.verification_image as string,command:p.verification_command as string[],scriptPath:p.verification_script as string,...(p.acceptance_scope === "partial" ? {formalFiles:p.formal_files as string[]} : {})};
 }
 async function receiptFor(current:State,locator:string,implementation:DatumEnvelope){if(!/^git-blob:[a-f0-9]{40}$/.test(locator))fail("Evidence requires an exact receipt blob");const saved=await readVerificationReceiptBlob(current.root,locator.slice(9));const b=saved.receipt.binding;checkOperation(b.operation);const registered=await git(current.root,["rev-parse","--verify",`${verificationRef(b)}/attempt-${saved.receipt.attempt}-receipt`]);if(registered!==saved.oid)fail("Receipt is not registered to the original operation");return validateVerificationReceipt(executionBinding(current,implementation,b.operation),saved);}
 async function availableReceipts(current:State,implementation:DatumEnvelope){const refs=await git(current.root,["for-each-ref","--format=%(objectname)","refs/mdlm/execution"]);const results:string[]=[];for(const oid of new Set(refs.split("\n").filter(Boolean))){try{await receiptFor(current,`git-blob:${oid}`,implementation);results.push(`git-blob:${oid}`);}catch{}}return results;}

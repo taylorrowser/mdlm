@@ -15,6 +15,7 @@ export interface VerificationBinding {
   image: string;
   command: string[];
   scriptPath: string;
+  formalFiles?: string[];
 }
 export const verificationRef = (binding: VerificationBinding) => `refs/mdlm/execution/${binding.operation}`;
 async function git(root: string, args: string[]) {

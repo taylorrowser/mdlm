@@ -26,7 +26,7 @@ language:
 kernel_capabilities:
   docker-verification@1:
     type: RES
-  requirement-trace@2:
+  requirement-trace@3:
     type: RQS
     requirement_type: REQ
     implementation_type: IMP
