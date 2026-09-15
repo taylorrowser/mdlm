@@ -1,0 +1,23 @@
+kind: selector-definition
+id: accepted-formal-scope
+version: 1
+description: Current requirement selections when formal review, verification, acceptance and change work are complete
+parameters: []
+result_kind: revision
+query:
+  from:
+    collection: revisions
+    types: [RQS]
+  as: item
+  where: 'none("newer-revisions@1", {subject: item}) && (exists("current-requirements@1", {}) && every("current-requirements@1",
+    {}, req => exists("implementations-for@1", {requirements: req}) &&
+    every("implementations-for@1", {requirements: req}, imp =>
+    exists("acceptances-for@2", {implementation: imp}) &&
+    exists("passing-results@1", {implementation: imp}) &&
+    exists("pass-reviews@1", {subject: imp}) && none("fail-reviews@1", {subject:
+    imp}))) && every("current-requirements@1", {}, req =>
+    (exists("pass-reviews@1", {subject: req}) || exists("reusable-requirements-review@1", {requirements: req})) && none("fail-reviews@1", {subject:
+    req}))) && every("current-changes@1", {}, change =>
+    exists("sets-for-change@1", {change: change}))'
+  distinct: true
+  order_by: [identity.revision_id]
