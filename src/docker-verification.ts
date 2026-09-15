@@ -140,7 +140,9 @@ export async function executeDockerVerification(input: DockerVerificationInput):
     await writeFile(archivePath, archive);
     const snapshot = join(directory, "source");
     await mkdir(snapshot);
-    await checked("tar", ["-xf", archivePath, "-C", snapshot, "--no-same-owner"]);
+    // Preserve archive modes so the unprivileged container can read and execute
+    // committed files even when the caller uses a restrictive umask.
+    await checked("tar", ["-xpf", archivePath, "-C", snapshot, "--no-same-owner"]);
     if (input.formalFiles) {
       const tracked = (await checked("git", ["-C", input.repositoryPath, "ls-tree", "-rz", "--name-only", source.sourceCommit])).toString("utf8").split("\0").filter(Boolean);
       if (!input.formalFiles.length || new Set(input.formalFiles).size !== input.formalFiles.length || input.formalFiles.some(file => !tracked.includes(file)) || !input.formalFiles.includes(input.scriptPath)) throw new Error("Formal source selection must name distinct committed files including the verifier.");
