@@ -55,7 +55,7 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
   function exact(revision) { return cli(['show', revision]).lifecycleDatum.datum; }
   function guidance(action, subject) {
     const before = git(['status', '--porcelain']);
-    const reference = processName === 'iterative' && ['review-requirements', 'rebind-product'].includes(action) ? `${action}@2` : `${action}@1`;
+    const reference = processName === 'iterative' && ['review-requirements', 'rebind-product', 'revise-experiment', 'revise-experiment-from-feedback'].includes(action) ? `${action}@2` : `${action}@1`;
     const result = cli(['expectations', 'show', reference, ...(subject ? [subject] : [])]);
     assert.equal(git(['status', '--porcelain']), before, 'Guidance must be read-only');
     return result;
@@ -297,9 +297,9 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
       assert.equal(receipts.at(-1).receipt.binding.formalFiles, undefined);
       assert.deepEqual(exact(acceptance.revision_id), acceptance);
     } else if (processName === 'iterative') {
-      submit('frame-experiment', undefined, [candidate('maintenance-experiment', 'EXP', {criterion: 'Count supplied items.', question: 'Can unchanged accepted requirements retain their review during maintenance?', approach: 'Baseline a counter, then change only its implementation.', constraints: 'No new behavior.', allowance_minutes: 10, scope_cut: 'One implementation-only change.'})]);
+      const initialExperiment = submit('frame-experiment', undefined, [candidate('maintenance-experiment', 'EXP', {criterion: 'Count supplied items.', question: 'Can unchanged accepted requirements retain their review during maintenance?', approach: 'Baseline a counter, then change only its implementation.', constraints: 'No new behavior.', allowance_minutes: 10, scope_cut: 'One implementation-only change.'})]).find(d => d.type === 'EXP');
       const initial = submit('draft-requirements', undefined, [
-        candidate('need', 'REQ', {kind: 'stakeholder', statement: 'Count supplied command-line items.'}),
+        candidate('need', 'REQ', {kind: 'stakeholder', statement: 'Count supplied command-line items.'}, [link('informed-by', initialExperiment.revision_id)]),
         candidate('count', 'REQ', {kind: 'software', ears: {pattern: 'ubiquitous', system: 'The CLI', response: 'print the number of supplied command-line items'}}),
         candidate('decomposition', 'DCP', {}, [link('parent', '$need'), link('child', '$count')]),
         candidate('requirements', 'RQS', {}),
@@ -344,6 +344,48 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
         assert.equal(oldGuidance.inputs.prior_uses.length, 2, 'Historical source remains discoverable after revision');
         for (const use of operationalUses) assert.equal(exact(use.revision).links.find(l => l.type === 'observes').target, use.subject);
       }
+      // Reuse the accepted setup above; only the comparison route is new.
+      const formalTypes = ['REQ', 'DCP', 'RQS', 'IMP', 'ACC', 'CHG'];
+      const frozenFormal = data().filter(d => formalTypes.includes(d.type));
+      const observeComparison = (trial, exp, recommendation) => submit('observe-prototype', trial.revision_id, [candidate('comparison-observation', 'OBS', {
+        assessment: 'The committed candidate passed its own executable expectations.', observation_origin: 'scripted',
+        interaction_observation: 'Captured subprocess execution; no human usability claim.', limitations: fixtureAuthority,
+        recommendation, next_action: recommendation === 'nominate' ? 'Request fixture stakeholder direction.' : 'Retain accepted product and close this comparison.',
+      }, [link('observes', trial.revision_id), link('against', exp.revision_id)])], {receipt: execute(trial, 'pass')}).find(d => d.type === 'OBS');
+      const originalTrial = submit('prepare-prototype', initialExperiment.revision_id, [candidate('original-trial', 'TRY', {...maintained.payload, file_roles: undefined, product_files: undefined, source_inventory: undefined, source_changes: undefined, impact_dispositions: undefined}, [link('explores', initialExperiment.revision_id)])]).find(d => d.type === 'TRY');
+      observeComparison(originalTrial, initialExperiment, 'keep');
+      const start = guidance('explore-change', maintained.revision_id);
+      assert.deepEqual(start.inputs.baseline, [nextAcceptance.revision_id]);
+      const comparisonCandidate = start.candidates[0];
+      comparisonCandidate.payload = {...initialExperiment.payload, criterion: 'Try words instead of the accepted numeric count.', question: 'Does a word improve readability?', approach: 'A tiny output-only candidate.', constraints: `Intentionally departs from ${count.revision_id}; accepted source remains ${maintainedCommit}.`};
+      const comparison = submit('explore-change', maintained.revision_id, [comparisonCandidate]).find(d => d.type === 'EXP');
+      assert.equal(comparison.id, initialExperiment.id);
+      assert.equal(cli(['expectations']).outcome, 'work-available');
+      const makeComparisonSource = word => {
+        writeFileSync(path.join(source, 'count.py'), `print('${word}')\n`);
+        writeFileSync(path.join(source, 'verify.py'), `import subprocess\nassert subprocess.check_output(['python3', 'count.py', 'red', 'blue'], text=True) == '${word}\\n'\n`);
+        commit(source, 'Record experimental output, without changing accepted requirements');
+        const source_commit = git(['rev-parse', 'HEAD'], source); sourceCommits.push(source_commit);
+        assert.notEqual(source_commit, maintainedCommit);
+        return {repository_path: source, source_commit, command: ['python3', 'count.py', 'red', 'blue'], verification_image: image, verification_command: ['python3', 'verify.py'], verification_script: 'verify.py'};
+      };
+      const firstCandidate = submit('prepare-prototype', comparison.revision_id, [candidate('word-trial', 'TRY', makeComparisonSource('two'), [link('explores', comparison.revision_id)])]).find(d => d.type === 'TRY');
+      const nominated = observeComparison(firstCandidate, comparison, 'nominate');
+      assert.ok(!cli(['expectations']).optional.some(item => item.action === 'explore-change@1'));
+      const feedback = submit('record-feedback', nominated.revision_id, [candidate('comparison-feedback', 'FDB', {action: 'revise-criteria', feedback: 'Try an explicit descriptive phrase, then compare and decide.', source: fixtureAuthority}, [link('responds-to', nominated.revision_id)])]).find(d => d.type === 'FDB');
+      const revisionGuide = guidance('revise-experiment-from-feedback', feedback.revision_id);
+      const revisionCandidate = revisionGuide.candidates[0];
+      revisionCandidate.payload = {...comparison.payload, criterion: 'Try a descriptive phrase for the count.'};
+      const revised = submit('revise-experiment-from-feedback', feedback.revision_id, [revisionCandidate]).find(d => d.type === 'EXP');
+      assert.deepEqual(revised.links.filter(l => l.type === 'compares-to'), [link('compares-to', nextAcceptance.revision_id)]);
+      const pending = cli(['expectations']);
+      assert.equal(pending.outcome, 'work-available');
+      assert.deepEqual(pending.items.map(item => item.action), ['prepare-prototype@1']);
+      const secondCandidate = submit('prepare-prototype', revised.revision_id, [candidate('phrase-trial', 'TRY', makeComparisonSource('two supplied items'), [link('explores', revised.revision_id)])]).find(d => d.type === 'TRY');
+      observeComparison(secondCandidate, revised, 'drop');
+      assert.deepEqual(data().filter(d => formalTypes.includes(d.type)), frozenFormal, 'Exploration creates no change request or formal revision');
+      assert.deepEqual(exact(initialExperiment.revision_id), initialExperiment, 'Old requirement origins remain exact');
+      assert.equal(cli(['expectations']).outcome, 'profile-boundary-reached');
     } else if (processName === 'tiny' && corrections) {
       const software = response => ({kind: 'software', ears: {pattern: 'ubiquitous', system: 'The CLI', response}});
       const initial = submit('draft-requirements', undefined, [

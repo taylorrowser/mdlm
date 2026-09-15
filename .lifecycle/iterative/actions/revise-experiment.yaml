@@ -1,20 +1,22 @@
 kind: action-definition
 id: revise-experiment
-version: 1
+version: 2
 description: revise-experiment
 capability: experiment
-prompt_ref: prompts/revise-experiment.md@2
+prompt_ref: prompts/revise-experiment.md@3
 types:
 - EXP
 subjects: select("current-experiments@1", {})
 inputs:
   subject: subject
   observation: 'one("revision-observations@1", {experiment: subject})'
+  baseline: 'select("comparison-baseline-for@1", {experiment: subject})'
 when: '!(none("revision-observations@1", {experiment: subject})) && (true)'
 priority: 100
 links:
   EXP:
     responds-to: observation
+    compares-to: baseline
 revises:
   EXP: subject
 fixed_payload:

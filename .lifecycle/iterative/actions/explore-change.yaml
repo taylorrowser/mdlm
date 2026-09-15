@@ -1,0 +1,21 @@
+kind: action-definition
+id: explore-change
+version: 1
+description: Explore a candidate design beside an accepted product
+capability: experiment
+prompt_ref: prompts/explore-change.md@1
+types: [EXP]
+subjects: select("current-implementations@1", {})
+inputs:
+  experiment: 'one("current-experiments@1", {})'
+  baseline: 'one("acceptances-for@2", {implementation: subject})'
+optional: true
+when: 'exists("accepted-formal-scope@1", {}) && exists("current-experiments@1", {}) && every("current-experiments@1", {}, exp => exists("closed-experiment@1", {experiment: exp}))'
+links:
+  EXP:
+    compares-to: baseline
+revises:
+  EXP: experiment
+fixed_payload:
+  EXP:
+    publication: recorded

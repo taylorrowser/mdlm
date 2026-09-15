@@ -317,3 +317,20 @@ file listing alone does not establish that the installed package can load.
 Observed restriction: the River scoring baseline needed a copied source repository because the original trace contract required full source attribution. The iterative package now opts into requirement-trace@3. A partial IMP lists formal_files while its complete inventory and review source expose provisional neighbors. Canonical verification sees only formal files and its receipt binds that selection. Whole-product defaults retain complete tracing.
 
 Rule: partial acceptance names an exact source scope, never an ignore list or automatic approval of neighboring code. Keep dependency sufficiency in actual verification and independent review. Check a selected pure module beside an untraced CLI, an exercised omitted dependency, strict whole coverage, and a later integrated baseline with fresh evidence. Preserve failures and update this rule when operation reveals friction.
+
+## New comparison beside an accepted product, #829
+
+The iterative package's single current EXP could continue an open experiment but
+could not start a comparison after keep/drop or stakeholder stop. Revise the same
+brief through optional `explore-change`, bind its exact comparison ACC, and carry
+that link through ordinary criteria revisions. Keep formal requirements and their
+exact origin links unchanged while TRY/OBS/FDB test candidate source. The accepted
+product still means its exact source revision.
+
+This applies the current lessons from classes 2, 5 and 6. Closure must include all
+current trial observations and any requested feedback. An active comparison must
+remain visible even though the earlier formal scope is accepted. The package
+evaluator covers keep/drop/stop and unresolved states; the existing iterative
+public journey adds two candidate iterations and discard after its accepted
+maintenance setup, preserving formal records and origins. Adoption remains the
+existing approved-change route, not automatic promotion.

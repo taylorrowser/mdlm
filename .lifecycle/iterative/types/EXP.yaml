@@ -1,6 +1,6 @@
 kind: type-definition
 id: EXP
-version: 2
+version: 3
 name: Experiment brief
 description: Experiment brief
 extends: titled-datum@1
@@ -48,4 +48,15 @@ outgoing_links:
       maximum: 1
     freeze_resolution: already-exact
     inverse_label: incoming-responds-to
+  - id: compares-to
+    description: Accepted product compared with this experimental candidate, not superseded by it
+    targets:
+      - kind: datum
+        types: [ACC]
+        identity: revision
+    cardinality:
+      minimum: 0
+      maximum: 1
+    freeze_resolution: already-exact
+    inverse_label: incoming-compares-to
 kernel_managed_payload_paths: []

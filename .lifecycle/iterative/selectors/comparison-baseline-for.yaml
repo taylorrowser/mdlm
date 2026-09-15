@@ -1,0 +1,19 @@
+kind: selector-definition
+id: comparison-baseline-for
+version: 1
+description: Exact accepted product retained as an experimental comparison
+parameters:
+- name: experiment
+  kind: revision
+  types: [EXP]
+result_kind: revision
+query:
+  from:
+    relation: outgoing-links
+    of: experiment
+    link: compares-to
+    emit: target
+    types: [ACC]
+  as: item
+  distinct: true
+  order_by: [identity.revision_id]

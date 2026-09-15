@@ -1,0 +1,17 @@
+kind: selector-definition
+id: closed-experiment
+version: 1
+description: Brief whose current trials all ended in keep, drop or stakeholder stop
+parameters:
+- name: experiment
+  kind: revision
+  types: [EXP]
+result_kind: revision
+query:
+  from:
+    collection: revisions
+    types: [EXP]
+  as: item
+  where: 'item.identity.revision_id == experiment.identity.revision_id && exists("trials-for@2", {experiment: item}) && every("trials-for@2", {experiment: item}, trial => exists("observations-for@1", {trial: trial}) && every("observations-for@1", {trial: trial}, obs => obs.payload.recommendation == "keep" || obs.payload.recommendation == "drop" || (obs.payload.recommendation == "nominate" && exists("feedback-for@1", {observation: obs}) && every("feedback-for@1", {observation: obs}, feedback => feedback.payload.action == "stop"))))'
+  distinct: true
+  order_by: [identity.revision_id]

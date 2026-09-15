@@ -1,6 +1,6 @@
 # Iterative Process Package
 
-`mdlm init /path/to/lifecycle --process iterative` starts a fresh `mdlm-iterative@1.2.0` repository. It combines the existing exploratory and formal routes. Existing tiny and exploratory products retain their selected package bytes and history.
+`mdlm init /path/to/lifecycle --process iterative` starts a fresh `mdlm-iterative@1.3.0` repository. It combines the existing exploratory and formal routes. Existing tiny and exploratory products retain their selected package bytes and history.
 
 Discuss the intended product and agree its smallest useful scope. Choose vertical slices that resolve uncertainty, build a usable integrated prototype, then use it while progressively formalizing necessary behavior. EXP records provisional criteria and choices, TRY binds committed runnable source, OBS records actual execution and observations, and FDB records stakeholder feedback. These planning practices guide agent choices; they are not additional kernel gates.
 
@@ -17,7 +17,7 @@ For the River experiment:
 
 The package reports `profile-boundary-reached` when its current formal scope is reviewed, verified and accepted. This can first mean a scoring component. The stakeholder and experiment operator must compare the exact accepted scope with the agreed whole product before declaring the experiment complete. Optional approved-change work remains available at that boundary. Exploration records remain outside the formal acceptance claim.
 
-Passing exploratory execution permits nomination for stakeholder feedback. Choose feedback continuation when another slice or observation is needed; keep/drop closes that exploratory branch under the existing exploratory semantics. Independent use transcripts can also support observations without rewriting prior evidence. This package does not add general closed-experiment resumption, hidden source exclusions, package migration or automatic promotion.
+Passing exploratory execution permits nomination for stakeholder feedback. Choose feedback continuation when another slice or observation is needed; keep/drop closes that exploratory branch under the existing exploratory semantics. Independent use transcripts can also support observations without rewriting prior evidence. After a closed experiment and an accepted formal scope, optional `explore-change` revises the same EXP lineage and links its exact comparison ACC. Criteria may deliberately depart from named requirements for candidate trials. Ordinary criteria revisions preserve that comparison. TRY/OBS/FDB continue the experiment without changing formal records or opening a CHG. A new candidate has its own source commit; the older acceptance remains true for its exact source. Active comparison work reports work available rather than a formal profile endpoint. Keep/drop or stakeholder stop closes comparison, without accepting the candidate. Adoption uses the existing approved change route. This package does not add package migration or automatic promotion.
 
 The package is a deliberately separate copy of the two small example packages, with one shared selector definition and the changes described above. This keeps its identity self-contained without adding package inheritance machinery. Evolve it from fresh operational evidence.
 
