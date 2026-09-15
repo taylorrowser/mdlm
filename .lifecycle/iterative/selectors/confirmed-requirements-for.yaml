@@ -1,0 +1,21 @@
+kind: selector-definition
+id: confirmed-requirements-for
+version: 1
+description: Exact graph confirmed by stakeholder acceptance
+parameters:
+- name: acceptance
+  kind: revision
+  types: [ACC]
+result_kind: revision
+query:
+  from:
+    relation: "outgoing-links"
+    of: "acceptance"
+    link: "confirms"
+    emit: "target"
+    types: ["RQS"]
+  as: item
+  where: "state(item, \"validity\") == \"valid\" && item.integrity.transaction_valid == true"
+  distinct: true
+  order_by:
+  - identity.revision_id

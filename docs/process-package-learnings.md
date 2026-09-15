@@ -49,6 +49,18 @@ Check examples against the direct contract and requirement finalization when
 changing them. Use subsequent live authoring to judge whether agents can submit
 without manual format translation; prose assertions in tests do not establish it.
 
+## Reusing unchanged accepted requirements, #819
+
+River3 maintenance preserved all nine exact requirements and its decomposition,
+but required another requirements review. Reuse a prior PASS only through the
+approved change's exact accepted baseline, within the same RQS lineage and with
+identical selected REQ and DCP revisions. Reject conflicting FAIL evidence.
+Keep action eligibility, redundant-review suppression and terminal readiness on
+the same selector. Fresh source verification, implementation review and
+stakeholder acceptance remain separate requirements. The iterative public
+maintenance journey protects publication and closure; the package evaluator
+checks changed graph, unrelated approval and failure cases.
+
 ## Historical patterns and checks
 
 ## 1. Every failable output needs a correction route

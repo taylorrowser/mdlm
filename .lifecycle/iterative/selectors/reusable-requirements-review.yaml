@@ -1,0 +1,18 @@
+kind: selector-definition
+id: reusable-requirements-review
+version: 1
+description: Prior reviewed graph exactly matching the approved accepted baseline and candidate
+parameters:
+- name: requirements
+  kind: revision
+  types: [RQS]
+result_kind: revision
+query:
+  from:
+    collection: "revisions"
+    types: ["RQS"]
+  as: item
+  where: "state(item, \"validity\") == \"valid\" && item.integrity.transaction_valid == true && item.identity.id == requirements.identity.id && item.identity.revision < requirements.identity.revision && exists(\"pass-reviews@1\", {subject: item}) && none(\"fail-reviews@1\", {subject: item}) && none(\"fail-reviews@1\", {subject: requirements}) && select(\"selected-requirements-for@1\", {requirements: item}) == select(\"selected-requirements-for@1\", {requirements: requirements}) && select(\"selected-decompositions-for@1\", {requirements: item}) == select(\"selected-decompositions-for@1\", {requirements: requirements}) && count(\"change-for-set@1\", {requirements: requirements}) == 1 && every(\"change-for-set@1\", {requirements: requirements}, change => change.integrity.transaction_valid == true && none(\"newer-revisions@1\", {subject: change}) && exists(\"pass-reviews@1\", {subject: change}) && none(\"fail-reviews@1\", {subject: change}) && count(\"accepted-baseline-for-change@1\", {change: change}) == 1 && every(\"accepted-baseline-for-change@1\", {change: change}, acceptance => count(\"confirmed-requirements-for@1\", {acceptance: acceptance}) == 1 && every(\"confirmed-requirements-for@1\", {acceptance: acceptance}, baseline => baseline.identity.id == requirements.identity.id && baseline.identity.revision < requirements.identity.revision && item.identity.revision <= baseline.identity.revision && none(\"fail-reviews@1\", {subject: baseline}) && select(\"selected-requirements-for@1\", {requirements: baseline}) == select(\"selected-requirements-for@1\", {requirements: requirements}) && select(\"selected-decompositions-for@1\", {requirements: baseline}) == select(\"selected-decompositions-for@1\", {requirements: requirements}))))"
+  distinct: true
+  order_by:
+  - identity.revision_id

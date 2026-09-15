@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-iterative
-version: 1.0.0
+version: 1.1.0
 status: experimental
 description: Explore a useful product, then progressively baseline necessary behavior.
 kernel_contract:
@@ -57,7 +57,7 @@ terminal:
     exists("passing-results@1", {implementation: imp}) &&
     exists("pass-reviews@1", {subject: imp}) && none("fail-reviews@1", {subject:
     imp}))) && every("current-requirements@1", {}, req =>
-    exists("pass-reviews@1", {subject: req}) && none("fail-reviews@1", {subject:
+    (exists("pass-reviews@1", {subject: req}) || exists("reusable-requirements-review@1", {requirements: req})) && none("fail-reviews@1", {subject:
     req}))) && every("current-changes@1", {}, change =>
     exists("sets-for-change@1", {change: change}))'
   outcome: profile-boundary-reached

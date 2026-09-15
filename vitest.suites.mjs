@@ -2,7 +2,7 @@
 // its owning release; deleted workflow tests are not a second supported suite.
 const fast = [
   "array-expression", "change-assessment", "direct-authority", "direct-domain", "direct-package", "direct-receipt",
-  "direct-selection-public", "iterative-public", "kernel-cutover", "lifecycle-schema-diagnostics", "mdlm-cli-output",
+  "direct-selection-public", "iterative-public", "iterative-maintenance-reuse", "kernel-cutover", "lifecycle-schema-diagnostics", "mdlm-cli-output",
   "release-candidate-gate", "requirement-trace-v2", "source-scopes",
 ];
 const release = ["docker-verification-dialogue", "direct-lifecycle-public"];

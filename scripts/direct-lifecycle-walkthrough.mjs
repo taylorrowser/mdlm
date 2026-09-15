@@ -11,7 +11,7 @@ const fixtureAuthority = 'Operator-selected engineering fixture. Stakeholder dec
 
 /** Ordinary public operations only. Preserve both repositories and external evidence on every outcome. */
 export async function runDirectJourney({process: processName = 'tiny', corrections = false, executable = process.env.MDLM_DIRECT_EXECUTABLE ?? process.env.MDLM_EXECUTABLE, root}) {
-  assert.ok(['tiny', 'exploratory'].includes(processName));
+  assert.ok(['tiny', 'exploratory', 'iterative'].includes(processName));
   assert.ok(path.isAbsolute(root), 'A fresh absolute root is required');
   assert.ok(executable && path.isAbsolute(executable), 'An exact absolute executable is required');
   assert.ok(!existsSync(root), 'Never replay a journey in an existing directory');
@@ -54,7 +54,8 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
   function exact(revision) { return cli(['show', revision]).lifecycleDatum.datum; }
   function guidance(action, subject) {
     const before = git(['status', '--porcelain']);
-    const result = cli(['expectations', 'show', `${action}@1`, ...(subject ? [subject] : [])]);
+    const reference = processName === 'iterative' && ['review-requirements', 'rebind-product'].includes(action) ? `${action}@2` : `${action}@1`;
+    const result = cli(['expectations', 'show', reference, ...(subject ? [subject] : [])]);
     assert.equal(git(['status', '--porcelain']), before, 'Guidance must be read-only');
     return result;
   }
@@ -142,7 +143,7 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
     return {repository_path: source, source_commit: sourceCommit, command: ['python3', 'count.py', 'red', 'blue'], verification_image: image, verification_command: ['python3', 'verify.py'], verification_script: 'verify.py'};
   }
   function reviewRequirements(set, {failRequirement, findings} = {}) {
-    const context = cli(['review', 'context', 'review-requirements@1', set.revision_id]);
+    const context = cli(['review', 'context', processName === 'iterative' ? 'review-requirements@2' : 'review-requirements@1', set.revision_id]);
     const graph = context.requirementGraphs.find(g => g.selection === set.revision_id);
     assert.ok(graph?.assessment, 'Review context must expose its exact required assessments');
     const assessment = graph.assessment;
@@ -175,10 +176,45 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
     git(['init', '--quiet'], source);
     git(['config', 'user.name', 'Direct lifecycle fixture'], source);
     git(['config', 'user.email', 'fixture@localhost'], source);
-    cli(['init', lifecycle, ...(processName === 'exploratory' ? ['--process', 'exploratory'] : [])], undefined, {cwd: root});
+    cli(['init', lifecycle, ...(processName !== 'tiny' ? ['--process', processName] : [])], undefined, {cwd: root});
     git(['config', 'user.name', 'Direct lifecycle fixture']);
     git(['config', 'user.email', 'fixture@localhost']);
-    if (processName === 'tiny' && corrections) {
+    if (processName === 'iterative') {
+      submit('frame-experiment', undefined, [candidate('maintenance-experiment', 'EXP', {criterion: 'Count supplied items.', question: 'Can unchanged accepted requirements retain their review during maintenance?', approach: 'Baseline a counter, then change only its implementation.', constraints: 'No new behavior.', allowance_minutes: 10, scope_cut: 'One implementation-only change.'})]);
+      const initial = submit('draft-requirements', undefined, [
+        candidate('need', 'REQ', {kind: 'stakeholder', statement: 'Count supplied command-line items.'}),
+        candidate('count', 'REQ', {kind: 'software', ears: {pattern: 'ubiquitous', system: 'The CLI', response: 'print the number of supplied command-line items'}}),
+        candidate('decomposition', 'DCP', {}, [link('parent', '$need'), link('child', '$count')]),
+        candidate('requirements', 'RQS', {}),
+      ]);
+      const need = initial.find(d => d.payload.title === 'need'), count = initial.find(d => d.payload.title === 'count');
+      const set = initial.find(d => d.type === 'RQS');
+      const originalReview = reviewRequirements(set).review;
+      const imp = submit('implement-product', set.revision_id, [candidate('implementation', 'IMP', {...sourceVersion(count.id), file_roles: {'count.py': 'production', 'verify.py': 'verification'}}, [link('implements', set.revision_id)])]).find(d => d.type === 'IMP');
+      const acceptance = finishProduct(set, imp);
+      assert.equal(cli(['expectations']).outcome, 'profile-boundary-reached');
+      const beforeMaintenance = publications.length;
+      const change = submit('request-change', set.revision_id, [candidate('simplify-count', 'CHG', {reason: 'Simplify the implementation while retaining every accepted obligation.', requested_outcome: 'Use an explicit supplied-argument slice to count items with unchanged behavior.'}, [link('baseline', acceptance.revision_id), link('changes', need.revision_id)])]).find(d => d.type === 'CHG');
+      submit('approve-change', change.revision_id, [candidate('maintenance-approval', 'REV', {outcome: 'pass', findings: `Approve implementation-only maintenance preserving the exact requirement graph. ${fixtureAuthority}`}, [link('reviews', change.revision_id)])]);
+      const nextSet = submit('revise-requirements', change.revision_id, [candidate('requirements', 'RQS', {}, [], set.revision_id)]).find(d => d.type === 'RQS');
+      for (const relation of ['contains', 'decomposition']) assert.deepEqual(nextSet.links.filter(l => l.type === relation), set.links.filter(l => l.type === relation));
+      const available = cli(['expectations']);
+      assert.ok(available.items.some(item => item.action === 'rebind-product@2' && item.subject === nextSet.revision_id));
+      assert.ok(!available.items.some(item => item.action === 'review-requirements@2' && item.subject === nextSet.revision_id));
+      assert.notEqual(available.outcome, 'profile-boundary-reached');
+      writeFileSync(path.join(source, 'count.py'), readFileSync(path.join(source, 'count.py'), 'utf8').replace('len(sys.argv) - 1', 'len(sys.argv[1:])'));
+      commit(source, 'Simplify implementation without changing requirements');
+      const maintainedCommit = git(['rev-parse', 'HEAD'], source); sourceCommits.push(maintainedCommit);
+      const maintained = submit('rebind-product', nextSet.revision_id, [candidate('implementation', 'IMP', {...imp.payload, source_commit: maintainedCommit, impact_dispositions: [], product_files: undefined, source_inventory: undefined, source_changes: undefined}, [link('implements', nextSet.revision_id)], imp.revision_id)]).find(d => d.type === 'IMP');
+      assert.notEqual(maintained.revision_id, imp.revision_id);
+      assert.notEqual(cli(['expectations']).outcome, 'profile-boundary-reached');
+      const nextAcceptance = finishProduct(nextSet, maintained);
+      assert.notEqual(nextAcceptance.revision_id, acceptance.revision_id);
+      assert.deepEqual(exact(originalReview.revision_id), originalReview, 'Reuse must not replace the original review');
+      assert.ok(!data().some(d => d.type === 'REV' && d.links.some(l => l.type === 'reviews' && l.target === nextSet.revision_id)), 'No new requirements review is published');
+      assert.equal(publications.length - beforeMaintenance, 7, 'Maintenance retains fresh implementation, result, review and acceptance');
+      assert.equal(receipts.length, 2, 'Both baseline and maintained source receive canonical execution');
+    } else if (processName === 'tiny' && corrections) {
       const software = response => ({kind: 'software', ears: {pattern: 'ubiquitous', system: 'The CLI', response}});
       const initial = submit('draft-requirements', undefined, [
         candidate('need', 'REQ', {kind: 'stakeholder', statement: 'Tell me how many items I supplied as command-line arguments; the executable is not an item.'}),

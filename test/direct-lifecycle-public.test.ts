@@ -9,6 +9,7 @@ import { expect, test } from "vitest";
 for (const {processName, corrections} of [
   {processName:"tiny",corrections:false},
   {processName:"exploratory",corrections:false},
+  {processName:"iterative",corrections:false},
   {processName:"tiny",corrections:true},
 ] as const) {
   test(`direct public ${processName}${corrections ? " correction" : ""} lifecycle preserves decisions, corrections and history`, async () => {
