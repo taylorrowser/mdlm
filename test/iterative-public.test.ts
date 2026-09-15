@@ -51,7 +51,7 @@ test("iterative init preserves exploration while fresh requirements retain optio
       g.candidates.find((c: any) => c.type === "RQS"),
     ]);
     const selection = result.revisions.find((id: string) => id.startsWith("RQS-"));
-    const review = cli("review", "context", "review-requirements@1", selection);
+    const review = cli("review", "context", "review-requirements@2", selection);
     expect(review.requirementGraphs[0].selection).toBe(selection);
     expect(review.requirementGraphs[0].assessment.sourceScopes).toEqual([]);
     const requirements = review.requirementGraphs[0].requirements;
@@ -61,7 +61,7 @@ test("iterative init preserves exploration while fresh requirements retain optio
     expect(cli("show", origin).lifecycleDatum.datum).toEqual(original);
     const available = cli("expectations").items.map((i: any) => i.action);
     expect(available).toContain("prepare-prototype@1");
-    expect(available).toContain("review-requirements@1");
+    expect(available).toContain("review-requirements@2");
     outcome = "passed";
   } finally {
     await fs.writeFile(path.join(root, "outcome.json"), JSON.stringify({outcome, executable, repository, commands}, null, 2));

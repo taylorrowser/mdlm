@@ -1,0 +1,20 @@
+kind: selector-definition
+id: selected-requirements-for
+version: 1
+description: Exact selected graph members in revision order
+parameters:
+- name: requirements
+  kind: revision
+  types: [RQS]
+result_kind: revision
+query:
+  from:
+    relation: "outgoing-links"
+    of: "requirements"
+    link: "contains"
+    emit: "target"
+    types: ["REQ"]
+  as: item
+  distinct: true
+  order_by:
+  - identity.revision_id
