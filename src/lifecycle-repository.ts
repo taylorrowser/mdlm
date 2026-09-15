@@ -621,7 +621,7 @@ function directProvenance(item: ParsedDatum, pkg: ProcessPackage, packageDigest:
     const [actionId, actionVersion] = String(tx.action).split("@");
     const action = pkg.actions[actionId!];
     const identity = `${pkg.manifest.id}@${pkg.manifest.version}`;
-    const trace = pkg.kernelCapabilities["requirement-trace@2"] ?? pkg.kernelCapabilities["requirement-trace@1"];
+    const trace = pkg.kernelCapabilities["requirement-trace@3"] ?? pkg.kernelCapabilities["requirement-trace@2"] ?? pkg.kernelCapabilities["requirement-trace@1"];
     const generatedScope = action?.capability === "implementation" && datum.type === trace?.scope_type && Array.isArray(tx.outputs) && datum.links.some(link => link.type === "belongs-to" && tx.outputs.some((output: DatumEnvelope) => output.type === trace.implementation_type && output.revision_id === link.target));
     return datum.created_by.transaction === "mdlm-direct-transaction@1" && tx.contract === "mdlm-direct-transaction@1" && tx.id === id &&
       typeof tx.operation === "string" && /^[a-zA-Z0-9-]{1,80}$/.test(tx.operation) &&

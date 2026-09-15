@@ -27,7 +27,7 @@ export interface DirectReviewContext {
   requirementGraphs: {selection: string; assessment: ReturnType<typeof assessRequirements>; groups: DatumEnvelope[]; requirements: (DatumEnvelope & {leaf: boolean})[]}[];
   sourceScopes: {implementation: string; scopes: DatumEnvelope[]; changes: unknown; comparison: unknown}[];
   prospectiveChange?: unknown;
-  sources: {implementation: string; repositoryPath: string; sourceCommit: string; files: {path: string; role: string; mode: string; blob: string; content: string}[]}[];
+  sources: {implementation: string; repositoryPath: string; sourceCommit: string; acceptanceScope: "whole-product" | "partial"; files: {path: string; role: string; mode: string; blob: string; content: string; formal: boolean}[]}[];
   verificationReceipts: {result: string; implementation: string; requirements: string; locator: string; execution: string; binding: "validated"; receipt: Awaited<ReturnType<typeof readVerificationReceiptBlob>>["receipt"]}[];
 }
 
@@ -72,9 +72,9 @@ export async function buildDirectReviewContext(context: DirectContext): Promise<
       let content: string;
       try { content = new TextDecoder("utf-8", {fatal: true, ignoreBOM: true}).decode(entry.bytes); if (content.includes("\0")) throw new Error("NUL byte"); }
       catch { throw new Error(`Source '${entry.path}' is not supported UTF-8 text; review context is incomplete`); }
-      return {path: entry.path, role: entry.role!, mode: entry.mode, blob: entry.blob, content};
+      return {path: entry.path, role: entry.role!, mode: entry.mode, blob: entry.blob, content, formal: implementation.payload.acceptance_scope !== "partial" || (implementation.payload.formal_files as string[]).includes(entry.path)};
     });
-    result.sources.push({implementation: implementation.revision_id, repositoryPath: String(implementation.payload.repository_path), sourceCommit: String(implementation.payload.source_commit), files});
+    result.sources.push({implementation: implementation.revision_id, repositoryPath: String(implementation.payload.repository_path), sourceCommit: String(implementation.payload.source_commit), acceptanceScope: implementation.payload.acceptance_scope === "partial" ? "partial" : "whole-product", files});
   }
   const results = selected.filter(datum => datum.type === trace.result_type);
   for (const datum of results) {
@@ -97,7 +97,8 @@ export async function buildDirectReviewContext(context: DirectContext): Promise<
     if (!isDeepStrictEqual(binding.inputs, inputs)) throw new Error("Receipt inputs differ from the selected implementation and requirements");
     const transactionIds = Object.values(transaction.inputs).flat();
     if (![implementation.revision_id, requirements.revision_id].every(id => transactionIds.includes(id) || transaction.subject === id)) throw new Error("Result transaction does not bind its exact implementation and requirements");
-    const expected = {...binding, inputs, package: context.package, repositoryPath: implementation.payload.repository_path as string, sourceCommit: implementation.payload.source_commit as string, image: implementation.payload.verification_image as string, command: implementation.payload.verification_command as string[], scriptPath: implementation.payload.verification_script as string};
+    const {formalFiles: _recordedSelection, ...baseBinding} = binding;
+    const expected = {...baseBinding, ...(implementation.payload.acceptance_scope === "partial" ? {formalFiles: implementation.payload.formal_files as string[]} : {}), inputs, package: context.package, repositoryPath: implementation.payload.repository_path as string, sourceCommit: implementation.payload.source_commit as string, image: implementation.payload.verification_image as string, command: implementation.payload.verification_command as string[], scriptPath: implementation.payload.verification_script as string};
     const verified = await validateVerificationReceipt(expected, saved);
     const registered = (await exec("git", ["-C", root, "rev-parse", "--verify", `${verificationRef(binding)}/attempt-${saved.receipt.attempt}-receipt`], {env: repositoryGitEnvironment()})).stdout.trim();
     if (registered !== saved.oid || verified.outcome !== datum.payload.outcome) throw new Error("Result conflicts with its registered execution receipt");

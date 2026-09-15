@@ -1,6 +1,6 @@
 ---
 id: source-trace
-version: 1
+version: 2
 ---
 
 # Attribute the committed source through ordinary requirement links
@@ -9,7 +9,7 @@ Start from the reviewed RQS in guidance.context and follow its contains and deco
 
 Declare file_roles for every tracked entry, using production, verification, documentation, build or configuration. The CLI derives product_files, source_inventory, physical ranges and SCP datums from the committed source. Include empty files in the inventory. Classify code honestly; documentation is a role to review, not an escape from attribution. The initial source format is Python comments. Unsupported executable formats, generated code and vendored code need explicit supported treatment before claiming complete coverage.
 
-Put every nonblank Python line inside an explicit closed, nonnested named region. Imports, comments, docstrings and support code count as content. Region names are unique within each file. Blank or whitespace-only lines outside regions are exempt; delimiters and blanks inside a region belong to that region. File-default directives are rejected. Use `python3 product.py` invocation without a shebang outside the regions.
+Put every nonblank Python line in the formal scope inside an explicit closed, nonnested named region. Imports, comments, docstrings and support code count as content. Region names are unique within each file. Blank or whitespace-only lines outside regions are exempt; delimiters and blanks inside a region belong to that region. File-default directives are rejected. Use `python3 product.py` invocation without a shebang outside the regions.
 
 Regions and requirements have a many-to-many relationship. A region can contribute to several requirements, and a requirement can be implemented by several regions across files. Replace these example IDs with published IDs from the exact guidance:
 
@@ -33,3 +33,11 @@ For an approved requirement change, identify the changed commitments and the exp
 Use `mdlm trace why path/to/file.py:LINE --implementation <exact-IMP>` for the effective scope and ancestry of a line. Use `mdlm trace impact <REQ> --implementation <exact-IMP>` for directly linked production/verifier regions of the requested requirement and its descendants, with shared-scope reasons. Other dependencies may need inspection. These are derived read-only views of the ordinary links.
 
 When a proposal includes `impact_dispositions`, run `mdlm review context <action> <exact-subject> --json` for the action and subject from guidance. Select the `requirementGraphs[]` entry whose `selection` equals the revised RQS in guidance inputs. Use precisely that graph's `assessment.sourceScopes` for `impact_dispositions[].source_scope`, once each. Do not choose the first graph or copy the broader inspection set. Required targets can include unchanged code linked to changed claims. Judge each disposition and rationale; supply a candidate mapping when the source coordinate changes.
+
+## Partial acceptance in one source repository
+
+For a limited formal claim, set IMP acceptance_scope to partial and formal_files to the exact committed paths covered by that claim. Include the verifier and every local file needed by the selected behavior. The complete source_inventory still includes every tracked file with its role, blob and formal flag. Every selected source line needs normal attribution. Files outside formal_files are provisional and are visible in review context; they do not become accepted through proximity to a formal module.
+
+Canonical verification removes provisional files from its read-only source snapshot. Exercise the selected behavior so an omitted dependency causes a failed execution. This is execution evidence, not automatic discovery of all possible dependencies. Review the entire visible inventory and judge whether the selected module, tests and claimed scope are sufficient. Do not put whole-product obligations into a partial claim whose supporting code is provisional.
+
+Omit acceptance_scope and formal_files, or set acceptance_scope to whole-product and omit formal_files, for full coverage. An acceptance always names an exact IMP and source commit. Changing provisional code creates a new source identity; the prior acceptance remains historical and does not accept that new commit. Publish a new TRY for provisional use or take the approved-change route for a new IMP. Expanding the formal boundary requires reviewed requirements, full new source attribution, canonical verification and fresh acceptance.

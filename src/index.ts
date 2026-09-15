@@ -207,7 +207,7 @@ function validateKernelCapabilityBindings(
 ): ProcessDiagnostic[] {
   return Object.entries(kernelCapabilities).flatMap(([reference, binding]) => {
     const path = `manifest.kernel_capabilities.${reference}.type`;
-    if (reference !== exactBaselineCapability.reference && reference !== "direct-observation@1" && reference !== "direct-observation@2" && reference !== "docker-verification@1" && reference !== "requirement-trace@1" && reference !== "requirement-trace@2") {
+    if (reference !== exactBaselineCapability.reference && reference !== "direct-observation@1" && reference !== "direct-observation@2" && reference !== "docker-verification@1" && reference !== "requirement-trace@1" && reference !== "requirement-trace@2" && reference !== "requirement-trace@3") {
       return [{
         code: "unknown-kernel-capability",
         path,
@@ -239,8 +239,8 @@ function validateKernelCapabilities(
       diagnostics.push(...resolved.diagnostics);
       continue;
     }
-    if (reference === "requirement-trace@1" || reference === "requirement-trace@2") {
-      for (const field of (reference === "requirement-trace@2" ? ["requirement_type", "implementation_type", "scope_type", "decomposition_type", "change_type", "acceptance_type", "review_type", "result_type"] : ["requirement_type", "implementation_type", "scope_type"]) as (keyof KernelCapabilityBinding)[]) {
+    if (reference === "requirement-trace@1" || reference === "requirement-trace@2" || reference === "requirement-trace@3") {
+      for (const field of (reference !== "requirement-trace@1" ? ["requirement_type", "implementation_type", "scope_type", "decomposition_type", "change_type", "acceptance_type", "review_type", "result_type"] : ["requirement_type", "implementation_type", "scope_type"]) as (keyof KernelCapabilityBinding)[]) {
         if (!binding[field] || !processPackage.types[binding[field]!]) diagnostics.push({code: "incompatible-kernel-capability", path: bindingPath, message: `Requirement trace requires a declared ${field}`});
       }
       continue;

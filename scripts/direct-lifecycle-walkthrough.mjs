@@ -10,7 +10,7 @@ const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const fixtureAuthority = 'Operator-selected engineering fixture. Stakeholder decisions are scripted fixture inputs, not acceptance by the actual product user. Review registration exercises a separate manager transport and exact verdict binding; it does not claim human or model review independence.';
 
 /** Ordinary public operations only. Preserve both repositories and external evidence on every outcome. */
-export async function runDirectJourney({process: processName = 'tiny', corrections = false, executable = process.env.MDLM_DIRECT_EXECUTABLE ?? process.env.MDLM_EXECUTABLE, root}) {
+export async function runDirectJourney({process: processName = 'tiny', corrections = false, partialAcceptance = false, executable = process.env.MDLM_DIRECT_EXECUTABLE ?? process.env.MDLM_EXECUTABLE, root}) {
   assert.ok(['tiny', 'exploratory', 'iterative'].includes(processName));
   assert.ok(path.isAbsolute(root), 'A fresh absolute root is required');
   assert.ok(executable && path.isAbsolute(executable), 'An exact absolute executable is required');
@@ -160,6 +160,11 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
     const receipt = execute(implementation, 'pass');
     const result = submit('execute-verification', implementation.revision_id, [candidate('verification', 'RES', {assessment: 'The committed Python assertions passed in the pinned container.', correction_target: 'none'}, [link('executes', implementation.revision_id), link('verifies', set.revision_id)])], {receipt}).find(d => d.type === 'RES');
     const reviewContext = cli(['review', 'context', 'review-implementation@1', implementation.revision_id]);
+    if (implementation.payload.acceptance_scope === 'partial') {
+      const sourceContext = reviewContext.sources.find(s => s.implementation === implementation.revision_id);
+      assert.equal(sourceContext.acceptanceScope, 'partial');
+      assert.ok(sourceContext.files.some(f => f.path === 'cli.py' && f.formal === false && f.content.includes('input(')));
+    }
     const assessment = reviewContext.requirementGraphs.find(g => g.selection === set.revision_id)?.assessment;
     if (assessment?.change) assert.deepEqual(reviewContext.sourceAssessmentTargets?.sourceScopes, assessment.sourceScopes, 'Changed review must identify affected baseline revisions');
     const scopes = assessment?.change ? data().filter(d => assessment.sourceScopes.includes(d.revision_id)) : data().filter(d => d.type === 'SCP' && d.links.some(l => l.type === 'belongs-to' && l.target === implementation.revision_id));
@@ -179,7 +184,75 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
     cli(['init', lifecycle, ...(processName !== 'tiny' ? ['--process', processName] : [])], undefined, {cwd: root});
     git(['config', 'user.name', 'Direct lifecycle fixture']);
     git(['config', 'user.email', 'fixture@localhost']);
-    if (processName === 'iterative') {
+    if (partialAcceptance) {
+      assert.equal(processName, 'iterative');
+      submit('frame-experiment', undefined, [candidate('river', 'EXP', {criterion: 'Keep River scores through a useful CLI.', question: 'Can scoring be accepted while the CLI remains provisional in this repository?', approach: 'Accept a pure scorer, operate the provisional CLI, then formalize the CLI.', constraints: 'Session only, user formula retained.', allowance_minutes: 15, scope_cut: 'One scored hand.'})]);
+      const initial = submit('draft-requirements', undefined, [
+        candidate('need', 'REQ', {kind: 'stakeholder', statement: 'Calculate River hand scores using the agreed bid and tricks formula.'}),
+        candidate('score', 'REQ', {kind: 'software', ears: {pattern: 'ubiquitous', system: 'The scorer', response: 'return bid * 10 + 10 for an exact bid, otherwise abs(bid - taken) * -10'}}),
+        candidate('decomposition', 'DCP', {}, [link('parent', '$need'), link('child', '$score')]),
+        candidate('requirements', 'RQS', {}),
+      ]);
+      const need = initial.find(d => d.payload.title === 'need'), score = initial.find(d => d.payload.title === 'score');
+      const group = initial.find(d => d.type === 'DCP'), set = initial.find(d => d.type === 'RQS');
+      reviewRequirements(set);
+      const region = (name, relation, target, code) => `# mdlm:begin ${name} ${relation} ${target}\n${code}# mdlm:end ${name}\n`;
+      const scoring = 'def score(bid, taken):\n    return bid * 10 + 10 if bid == taken else abs(bid - taken) * -10\n';
+      const checks = 'from scoring import score\nassert score(0, 0) == 10\nassert score(2, 2) == 30\nassert score(1, 3) == -20\n';
+      const cliCode = 'from scoring import score\nprint(score(int(input("Bid: ")), int(input("Taken: "))))\n';
+      writeFileSync(path.join(source, 'scoring.py'), region('score', 'implements', score.id, scoring));
+      writeFileSync(path.join(source, 'verify.py'), region('score-checks', 'verifies', score.id, checks));
+      writeFileSync(path.join(source, 'cli.py'), cliCode);
+      commit(source, 'Working scorer and provisional CLI in one source repository');
+      const sourceCommit = git(['rev-parse', 'HEAD'], source); sourceCommits.push(sourceCommit);
+      const payload = {repository_path: source, source_commit: sourceCommit, command: ['python3', 'cli.py'], verification_image: image, verification_command: ['python3', 'verify.py'], verification_script: 'verify.py', file_roles: {'scoring.py': 'production', 'verify.py': 'verification', 'cli.py': 'production'}};
+      const g = guidance('implement-product', set.revision_id);
+      const rejected = cli(['proposal', 'submit', '-'], {operation: 'partial-as-whole', action: g.action, package: g.package, snapshot: g.snapshot, subject: g.subject, inputs: g.inputs, candidates: [candidate('whole', 'IMP', payload, [link('implements', set.revision_id)])]}, {expected: 1});
+      assert.equal(rejected.ok, false, 'Whole-product claim cannot leave the provisional CLI untraced');
+      const imp = submit('implement-product', set.revision_id, [candidate('partial', 'IMP', {...payload, acceptance_scope: 'partial', formal_files: ['scoring.py', 'verify.py']}, [link('implements', set.revision_id)])]).find(d => d.type === 'IMP');
+      assert.deepEqual(imp.payload.source_inventory.map(f => [f.path, f.formal]), [['cli.py', false], ['scoring.py', true], ['verify.py', true]]);
+      assert.ok(!data().some(d => d.type === 'SCP' && d.payload.path === 'cli.py'));
+      assert.equal(run('python3', ['-B', 'cli.py'], source, {input: '2\n2\n'}).stdout, 'Bid: Taken: 30\n');
+      assert.equal(cli(['trace', 'why', 'cli.py:1', '--implementation', imp.revision_id]).requirementTrace.lineStatus, 'provisional');
+      const acceptance = finishProduct(set, imp, {rationale: `Accept only the scoring module and verifier at this commit. CLI behavior remains provisional. ${fixtureAuthority}`});
+      // Exact acceptance is readable even when the corresponding review action has closed.
+      assert.equal(exact(acceptance.revision_id).links.find(l => l.type === 'accepts').target, imp.revision_id);
+      assert.deepEqual(receipts.at(-1).receipt.binding.formalFiles, ['scoring.py', 'verify.py']);
+      assert.equal(cli(['expectations']).outcome, 'profile-boundary-reached');
+      writeFileSync(path.join(source, 'cli.py'), cliCode.replace('Bid: ', 'Your bid: '));
+      commit(source, 'Try a provisional prompt change without claiming renewed acceptance');
+      sourceCommits.push(git(['rev-parse', 'HEAD'], source));
+      assert.equal(run('python3', ['-B', 'cli.py'], source, {input: '1\n3\n'}).stdout, 'Your bid: Taken: -20\n');
+      assert.equal(exact(imp.revision_id).payload.source_commit, sourceCommit, 'The old acceptance stays attached to its old commit');
+      const change = submit('request-change', set.revision_id, [candidate('formalize-cli', 'CHG', {reason: 'The provisional command is useful; retain its minimum input and output behavior.', requested_outcome: 'Accept scoring through the CLI in the whole repository.'}, [link('baseline', acceptance.revision_id), link('changes', need.revision_id)])]).find(d => d.type === 'CHG');
+      submit('approve-change', change.revision_id, [candidate('approval', 'REV', {outcome: 'pass', findings: `Approve minimal input/output scope while retaining the scoring formula. ${fixtureAuthority}`}, [link('reviews', change.revision_id)])]);
+      const revised = submit('revise-requirements', change.revision_id, [
+        candidate('need', 'REQ', {kind: 'stakeholder', statement: 'Enter a bid and tricks taken at a CLI and receive the agreed River score.'}, [], need.revision_id),
+        candidate('interaction', 'REQ', {kind: 'software', ears: {pattern: 'ubiquitous', system: 'The CLI', response: 'ask for integer bid and tricks taken and print the score returned by the scorer'}}),
+        candidate('decomposition', 'DCP', {}, [link('parent', '$need'), link('child', score.revision_id), link('child', '$interaction')], group.revision_id),
+        candidate('requirements', 'RQS', {}, [], set.revision_id),
+      ]);
+      const nextSet = revised.find(d => d.type === 'RQS'), interaction = revised.find(d => d.payload.title === 'interaction');
+      const assessment = reviewRequirements(nextSet);
+      writeFileSync(path.join(source, 'cli.py'), region('interaction', 'implements', interaction.id, cliCode));
+      writeFileSync(path.join(source, 'verify.py'), region('score-checks', 'verifies', score.id, checks) + region('interaction-check', 'verifies', interaction.id, 'import subprocess\nassert subprocess.check_output(["python3", "cli.py"], input="2\n2\n", text=True).endswith("30\n")\n'.replace('input="2\n2\n"', 'input="2\\n2\\n"').replace('endswith("30\n")', 'endswith("30\\n")')));
+      // Equivalent scorer refactor must still acquire fresh implementation evidence.
+      writeFileSync(path.join(source, 'scoring.py'), region('score', 'implements', score.id, scoring.replace('bid * 10 + 10', '(bid + 1) * 10')));
+      commit(source, 'Formalize the complete useful product with fresh source evidence');
+      const wholeCommit = git(['rev-parse', 'HEAD'], source); sourceCommits.push(wholeCommit);
+      const dispositions = assessment.sourceScopes.map(source_scope => ({source_scope, disposition: 'valid', rationale: 'The scoring contract and its attributed responsibilities remain valid; this revision adds the CLI scope.'}));
+      const whole = submit('rebind-product', nextSet.revision_id, [candidate('whole', 'IMP', {...payload, source_commit: wholeCommit, acceptance_scope: 'whole-product', impact_dispositions: dispositions}, [link('implements', nextSet.revision_id)], imp.revision_id)]).find(d => d.type === 'IMP');
+      assert.notEqual(cli(['expectations']).outcome, 'profile-boundary-reached', 'A changed source cannot inherit the old acceptance');
+      assert.ok(whole.payload.source_inventory.every(f => f.formal !== false));
+      assert.ok(data().some(d => d.type === 'SCP' && d.payload.path === 'cli.py' && d.links.some(l => l.target === whole.revision_id)));
+      const verificationGuidance = guidance('execute-verification', whole.revision_id);
+      const staleReceipt = cli(['proposal', 'submit', '-'], {operation: 'old-partial-receipt', action: verificationGuidance.action, package: verificationGuidance.package, snapshot: verificationGuidance.snapshot, subject: verificationGuidance.subject, inputs: verificationGuidance.inputs, candidates: [candidate('verification', 'RES', {assessment: 'Attempt to reuse old evidence.', correction_target: 'none'}, [link('executes', whole.revision_id), link('verifies', nextSet.revision_id)])], evidence: {receipt: receipts[0].evidence}}, {expected: 1});
+      assert.equal(staleReceipt.ok, false, 'Old partial evidence cannot verify the new whole source');
+      finishProduct(nextSet, whole);
+      assert.equal(receipts.length, 2);
+      assert.equal(receipts.at(-1).receipt.binding.formalFiles, undefined);
+      assert.deepEqual(exact(acceptance.revision_id), acceptance);
+    } else if (processName === 'iterative') {
       submit('frame-experiment', undefined, [candidate('maintenance-experiment', 'EXP', {criterion: 'Count supplied items.', question: 'Can unchanged accepted requirements retain their review during maintenance?', approach: 'Baseline a counter, then change only its implementation.', constraints: 'No new behavior.', allowance_minutes: 10, scope_cut: 'One implementation-only change.'})]);
       const initial = submit('draft-requirements', undefined, [
         candidate('need', 'REQ', {kind: 'stakeholder', statement: 'Count supplied command-line items.'}),
@@ -322,5 +395,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const args = process.argv.slice(2);
   const option = name => args.includes(name) ? args[args.indexOf(name) + 1] : undefined;
   const executable = option('--executable') ?? process.env.MDLM_DIRECT_EXECUTABLE ?? process.env.MDLM_EXECUTABLE;
-  runDirectJourney({process: option('--process') ?? 'tiny', corrections: args.includes('--corrections'), executable, root: option('--root')}).then(result => console.log(JSON.stringify({ok: result.ok, outcome: result.outcome, publications: result.publications, receipts: result.receipts, commands: result.commands, evidenceFile: result.evidenceFile}))).catch(error => { console.error(error.stack); process.exitCode = 1; });
+  runDirectJourney({process: option('--process') ?? 'tiny', corrections: args.includes('--corrections'), partialAcceptance: args.includes('--partial-acceptance'), executable, root: option('--root')}).then(result => console.log(JSON.stringify({ok: result.ok, outcome: result.outcome, publications: result.publications, receipts: result.receipts, commands: result.commands, evidenceFile: result.evidenceFile}))).catch(error => { console.error(error.stack); process.exitCode = 1; });
 }

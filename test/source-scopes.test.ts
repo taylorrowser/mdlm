@@ -103,3 +103,12 @@ test("trailing line terminators do not add phantom lines and duplicate paths are
   }
   expect(deriveSourceScopes({ entries: [entry(region()), entry(region())], selectedRequirements }).diagnostics.map((d) => d.code)).toContain("source-inventory");
 });
+
+test("partial scope keeps provisional code visible while whole coverage remains strict", () => {
+  const entries = [entry(region(), {path: "scoring.py"}), entry("from scoring import score\nprint(score(1, 1))\n", {path: "cli.py"})];
+  const partial = deriveSourceScopes({entries, selectedRequirements, formalFiles: ["scoring.py"]});
+  expect(partial.diagnostics).toEqual([]);
+  expect(partial.inventory.map(e => [e.path, e.formal])).toEqual([["scoring.py", true], ["cli.py", false]]);
+  expect(partial.scopes.map(s => s.path)).toEqual(["scoring.py"]);
+  expect(deriveSourceScopes({entries, selectedRequirements}).diagnostics.map(d => d.code)).toContain("source-line-unmapped");
+});

@@ -31,6 +31,7 @@ export interface SourceInventoryEntry {
   role: SourceRole | "unclassified";
   lineCount: number | null;
   blankRanges?: SourceLineRange[];
+  formal?: boolean;
 }
 export interface SourceScopeResult {
   diagnostics: SourceScopeDiagnostic[];
@@ -45,6 +46,7 @@ export interface SourceScopeResult {
  */
 export function deriveSourceScopes(input: {
   entries: readonly SourceEntry[];
+  formalFiles?: readonly string[];
   selectedRequirements: readonly SelectedSourceRequirement[];
 }): SourceScopeResult {
   const result: SourceScopeResult = { diagnostics: [], inventory: [], scopes: [] };
@@ -64,6 +66,7 @@ export function deriveSourceScopes(input: {
     const inventory: SourceInventoryEntry = {
       path: entry.path, mode: entry.mode, blob: entry.blob,
       role: entry.role ?? "unclassified", lineCount: null,
+      ...(input.formalFiles ? {formal: input.formalFiles.includes(entry.path)} : {}),
     };
     result.inventory.push(inventory);
     if (seenPaths.has(entry.path)) {
@@ -91,6 +94,7 @@ export function deriveSourceScopes(input: {
       report("source-role", entry.path, "Declare a role for every tracked entry.");
       continue;
     }
+    if (inventory.formal === false) continue;
     if (entry.role === "documentation") {
       const name = entry.path.split("/").at(-1)!;
       const prose = /\.(?:md|txt|rst)$/i.test(name) || /^(?:readme|license|notice)$/i.test(name);

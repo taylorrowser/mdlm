@@ -1,11 +1,11 @@
 ---
 id: correct-product
-version: 6
+version: 7
 skills:
 - skills/product-quality.md@1
 - skills/typed-requirements.md@5
 - skills/verification-starter.md@2
-- skills/source-trace.md@1
+- skills/source-trace.md@2
 ---
 
 # Correct a failed verification or stakeholder rejection

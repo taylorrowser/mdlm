@@ -71,3 +71,22 @@ print("PASS: two-hand dialogue, scores, totals, and quit")
   expect(Buffer.from(result.stdoutBase64, "base64").toString()).toBe("PASS: two-hand dialogue, scores, totals, and quit\n");
   expect(result.stderrBase64).toBe("");
 }, 45_000);
+
+it("partial verification cannot use an omitted committed dependency", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-partial-dependency-"));
+  const git = (...args: string[]) => execFileSync("git", ["-C", root, ...args], {encoding: "utf8"}).trim();
+  git("init", "--quiet");
+  await fs.writeFile(path.join(root, "dependency.py"), "value = 30\n");
+  await fs.writeFile(path.join(root, "scoring.py"), "from dependency import value\ndef score():\n    return value\n");
+  await fs.writeFile(path.join(root, "verify.py"), "import sys\ntry:\n    from scoring import score\n    assert score() == 30\nexcept AssertionError:\n    sys.exit(1)\nexcept Exception as error:\n    print(error, file=sys.stderr)\n    sys.exit(2)\n");
+  git("add", ".");
+  git("-c", "user.name=Fixture", "-c", "user.email=fixture@localhost", "commit", "-qm", "Dependency fixture");
+  const input = {repositoryPath: root, sourceCommit: git("rev-parse", "HEAD"), image: "python@sha256:7415fbc3c9e4979cc717d92377ab2bc7b2b4a2af1ac03cc52b5f3f88efedaf3a", command: ["python3", "verify.py"], scriptPath: "verify.py", formalFiles: ["scoring.py", "verify.py"]};
+  const missing = await executeDockerVerification(input);
+  const included = await executeDockerVerification({...input, formalFiles: [...input.formalFiles, "dependency.py"]});
+  await fs.writeFile(path.join(root, "evidence.json"), JSON.stringify({input, missing, included}, null, 2));
+  console.log(`PARTIAL_DEPENDENCY_EVIDENCE ${root}/evidence.json`);
+  expect(missing).toMatchObject({outcome: "error", exitCode: 2, started: true});
+  expect(Buffer.from(missing.stderrBase64, "base64").toString()).toContain("dependency");
+  expect(included).toMatchObject({outcome: "pass", exitCode: 0});
+}, 45_000);
