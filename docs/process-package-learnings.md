@@ -311,3 +311,9 @@ MDLM_EXPLORATORY_INSTALLED=1 npx vitest run --config vitest.cutover.config.ts te
 
 It initializes from the installed package and completes the revision loop. A pack
 file listing alone does not establish that the installed package can load.
+
+## Partial source acceptance must expose its omissions
+
+Observed restriction: the River scoring baseline needed a copied source repository because the original trace contract required full source attribution. The iterative package now opts into requirement-trace@3. A partial IMP lists formal_files while its complete inventory and review source expose provisional neighbors. Canonical verification sees only formal files and its receipt binds that selection. Whole-product defaults retain complete tracing.
+
+Rule: partial acceptance names an exact source scope, never an ignore list or automatic approval of neighboring code. Keep dependency sufficiency in actual verification and independent review. Check a selected pure module beside an untraced CLI, an exercised omitted dependency, strict whole coverage, and a later integrated baseline with fresh evidence. Preserve failures and update this rule when operation reveals friction.

@@ -27,6 +27,7 @@ test("durable started or completed executions cannot be silently replayed or reb
     expect((await runVerificationReceipt(root,binding,true)).oid).toBe(oid);
     await expect(runVerificationReceipt(root,{...binding,sourceCommit:"b".repeat(40)},false)).rejects.toThrow("do not match");
     await expect(validateVerificationReceipt({...binding,inputs:["TRY-other-r00001"]},await runVerificationReceipt(root,binding,false))).rejects.toThrow("exact execution");
+    await expect(validateVerificationReceipt({...binding,formalFiles:["verify.py"]},await runVerificationReceipt(root,binding,false))).rejects.toThrow("exact execution");
     expect(executeDockerVerification).not.toHaveBeenCalled();
   } finally {await rm(root,{recursive:true,force:true});}
 });

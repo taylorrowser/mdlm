@@ -11,6 +11,7 @@ export interface DockerVerificationInput {
   command: string[];
   scriptPath: string;
   timeoutMs?: number;
+  formalFiles?: string[];
 }
 
 export interface VerificationSourceIdentity {
@@ -140,6 +141,11 @@ export async function executeDockerVerification(input: DockerVerificationInput):
     const snapshot = join(directory, "source");
     await mkdir(snapshot);
     await checked("tar", ["-xf", archivePath, "-C", snapshot, "--no-same-owner"]);
+    if (input.formalFiles) {
+      const tracked = (await checked("git", ["-C", input.repositoryPath, "ls-tree", "-rz", "--name-only", source.sourceCommit])).toString("utf8").split("\0").filter(Boolean);
+      if (!input.formalFiles.length || new Set(input.formalFiles).size !== input.formalFiles.length || input.formalFiles.some(file => !tracked.includes(file)) || !input.formalFiles.includes(input.scriptPath)) throw new Error("Formal source selection must name distinct committed files including the verifier.");
+      for (const file of tracked) if (!input.formalFiles.includes(file)) await rm(join(snapshot, file), {force: true});
+    }
     await chmod(snapshot, 0o755);
     const archivedScriptHash = createHash("sha256").update(await readFile(join(snapshot, input.scriptPath))).digest("hex");
     if (archivedScriptHash !== source.scriptSha256) throw new Error("Git archive changed the verification script bytes.");

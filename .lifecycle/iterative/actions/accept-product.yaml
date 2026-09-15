@@ -3,7 +3,7 @@ id: accept-product
 version: 1
 description: Accept the working tiny product
 capability: acceptance
-prompt_ref: prompts/accept-product.md@2
+prompt_ref: prompts/accept-product.md@3
 types:
 - ACC
 subjects: select("current-implementations@1", {})

@@ -3,7 +3,7 @@ id: rebind-product
 version: 2
 description: Bind unchanged or corrected product to revised expectations
 capability: implementation
-prompt_ref: prompts/rebind-product.md@7
+prompt_ref: prompts/rebind-product.md@8
 types:
 - IMP
 subjects: select("current-requirements@1", {})

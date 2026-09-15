@@ -50,7 +50,7 @@ export function inspectRequirementTrace(data: DatumEnvelope[], binding: Requirem
     revisionAlternatives, reassessment,
     unselectedCurrentRequirements: [...latest.values()].filter(d => !requirements.some(r => r.id === d.id)).map(d => d.revision_id),
     requirements: requirements.map(d => ({ id: d.id, revision: d.revision_id, payload: d.payload, links: d.links, leaf: context.graph!.leaves.has(d.revision_id) })),
-    lineStatus: null as "mapped" | "blank-line-exempt" | null,
+    lineStatus: null as "mapped" | "blank-line-exempt" | "provisional" | null,
     inspectionOnly: true as const };
   const scopes: (ReturnType<typeof scopeView> & { reasons: { requirement: string; path: string[]; reason: string }[]; otherRequirements: { requirement: string; reason: string }[] })[] = [];
   if (context.diagnostics.length) return { ...base, scopes };
@@ -64,11 +64,12 @@ export function inspectRequirementTrace(data: DatumEnvelope[], binding: Requirem
     }
     if (scopes.length) base.lineStatus = "mapped";
     if (!base.diagnostics.length && !scopes.length) {
-      const inventory = context.implementation?.payload.source_inventory as { path: string; lineCount: number; blankRanges?: { start: number; end: number }[] }[] | undefined;
+      const inventory = context.implementation?.payload.source_inventory as { path: string; lineCount: number; formal?: boolean; blankRanges?: { start: number; end: number }[] }[] | undefined;
       const file = inventory?.find(entry => entry.path === query.path);
-      if (file && query.line <= file.lineCount && file.blankRanges?.some(range => range.start <= query.line && query.line <= range.end)) base.lineStatus = "blank-line-exempt";
+      if (file?.formal === false && query.line <= file.lineCount) base.lineStatus = "provisional";
+      else if (file && query.line <= file.lineCount && file.blankRanges?.some(range => range.start <= query.line && query.line <= range.end)) base.lineStatus = "blank-line-exempt";
     }
-    if (!base.diagnostics.length && !scopes.length && base.lineStatus !== "blank-line-exempt") base.diagnostics.push({ code: "trace-line-unattributed", message: "No effective source scope covers this line in the selected implementation" });
+    if (!base.diagnostics.length && !scopes.length && base.lineStatus === null) base.diagnostics.push({ code: "trace-line-unattributed", message: "No effective source scope covers this line in the selected implementation" });
   } else {
     const requested = data.find(d => d.type === binding.requirement_type && d.revision_id === query.requirement);
     const root = requirements.find(d => d.revision_id === query.requirement || d.id === query.requirement || d.id === requested?.id);

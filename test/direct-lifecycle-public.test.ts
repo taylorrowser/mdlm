@@ -6,13 +6,14 @@ import { expect, test } from "vitest";
 
 // A caller may pin the already installed executable. Qualification's installed
 // mode packages this exact tree and exercises its installation in a fresh root.
-for (const {processName, corrections} of [
-  {processName:"tiny",corrections:false},
-  {processName:"exploratory",corrections:false},
-  {processName:"iterative",corrections:false},
-  {processName:"tiny",corrections:true},
+for (const {processName, corrections, partialAcceptance = false} of [
+  {processName:"tiny",corrections:false,partialAcceptance:false},
+  {processName:"exploratory",corrections:false,partialAcceptance:false},
+  {processName:"iterative",corrections:false,partialAcceptance:false},
+  {processName:"tiny",corrections:true,partialAcceptance:false},
+  {processName:"iterative",corrections:false,partialAcceptance:true},
 ] as const) {
-  test(`direct public ${processName}${corrections ? " correction" : ""} lifecycle preserves decisions, corrections and history`, async () => {
+  test(`direct public ${processName}${corrections ? " correction" : ""}${partialAcceptance ? " partial acceptance" : ""} lifecycle preserves decisions, corrections and history`, async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), `mdlm-direct-${processName}-`));
     let executable = process.env.MDLM_DIRECT_EXECUTABLE ?? path.join(process.cwd(), "dist/mdlm.js");
     const command = (file: string, args: string[], cwd = root) => {
@@ -30,7 +31,7 @@ for (const {processName, corrections} of [
       executable = path.join(install,"node_modules/mdlm/dist/mdlm.js");
     }
     const journeyRoot = path.join(root,"journey");
-    const invocation = spawnSync(process.execPath,[path.join(process.cwd(),"scripts/direct-lifecycle-walkthrough.mjs"),"--process",processName,"--executable",executable,"--root",journeyRoot,...(corrections ? ["--corrections"] : []), ...(processName === "iterative" ? ["--operational-use"] : [])],{
+    const invocation = spawnSync(process.execPath,[path.join(process.cwd(),"scripts/direct-lifecycle-walkthrough.mjs"),"--process",processName,"--executable",executable,"--root",journeyRoot,...(corrections ? ["--corrections"] : []), ...(partialAcceptance ? ["--partial-acceptance"] : []), ...(processName === "iterative" && !partialAcceptance ? ["--operational-use"] : [])],{
       cwd:root,encoding:"utf8",timeout:240_000,maxBuffer:30*1024*1024,env:process.env,
     });
     const mode = process.env.MDLM_DIRECT_EXECUTABLE ? "supplied-executable" : process.env.MDLM_DIRECT_INSTALLED === "1" ? "installed" : "source";
@@ -38,7 +39,7 @@ for (const {processName, corrections} of [
     // The driver writes the same durable result before returning or throwing.
     // Emit its location before assertions so failed operation stays discoverable.
     const captured = await fs.readFile(evidenceFile,"utf8").then(source=>JSON.parse(source)).catch(()=>undefined);
-    process.stdout.write(`DIRECT_JOURNEY_CONTEXT ${JSON.stringify({process:processName,corrections,mode,executable,status:invocation.status})}\n`);
+    process.stdout.write(`DIRECT_JOURNEY_CONTEXT ${JSON.stringify({process:processName,corrections,partialAcceptance,mode,executable,status:invocation.status})}\n`);
     if (captured) process.stdout.write(`DIRECT_JOURNEY_EVIDENCE ${captured.evidenceFile}\n`);
     else process.stdout.write(`DIRECT_JOURNEY_CAPTURE_MISSING ${evidenceFile}\n`);
     expect(invocation.error).toBeUndefined();
@@ -47,7 +48,7 @@ for (const {processName, corrections} of [
     expect(captured?.evidenceFile).toBe(result.evidenceFile);
     expect(result.outcome).toBe(processName === "tiny" ? "lifecycle-complete" : "profile-boundary-reached");
     expect(result.publications.length).toBeGreaterThan(0);
-    if (processName === "iterative") expect(captured.operationalUses).toHaveLength(3);
+    if (processName === "iterative" && !partialAcceptance) expect(captured.operationalUses).toHaveLength(3);
     expect(result.receipts.length).toBeGreaterThan(0);
     expect(result.commands.length).toBeGreaterThan(0);
     expect(await fs.stat(result.evidenceFile)).toMatchObject({size:expect.any(Number)});
