@@ -10,8 +10,9 @@ const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const fixtureAuthority = 'Operator-selected engineering fixture. Stakeholder decisions are scripted fixture inputs, not acceptance by the actual product user. Review registration exercises a separate manager transport and exact verdict binding; it does not claim human or model review independence.';
 
 /** Ordinary public operations only. Preserve both repositories and external evidence on every outcome. */
-export async function runDirectJourney({process: processName = 'tiny', corrections = false, executable = process.env.MDLM_DIRECT_EXECUTABLE ?? process.env.MDLM_EXECUTABLE, root}) {
+export async function runDirectJourney({process: processName = 'tiny', corrections = false, operationalUse = false, executable = process.env.MDLM_DIRECT_EXECUTABLE ?? process.env.MDLM_EXECUTABLE, root}) {
   assert.ok(['tiny', 'exploratory', 'iterative'].includes(processName));
+  assert.ok(!operationalUse || processName === 'iterative', 'Operational-use fixture requires the iterative package');
   assert.ok(path.isAbsolute(root), 'A fresh absolute root is required');
   assert.ok(executable && path.isAbsolute(executable), 'An exact absolute executable is required');
   assert.ok(!existsSync(root), 'Never replay a journey in an existing directory');
@@ -61,6 +62,7 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
   }
   const candidate = (localId, type, payload, links = [], predecessor) => ({localId, type, ...(predecessor ? {predecessor} : {}), payload: {publication: 'recorded', ...(type === 'RQS' ? {} : {title: type === 'RES' ? 'Verification result' : localId}), ...payload}, links, body: `Engineering fixture: ${localId}. ${fixtureAuthority}`});
   const link = (type, target) => ({type, target});
+  const operationalUses = [];
   let sequence = 0;
   function submit(action, subject, candidates, evidence = {}) {
     stage = action;
@@ -156,6 +158,48 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
     }, [link('reviews', set.revision_id)])]);
     return {...assessment, review: records.find(d => d.type === 'REV')};
   }
+  function recordUse(implementation, args, {negativeChecks = false, wrongSubject} = {}) {
+    const beforeData = data();
+    const before = cli(['expectations']);
+    assert.ok(before.optional.some(item => item.action === 'record-operational-use@1' && item.subject === implementation.revision_id));
+    const g = guidance('record-operational-use', implementation.revision_id);
+    assert.deepEqual(g.inputs.prior_uses, operationalUses.filter(use => use.subject === implementation.revision_id).map(use => use.revision).sort());
+    assert.equal(g.executionCommand, undefined, 'Authored use must not request canonical execution');
+    assert.equal(g.authority, undefined, 'Recording use must not require stakeholder approval');
+    assert.equal(g.context.find(d => d.revision_id === implementation.revision_id).payload.source_commit, implementation.payload.source_commit);
+    assert.equal(git(['rev-parse', 'HEAD'], source), implementation.payload.source_commit);
+    const observed = run('python3', ['count.py', ...args], source);
+    assert.equal(observed.stdout, `${args.length}\n`);
+    const entry = candidate('operational-use', 'OPU', {
+      actor_kind: 'scripted', actor: 'public CLI engineering fixture', occurred_at: observed.startedAt,
+      scenario: `Count the ${args.length} supplied arguments in this distinct invocation.`, observed_outcome: 'observed',
+      evidence_reference: path.join(evidenceRoot, `${String(observed.index).padStart(4, '0')}-result.json`),
+      assessment: `Actual stdout was ${JSON.stringify(observed.stdout)} and exit status was ${observed.status}.`,
+      limitations: 'Automated operational fixture, not human or agent usability evidence. No formal verification or acceptance claim.',
+    }, [link('observes', implementation.revision_id)]);
+    entry.body = `Source ${implementation.payload.source_commit}\nCommand: python3 ${JSON.stringify(['count.py', ...args])}\nstdout:\n${observed.stdout}stderr:\n${observed.stderr}exit: ${observed.status}\n`;
+    if (negativeChecks) {
+      const proposal = {operation: 'reject-use', action: g.action, package: g.package, snapshot: g.snapshot, subject: g.subject, inputs: g.inputs, candidates: [entry]};
+      const reject = (name, candidate, evidence, authorityArgs = []) => {
+        assert.equal(cli(['proposal', 'submit', '-', ...authorityArgs], {...proposal, operation: `reject-use-${name}`, candidates: [candidate], ...(evidence ? {evidence} : {})}, {expected: 1}).ok, false);
+        assert.equal(cli(['expectations']).snapshot, before.snapshot, 'Rejected use must not mutate lifecycle data');
+      };
+      assert.ok(wrongSubject);
+      reject('wrong-source', {...entry, links: [link('observes', wrongSubject)]});
+      reject('missing-evidence', {...entry, payload: {...entry.payload, evidence_reference: undefined}});
+      reject('acceptance', {...entry, type: 'ACC'});
+      reject('verification', {...entry, type: 'RES'});
+      reject('authority', entry, {authority: ['stakeholder']}, ['--authority', 'stakeholder']);
+    }
+    const record = submit('record-operational-use', implementation.revision_id, [entry])[0];
+    operationalUses.push({revision: record.revision_id, subject: implementation.revision_id, sourceCommit: implementation.payload.source_commit, evidenceReference: entry.payload.evidence_reference});
+    assert.equal(record.payload.receipt, undefined);
+    assert.deepEqual(data().filter(d => d.type !== 'OPU'), beforeData.filter(d => d.type !== 'OPU'), 'Use cannot change any formal or exploratory records');
+    const after = cli(['expectations']);
+    assert.deepEqual(after.items, before.items, 'Operational use cannot change mandatory work');
+    assert.equal(after.outcome, before.outcome, 'Operational use cannot change completion');
+    return record;
+  }
   function finishProduct(set, implementation, {decision = 'accept', rationale = fixtureAuthority, checkZero = false} = {}) {
     const receipt = execute(implementation, 'pass');
     const result = submit('execute-verification', implementation.revision_id, [candidate('verification', 'RES', {assessment: 'The committed Python assertions passed in the pinned container.', correction_target: 'none'}, [link('executes', implementation.revision_id), link('verifies', set.revision_id)])], {receipt}).find(d => d.type === 'RES');
@@ -191,8 +235,10 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
       const set = initial.find(d => d.type === 'RQS');
       const originalReview = reviewRequirements(set).review;
       const imp = submit('implement-product', set.revision_id, [candidate('implementation', 'IMP', {...sourceVersion(count.id), file_roles: {'count.py': 'production', 'verify.py': 'verification'}}, [link('implements', set.revision_id)])]).find(d => d.type === 'IMP');
+      if (operationalUse) recordUse(imp, ['red', 'blue'], {negativeChecks: true, wrongSubject: set.revision_id});
       const acceptance = finishProduct(set, imp);
       assert.equal(cli(['expectations']).outcome, 'profile-boundary-reached');
+      if (operationalUse) recordUse(imp, ['green']);
       const beforeMaintenance = publications.length;
       const change = submit('request-change', set.revision_id, [candidate('simplify-count', 'CHG', {reason: 'Simplify the implementation while retaining every accepted obligation.', requested_outcome: 'Use an explicit supplied-argument slice to count items with unchanged behavior.'}, [link('baseline', acceptance.revision_id), link('changes', need.revision_id)])]).find(d => d.type === 'CHG');
       submit('approve-change', change.revision_id, [candidate('maintenance-approval', 'REV', {outcome: 'pass', findings: `Approve implementation-only maintenance preserving the exact requirement graph. ${fixtureAuthority}`}, [link('reviews', change.revision_id)])]);
@@ -214,6 +260,17 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
       assert.ok(!data().some(d => d.type === 'REV' && d.links.some(l => l.type === 'reviews' && l.target === nextSet.revision_id)), 'No new requirements review is published');
       assert.equal(publications.length - beforeMaintenance, 7, 'Maintenance retains fresh implementation, result, review and acceptance');
       assert.equal(receipts.length, 2, 'Both baseline and maintained source receive canonical execution');
+      if (operationalUse) {
+        recordUse(maintained, ['gold', 'silver', 'bronze'], {negativeChecks: true, wrongSubject: imp.revision_id});
+        assert.equal(operationalUses.length, 3);
+        assert.equal(operationalUses[0].sourceCommit, operationalUses[1].sourceCommit);
+        assert.notEqual(operationalUses[2].sourceCommit, operationalUses[0].sourceCommit);
+        assert.equal(new Set(operationalUses.map(use => use.evidenceReference)).size, 3);
+        assert.equal(receipts.length, 2, 'Logging three uses must add no canonical execution');
+        const oldGuidance = guidance('record-operational-use', imp.revision_id);
+        assert.equal(oldGuidance.inputs.prior_uses.length, 2, 'Historical source remains discoverable after revision');
+        for (const use of operationalUses) assert.equal(exact(use.revision).links.find(l => l.type === 'observes').target, use.subject);
+      }
     } else if (processName === 'tiny' && corrections) {
       const software = response => ({kind: 'software', ears: {pattern: 'ubiquitous', system: 'The CLI', response}});
       const initial = submit('draft-requirements', undefined, [
@@ -311,7 +368,7 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
     if (existsSync(lifecycle)) { try { lifecycleData = [...new Set(revisions)].map(exact); } catch (error) { lifecycleData = {error: String(error)}; captureFailures.push(`Lifecycle data capture failed: ${error.message}`); } }
     save('lifecycle-data.json', lifecycleData ?? []);
     if (captureFailures.length && !caught) caught = new Error(`Final evidence is incomplete: ${captureFailures.join('; ')}`);
-    const result = {ok: !caught, outcome: caught ? 'failed' : terminal?.outcome ?? 'failed', process: processName, corrections, root, lifecycle, source, evidenceFile, publications, revisions, receipts, sourceCommits, commands, terminal, gitState, captureFailures, scope: fixtureAuthority, error: caught ? {message: caught.message, stack: caught.stack} : undefined};
+    const result = {ok: !caught, outcome: caught ? 'failed' : terminal?.outcome ?? 'failed', process: processName, corrections, operationalUse, operationalUses, root, lifecycle, source, evidenceFile, publications, revisions, receipts, sourceCommits, commands, terminal, gitState, captureFailures, scope: fixtureAuthority, error: caught ? {message: caught.message, stack: caught.stack} : undefined};
     save('result.json', result);
     if (caught) { caught.message += `\nPreserved journey evidence: ${evidenceFile}`; throw caught; }
     return result;
@@ -322,5 +379,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const args = process.argv.slice(2);
   const option = name => args.includes(name) ? args[args.indexOf(name) + 1] : undefined;
   const executable = option('--executable') ?? process.env.MDLM_DIRECT_EXECUTABLE ?? process.env.MDLM_EXECUTABLE;
-  runDirectJourney({process: option('--process') ?? 'tiny', corrections: args.includes('--corrections'), executable, root: option('--root')}).then(result => console.log(JSON.stringify({ok: result.ok, outcome: result.outcome, publications: result.publications, receipts: result.receipts, commands: result.commands, evidenceFile: result.evidenceFile}))).catch(error => { console.error(error.stack); process.exitCode = 1; });
+  runDirectJourney({process: option('--process') ?? 'tiny', corrections: args.includes('--corrections'), operationalUse: args.includes('--operational-use'), executable, root: option('--root')}).then(result => console.log(JSON.stringify({ok: result.ok, outcome: result.outcome, publications: result.publications, receipts: result.receipts, commands: result.commands, evidenceFile: result.evidenceFile}))).catch(error => { console.error(error.stack); process.exitCode = 1; });
 }

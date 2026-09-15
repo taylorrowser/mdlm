@@ -61,6 +61,18 @@ stakeholder acceptance remain separate requirements. The iterative public
 maintenance journey protects publication and closure; the package evaluator
 checks changed graph, unrelated approval and failure cases.
 
+## Operational accounts stay separate from verification, #824
+
+The one-OBS-per-TRY route cannot represent repeated use without extra prototype
+or execution work. Removing that count restriction would still force every
+observation through the canonical receipt contract. Use optional OPU data for
+actual operational sessions, linked to an exact product revision, and retain
+OBS/RES for captured execution assessments. Authored actor, time and transcript
+claims are not kernel-attested execution or acceptance. Repeated optional use
+must leave formal eligibility and endpoints unchanged. The iterative public
+journey exercises distinct uses on unchanged and changed source, exact-link
+rejection, and unchanged verification and acceptance records.
+
 ## Historical patterns and checks
 
 ## 1. Every failable output needs a correction route

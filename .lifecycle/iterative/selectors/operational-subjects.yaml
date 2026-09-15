@@ -1,0 +1,17 @@
+kind: selector-definition
+id: operational-subjects
+version: 1
+description: Exact runnable product revisions available for operational use, including historical versions
+parameters: []
+result_kind: revision
+query:
+  from:
+    collection: revisions
+    types:
+      - TRY
+      - IMP
+  as: item
+  where: 'state(item, "validity") == "valid"'
+  distinct: true
+  order_by:
+    - identity.revision_id

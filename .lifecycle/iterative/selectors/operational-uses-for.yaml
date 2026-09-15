@@ -1,0 +1,23 @@
+kind: selector-definition
+id: operational-uses-for
+version: 1
+description: Recorded operational uses of an exact product revision
+parameters:
+  - name: product
+    kind: revision
+    types:
+      - TRY
+      - IMP
+result_kind: revision
+query:
+  from:
+    relation: incoming-links
+    of: product
+    link: observes
+    emit: source
+    types:
+      - OPU
+  as: item
+  distinct: true
+  order_by:
+    - identity.revision_id
