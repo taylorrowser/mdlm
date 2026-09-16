@@ -1,0 +1,41 @@
+kind: type-definition
+id: ICD
+version: 1
+name: Interface control document
+description: Exact interface agreement and provisional design context across a meaningful boundary
+extends: titled-datum@1
+lifecycle:
+  authorship: authored
+  freeze_when: terminal-outcome
+  terminal_payload_field: publication
+  terminal_values: [recorded]
+payload_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  required: [publication, boundary, endpoints, interaction, failure_behavior, compatibility, assumptions]
+  properties:
+    publication:
+      const: recorded
+    boundary:
+      enum: [internal, external]
+    endpoints:
+      type: array
+      minItems: 2
+      maxItems: 2
+      items:
+        type: object
+        additionalProperties: false
+        required: [name, owner, responsibility]
+        properties:
+          name: &text
+            type: string
+            minLength: 1
+          owner: *text
+          responsibility: *text
+    interaction: *text
+    failure_behavior: *text
+    compatibility: *text
+    assumptions: *text
+    protocol_version: *text
+outgoing_links: []
+kernel_managed_payload_paths: []

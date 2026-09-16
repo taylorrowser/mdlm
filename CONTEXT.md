@@ -210,3 +210,9 @@ _Avoid_: Using historical contracts to operate the current kernel
 **Phase progression and gate machinery**:
 Historical process scheduling concepts, including gate sign-offs, standing delegations, attention schedules and consolidation groups. Current packages declare their eligible actions and terminal conditions directly.
 _Avoid_: Assuming retained historical evidence implies current runtime support
+
+## Interfaces
+
+**Interface Control Document (ICD)**:
+A versioned agreement describing both sides of a meaningful boundary, their responsibilities, exchanged information, failure behavior and assumptions. It can contain provisional design choices; requirements state necessary obligations. Exact uses determine its review and acceptance context.
+_Avoid_: Requirement when referring to all interface design detail, protocol version when referring to lifecycle revision identity

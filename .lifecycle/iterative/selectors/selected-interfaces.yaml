@@ -1,0 +1,17 @@
+kind: selector-definition
+id: selected-interfaces
+version: 1
+description: Exact interface definitions referenced by the selected requirement graph
+parameters:
+- name: requirements
+  kind: revision
+  types: [RQS]
+result_kind: revision
+query:
+  from:
+    collection: revisions
+    types: [ICD]
+  as: item
+  where: '!every("selected-requirements-for@1", {requirements: requirements}, requirement => every("interfaces-for@1", {subject: requirement}, interface => interface.identity.revision_id != item.identity.revision_id))'
+  distinct: true
+  order_by: [identity.revision_id]

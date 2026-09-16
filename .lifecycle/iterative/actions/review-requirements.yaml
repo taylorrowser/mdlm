@@ -3,11 +3,12 @@ id: review-requirements
 version: 2
 description: Review requirements
 capability: review
-prompt_ref: prompts/review-requirements.md@6
+prompt_ref: prompts/review-requirements.md@7
 types:
 - REV
 subjects: select("current-requirements@1", {})
 inputs:
+  interfaces: 'select("selected-interfaces@1", {requirements: subject})'
   subject: subject
 when: '!(exists("reviews-for@1", {subject: subject})) && none("reusable-requirements-review@1", {requirements: subject})'
 priority: 100

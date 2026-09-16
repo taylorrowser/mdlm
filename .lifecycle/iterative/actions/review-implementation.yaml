@@ -3,11 +3,12 @@ id: review-implementation
 version: 1
 description: Review implementation and execution evidence
 capability: review
-prompt_ref: prompts/review-implementation.md@9
+prompt_ref: prompts/review-implementation.md@10
 types:
 - REV
 subjects: select("current-implementations@1", {})
 inputs:
+  interfaces: 'select("selected-interfaces@1", {requirements: one("requirements-for@1", {implementation: subject})})'
   subject: subject
   requirements: 'one("requirements-for@1", {implementation: subject})'
   result: 'one("passing-results@1", {implementation: subject})'

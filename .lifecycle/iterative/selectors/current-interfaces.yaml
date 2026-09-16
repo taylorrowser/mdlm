@@ -1,0 +1,14 @@
+kind: selector-definition
+id: current-interfaces
+version: 1
+description: Latest recorded interface revisions, without replacing prior exact uses
+parameters: []
+result_kind: revision
+query:
+  from:
+    collection: revisions
+    types: [ICD]
+  as: item
+  where: 'none("newer-revisions@1", {subject: item})'
+  distinct: true
+  order_by: [identity.revision_id]
