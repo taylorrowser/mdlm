@@ -3,7 +3,7 @@ id: review-implementation
 version: 1
 description: Review implementation and execution evidence
 capability: review
-prompt_ref: prompts/review-implementation.md@7
+prompt_ref: prompts/review-implementation.md@8
 types:
 - REV
 subjects: select("current-implementations@1", {})

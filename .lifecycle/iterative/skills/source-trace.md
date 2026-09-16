@@ -1,6 +1,6 @@
 ---
 id: source-trace
-version: 2
+version: 3
 ---
 
 # Attribute the committed source through ordinary requirement links
@@ -11,18 +11,27 @@ Declare file_roles for every tracked entry, using production, verification, docu
 
 Put every nonblank Python line in the formal scope inside an explicit closed, nonnested named region. Imports, comments, docstrings and support code count as content. Region names are unique within each file. Blank or whitespace-only lines outside regions are exempt; delimiters and blanks inside a region belong to that region. File-default directives are rejected. Use `python3 product.py` invocation without a shebang outside the regions.
 
-Regions and requirements have a many-to-many relationship. A region can contribute to several requirements, and a requirement can be implemented by several regions across files. Replace these example IDs with published IDs from the exact guidance:
+Regions and requirements have a many-to-many relationship. A region can contribute to several requirements, and a requirement can be implemented by several regions across files. In this packing example, assume three selected software leaves: REQ-0000000001 requires marking and clearing an item's checked state; REQ-0000000002 requires readiness to reflect whether all items are checked after either operation; REQ-0000000003 requires rejecting unknown item names. Replace the example IDs with published IDs from the exact guidance.
 
 ```python
-# mdlm:begin storage-support implements REQ-0000000001 REQ-0000000002
-import json
-# mdlm:end storage-support
+# mdlm:begin item-validation implements REQ-0000000003
+def validate_item(checked, item):
+    if item not in checked:
+        raise ValueError("Unknown item")
+# mdlm:end item-validation
 
-# mdlm:begin load-store implements REQ-0000000002
-def load_store(path):
-    ...
-# mdlm:end load-store
+# mdlm:begin item-transition implements REQ-0000000001 REQ-0000000002
+def set_checked(checked, item, packed):
+    checked[item] = packed
+# mdlm:end item-transition
+
+# mdlm:begin readiness-output implements REQ-0000000002
+def show_readiness(checked):
+    print("Ready" if all(checked.values()) else "Not ready")
+# mdlm:end readiness-output
 ```
+
+The caller validates the item, sets its checked state to true for mark or false for clear, then displays readiness. The state writer owns both the requested transition and the state that makes readiness accurate after it. The renderer owns the readiness calculation and output. Linking readiness only to the renderer would miss the writer when inspecting that requirement's implementation. The validation region only rejects unknown names; it neither changes checked state nor calculates readiness, so it has no readiness link. Calling these regions in one operation does not give them identical responsibilities.
 
 Verifier annotations use verifies. Every region needs at least one selected software leaf with ancestry to a stakeholder root. Choose boundaries around distinct responsibilities. Authors and reviewers check links in both directions: every region has requirements explaining its responsibility, and every software leaf links all regions directly contributing to its observable contract. Include shared loading, validation, state updates and output construction where they contribute to that contract. A function call alone does not make every utility responsible for every caller requirement. Judge the code's actual responsibility; use many-to-many links where responsibilities overlap. A giant region linked to every requirement can pass coverage and still fail content review. Authors maintain boundaries, names, requirement IDs and file roles; the CLI computes all line ranges.
 

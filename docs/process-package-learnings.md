@@ -277,6 +277,16 @@ Check: resolve that skill in each affected prompt, then inspect fresh lifecycle
 Review findings for consistent application. Structural checks do not prove that
 a reviewer applied the semantic standard.
 
+Issue #833 applies this shared-content rule to semantic source attribution. River
+and packing reviews found missing links from state writers to the observable
+contracts their updates maintain. The iterative source-trace example now shows
+a writer and renderer sharing a readiness requirement, with an unrelated
+validation region linked only to its own obligation. Keep the bidirectional
+responsibility rule unchanged. Package loading checks exact skill references;
+a fresh author's first annotations and independent review must establish whether
+the example reduces omissions without encouraging unrelated links. Line coverage
+and functional verification alone cannot establish that result.
+
 ## Typed requirement mappings are mechanical declarations
 
 Issue #741 replaces tiny-package free-string commitments with typed EARS fields,

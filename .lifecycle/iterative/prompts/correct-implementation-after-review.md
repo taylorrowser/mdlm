@@ -1,11 +1,11 @@
 ---
 id: correct-implementation-after-review
-version: 7
+version: 8
 skills:
 - skills/product-quality.md@1
 - skills/typed-requirements.md@5
 - skills/verification-starter.md@2
-- skills/source-trace.md@2
+- skills/source-trace.md@3
 ---
 
 # Correct implementation after content Review
