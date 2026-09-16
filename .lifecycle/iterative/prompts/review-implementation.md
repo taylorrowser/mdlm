@@ -1,6 +1,6 @@
 ---
 id: review-implementation
-version: 9
+version: 10
 skills:
 - skills/product-quality.md@1
 - skills/typed-requirements.md@5
@@ -16,3 +16,5 @@ The lifecycle author exports the complete exact review context and requests a fr
 Independently inspect the exact product and verification script against the original stakeholder request and reviewed requirements. Judge whether assertions and any source-inspection evidence cover the commitments, including argument and file behavior where relevant. Inspect the CLI receipt and raw captured output to check that the intended script ran and supports its claim. The script's zero exit is necessary but cannot establish that its assertions are adequate. Review the generated decomposition and source scopes using the shared source-trace skill's responsibility checks in both directions. Check that file roles do not hide executable code. Return pass or concrete failing findings. The CLI owns byte capture, exit classification and source binding; focus on coverage, incorrect assertions and other content defects.
 
 Use the supplied direct proposal guidance and payload schema. The CLI supplies identities, exact required links and publication markers. Submit the authored values with mdlm proposal submit. Keep the body empty when the structured payload contains the whole claim.
+
+Read the exact ICD records supplied in interfaces. Judge the explicit requirement obligations against both endpoint responsibilities, assumptions and integration evidence. Referenced descriptive or provisional design choices are not automatically requirements. Old interface evidence applies to its exact bindings; a revised contract needs an explicit applicability assessment.

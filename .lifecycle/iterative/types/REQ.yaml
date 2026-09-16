@@ -1,6 +1,6 @@
 kind: type-definition
 id: REQ
-version: 2
+version: 3
 description: Requirement statement
 name: Requirement statement
 extends: titled-datum@1
@@ -196,6 +196,17 @@ payload_schema:
           required:
             - statement
 outgoing_links:
+  - id: uses-interface
+    description: Exact interface context; necessary obligations remain explicit requirements
+    targets:
+      - kind: datum
+        types: [ICD]
+        identity: revision
+    cardinality:
+      minimum: 0
+      maximum: many
+    freeze_resolution: already-exact
+    inverse_label: incoming-uses-interface
   - id: changes-under
     description: changes-under
     targets:

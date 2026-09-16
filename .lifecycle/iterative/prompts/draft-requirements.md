@@ -1,6 +1,6 @@
 ---
 id: draft-requirements
-version: 5
+version: 6
 skills:
 - skills/product-quality.md@1
 - skills/typed-requirements.md@5
@@ -17,3 +17,5 @@ Use the supplied direct proposal guidance and payload schema. The CLI supplies i
 Record the stakeholder request reference in source so a reviewer can recover the original intent.
 
 Read the exact experiment in guidance.context and its relevant observations with `mdlm show <exact-revision> --json`. State the selected formal scope and the neighboring behavior that remains provisional. Start from stakeholder need or a useful prototype decision, then write fresh obligations. Record optional `informed-by` links to zero or more exact EXP/OBS revisions on each REQ, with rationale identifying what each origin contributed. Several requirements may share origins. A requirement may have no design predecessor. Keep replaceable implementation choices in exploration; do not turn all prototype behavior into requirements. Prior observations explain learning and do not replace current formal verification.
+
+For interface-dependent behavior, add optional uses-interface links to exact ICD revisions. State the necessary obligations in the REQ itself; retain descriptive and provisional choices in the ICD. Adopting a changed ICD in accepted scope requires the normal approved requirement change and fresh applicable evidence.

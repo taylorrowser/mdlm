@@ -1,0 +1,18 @@
+kind: action-definition
+id: revise-interface
+version: 1
+description: Revise an exact interface agreement while preserving prior uses
+capability: experiment
+prompt_ref: prompts/revise-interface.md@1
+types: [ICD]
+subjects: select("current-interfaces@1", {})
+inputs:
+  subject: subject
+revises:
+  ICD: subject
+when: 'true'
+optional: true
+priority: 100
+fixed_payload:
+  ICD:
+    publication: recorded

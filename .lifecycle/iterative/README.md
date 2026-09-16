@@ -32,3 +32,9 @@ The linked IMP identifies the full source even when its formal scope is narrower
 operating provisional behavior does not accept it. OPU does not require stakeholder
 feedback or change the formal completion conditions. OBS and RES retain their
 separate execution-assessment contracts.
+
+## Interface agreements
+
+Use optional `record-interface` and `revise-interface` guidance for a meaningful internal software boundary or connection to an external device, service or person. ICDs record both endpoint responsibilities, representation and units, failure behavior, compatibility and assumptions. Prototype TRY and formal REQ records can link to exact ICD revisions with `uses-interface`.
+
+Requirements state the necessary obligations. An ICD may also describe provisional choices. Review context includes the exact ICDs referenced by its requirement graph. A new ICD revision preserves prior uses and evidence; adopting it in accepted scope follows the normal requirement change, verification and acceptance route. Lifecycle revision identity is distinct from a wire protocol version.

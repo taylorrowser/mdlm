@@ -1,0 +1,19 @@
+kind: selector-definition
+id: interfaces-for
+version: 1
+description: Exact interface context used by a requirement or prototype
+parameters:
+- name: subject
+  kind: revision
+  types: [REQ, TRY]
+result_kind: revision
+query:
+  from:
+    relation: outgoing-links
+    of: subject
+    link: uses-interface
+    emit: target
+    types: [ICD]
+  as: item
+  distinct: true
+  order_by: [identity.revision_id]

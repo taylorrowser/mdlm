@@ -1,0 +1,14 @@
+kind: action-definition
+id: record-interface
+version: 1
+description: Record a provisional interface agreement
+capability: experiment
+prompt_ref: prompts/record-interface.md@1
+types: [ICD]
+inputs: {}
+when: 'true'
+optional: true
+priority: 100
+fixed_payload:
+  ICD:
+    publication: recorded

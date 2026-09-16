@@ -4,17 +4,18 @@ import os from "node:os";
 import path from "node:path";
 import { expect, test } from "vitest";
 
-test("iterative init preserves exploration while fresh requirements retain optional exact origins", async () => {
+test("iterative requirements retain exact origins and interface context across interface revisions", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-iterative-public-"));
   const repository = path.join(root, "lifecycle");
   const commands: unknown[] = [];
   let outcome = "failed";
   const executable = process.env.MDLM_DIRECT_EXECUTABLE ?? path.join(process.cwd(), "dist/mdlm.js");
+  let expectedExit = 0;
   const cli = (...args: string[]) => {
     const argv = executable.endsWith(".js") ? [process.execPath, [executable, ...args, "--json"]] as const : [executable, [...args, "--json"]] as const;
     const result = spawnSync(argv[0], argv[1], {cwd: args[0] === "init" ? root : repository, encoding: "utf8", timeout: 30_000, maxBuffer: 10 * 1024 * 1024});
     commands.push({args, status: result.status, stdout: result.stdout, stderr: result.stderr});
-    expect(result.status, result.stdout + result.stderr).toBe(0);
+    expect(result.status, result.stdout + result.stderr).toBe(expectedExit);
     return JSON.parse(result.stdout);
   };
   const commit = () => {
@@ -22,7 +23,7 @@ test("iterative init preserves exploration while fresh requirements retain optio
     execFileSync("git", ["-C", repository, "-c", "commit.gpgSign=false", "commit", "--no-verify", "-qm", "Record fixture publication"]);
   };
   const submit = async (guidance: any, operation: string, candidates: unknown[]) => {
-    const proposal = {operation, action: guidance.action, package: guidance.package, snapshot: guidance.snapshot, inputs: guidance.inputs, candidates};
+    const proposal = {operation, action: guidance.action, package: guidance.package, snapshot: guidance.snapshot, ...(guidance.subject ? {subject: guidance.subject} : {}), inputs: guidance.inputs, candidates};
     const file = path.join(root, `${operation}.json`);
     await fs.writeFile(file, JSON.stringify(proposal));
     const result = cli("proposal", "submit", file);
@@ -33,6 +34,16 @@ test("iterative init preserves exploration while fresh requirements retain optio
   try {
     expect(cli("init", repository, "--process", "iterative").ok).toBe(true);
     const initial = cli("expectations");
+    expect(initial.optional.map((i: any) => i.action)).toContain("record-interface@1");
+    const interfaceGuidance = cli("expectations", "show", "record-interface@1");
+    const icd = interfaceGuidance.candidates[0];
+    icd.payload = {...icd.payload, title: "Sensor input", boundary: "external", endpoints: [
+      {name: "Simulated sensor", owner: "Fixture maintainer", responsibility: "Emit Celsius readings"},
+      {name: "Adapter", owner: "Product maintainer", responsibility: "Validate and normalize readings"},
+    ], interaction: "JSON temperature number in Celsius", failure_behavior: "Reject missing temperature", compatibility: "Celsius only", assumptions: "Local simulator, no physical hardware approval"};
+    const recorded = await submit(interfaceGuidance, "interface-record", [icd]);
+    const interfaceR1 = recorded.revisions[0];
+    const originalInterface = cli("show", interfaceR1).lifecycleDatum.datum;
     expect(initial.items.map((i: any) => i.action)).toContain("frame-experiment@1");
     const framing = cli("expectations", "show", "frame-experiment@1");
     const exp = framing.candidates[0];
@@ -45,14 +56,39 @@ test("iterative init preserves exploration while fresh requirements retain optio
     const req = (localId: string, payload: object, links: unknown[] = []) => ({localId, type: "REQ", payload: {title: localId, publication: "recorded", ...payload}, links, body: ""});
     const result = await submit(g, "iterative-requirements", [
       req("need", {kind: "stakeholder", statement: "The user shall receive the supplied item count", rationale: "Counting is the retained useful behavior"}, [{type: "informed-by", target: origin}]),
-      req("count", {kind: "software", ears: {pattern: "ubiquitous", system: "The counter", response: "return the number of supplied items"}}, [{type: "informed-by", target: origin}]),
+      req("count", {kind: "software", ears: {pattern: "ubiquitous", system: "The counter", response: "return the number of supplied items"}}, [{type: "informed-by", target: origin}, {type: "uses-interface", target: interfaceR1}]),
       req("empty", {kind: "software", ears: {pattern: "event", event: "no items are supplied", system: "The counter", response: "return zero"}, rationale: "Necessary empty-input boundary, without a separate design predecessor"}),
       {localId: "group", type: "DCP", payload: {title: "Counting behavior", publication: "recorded"}, links: [{type: "parent", target: "$need"}, {type: "child", target: "$count"}, {type: "child", target: "$empty"}], body: ""},
       g.candidates.find((c: any) => c.type === "RQS"),
     ]);
+    const revise = cli("expectations", "show", "revise-interface@1", interfaceR1);
+    const revised = revise.candidates[0];
+    revised.payload = {...originalInterface.payload, interaction: "JSON temperature number with C or F unit", compatibility: "Accept Celsius and Fahrenheit"};
+    const revisionResult = await submit(revise, "interface-revise", [revised]);
+    const interfaceR2 = revisionResult.revisions[0];
+    expect(interfaceR2).not.toBe(interfaceR1);
+    expect(cli("show", interfaceR1).lifecycleDatum.datum).toEqual(originalInterface);
     const selection = result.revisions.find((id: string) => id.startsWith("RQS-"));
     const review = cli("review", "context", "review-requirements@2", selection);
     expect(review.requirementGraphs[0].selection).toBe(selection);
+    expect(review.inputs.interfaces).toEqual([interfaceR1]);
+    expect(review.records.find((record: any) => record.revision_id === interfaceR1)).toEqual(originalInterface);
+    expect(review.records.some((record: any) => record.revision_id === interfaceR2)).toBe(false);
+    const prototype = cli("expectations", "show", "prepare-prototype@1", origin);
+    const invalid = prototype.candidates[0];
+    invalid.payload = {...invalid.payload, title: "Invalid interface reference", repository_path: repository, source_commit: "a".repeat(40), command: ["python3", "app.py"], verification_image: "python@sha256:" + "b".repeat(64), verification_command: ["python3", "verify.py"], verification_script: "verify.py"};
+    invalid.links.push({type: "uses-interface", target: origin});
+    const invalidFile = path.join(root, "invalid-interface.json");
+    await fs.writeFile(invalidFile, JSON.stringify({operation: "invalid-interface", action: prototype.action, package: prototype.package, snapshot: prototype.snapshot, subject: prototype.subject, inputs: prototype.inputs, candidates: [invalid]}));
+    expectedExit = 1;
+    const rejected = cli("proposal", "submit", invalidFile);
+    expectedExit = 0;
+    expect(JSON.stringify(rejected)).toContain("uses-interface");
+    const validPrototype = cli("expectations", "show", "prepare-prototype@1", origin);
+    invalid.links = invalid.links.map((link: any) => link.type === "uses-interface" ? {...link, target: interfaceR2} : link);
+    const trial = await submit(validPrototype, "interface-prototype", [invalid]);
+    expect(cli("show", trial.revisions[0]).lifecycleDatum.datum.links).toContainEqual({type: "uses-interface", target: interfaceR2});
+    expect(cli("show", interfaceR1).lifecycleDatum.datum).toEqual(originalInterface);
     expect(review.requirementGraphs[0].assessment.sourceScopes).toEqual([]);
     const requirements = review.requirementGraphs[0].requirements;
     expect(requirements).toHaveLength(3);
@@ -60,7 +96,7 @@ test("iterative init preserves exploration while fresh requirements retain optio
     expect(requirements.find((r: any) => r.payload.title === "empty").links).toEqual([]);
     expect(cli("show", origin).lifecycleDatum.datum).toEqual(original);
     const available = cli("expectations").items.map((i: any) => i.action);
-    expect(available).toContain("prepare-prototype@1");
+    expect(available).toContain("observe-prototype@1");
     expect(available).toContain("review-requirements@2");
     outcome = "passed";
   } finally {
