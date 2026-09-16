@@ -1,0 +1,23 @@
+kind: action-definition
+id: update-verification-selection
+version: 1
+description: Select revised independent verification while preserving product source
+capability: implementation
+prompt_ref: prompts/update-verification-selection.md@1
+types:
+- IMP
+subjects: select("current-implementations@1", {})
+inputs:
+  product: subject
+  requirements: 'one("requirements-for@1", {implementation: subject})'
+when: 'none("acceptances-for@2", {implementation: subject})'
+priority: 90
+optional: true
+revises:
+  IMP: product
+links:
+  IMP:
+    implements: requirements
+fixed_payload:
+  IMP:
+    publication: recorded

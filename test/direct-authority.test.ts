@@ -58,3 +58,11 @@ test("review output schema omits managed fields while records keep their compute
   const full = resolveType(loaded.package, "REV");
   expect(full.ok && full.type.payloadSchema.properties).toHaveProperty("scope_amendment_required");
 });
+
+
+test("fixed review evidence accepts multiple exact inputs and rejects missing, foreign or duplicate links", async () => {
+  const {validateFixedContextLinks} = await import("../src/direct-proposal.js");
+  const required=[{type:"uses-evidence",target:"RES-first-r00001"},{type:"uses-evidence",target:"RES-second-r00001"}];
+  expect(()=>validateFixedContextLinks([...required].reverse(),required)).not.toThrow();
+  for(const links of [required.slice(0,1),[...required,{type:"uses-evidence",target:"RES-foreign-r00001"}],[...required,required[0]!]]) expect(()=>validateFixedContextLinks(links,required)).toThrow("exact inputs");
+});

@@ -1,6 +1,6 @@
 kind: type-definition
 id: REV
-version: 2
+version: 3
 description: Independent content Review
 name: Independent content Review
 extends: titled-datum@1
@@ -98,6 +98,24 @@ payload_schema:
             minLength: 1
     scope_amendment_required:
       type: boolean
+    coverage_assessments:
+      type: array
+      items:
+        type: object
+        additionalProperties: false
+        required:
+        - target
+        - disposition
+        - rationale
+        properties:
+          target: &id002
+            type: string
+            minLength: 1
+          disposition:
+            enum:
+            - adequate
+            - needs-change
+          rationale: *id002
 outgoing_links:
 - id: reviews
   description: reviews
@@ -107,6 +125,7 @@ outgoing_links:
     - RQS
     - IMP
     - CHG
+    - VFY
     identity: revision
   cardinality:
     minimum: 1
@@ -122,7 +141,7 @@ outgoing_links:
     identity: revision
   cardinality:
     minimum: 0
-    maximum: 1
+    maximum: many
   freeze_resolution: already-exact
   inverse_label: incoming-uses-evidence
 kernel_managed_payload_paths:

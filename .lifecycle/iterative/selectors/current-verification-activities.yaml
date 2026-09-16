@@ -1,0 +1,16 @@
+kind: selector-definition
+id: current-verification-activities
+version: 1
+description: current verification activities
+parameters: []
+result_kind: revision
+query:
+  from:
+    collection: revisions
+    types:
+    - VFY
+  as: item
+  distinct: true
+  order_by:
+  - identity.revision_id
+  where: 'state(item, "validity") == "valid" && none("newer-revisions@1", {subject: item})'

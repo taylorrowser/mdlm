@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-iterative
-version: 1.4.0
+version: 2.0.0
 status: experimental
 description: Explore a useful product, then progressively baseline necessary behavior.
 kernel_contract:
@@ -24,9 +24,7 @@ references:
 language:
   expressions: mdlm-expression@1
 kernel_capabilities:
-  docker-verification@1:
-    type: RES
-  requirement-trace@3:
+  requirement-trace@4:
     type: RQS
     requirement_type: REQ
     implementation_type: IMP
@@ -36,6 +34,14 @@ kernel_capabilities:
     acceptance_type: ACC
     review_type: REV
     result_type: RES
+  independent-verification@1:
+    type: VFY
+    requirement_type: REQ
+    criterion_type: EXP
+    implementation_type: IMP
+    prototype_type: TRY
+    result_type: RES
+    review_type: REV
 compatibility:
   minimum_kernel: 0.2.0
   meta_schema_version: 3
@@ -50,8 +56,8 @@ provenance:
   normative_scope: this-package-only
 direct_contract: mdlm-direct@1
 terminal:
-  when: 'exists("accepted-formal-scope@1", {}) && every("current-experiments@1", {}, exp => none("comparison-baseline-for@1", {experiment: exp}) || exists("closed-experiment@1", {experiment: exp}))'
+  when: 'exists("accepted-formal-scope@1", {}) && every("current-experiments@1", {}, exp => none("comparison-baseline-for@1",
+    {experiment: exp}) || exists("closed-experiment@1", {experiment: exp}))'
   outcome: profile-boundary-reached
-  reason: The current formal scope is independently reviewed, verified and
-    stakeholder accepted. Exploratory work is outside that claim; confirm the
-    agreed whole-product scope before declaring the experiment complete.
+  reason: The current formal scope is independently reviewed, verified and stakeholder accepted. Exploratory work
+    is outside that claim; confirm the agreed whole-product scope before declaring the experiment complete.

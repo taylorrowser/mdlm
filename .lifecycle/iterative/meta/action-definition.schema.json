@@ -37,7 +37,9 @@
         "prototype",
         "requirements",
         "review",
-        "verification-result"
+        "verification-result",
+        "independent-result",
+        "verification-activity"
       ]
     },
     "prompt_ref": {

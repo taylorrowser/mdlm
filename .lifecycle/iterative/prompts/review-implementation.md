@@ -1,20 +1,13 @@
 ---
 id: review-implementation
-version: 10
+version: 11
 skills:
-- skills/product-quality.md@1
 - skills/typed-requirements.md@5
-- skills/source-trace.md@4
+- skills/source-trace.md@5
 ---
 
-# Review implementation and execution evidence
+# Review product implementation and current evidence
 
-Apply the supplied shared product-quality skill before authoring or reviewing.
+A fresh reviewer inspects the exact product against reviewed requirements and public ICD obligations. Check production attribution and honest file roles using source-trace guidance. Review the selected independent activities, their adequacy judgments, current case results and actual captured evidence. Compare the union of obligations covered by all selected activities with every requirement as written, including parent-level integration claims. Return fail if any obligation is missing even when each individual activity has a passing adequacy review. A passing process exit alone does not establish complete coverage.
 
-The lifecycle author exports the complete exact review context and requests a fresh independent reviewer through the root. The manager authenticates and registers the returned verdict using the direct review registration command supplied in the guidance. The author submits that exact unchanged verdict using the normal submit-proposal command. Do not author your own review or replace the registration with completionEvidence. The following content judgments belong to the independent reviewer.
-
-Independently inspect the exact product and verification script against the original stakeholder request and reviewed requirements. Judge whether assertions and any source-inspection evidence cover the commitments, including argument and file behavior where relevant. Inspect the CLI receipt and raw captured output to check that the intended script ran and supports its claim. The script's zero exit is necessary but cannot establish that its assertions are adequate. Review the generated decomposition and source scopes using the shared source-trace skill's responsibility checks in both directions. Check that file roles do not hide executable code. Return pass or concrete failing findings. The CLI owns byte capture, exit classification and source binding; focus on coverage, incorrect assertions and other content defects.
-
-Use the supplied direct proposal guidance and payload schema. The CLI supplies identities, exact required links and publication markers. Submit the authored values with mdlm proposal submit. Keep the body empty when the structured payload contains the whole claim.
-
-Read the exact ICD records supplied in interfaces. Judge the explicit requirement obligations against both endpoint responsibilities, assumptions and integration evidence. Referenced descriptive or provisional design choices are not automatically requirements. Old interface evidence applies to its exact bindings; a revised contract needs an explicit applicability assessment.
+Implementation review has source access, unlike independent verification authoring and coverage review. Preserve that distinction. Judge whether the exercised product matches the recorded exact source and intended operational scope. Include coverage_assessments for every exact selected requirement, with disposition adequate or needs-change and rationale explaining how the selected activity cases collectively cover its obligations. Return concrete findings or pass. The manager registers the complete independent proposal and the author submits those exact bytes.

@@ -112,3 +112,13 @@ test("partial scope keeps provisional code visible while whole coverage remains 
   expect(partial.scopes.map(s => s.path)).toEqual(["scoring.py"]);
   expect(deriveSourceScopes({entries, selectedRequirements}).diagnostics.map(d => d.code)).toContain("source-line-unmapped");
 });
+
+
+test("explicit committed ranges trace web code and configuration without relabeling them as prose", () => {
+  const entries=[entry("console.log('ready');\n",{path:"app.js"}),entry("<button>Score</button>\n",{path:"index.html"}),entry("button { color: black }\n",{path:"style.css"}),entry('{"mode":"local"}\n',{path:"settings.json",role:"configuration"})];
+  const explicitRanges=entries.map(e=>({path:e.path,name:"public-behavior",start:1,end:1,requirements:[R1]}));
+  const result=deriveSourceScopes({entries,selectedRequirements,explicitRanges});
+  expect(result.diagnostics).toEqual([]);expect(result.scopes).toHaveLength(4);expect(result.scopes.every(s=>s.links[0]?.target===selectedRequirements[0]!.revisionId)).toBe(true);
+  expect(deriveSourceScopes({entries,selectedRequirements,explicitRanges:explicitRanges.slice(1)}).diagnostics.some(d=>d.code==="source-line-unmapped")).toBe(true);
+  expect(deriveSourceScopes({entries,selectedRequirements}).diagnostics.some(d=>d.code==="source-code-format")).toBe(true);
+});

@@ -1,0 +1,23 @@
+kind: selector-definition
+id: selected-verification-activities
+version: 1
+description: selected verification activities
+parameters:
+- name: product
+  kind: revision
+  types:
+  - IMP
+  - TRY
+result_kind: revision
+query:
+  from:
+    relation: outgoing-links
+    of: product
+    link: verification
+    emit: target
+    types:
+    - VFY
+  as: item
+  distinct: true
+  order_by:
+  - identity.revision_id

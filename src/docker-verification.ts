@@ -3,13 +3,17 @@ import { createHash, randomUUID } from "node:crypto";
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { captureVerificationReport, validateIndependentVerification, verificationReportOutcome,
+  type IndependentVerification, type VerificationArtifact, type VerificationCaseResult } from "./independent-verification-execution.js";
+export type { IndependentVerification, VerificationArtifact, VerificationCaseResult } from "./independent-verification-execution.js";
 
 export interface DockerVerificationInput {
   repositoryPath: string;
   sourceCommit: string;
   image: string;
-  command: string[];
-  scriptPath: string;
+  command?: string[];
+  scriptPath?: string;
+  independentVerification?: IndependentVerification;
   timeoutMs?: number;
   formalFiles?: string[];
 }
@@ -38,6 +42,10 @@ export interface DockerVerificationResult {
   diagnostic?: string;
   startedAt: string;
   finishedAt: string;
+  independentVerification?: VerificationSourceIdentity & {activityRevision: string};
+  caseResults?: VerificationCaseResult[];
+  artifacts?: VerificationArtifact[];
+  rawReportBase64?: string;
 }
 
 interface CommandResult {
@@ -86,6 +94,14 @@ async function checked(file: string, args: string[], timeoutMs = 30_000): Promis
   return result.stdout;
 }
 
+export async function authenticateProductSource(input: {repositoryPath: string; sourceCommit: string}): Promise<{sourceCommit: string; sourceTree: string}> {
+  if (!/^[a-f0-9]{40}$/.test(input.sourceCommit)) throw new Error("Product source must name a full Git commit.");
+  const git = (args: string[]) => checked("git", ["-C", input.repositoryPath, ...args]);
+  const sourceCommit = (await git(["rev-parse", "--verify", `${input.sourceCommit}^{commit}`])).toString("utf8").trim();
+  if (sourceCommit !== input.sourceCommit) throw new Error("Product source identity changed.");
+  return {sourceCommit, sourceTree: (await git(["rev-parse", `${sourceCommit}^{tree}`])).toString("utf8").trim()};
+}
+
 /** Authenticate committed bytes without consulting the product working tree. */
 export async function authenticateVerificationSource(
   input: Pick<DockerVerificationInput, "repositoryPath" | "sourceCommit" | "scriptPath">,
@@ -110,10 +126,13 @@ export async function authenticateVerificationSource(
 /** Run one exact script in one disposable Docker container. Operation receipts
  * and retry policy belong to the caller; this function never retries execution. */
 export async function executeDockerVerification(input: DockerVerificationInput): Promise<DockerVerificationResult> {
+  const independent = input.independentVerification;
+  const command = independent?.command ?? input.command;
+  const scriptPath = independent?.scriptPath ?? input.scriptPath;
   const result: DockerVerificationResult = {
     sourceCommit: input.sourceCommit, sourceTree: null, scriptSha256: null,
     image: input.image, imageDigest: null, imageId: null,
-    command: Array.isArray(input.command) ? [...input.command] : [], scriptPath: input.scriptPath,
+    command: Array.isArray(command) ? [...command] : [], scriptPath: scriptPath ?? "",
     stdoutBase64: "", stderrBase64: "", exitCode: null, outcome: "error", started: false,
     phase: "source",
     startedAt: new Date().toISOString(), finishedAt: "",
@@ -124,16 +143,23 @@ export async function executeDockerVerification(input: DockerVerificationInput):
   let containerCreated = false;
   try {
     const imageMatch = /^[^\s@]+@sha256:([a-f0-9]{64})$/.exec(input.image);
-    if (!imageMatch) throw new Error("Verification image must be pinned with @sha256:<64 lowercase hex digits>.");
-    result.imageDigest = `sha256:${imageMatch[1]}`;
-    if (!Array.isArray(input.command) || input.command.length === 0
-      || input.command.some((part) => typeof part !== "string" || part.includes("\0")) || !input.command[0]) {
+    const localImage = independent && /^sha256:[a-f0-9]{64}$/.test(input.image);
+    if (!imageMatch && !localImage) throw new Error(independent ? "Verification image must be pinned with @sha256:<64 lowercase hex digits>, or an exact local sha256 image ID for independent verification." : "Verification image must be pinned with @sha256:<64 lowercase hex digits>.");
+    result.imageDigest = imageMatch ? `sha256:${imageMatch[1]}` : null;
+    if (!Array.isArray(command) || command.length === 0
+      || command.some((part) => typeof part !== "string" || part.includes("\0")) || !command[0]) {
       throw new Error("Verification command must be a nonempty argv array.");
     }
     const timeoutMs = input.timeoutMs ?? 60_000;
     if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 300_000) throw new Error("Verification timeout must be between 1 and 300000 milliseconds.");
-    const source = await authenticateVerificationSource(input);
+    if (independent) validateIndependentVerification(independent);
+    const source = independent ? await authenticateProductSource(input) : await authenticateVerificationSource(input);
     Object.assign(result, source);
+    if (independent) {
+      const verifier = await authenticateVerificationSource(independent);
+      result.independentVerification = {...verifier, activityRevision: independent.activityRevision};
+      result.scriptSha256 = verifier.scriptSha256;
+    }
     directory = await mkdtemp(join(tmpdir(), "mdlm-verification-"));
     const archive = await checked("git", ["-C", input.repositoryPath, "archive", "--format=tar", source.sourceCommit]);
     const archivePath = join(directory, "source.tar");
@@ -145,22 +171,43 @@ export async function executeDockerVerification(input: DockerVerificationInput):
     await checked("tar", ["-xpf", archivePath, "-C", snapshot, "--no-same-owner"]);
     if (input.formalFiles) {
       const tracked = (await checked("git", ["-C", input.repositoryPath, "ls-tree", "-rz", "--name-only", source.sourceCommit])).toString("utf8").split("\0").filter(Boolean);
-      if (!input.formalFiles.length || new Set(input.formalFiles).size !== input.formalFiles.length || input.formalFiles.some(file => !tracked.includes(file)) || !input.formalFiles.includes(input.scriptPath)) throw new Error("Formal source selection must name distinct committed files including the verifier.");
+      if (!input.formalFiles.length || new Set(input.formalFiles).size !== input.formalFiles.length || input.formalFiles.some(file => !tracked.includes(file)) || (!independent && !input.formalFiles.includes(input.scriptPath!))) throw new Error(independent ? "Formal source selection must name distinct committed product files." : "Formal source selection must name distinct committed files including the verifier.");
       for (const file of tracked) if (!input.formalFiles.includes(file)) await rm(join(snapshot, file), {force: true});
     }
     await chmod(snapshot, 0o755);
-    const archivedScriptHash = createHash("sha256").update(await readFile(join(snapshot, input.scriptPath))).digest("hex");
-    if (archivedScriptHash !== source.scriptSha256) throw new Error("Git archive changed the verification script bytes.");
+    let verifierSnapshot = snapshot;
+    let evidenceDirectory: string | undefined;
+    if (independent) {
+      const verifierArchive = await checked("git", ["-C", independent.repositoryPath, "archive", "--format=tar", independent.sourceCommit]);
+      const verifierArchivePath = join(directory, "verification.tar");
+      await writeFile(verifierArchivePath, verifierArchive);
+      verifierSnapshot = join(directory, "verification");
+      await mkdir(verifierSnapshot);
+      await checked("tar", ["-xpf", verifierArchivePath, "-C", verifierSnapshot, "--no-same-owner"]);
+      await chmod(verifierSnapshot, 0o755);
+      evidenceDirectory = join(directory, "evidence");
+      await mkdir(evidenceDirectory, {mode: 0o777});
+      await chmod(evidenceDirectory, 0o777);
+    }
+    const archivedScriptHash = createHash("sha256").update(await readFile(join(verifierSnapshot, scriptPath!))).digest("hex");
+    if (archivedScriptHash !== result.scriptSha256) throw new Error("Git archive changed the verification script bytes.");
 
     result.phase = "environment";
     containerAttempted = true;
     await checked("docker", ["create", "--name", container, "--network", "none", "--read-only",
       "--user", "65534:65534", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
       "--pids-limit", "128", "--tmpfs", "/tmp:rw,nosuid,nodev,size=64m",
-      "--mount", `type=bind,source=${snapshot},target=/workspace,readonly`,
-      "--workdir", "/workspace", "--entrypoint", input.command[0], input.image, ...input.command.slice(1)], timeoutMs);
+      ...(independent ? [
+        "--mount", `type=bind,source=${snapshot},target=/product,readonly`,
+        "--mount", `type=bind,source=${verifierSnapshot},target=/verification,readonly`,
+        "--mount", `type=bind,source=${evidenceDirectory},target=/evidence`,
+        "--env", "MDLM_PRODUCT_DIR=/product", "--env", "MDLM_EVIDENCE_DIR=/evidence",
+        "--workdir", "/verification",
+      ] : ["--mount", `type=bind,source=${snapshot},target=/workspace,readonly`, "--workdir", "/workspace"]),
+      "--entrypoint", command[0], input.image, ...command.slice(1)], timeoutMs);
     containerCreated = true;
     result.imageId = (await checked("docker", ["inspect", "--format", "{{.Image}}", container])).toString("utf8").trim();
+    if (localImage && result.imageId !== input.image) throw new Error("Container image differs from the exact local image ID.");
 
     // Start detached: an unsuccessful start is an environment error. Logs from
     // this container, rather than Docker's own diagnostics, are the raw streams.
@@ -181,7 +228,14 @@ export async function executeDockerVerification(input: DockerVerificationInput):
     };
     if (!state.Running && Number.isInteger(state.ExitCode)) result.exitCode = state.ExitCode;
     if (state.Error || state.OOMKilled || state.Running) result.diagnostic ??= state.Error || "Container did not finish normally.";
-    if (!result.diagnostic) {
+    if (independent && evidenceDirectory) {
+      const report = await captureVerificationReport(evidenceDirectory, independent);
+      result.caseResults = report.caseResults;
+      result.artifacts = report.artifacts;
+      if (report.rawReportBase64 !== undefined) result.rawReportBase64 = report.rawReportBase64;
+      const assessment = verificationReportOutcome(report, result.exitCode);
+      if (!result.diagnostic) Object.assign(result, assessment);
+    } else if (!result.diagnostic) {
       result.outcome = result.exitCode === 0 ? "pass" : result.exitCode === 1 ? "fail" : "error";
       if (result.outcome === "error") result.diagnostic = `Verification script exited with ${result.exitCode}; only 0 (pass) and 1 (assertion failure) are valid script outcomes.`;
     }

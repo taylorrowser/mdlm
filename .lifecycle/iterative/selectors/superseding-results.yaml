@@ -1,0 +1,22 @@
+kind: selector-definition
+id: superseding-results
+version: 1
+description: superseding results
+parameters:
+- name: result
+  kind: revision
+  types:
+  - RES
+result_kind: revision
+query:
+  from:
+    relation: incoming-links
+    of: result
+    link: supersedes
+    emit: source
+    types:
+    - RES
+  as: item
+  distinct: true
+  order_by:
+  - identity.revision_id

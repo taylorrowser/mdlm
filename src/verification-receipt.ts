@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { promisify, isDeepStrictEqual } from "node:util";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { executeDockerVerification, authenticateVerificationSource } from "./docker-verification.js";
+import { executeDockerVerification, authenticateVerificationSource, authenticateProductSource, type IndependentVerification } from "./docker-verification.js";
 import { repositoryGitEnvironment } from "./git-environment.js";
 
 const exec = promisify(execFile);
@@ -13,13 +13,14 @@ export interface VerificationBinding {
   repositoryPath: string;
   sourceCommit: string;
   image: string;
-  command: string[];
-  scriptPath: string;
+  command?: string[];
+  scriptPath?: string;
+  independentVerification?: IndependentVerification;
   formalFiles?: string[];
 }
 export const verificationRef = (binding: VerificationBinding) => `refs/mdlm/execution/${binding.operation}`;
 async function git(root: string, args: string[]) {
-  return (await exec("git", ["-C", root, ...args], {env: repositoryGitEnvironment(), maxBuffer: 16 * 1024 * 1024})).stdout.trim();
+  return (await exec("git", ["-C", root, ...args], {env: repositoryGitEnvironment(), maxBuffer: 64 * 1024 * 1024})).stdout.trim();
 }
 export async function readVerificationReceiptBlob(root: string, oid: string) {
   if (!/^[a-f0-9]{40}$/.test(oid)) throw new Error("Verification receipt must name an exact Git blob");
@@ -64,11 +65,16 @@ export async function requireVerificationReceipt(root: string, binding: Verifica
 export async function validateVerificationReceipt(binding: VerificationBinding, saved: Awaited<ReturnType<typeof readVerificationReceiptBlob>> | undefined) {
   if (saved?.receipt.state !== "completed" || !saved.receipt.result || !isDeepStrictEqual(saved.receipt.binding, binding)) throw new Error("A completed receipt for this exact execution is required before publishing verification");
   const result = saved.receipt.result;
-  const current = result.sourceTree !== null && result.scriptSha256 !== null ? await authenticateVerificationSource(binding) : {};
+  const current = result.sourceTree !== null && result.scriptSha256 !== null
+    ? binding.independentVerification ? await authenticateProductSource(binding) : await authenticateVerificationSource(binding) : {};
+  if (binding.independentVerification && result.independentVerification) {
+    const verifier = await authenticateVerificationSource(binding.independentVerification);
+    if (!isDeepStrictEqual({...verifier, activityRevision: binding.independentVerification.activityRevision}, result.independentVerification)) throw new Error("Independent verification source binding changed.");
+  }
   // Source authentication returns the same immutable fields recorded by the executor.
   for (const [key, value] of Object.entries(current)) {
     if (key in result && !isDeepStrictEqual((result as unknown as Record<string, unknown>)[key], value)) throw new Error(`Verification source binding changed: ${key}`);
   }
-  return {outcome: result.outcome, receipt: `git-blob:${saved.oid}`, saved};
+  return {outcome: result.outcome, receipt: `git-blob:${saved.oid}`, saved, ...(binding.independentVerification ? {caseResults: result.caseResults ?? [], artifacts: result.artifacts ?? []} : {})};
 }
 

@@ -31,7 +31,7 @@ mdlm expectations --json
 
 Initialization creates a Git repository and copies the [operator guide](operator/MDLM.md) to its root as `MDLM.md`. The default package guides a small product through requirements, implementation, verification, independent review and stakeholder acceptance, then supports approved changes.
 
-To try building and learning before formalizing requirements, use `mdlm init ../my-product --process iterative` instead. This experimental [iterative package](.lifecycle/iterative/README.md) combines prototypes, feedback and formal acceptance in one project. Acceptance applies only to the scope actually reviewed and verified. For exploration alone, use `--process exploratory`.
+To try building and learning before formalizing requirements, use `mdlm init ../my-product --process iterative` instead. This experimental [iterative package](.lifecycle/iterative/README.md) combines prototypes, feedback and formal acceptance in one project. Its independent verification activities connect requirements and provisional criteria to intended actions, expected results and captured case outcomes. Use `mdlm verification status <exact-product> --json` to inspect coverage and evidence gaps. Acceptance applies only to the scope actually reviewed and verified. For exploration alone, use `--process exploratory`.
 
 Open the new project in your agent and give it this prompt, filling in the paths and contacts:
 

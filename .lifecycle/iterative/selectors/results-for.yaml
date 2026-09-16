@@ -7,6 +7,7 @@ parameters:
   kind: revision
   types:
   - IMP
+  - TRY
 result_kind: revision
 query:
   from:
@@ -17,7 +18,7 @@ query:
     types:
     - RES
   as: item
-  where: state(item, "validity") == "valid"
+  where: 'state(item, "validity") == "valid" && none("superseding-results@1", {result: item})'
   distinct: true
   order_by:
   - identity.revision_id

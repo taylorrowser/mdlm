@@ -47,6 +47,7 @@ export interface SourceScopeResult {
 export function deriveSourceScopes(input: {
   entries: readonly SourceEntry[];
   formalFiles?: readonly string[];
+  explicitRanges?: readonly {path: string; name: string; start: number; end: number; requirements: string[]}[];
   selectedRequirements: readonly SelectedSourceRequirement[];
 }): SourceScopeResult {
   const result: SourceScopeResult = { diagnostics: [], inventory: [], scopes: [] };
@@ -101,6 +102,31 @@ export function deriveSourceScopes(input: {
       if (!prose || entry.mode === "100755" || /^\uFEFF?#!/.test(text)) {
         report("source-documentation", entry.path, "Documentation must be a nonexecutable prose file; code and behavior-changing configuration need their own source role.");
       }
+      continue;
+    }
+    if (input.explicitRanges) {
+      const declarations = input.explicitRanges.filter(range => range.path === entry.path);
+      const covered = new Set<number>();
+      const names = new Set<string>();
+      for (const range of declarations) {
+        if (!Number.isInteger(range.start) || !Number.isInteger(range.end) || range.start < 1 || range.end < range.start || range.end > lines.length || !range.name || names.has(range.name)) {
+          report("source-range-invalid", entry.path, "Source ranges need distinct names and valid inclusive committed line numbers."); continue;
+        }
+        names.add(range.name);
+        const links: SourceScope["links"] = [];
+        for (const target of range.requirements) {
+          const requirement = requirements.get(target);
+          if (!requirement || !requirement.isLeaf || requirement.kind !== "software") report("source-range-target", entry.path, `Source target '${target}' must be a selected software leaf stable ID.`);
+          else links.push({type: entry.role === "verification" ? "verifies" : "implements", target: requirement.revisionId});
+        }
+        if (!links.length) report("source-range-target", entry.path, "Each range needs a selected software leaf.");
+        for (let line = range.start; line <= range.end; line++) {
+          if (covered.has(line)) report("source-region-overlap", entry.path, "Explicit source ranges must not overlap.", line);
+          covered.add(line);
+        }
+        result.scopes.push({name: range.name, path: entry.path, blob: entry.blob, role: entry.role, inherited: false, ranges: [{start: range.start, end: range.end}], links});
+      }
+      lines.forEach((line, index) => {if (line.trim() && !covered.has(index + 1)) report("source-line-unmapped", entry.path, "Nonblank source must belong to an explicit mapped range.", index + 1);});
       continue;
     }
     if (entry.role === "configuration") {
@@ -196,5 +222,6 @@ export function deriveSourceScopes(input: {
 
     result.scopes.push(...scopes);
   }
+  for (const range of input.explicitRanges ?? []) if (!seenPaths.has(range.path)) report("source-range-path", range.path, "Range names no committed source file.");
   return result;
 }

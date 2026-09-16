@@ -1,0 +1,140 @@
+kind: type-definition
+id: VFY
+version: 1
+name: Independent verification activity
+description: Requirement-driven verification with a separate committed verifier and explicit case coverage
+extends: titled-datum@1
+lifecycle:
+  authorship: authored
+  freeze_when: terminal-outcome
+  terminal_payload_field: publication
+  terminal_values:
+  - recorded
+payload_schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  type: object
+  required:
+  - publication
+  - method
+  - objective
+  - cases
+  - coverage
+  - repository_path
+  - source_commit
+  - verification_image
+  - verification_command
+  - verification_script
+  - results_path
+  - authoring_context
+  - authoring_subject
+  properties:
+    publication:
+      const: recorded
+    method: &id001
+      type: string
+      minLength: 1
+    objective: *id001
+    cases:
+      type: array
+      minItems: 1
+      items:
+        type: object
+        additionalProperties: false
+        required:
+        - id
+        - targets
+        - preconditions
+        - actions
+        - expected_results
+        - coverage_rationale
+        properties:
+          id: *id001
+          targets:
+            type: array
+            minItems: 1
+            items: *id001
+          preconditions:
+            type: array
+            minItems: 1
+            items:
+              type: string
+              minLength: 1
+          actions:
+            type: array
+            minItems: 1
+            items: *id001
+          expected_results:
+            type: array
+            minItems: 1
+            items: *id001
+          coverage_rationale: *id001
+    coverage:
+      type: array
+      minItems: 1
+      items:
+        type: object
+        additionalProperties: false
+        required:
+        - target
+        - obligations
+        - case_ids
+        - rationale
+        properties:
+          target: *id001
+          obligations:
+            type: array
+            minItems: 1
+            items: *id001
+          case_ids:
+            type: array
+            minItems: 1
+            items: *id001
+          rationale: *id001
+    repository_path:
+      type: string
+      pattern: ^/
+    source_commit:
+      type: string
+      pattern: ^[0-9a-f]{40}$
+    verification_image:
+      type: string
+      pattern: ^(?:[^\s]+@)?sha256:[0-9a-f]{64}$
+    verification_command:
+      type: array
+      minItems: 1
+      items: *id001
+    verification_script: *id001
+    results_path: *id001
+    authoring_context:
+      type: string
+      pattern: ^sha256:[0-9a-f]{64}$
+    authoring_subject:
+      type: string
+      minLength: 1
+outgoing_links:
+- id: verifies
+  description: verifies
+  targets:
+  - kind: datum
+    types:
+    - REQ
+    - EXP
+    identity: revision
+  cardinality:
+    minimum: 1
+    maximum: many
+  freeze_resolution: already-exact
+  inverse_label: incoming-verifies
+- id: uses-interface
+  description: uses-interface
+  targets:
+  - kind: datum
+    types:
+    - ICD
+    identity: revision
+  cardinality:
+    minimum: 0
+    maximum: many
+  freeze_resolution: already-exact
+  inverse_label: incoming-uses-interface
+kernel_managed_payload_paths: []

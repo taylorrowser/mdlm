@@ -12,6 +12,8 @@ import { repositoryGitEnvironment } from "./git-environment.js";
 import { resolvePrompt } from "./direct-prompt.js";
 import { authorablePayloadSchema, sourceAssessmentTargets } from "./direct-guidance.js";
 
+import { independentBinding, independentExecutionBinding, verificationStatus } from "./independent-verification.js";
+
 const exec = promisify(execFile);
 export interface DirectReviewContext {
   contract: "mdlm-direct-review-context@1";
@@ -28,6 +30,8 @@ export interface DirectReviewContext {
   sourceScopes: {implementation: string; scopes: DatumEnvelope[]; changes: unknown; comparison: unknown}[];
   prospectiveChange?: unknown;
   sources: {implementation: string; repositoryPath: string; sourceCommit: string; acceptanceScope: "whole-product" | "partial"; files: {path: string; role: string; mode: string; blob: string; content: string; formal: boolean}[]}[];
+  verifierSources?: {activity: string; sourceCommit: string; files: {path: string; blob: string; content: string}[]}[];
+  verificationCoverage?: unknown;
   verificationReceipts: {result: string; implementation: string; requirements: string; locator: string; execution: string; binding: "validated"; receipt: Awaited<ReturnType<typeof readVerificationReceiptBlob>>["receipt"]}[];
 }
 
@@ -46,6 +50,30 @@ export async function buildDirectReviewContext(context: DirectContext): Promise<
   for (const id of selectedIds) if (!data.some(datum => datum.revision_id === id)) throw new Error(`Review input '${id}' is unavailable`);
   const selected = data.filter(datum => selectedIds.has(datum.revision_id));
   const result: DirectReviewContext = {contract: "mdlm-direct-review-context@1", package: context.package, snapshot: context.snapshot, action: context.action, ...(context.subject ? {subject: context.subject} : {}), inputs: context.inputs, prompt: prompt.prompt, payloadSchemas, sourceAssessmentTargets: sourceAssessmentTargets(context), records: selected, requirementGraphs: [], sourceScopes: [], sources: [], verificationReceipts: []};
+  const independent = independentBinding(pkg);
+  if (independent) {
+    result.verifierSources = [];
+    const activities = data.filter(d => d.type === independent.type && (selectedIds.has(d.revision_id) || selected.some(s => s.links.some(l => l.type === "verification" && l.target === d.revision_id))));
+    for (const activity of activities) {
+      const cwd = String(activity.payload.repository_path), commit = String(activity.payload.source_commit);
+      if (!/^[a-f0-9]{40}$/.test(commit)) throw new Error("Verifier source needs an exact commit");
+      const listing = await exec("git", ["ls-tree", "-rz", "--full-tree", commit], {cwd, maxBuffer:64*1024*1024});
+      const files = [];
+      for (const line of listing.stdout.split("\0").filter(Boolean)) {
+        const match = /^(100644|100755) blob ([a-f0-9]{40})\t([\s\S]+)$/.exec(line);
+        if (!match) throw new Error("Verifier review supports regular committed files only");
+        const bytes = await exec("git", ["cat-file", "blob", match[2]!], {cwd, encoding:"buffer", maxBuffer:64*1024*1024});
+        const content = new TextDecoder("utf-8", {fatal:true}).decode(bytes.stdout);
+        if (content.includes("\0")) throw new Error("Verifier review requires text source");
+        files.push({path:match[3]!,blob:match[2]!,content});
+      }
+      result.verifierSources.push({activity:activity.revision_id,sourceCommit:commit,files});
+      // Activity source review selects only its declared intent and interfaces, never product source.
+      for (const link of activity.links) if (["verifies","uses-interface"].includes(link.type) && !result.records.some(d=>d.revision_id===link.target)) result.records.push(data.find(d=>d.revision_id===link.target)!);
+    }
+    const product = selected.find(d=>d.type===independent.implementation_type);
+    if (product) result.verificationCoverage = verificationStatus(context, product.revision_id);
+  }
   const trace = requirementTraceBinding(pkg);
   if (!trace) return result;
   const changes = selected.filter(datum => datum.type === trace.change_type);
@@ -93,12 +121,13 @@ export async function buildDirectReviewContext(context: DirectContext): Promise<
     if (!implementation || !requirements || !isDeepStrictEqual(transaction.package, context.package)) throw new Error("Verification result does not bind the selected implementation, requirements and package");
     const binding = saved.receipt.binding;
     if (!binding.operation || !/^[a-zA-Z0-9-]{1,80}$/.test(binding.operation) || !Number.isInteger(saved.receipt.attempt) || saved.receipt.attempt < 1) throw new Error("Review requires a direct execution receipt");
-    const inputs = [{name: "implementation", revisions: [implementation.revision_id]}, {name: "requirements", revisions: [requirements.revision_id]}];
+    const independentExpected = independent && binding.independentVerification ? independentExecutionBinding(context, implementation, binding.independentVerification.activityRevision, binding.operation) : undefined;
+    const inputs = independentExpected?.inputs ?? [{name: "implementation", revisions: [implementation.revision_id]}, {name: "requirements", revisions: [requirements.revision_id]}];
     if (!isDeepStrictEqual(binding.inputs, inputs)) throw new Error("Receipt inputs differ from the selected implementation and requirements");
     const transactionIds = Object.values(transaction.inputs).flat();
     if (![implementation.revision_id, requirements.revision_id].every(id => transactionIds.includes(id) || transaction.subject === id)) throw new Error("Result transaction does not bind its exact implementation and requirements");
     const {formalFiles: _recordedSelection, ...baseBinding} = binding;
-    const expected = {...baseBinding, ...(implementation.payload.acceptance_scope === "partial" ? {formalFiles: implementation.payload.formal_files as string[]} : {}), inputs, package: context.package, repositoryPath: implementation.payload.repository_path as string, sourceCommit: implementation.payload.source_commit as string, image: implementation.payload.verification_image as string, command: implementation.payload.verification_command as string[], scriptPath: implementation.payload.verification_script as string};
+    const expected = independentExpected ?? {...baseBinding, ...(implementation.payload.acceptance_scope === "partial" ? {formalFiles: implementation.payload.formal_files as string[]} : {}), inputs, package: context.package, repositoryPath: implementation.payload.repository_path as string, sourceCommit: implementation.payload.source_commit as string, image: implementation.payload.verification_image as string, command: implementation.payload.verification_command as string[], scriptPath: implementation.payload.verification_script as string};
     const verified = await validateVerificationReceipt(expected, saved);
     const registered = (await exec("git", ["-C", root, "rev-parse", "--verify", `${verificationRef(binding)}/attempt-${saved.receipt.attempt}-receipt`], {env: repositoryGitEnvironment()})).stdout.trim();
     if (registered !== saved.oid || verified.outcome !== datum.payload.outcome) throw new Error("Result conflicts with its registered execution receipt");

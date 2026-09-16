@@ -1,19 +1,15 @@
 ---
 id: implement-product
-version: 9
+version: 10
 skills:
-- skills/product-quality.md@1
 - skills/typed-requirements.md@5
-- skills/verification-starter.md@2
-- skills/source-trace.md@4
+- skills/source-trace.md@5
 ---
 
-# Implement the tiny product
+# Implement the reviewed product
 
-Apply the supplied shared product-quality skill before authoring or reviewing.
+Implement the reviewed requirements in a separate source Git repository. Record its exact source_commit, repository_path, public command and honest file_roles. Select independently authored VFY revisions through verification links. The product author may write development tests, but those tests do not replace the independent requirement-verification activities.
 
-Implement the reviewed requirement set and a verification script in the same source commit. The script asserts observable stakeholder behavior, including relevant input, argument and file behavior. Use source inspection for commitments it answers directly, following the shared standard. Exit 0 means pass, 1 means assertion failure, and other exits mean execution error. Catch unexpected exceptions separately so they cannot look like assertion failures. Record repository_path as the absolute separate source checkout, source_commit, the product command argv and file_roles for every tracked entry, verification_script as its relative path, verification_command as argv, and verification_image as a digest-pinned Docker reference. The CLI runs the command in a clean snapshot of that commit mounted read-only at /workspace, with writable /tmp and no network. Use a prebuilt runtime image and keep all verification dependencies in that environment or the committed source. Apply the source-trace skill to production and verifier files; the CLI derives inventory and source scopes during submission.
+Use source-trace guidance for production attribution. The CLI derives inventory and source scopes. Verification code belongs to its separately committed verification repository and needs no in-product source annotations. Keep the lifecycle snapshot unchanged while committing source in the separate checkout, then submit using the exact guidance.
 
-Use the supplied direct proposal guidance and payload schema. The CLI supplies identities, exact required links and publication markers. Submit the authored values with mdlm proposal submit. Keep the body empty when the structured payload contains the whole claim.
-
-Use a separate source Git checkout for product commits. Submit against the unchanged lifecycle snapshot from the guidance. Record the exact source checkout commit in source_commit.
+The independent verifier works from requirements and public interface contracts. Supply only the public invocation or deployment details needed to exercise this product. Preserve any failure and distinguish a wrong product from a wrong requirement or oracle before editing.

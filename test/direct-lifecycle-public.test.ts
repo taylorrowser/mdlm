@@ -32,7 +32,7 @@ for (const {processName, corrections, partialAcceptance = false} of [
     }
     const journeyRoot = path.join(root,"journey");
     const invocation = spawnSync(process.execPath,[path.join(process.cwd(),"scripts/direct-lifecycle-walkthrough.mjs"),"--process",processName,"--executable",executable,"--root",journeyRoot,...(corrections ? ["--corrections"] : []), ...(partialAcceptance ? ["--partial-acceptance"] : []), ...(processName === "iterative" && !partialAcceptance ? ["--operational-use"] : [])],{
-      cwd:root,encoding:"utf8",timeout:240_000,maxBuffer:30*1024*1024,env:process.env,
+      cwd:root,encoding:"utf8",timeout:processName === "iterative" ? 600_000 : 240_000,maxBuffer:30*1024*1024,env:process.env,
     });
     const mode = process.env.MDLM_DIRECT_EXECUTABLE ? "supplied-executable" : process.env.MDLM_DIRECT_INSTALLED === "1" ? "installed" : "source";
     const evidenceFile = path.join(`${journeyRoot}-evidence`,"result.json");
@@ -49,9 +49,16 @@ for (const {processName, corrections, partialAcceptance = false} of [
     expect(result.outcome).toBe(processName === "tiny" ? "lifecycle-complete" : "profile-boundary-reached");
     expect(result.publications.length).toBeGreaterThan(0);
     if (processName === "iterative" && !partialAcceptance) expect(captured.operationalUses).toHaveLength(3);
+    if (processName === "iterative") {
+      expect(captured.verificationRepositories.length).toBeGreaterThan(0);
+      for (const receipt of captured.receipts) {
+        expect(receipt.receipt.binding.independentVerification.repositoryPath).not.toBe(captured.source);
+        expect(receipt.receipt.result.caseResults.length).toBeGreaterThan(0);
+      }
+    }
     expect(result.receipts.length).toBeGreaterThan(0);
     expect(result.commands.length).toBeGreaterThan(0);
     expect(await fs.stat(result.evidenceFile)).toMatchObject({size:expect.any(Number)});
     // Preserve the full source/lifecycle/evidence on success and failure for audit.
-  }, 300_000);
+  }, processName === "iterative" ? 660_000 : 300_000);
 }

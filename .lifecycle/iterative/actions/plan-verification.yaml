@@ -1,0 +1,18 @@
+kind: action-definition
+id: plan-verification
+version: 1
+description: plan verification
+capability: verification-activity
+prompt_ref: prompts/plan-verification.md@1
+types:
+- VFY
+subjects: select("current-requirements@1", {})
+inputs:
+  requirements: subject
+when: 'true'
+priority: 90
+optional: true
+links: {}
+fixed_payload:
+  VFY:
+    publication: recorded

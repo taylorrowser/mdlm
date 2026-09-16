@@ -1,10 +1,13 @@
 ---
 id: execute-verification
-version: 1
+version: 2
+skills: []
 ---
 
-# Run and assess Docker verification
+# Execute an independent activity and record its results
 
-Use the supplied direct execution command for the exact implementation and a new operation identity. The CLI prepares Docker, runs the committed verification command, captures stdout, stderr and exit status, and binds a receipt to the exact requirements, implementation and source. Inspect the receipt and assess whether the intended script ran and what its results mean. The script owns assertions. The CLI derives outcome and receipt; author the assessment and correction_target. Select none for pass. For fail or error, diagnose requirements or implementation as the correction target. A faulty script belongs to implementation correction. Preserve execution errors as errors. Inspect execution settlement after an uncertain response; never rerun an uncertain started operation. Repeating a completed operation returns its existing receipt.
+Select one exact VFY linked by verification on this product. Run `mdlm execution run <exact-IMP-or-TRY> <new-operation> --activity <exact-VFY> --json`. The CLI captures the separate committed verifier, product source, pinned environment, all case results and declared evidence files. One script may cover several requirements. Use execution settlement after an uncertain response; never replay an uncertain started operation.
 
-Use the supplied direct proposal guidance and payload schema. The CLI supplies identities, exact required links and publication markers. Submit the authored values with mdlm proposal submit. Keep the body empty when the structured payload contains the whole claim.
+Use `mdlm execution export <operation> <new-directory> --json` to materialize the authenticated saved receipt, streams, report and artifacts for inspection. The export preserves existing directories and never repeats execution. Inspect the actual observations and artifacts. Submit one RES with evaluates pointing to that exact activity and the captured receipt in top-level evidence.receipt. Preserve the fixed product and requirement/experiment links supplied by guidance. The CLI derives outcome, receipt and case_results and supersedes the current earlier result for this exact product/activity. Author assessment and correction_target only. Use none for pass; distinguish implementation, verification or requirements when diagnosing a failure. Skipped cases and execution errors do not pass. Keep failures and interrupted attempts in history.
+
+Run the other selected activities, then inspect `mdlm verification status <exact-product> --json`. Formal verified requires reviewed sufficient coverage for every selected requirement and current passing cases. Provisional criteria report observations without making a baseline claim. An incomplete coverage argument requires a plan revision, not an optimistic assessment of an old receipt.

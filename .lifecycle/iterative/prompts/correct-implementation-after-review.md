@@ -1,17 +1,15 @@
 ---
 id: correct-implementation-after-review
-version: 9
+version: 10
 skills:
-- skills/product-quality.md@1
 - skills/typed-requirements.md@5
-- skills/verification-starter.md@2
-- skills/source-trace.md@4
+- skills/source-trace.md@5
 ---
 
-# Correct implementation after content Review
+# Correct the product against exact evidence
 
-Apply the supplied shared product-quality skill before authoring or reviewing.
+Read the exact failed review, result or rejection and the unchanged requirements. When the product is wrong, revise its IMP lineage with the corrected source commit, production attribution and selected independent verification activities. Preserve the supplied corrects link. Run those activities on the new source and obtain fresh implementation review.
 
-Address the failed Review in the product or verification script using a new revision of the same IMP lineage. Record the exact revised source commit and complete Docker verification fields. Fresh CLI execution and independent Review follow.
+When the verifier or coverage is wrong, revise VFY independently from requirements and public contracts, obtain its coverage review, and select the new exact activity through a product revision. A changed expectation is not a code fix. If stakeholder intent must change, use the requirement correction or approved-change route. Keep all failed evidence.
 
-Use the supplied direct proposal guidance and payload schema. The CLI supplies identities, exact required links and publication markers. Submit the authored values with mdlm proposal submit. Keep the body empty when the structured payload contains the whole claim.
+Use the supplied candidate fields, links and predecessor. Production source follows the source-trace skill; verification source remains separate.

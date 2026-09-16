@@ -17,7 +17,8 @@ query:
     types:
     - RES
   as: item
-  where: 'state(item, "validity") == "valid" && exists("requirements-for-result@1", {result: item}) && item.payload.outcome == "pass"'
+  where: 'state(item, "validity") == "valid" && exists("requirements-for-result@1", {result: item}) && item.payload.outcome
+    == "pass" && none("superseding-results@1", {result: item})'
   distinct: true
   order_by:
   - identity.revision_id

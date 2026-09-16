@@ -51,14 +51,23 @@ mdlm proposal settlement <operation-id> --json
 
 Use a new operation for a new proposal. Preserve the exact submitted bytes. After an interrupted or lost submission response, inspect settlement before doing more work. Accepted settlement authenticates the existing publication. Inspect and commit accepted lifecycle data before retrieving fresh guidance.
 
-When guidance calls for verification, commit the product source and verification script, then run:
+When the selected package supports independent verification, export the requirement or criterion context for a fresh verification author:
+
+```bash
+mdlm verification context <exact-RQS-or-EXP> --output verification-context.json --json
+mdlm verification status <exact-product> --json
+```
+
+Follow that package's plan and review guidance. Keep verifier authoring separate from implementation source and explanations. Select exact activities on the product, then execute each with `mdlm execution run <exact-product> <operation-id> --activity <exact-VFY> --json`. Read case results and evidence before publishing the assessment. Shared scripts are supported; complete requirement coverage still needs an explicit adequacy judgment.
+
+For a package using product-owned verification, commit the product source and verification script, then run:
 
 ```bash
 mdlm execution run <exact-implementation-or-prototype> <operation-id> --json
 mdlm execution settlement <operation-id> --json
 ```
 
-Read the actual receipt and captured output. Guidance's `evidence` array lists available receipt locators; choose the exact receipt supporting the proposed result or observation. The proposal's `evidence` is an object with a `receipt` field:
+Use `mdlm execution export <operation-id> <new-directory> --json` to inspect saved receipt evidence as files. This read-only export never repeats the command and preserves an existing destination. Read the actual receipt and captured output. Guidance's `evidence` array lists available receipt locators; choose the exact receipt supporting the proposed result or observation. The proposal's `evidence` is an object with a `receipt` field:
 
 ```json
 {"evidence": {"receipt": "<exact git-blob: locator from guidance.evidence>"}}

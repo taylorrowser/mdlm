@@ -1,10 +1,11 @@
 ---
 id: prepare-prototype
-version: 2
+version: 3
+skills: []
 ---
 
-# Prepare the smallest runnable prototype
+# Prepare the smallest usable prototype
 
-Use the exact experiment brief. Build only the slice needed to answer its question. Commit runnable source and a bounded Python verifier in a separate Git repository, and record the exact commit, command and pinned Docker image. No source markers or complete requirement tree are required. The verifier should use independent expected observations and a timeout for finite CLI dialogues. Record the committed verification script and command. Use direct execution to capture its real result. Stay within the allowance; cut scope instead of claiming untested behavior.
+Build the slice needed to answer the experiment's question in a separate Git repository. Record its exact source commit, public command and meaningful exact ICD links. Select independent VFY activities for the criterion through verification links. Their author receives the EXP and public interface contracts, without product implementation source. Product and verification repositories have separate commits.
 
-For a meaningful internal or external boundary, use optional record-interface or revise-interface guidance and add uses-interface links to the exact ICD revisions exercised by this TRY. Keep unresolved design choices provisional and record observed contract mismatches.
+Run each selected activity, preserve its case results, then record the prototype observation. Prototype source requires no blanket source attribution or formal requirement review. Cut scope when necessary; never report untested criterion behavior as passing. Choose tools that fit the product, including CLI, browser or analysis.

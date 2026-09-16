@@ -1,20 +1,22 @@
 kind: action-definition
 id: execute-verification
-version: 1
-description: Run committed Docker verification
-capability: verification-result
-prompt_ref: prompts/execute-verification.md@1
+version: 2
+description: execute verification
+capability: independent-result
+prompt_ref: prompts/execute-verification.md@2
 types:
 - RES
 subjects: select("current-implementations@1", {})
 inputs:
-  implementation: subject
+  product: subject
   requirements: 'one("requirements-for@1", {implementation: subject})'
-when: '!(exists("results-for@1", {implementation: subject})) && (true)'
-priority: 100
+  activities: 'select("selected-verification-activities@1", {product: subject})'
+when: 'true'
+priority: 90
+optional: true
 links:
   RES:
-    executes: implementation
+    executes: product
     verifies: requirements
 fixed_payload:
   RES:
