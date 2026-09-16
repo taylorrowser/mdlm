@@ -1,67 +1,60 @@
 # MDLM
 
-MDLM records engineering intent, design and implementation evidence as versioned lifecycle data. A process package describes useful data, prompts and relationships. The kernel validates exact references, authority and evidence, then publishes complete transactions while preserving history.
+MDLM helps you keep track of why your code exists. Start with what stakeholders want, document how that intent becomes requirements and code, and keep the links to the checks and decisions that support it.
 
-## Set up an agent session
+That explanation needs to survive change. When stakeholders change their minds or maintenance changes the implementation, MDLM helps you document what changed, which code it affects, and what needs checking again. It preserves the history so the code and its explanation can stay in sync.
 
-Give the harness the selected release's CLI executable path. Make its directory available on the session's `PATH`, or use that absolute executable path wherever these instructions show `mdlm`.
+The aim is to do this without a big process up front. Start with a small useful product, learn from using it, and add detail as the work needs it. MDLM stores this information as versioned Markdown in Git. An agent uses its CLI to discover work, get guidance, and publish validated changes. The selected Process Package defines the steps.
 
-For a fresh lifecycle repository, initialize an absent or empty directory:
+## Get started with an agent
+
+Build the current source with Git, Node.js 24 and npm. Docker is also needed when the agent reaches captured product verification.
 
 ```bash
-mdlm init /path/to/lifecycle
-cd /path/to/lifecycle
+git clone https://github.com/taylorrowser/mdlm.git
+cd mdlm
+npm ci
+npm run build
+export MDLM_CLI="$PWD/dist/mdlm.js"
+mdlm() { node "$MDLM_CLI" "$@"; }
 ```
 
-The default package supports requirements, implementation, verification, independent review, stakeholder acceptance and approved changes. Use `mdlm init /path/to/lifecycle --process exploratory` for experiments, prototypes, observations and stakeholder feedback. Use `--process iterative` for the experimental [useful-product-to-baseline route](.lifecycle/iterative/README.md), which keeps exploration and formal requirements in one lifecycle repository.
+The `mdlm` shell function works in this shell after changing directories. In another session, use `node /absolute/path/to/mdlm/dist/mdlm.js` or recreate the function with that path.
 
-Initialization copies the shipped [operator guide](operator/MDLM.md) to `MDLM.md` at the lifecycle repository root. For an existing initialized project, open that root and keep its selected MDLM release and Process Package. An existing product without MDLM needs a separate fresh lifecycle directory; `init` does not import a populated project.
+Create a fresh project in an absent or empty directory:
 
-Configure your agent harness to load the project's `MDLM.md` before the lifecycle operator starts or resumes. Use the harness's project-instruction mechanism or supply this instruction in the session input. MDLM does not configure that mechanism or automatically load the guide into an agent's context.
+```bash
+mdlm init ../my-product
+cd ../my-product
+mdlm expectations --json
+```
 
-Fill in this portable session input with real host bindings:
+Initialization creates a Git repository and copies the [operator guide](operator/MDLM.md) to its root as `MDLM.md`. The default package guides a small product through requirements, implementation, verification, independent review and stakeholder acceptance, then supports approved changes.
+
+To try building and learning before formalizing requirements, use `mdlm init ../my-product --process iterative` instead. This experimental [iterative package](.lifecycle/iterative/README.md) combines prototypes, feedback and formal acceptance in one project. Acceptance applies only to the scope actually reviewed and verified. For exploration alone, use `--process exploratory`.
+
+Open the new project in your agent and give it this prompt, filling in the paths and contacts:
 
 ```text
-You are the lifecycle operator for <project root>.
-MDLM executable: <absolute path to the selected release's mdlm executable>.
-Read <project root>/MDLM.md before starting or resuming lifecycle work.
-Stakeholder outcome: <intended useful result and agreed scope>.
-Stakeholder contact: <person or authorized delegate and how to reach them>.
-Authority: <decisions they may make and any explicit delegation limits>.
-Review manager: <independent-review contact and host request mechanism>.
-Use those host contacts for stakeholder decisions and bounded review requests.
+Read /absolute/path/to/my-product/MDLM.md before starting or resuming work.
+Use node /absolute/path/to/mdlm/dist/mdlm.js wherever the guide says mdlm.
+
+Stakeholder outcome: <what we want to build and the smallest useful scope>.
+Stakeholder contact: <who to ask and how to reach them>.
+Authority: <decisions they can make and any explicit delegation limits>.
+Review manager: <who can arrange independent review and how to request it>.
+
+Follow the guide and the selected package's CLI guidance.
+Start with the smallest useful result. Ask the stakeholder when intent is unclear.
+Use the contacts above for required decisions and independent reviews.
 ```
 
-The host must provide a reachable stakeholder with the required authority and a review manager who can arrange fresh independent judgment and register the result. A contact name alone grants no authority. If a binding is missing, the operator asks the host for it before dependent work continues. Review requests carry the exact subject and exported review context through the available host mechanism; the manager returns the bound proposal and judgment under the guide's review contract.
+Your agent host must load `MDLM.md` at startup and on resume; MDLM does not configure that for you. The stakeholder must have authority to make the requested decisions, and the review manager must be able to arrange a fresh reviewer and register the result. If either contact is missing, the agent asks before doing work that depends on it. Authors cannot review their own work.
 
-The lifecycle operator follows `MDLM.md` for the overall loop and retrieves action details from native CLI guidance, including the selected package's prompts and skills. Give bounded author or reviewer workers their assignment, exact context and relevant guidance. They return their assigned result to the operator or review manager; they do not take over the lifecycle loop. Keep independent reviewers separate from the author.
+For an existing MDLM project, keep its selected release and Process Package and read its `MDLM.md`. Initialization does not import a populated codebase; start in a separate fresh directory.
 
-## Choose work
+## Working day to day
 
-```bash
-mdlm expectations --json
-mdlm expectations show <action> [<exact-subject>] --json
-```
+Tell the agent the desired outcome or what changed. It reads available work with `mdlm expectations --json`, retrieves the chosen action's guidance, and follows the operator guide to publish changes, verify the product and request review or stakeholder decisions. Keep the scope small and use actual product use to decide what to do next.
 
-The agent chooses available work. Discovery does not reserve work or force the first item. Guidance includes the package prompt, exact context, schemas and candidate examples. Keep functionality focused on the stakeholder's need; use experiments to learn before committing more detail.
-
-## Publish and verify
-
-Write a proposal from the guidance and submit it:
-
-```bash
-mdlm proposal submit proposal.json --json
-mdlm proposal settlement <operation-id> --json
-mdlm execution run <exact-implementation-or-prototype> <operation-id> --json
-mdlm execution settlement <operation-id> --json
-```
-
-Each proposal names its action, operation, package, snapshot, candidates and evidence. Candidate references may name other candidates in the same transaction. MDLM assigns durable identities and derives managed fields. Execution captures the committed product, verification command, environment and actual result. A receipt can support only the matching work.
-
-Settlement resolves lost responses without repeating completed operations. Inspect and commit accepted lifecycle data before continuing. Independent review and stakeholder decisions remain explicit; exploration is not product acceptance.
-
-See [operator instructions](operator/MDLM.md), the [direct work contract](docs/contracts/direct-work.md), and the [Pi adapter](packages/mdlm-pi/README.md). Fresh repositories use the direct contract. Historical products stay on their selected installed versions; this release does not migrate their records.
-
-## Development
-
-Build with `npm run build`. See [development operations](docs/agents/mdlm-development.md) for focused checks, exact release qualification and operational evidence.
+The [operator guide](operator/MDLM.md) covers proposals, execution and recovery. The [direct work contract](docs/contracts/direct-work.md) describes the CLI contract; the [Pi adapter](packages/mdlm-pi/README.md) connects it to Pi. For work on MDLM itself, see [development operations](docs/agents/mdlm-development.md).
