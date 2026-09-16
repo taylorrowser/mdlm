@@ -1,6 +1,6 @@
 kind: type-definition
 id: ACC
-version: 3
+version: 4
 description: Stakeholder acceptance decision
 name: Stakeholder acceptance decision
 extends: titled-datum@1
@@ -49,7 +49,7 @@ outgoing_links:
     identity: revision
   cardinality:
     minimum: 1
-    maximum: 1
+    maximum: many
   freeze_resolution: already-exact
   inverse_label: incoming-uses-evidence
 - id: confirms

@@ -1,10 +1,11 @@
 ---
 id: direct-observation
-version: 2
+version: 3
 skills: []
 ---
-Assess the supplied exact prototype and experiment using its completed execution receipt. If none exists, use the supplied direct execution command with a new operation identity, then inspect settlement after an uncertain response. Never rerun an uncertain started operation.
 
-Supply title, assessment, observation_origin, interaction_observation, limitations, recommendation and next_action, plus a Markdown body. Use keep, nominate, revise or drop for a passing script. Failed or errored execution permits only revise or drop. Nomination requests stakeholder feedback and does not approve a requirement. Prefer the minimum functionality that answers the learning question. Describe limits honestly; scripted checks do not demonstrate user experience. Outcome and receipt are kernel-managed. Inspect the exact schema and links supplied with this guidance.
+# Assess the prototype's observed behavior
 
-Submit candidate data against the observed package and snapshot. The displayed gap is guidance, not publication authority. This observation does not accept the product or baseline requirements.
+Read all current independent activity results supplied for this exact TRY and EXP, including actual observations, artifacts and limitations. Record assessment, observation_origin, interaction_observation, limitations, recommendation and next_action. Distinguish a scripted pass from a computer-use demonstration and stakeholder experience. The CLI derives outcome from the selected activity evidence. Keep or nominate only when the required activity results pass; failure or error permits revise or drop.
+
+Nomination asks for stakeholder feedback. It neither approves requirements nor grants formal verification. A criterion revision needs new applicable activity coverage and execution. Publish using the exact supplied links, including uses-evidence. No extra rerun is needed merely to write the observation.

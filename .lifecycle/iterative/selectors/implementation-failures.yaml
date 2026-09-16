@@ -11,7 +11,8 @@ query:
     - RES
   as: item
   where: 'state(item, "validity") == "valid" && item.payload.correction_target == "implementation" && exists("requirements-for-result@1",
-    {result: item}) && exists("implementation-for-result@1", {result: item})'
+    {result: item}) && exists("implementation-for-result@1", {result: item}) && none("superseding-results@1", {result:
+    item})'
   distinct: true
   order_by:
   - identity.revision_id

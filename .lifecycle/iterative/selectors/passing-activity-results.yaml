@@ -1,0 +1,30 @@
+kind: selector-definition
+id: passing-activity-results
+version: 1
+description: passing activity results
+parameters:
+- name: activity
+  kind: revision
+  types:
+  - VFY
+- name: product
+  kind: revision
+  types:
+  - IMP
+  - TRY
+result_kind: revision
+query:
+  from:
+    relation: incoming-links
+    of: activity
+    link: evaluates
+    emit: source
+    types:
+    - RES
+  as: item
+  distinct: true
+  order_by:
+  - identity.revision_id
+  where: 'state(item, "validity") == "valid" && item.payload.outcome == "pass" && none("superseding-results@1",
+    {result: item}) && every("product-for-verification-result@1", {result: item}, prod => prod.identity.revision_id
+    == product.identity.revision_id)'

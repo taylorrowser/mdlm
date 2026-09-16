@@ -1,15 +1,15 @@
 kind: action-definition
-id: execute-verification
-version: 2
-description: execute verification
+id: execute-criterion-verification
+version: 1
+description: execute criterion verification
 capability: independent-result
 prompt_ref: prompts/execute-verification.md@2
 types:
 - RES
-subjects: select("current-implementations@1", {})
+subjects: select("current-trials@2", {})
 inputs:
   product: subject
-  requirements: 'one("requirements-for@1", {implementation: subject})'
+  experiment: 'one("experiment-for@1", {trial: subject})'
   activities: 'select("selected-verification-activities@1", {product: subject})'
 when: 'true'
 priority: 90
@@ -17,7 +17,7 @@ optional: true
 links:
   RES:
     executes: product
-    verifies: requirements
+    verifies: experiment
 fixed_payload:
   RES:
     publication: recorded

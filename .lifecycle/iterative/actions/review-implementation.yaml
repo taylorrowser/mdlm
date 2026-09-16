@@ -3,7 +3,7 @@ id: review-implementation
 version: 1
 description: Review implementation and execution evidence
 capability: review
-prompt_ref: prompts/review-implementation.md@10
+prompt_ref: prompts/review-implementation.md@11
 types:
 - REV
 subjects: select("current-implementations@1", {})
@@ -11,14 +11,17 @@ inputs:
   interfaces: 'select("selected-interfaces@1", {requirements: one("requirements-for@1", {implementation: subject})})'
   subject: subject
   requirements: 'one("requirements-for@1", {implementation: subject})'
-  result: 'one("passing-results@1", {implementation: subject})'
-when: '!(exists("reviews-for@1", {subject: subject})) && (exists("passing-results@1", {implementation:
-  subject}))'
+  activities: 'select("selected-verification-activities@1", {product: subject})'
+  results: 'select("results-for@1", {implementation: subject})'
+when: '(!(exists("reviews-for@1", {subject: subject})) && (exists("passing-results@1", {implementation: subject})))
+  && (exists("selected-verification-activities@1", {product: subject}) && every("selected-verification-activities@1",
+  {product: subject}, activity => exists("pass-reviews@1", {subject: activity}) && none("fail-reviews@1", {subject:
+  activity}) && exists("passing-activity-results@1", {activity: activity, product: subject})))'
 priority: 100
 links:
   REV:
     reviews: subject
-    uses-evidence: result
+    uses-evidence: results
 fixed_payload:
   REV:
     publication: recorded

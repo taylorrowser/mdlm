@@ -4,7 +4,7 @@ version: 10
 skills:
 - skills/product-quality.md@1
 - skills/typed-requirements.md@5
-- skills/source-trace.md@4
+- skills/source-trace.md@5
 ---
 
 # Revise the accepted requirement graph

@@ -10,15 +10,18 @@ subjects: select("current-implementations@1", {})
 inputs:
   implementation: subject
   requirements: 'one("requirements-for@1", {implementation: subject})'
-  result: 'one("passing-results@1", {implementation: subject})'
-when: '!(exists("acceptances-for@2", {implementation: subject})) && (exists("pass-reviews@1", {subject:
-  subject}) && none("fail-reviews@1", {subject: subject}) && exists("passing-results@1", {implementation:
-  subject}) && none("rejections-for@1", {implementation: subject}))'
+  activities: 'select("selected-verification-activities@1", {product: subject})'
+  results: 'select("results-for@1", {implementation: subject})'
+when: '(!(exists("acceptances-for@2", {implementation: subject})) && (exists("pass-reviews@1", {subject: subject})
+  && none("fail-reviews@1", {subject: subject}) && exists("passing-results@1", {implementation: subject}) && none("rejections-for@1",
+  {implementation: subject}))) && (exists("selected-verification-activities@1", {product: subject}) && every("selected-verification-activities@1",
+  {product: subject}, activity => exists("pass-reviews@1", {subject: activity}) && none("fail-reviews@1", {subject:
+  activity}) && exists("passing-activity-results@1", {activity: activity, product: subject})))'
 priority: 100
 links:
   ACC:
     accepts: implementation
-    uses-evidence: result
+    uses-evidence: results
     confirms: requirements
 fixed_payload:
   ACC:

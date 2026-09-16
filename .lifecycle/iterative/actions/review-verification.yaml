@@ -1,0 +1,23 @@
+kind: action-definition
+id: review-verification
+version: 1
+description: review verification
+capability: review
+prompt_ref: prompts/review-verification.md@1
+types:
+- REV
+subjects: select("current-verification-activities@1", {})
+inputs:
+  activity: subject
+when: 'none("reviews-for@1", {subject: subject})'
+priority: 90
+optional: true
+links:
+  REV:
+    reviews: subject
+fixed_payload:
+  REV:
+    publication: recorded
+authority:
+  kind: independent-review
+  name: independent-reviewer

@@ -1,0 +1,23 @@
+kind: selector-definition
+id: product-for-verification-result
+version: 1
+description: product for verification result
+parameters:
+- name: result
+  kind: revision
+  types:
+  - RES
+result_kind: revision
+query:
+  from:
+    relation: outgoing-links
+    of: result
+    link: executes
+    emit: target
+    types:
+    - IMP
+    - TRY
+  as: item
+  distinct: true
+  order_by:
+  - identity.revision_id

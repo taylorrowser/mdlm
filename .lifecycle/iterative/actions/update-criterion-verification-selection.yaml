@@ -1,0 +1,23 @@
+kind: action-definition
+id: update-criterion-verification-selection
+version: 1
+description: Select revised independent verification while preserving product source
+capability: prototype
+prompt_ref: prompts/update-verification-selection.md@1
+types:
+- TRY
+subjects: select("current-trials@2", {})
+inputs:
+  product: subject
+  experiment: 'one("experiment-for@1", {trial: subject})'
+when: 'true'
+priority: 90
+optional: true
+revises:
+  TRY: subject
+links:
+  TRY:
+    explores: experiment
+fixed_payload:
+  TRY:
+    publication: recorded

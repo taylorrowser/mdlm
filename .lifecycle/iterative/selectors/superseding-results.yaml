@@ -1,24 +1,22 @@
 kind: selector-definition
-id: results-for
+id: superseding-results
 version: 1
-description: results for
+description: superseding results
 parameters:
-- name: implementation
+- name: result
   kind: revision
   types:
-  - IMP
-  - TRY
+  - RES
 result_kind: revision
 query:
   from:
     relation: incoming-links
-    of: implementation
-    link: executes
+    of: result
+    link: supersedes
     emit: source
     types:
     - RES
   as: item
-  where: 'state(item, "validity") == "valid" && none("superseding-results@1", {result: item})'
   distinct: true
   order_by:
   - identity.revision_id

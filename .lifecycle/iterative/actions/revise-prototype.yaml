@@ -3,7 +3,7 @@ id: revise-prototype
 version: 1
 description: revise-prototype
 capability: prototype
-prompt_ref: prompts/revise-prototype.md@2
+prompt_ref: prompts/revise-prototype.md@3
 types:
 - TRY
 subjects: select("prototype-feedback@1", {})

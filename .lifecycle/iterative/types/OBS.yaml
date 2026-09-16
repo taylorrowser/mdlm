@@ -1,6 +1,6 @@
 kind: type-definition
 id: OBS
-version: 1
+version: 2
 name: Prototype observation
 description: Prototype observation
 extends: titled-datum@1
@@ -9,71 +9,80 @@ lifecycle:
   freeze_when: terminal-outcome
   terminal_payload_field: publication
   terminal_values:
-    - recorded
+  - recorded
 payload_schema:
   $schema: https://json-schema.org/draft/2020-12/schema
   type: object
   required:
-    - publication
-    - outcome
-    - receipt
-    - assessment
-    - observation_origin
-    - interaction_observation
-    - limitations
-    - recommendation
-    - next_action
+  - publication
+  - outcome
+  - assessment
+  - observation_origin
+  - interaction_observation
+  - limitations
+  - recommendation
+  - next_action
   properties:
     publication:
       const: recorded
     outcome:
       enum:
-        - pass
-        - fail
-        - error
-    receipt: &a1
+      - pass
+      - fail
+      - error
+    assessment: &id001
       type: string
       minLength: 1
-    assessment: *a1
     observation_origin:
       enum:
-        - scripted
-        - agent
-        - user
-    interaction_observation: *a1
-    limitations: *a1
+      - scripted
+      - agent
+      - user
+    interaction_observation: *id001
+    limitations: *id001
     recommendation:
       enum:
-        - keep
-        - revise
-        - drop
-        - nominate
-    next_action: *a1
+      - keep
+      - revise
+      - drop
+      - nominate
+    next_action: *id001
 outgoing_links:
-  - id: observes
-    description: observes
-    targets:
-      - kind: datum
-        types:
-          - TRY
-        identity: revision
-    cardinality:
-      minimum: 1
-      maximum: 1
-    freeze_resolution: already-exact
-    inverse_label: incoming-observes
-  - id: against
-    description: against
-    targets:
-      - kind: datum
-        types:
-          - EXP
-        identity: revision
-    cardinality:
-      minimum: 1
-      maximum: 1
-    freeze_resolution: already-exact
-    inverse_label: incoming-against
+- id: observes
+  description: observes
+  targets:
+  - kind: datum
+    types:
+    - TRY
+    identity: revision
+  cardinality:
+    minimum: 1
+    maximum: 1
+  freeze_resolution: already-exact
+  inverse_label: incoming-observes
+- id: against
+  description: against
+  targets:
+  - kind: datum
+    types:
+    - EXP
+    identity: revision
+  cardinality:
+    minimum: 1
+    maximum: 1
+  freeze_resolution: already-exact
+  inverse_label: incoming-against
+- id: uses-evidence
+  description: Exact current independent activity results
+  targets:
+  - kind: datum
+    types:
+    - RES
+    identity: revision
+  cardinality:
+    minimum: 1
+    maximum: many
+  freeze_resolution: already-exact
+  inverse_label: incoming-uses-evidence
 kernel_managed_payload_paths:
-  - outcome
-  - receipt
+- outcome

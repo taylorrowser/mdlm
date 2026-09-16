@@ -1,0 +1,20 @@
+kind: action-definition
+id: revise-verification
+version: 1
+description: revise verification
+capability: verification-activity
+prompt_ref: prompts/plan-verification.md@1
+types:
+- VFY
+subjects: select("current-verification-activities@1", {})
+inputs:
+  activity: subject
+when: 'true'
+priority: 90
+optional: true
+links: {}
+fixed_payload:
+  VFY:
+    publication: recorded
+revises:
+  VFY: subject

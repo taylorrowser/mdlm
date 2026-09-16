@@ -3,7 +3,7 @@ id: prepare-prototype
 version: 1
 description: prepare-prototype
 capability: prototype
-prompt_ref: prompts/prepare-prototype.md@2
+prompt_ref: prompts/prepare-prototype.md@3
 types:
 - TRY
 subjects: select("current-experiments@1", {})

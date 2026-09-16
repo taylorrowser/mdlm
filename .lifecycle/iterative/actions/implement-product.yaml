@@ -3,7 +3,7 @@ id: implement-product
 version: 1
 description: Implement the tiny product
 capability: implementation
-prompt_ref: prompts/implement-product.md@9
+prompt_ref: prompts/implement-product.md@10
 types:
 - IMP
 subjects: select("current-requirements@1", {})

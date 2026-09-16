@@ -1,10 +1,9 @@
 ---
 id: revise-prototype
-version: 2
+version: 3
+skills: []
 ---
 
-# Revise the prototype under the same brief
+# Revise the exploratory product
 
-Use the exact stakeholder feedback and preserve the exact experiment brief. Change the implementation within its existing criteria and constraints. Commit the runnable source and bounded verifier and record their exact configuration. This is a new trial revision and needs fresh execution and observation; old passing evidence does not prove the revised source. If the feedback requires changing the criterion itself, return inability rather than silently changing its meaning. Keep source markers optional.
-
-For a meaningful internal or external boundary, use optional record-interface or revise-interface guidance and add uses-interface links to the exact ICD revisions exercised by this TRY. Keep unresolved design choices provisional and record observed contract mismatches.
+Use the current EXP and feedback to revise the smallest useful product in its separate source repository. Preserve TRY lineage and exact public interface links. Select current independent VFY activities through verification links. Revise the verification activity separately if the criterion or oracle changed; its author uses the requirements/criterion export without product source. Record the new product commit and command, execute the selected activities and assess their captured results. Stay within the experiment scope and preserve prior failures.
