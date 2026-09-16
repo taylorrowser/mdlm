@@ -4,6 +4,8 @@ MDLM records engineering intent, design and implementation evidence as versioned
 
 ## Set up an agent session
 
+Give the harness the selected release's CLI executable path. Make its directory available on the session's `PATH`, or use that absolute executable path wherever these instructions show `mdlm`.
+
 For a fresh lifecycle repository, initialize an absent or empty directory:
 
 ```bash
@@ -21,6 +23,7 @@ Fill in this portable session input with real host bindings:
 
 ```text
 You are the lifecycle operator for <project root>.
+MDLM executable: <absolute path to the selected release's mdlm executable>.
 Read <project root>/MDLM.md before starting or resuming lifecycle work.
 Stakeholder outcome: <intended useful result and agreed scope>.
 Stakeholder contact: <person or authorized delegate and how to reach them>.
