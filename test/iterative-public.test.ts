@@ -74,9 +74,17 @@ test("iterative requirements retain exact origins and interface context across i
     expect(review.inputs.interfaces).toEqual([interfaceR1]);
     expect(review.records.find((record: any) => record.revision_id === interfaceR1)).toEqual(originalInterface);
     expect(review.records.some((record: any) => record.revision_id === interfaceR2)).toBe(false);
+    const authoring = cli("verification", "context", origin);
+    const activityGuidance = cli("expectations", "show", "plan-criterion-verification@1", origin);
+    const activity = activityGuidance.candidates[0];
+    activity.payload = {...activity.payload, title:"Count criterion check", method:"CLI test", objective:"Observe the supplied count", authoring_subject:origin, authoring_context:authoring.authoringContext, repository_path:path.join(root,"verifier"), source_commit:"a".repeat(40), verification_image:"python@sha256:"+"b".repeat(64), verification_command:["python3","verify.py"], verification_script:"verify.py", results_path:"results.json", cases:[{id:"count",targets:[origin],preconditions:["Fresh process"],actions:["Supply two items"],expected_results:["The public output reports two"],coverage_rationale:"The criterion concerns observable item count"}],coverage:[{target:origin,obligations:["Report supplied count"],case_ids:["count"],rationale:"This fixture tests exact interface binding; execution adequacy is reviewed separately"}]};
+    activity.links.push({type:"verifies",target:origin});
+    const planned = await submit(activityGuidance,"criterion-plan",[activity]);
+    const activityRevision = planned.revisions[0];
     const prototype = cli("expectations", "show", "prepare-prototype@1", origin);
     const invalid = prototype.candidates[0];
-    invalid.payload = {...invalid.payload, title: "Invalid interface reference", repository_path: repository, source_commit: "a".repeat(40), command: ["python3", "app.py"], verification_image: "python@sha256:" + "b".repeat(64), verification_command: ["python3", "verify.py"], verification_script: "verify.py"};
+    invalid.payload = {...invalid.payload, title: "Invalid interface reference", repository_path: repository, source_commit: "a".repeat(40), command: ["python3", "app.py"]};
+    invalid.links.push({type:"verification",target:activityRevision});
     invalid.links.push({type: "uses-interface", target: origin});
     const invalidFile = path.join(root, "invalid-interface.json");
     await fs.writeFile(invalidFile, JSON.stringify({operation: "invalid-interface", action: prototype.action, package: prototype.package, snapshot: prototype.snapshot, subject: prototype.subject, inputs: prototype.inputs, candidates: [invalid]}));
@@ -96,7 +104,9 @@ test("iterative requirements retain exact origins and interface context across i
     expect(requirements.find((r: any) => r.payload.title === "empty").links).toEqual([]);
     expect(cli("show", origin).lifecycleDatum.datum).toEqual(original);
     const available = cli("expectations").items.map((i: any) => i.action);
-    expect(available).toContain("observe-prototype@1");
+    expect(available).not.toContain("observe-prototype@2");
+    const optional = cli("expectations").optional.map((i:any)=>i.action);
+    expect(optional).toContain("execute-criterion-verification@1");
     expect(available).toContain("review-requirements@2");
     outcome = "passed";
   } finally {

@@ -6,7 +6,7 @@ skills: []
 
 # Author independent verification
 
-Give a fresh verification author `mdlm verification context <exact-RQS-or-EXP> --output <new-file> --json`. Supply that export and the public operation contact only. The author must work without product source, implementation explanations or product-authored expectations. Record its returned authoring_subject and authoring_context values. Ask for requirement clarification when the public contract does not define an observable result.
+Give a fresh verification author `mdlm verification context <exact-RQS-or-EXP> --output <new-file> --json`. Supply that export and the public operation contact only. The author must work without product source, implementation explanations or product-authored expectations. Copy its subject into authoring_subject and its authoringContext digest into authoring_context. Ask for requirement clarification when the public contract does not define an observable result.
 
 Commit the verifier in a separate Git repository. Define each activity's method and objective, exact REQ or EXP targets, cases and coverage. Each case has preconditions, intended actions, expected results and a rationale. Coverage lists the obligations of each target and the case IDs that establish them. Include every obligation of each covered requirement, including relevant boundary and failure behavior. Parent requirements need their own coverage argument; decomposition alone is not evidence. Many cases may share a script and one case may verify several requirements. Keep verification independent of product source organization and private functions.
 
