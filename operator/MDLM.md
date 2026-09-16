@@ -1,13 +1,31 @@
 # Run MDLM
 
-Inspect the current lifecycle and choose useful work:
+Start from the stakeholder's intended outcome and the current lifecycle. In an initialized repository, read the selected package's overview when present:
+
+```bash
+mdlm_package_path=$(jq -r '.package.path' .lifecycle/process-selection.json)
+if [ -f "$mdlm_package_path/README.md" ]; then
+  cat "$mdlm_package_path/README.md"
+fi
+```
+
+Run this lookup from the lifecycle repository root. The selection file identifies the installed package; keep its exact identity. If it has no README, use discovery and action guidance directly:
 
 ```bash
 mdlm expectations --json
 mdlm expectations show <action> [<exact-subject>] --json
 ```
 
-Discovery and guidance are read-only. Priority is a suggestion. Choose work that reduces uncertainty or advances the stakeholder's goal, keeping functionality as small as that goal permits. Follow the package prompt and inspect its exact inputs, schemas and candidate examples.
+Discovery and guidance are read-only. Priority is a suggestion. Follow the package prompt and supplied skills, and inspect its exact inputs, schemas and candidate examples.
+
+Repeat this loop until the agreed outcome or a concrete blocked boundary:
+
+1. Settle any uncertain earlier publication or execution before choosing more work. Otherwise inspect current expectations and compare them with stakeholder intent and actual product-use evidence.
+2. Choose one useful eligible action and briefly state why. Ask the stakeholder when missing intent or a material scope decision prevents that choice. Keep the scope as small as the useful outcome permits. Where the package supports exploration, use a runnable slice to answer an unresolved product question; use observations to judge what deserves formal commitment. For an accepted product, inspect the package's comparison or approved-change route before adopting a change.
+3. Retrieve that action's exact guidance and carry out the authorized work. At a required review or stakeholder decision, initiate the request with the exact context described below. If no stakeholder or review manager is configured, ask the host for that contact. Continue independent authorized work while waiting; resume dependent work only after the required response.
+4. Preserve the returned result, inspect and commit accepted data as described below, then retrieve fresh expectations. Use settlement when the response is uncertain. Let the new state and evidence guide the next choice.
+
+At a package boundary, compare the exact accepted scope with the agreed outcome. Optional work need not all be exhausted. Report the usable artifact and how to exercise it, the actual acceptance or exploratory boundary, and any remaining work or concrete blocker. If guidance is blocked, required authority is unavailable, or publication cannot be authenticated, preserve the exact state and report the missing information. A stopped or uncertain operation is not completion.
 
 Author a proposal with a unique operation ID, the guidance's action, package, snapshot, exact subject and inputs, and your candidates. Each candidate supplies a localId, type, payload, links and body. A revision also names its exact predecessor. References to another candidate use `$<localId>` for its revision or `$<localId>.id` for its stable identity. MDLM generates revision identities and managed data.
 
@@ -64,6 +82,4 @@ Use the exact authority name from guidance for both the array and flag. Authorit
 
 For independent review, give a fresh reviewer the export from `mdlm review context <action> <exact-subject> --json`. The review manager registers the exact proposal and verdict through `mdlm review register <proposal-file> <verdict-file> --json`. The author must not register its own judgment. Submit the exact registered proposal bytes.
 
-Continue through useful work and ordinary correction. At a reported boundary, explain whether it is exploratory completion or actual product acceptance. If guidance is blocked, an authority is unavailable, or publication cannot be authenticated, preserve the exact state and report the missing information.
-
-For a fresh useful-product-to-baseline experiment, initialize with `mdlm init /path/to/lifecycle --process iterative` and follow the [iterative package](../.lifecycle/iterative/README.md). Its accepted formal scope is a profile boundary; compare that exact scope with the agreed whole product before declaring the experiment complete.
+For a fresh useful-product-to-baseline experiment, initialize with `mdlm init /path/to/lifecycle --process iterative`, then read the installed package overview using the selection lookup above. Its accepted formal scope is a profile boundary; compare that exact scope with the agreed whole product before declaring the experiment complete.
