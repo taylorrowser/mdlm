@@ -163,7 +163,7 @@ export async function finalizeDirectDomain(context: DirectFinalizationContext): 
         const productId = datum.links.find(l => l.type === "accepts")?.target;
         if (!productId || !verificationStatus(state, productId).complete) throw new Error("Acceptance requires adequate independently reviewed coverage and current passing evidence for every requirement");
       }
-      if (context.action.id === "observe-prototype") {
+      if (context.action.capability === "observation") {
         const product = state.data.find(d => d.type === independent.prototype_type && [context.subject, ...Object.values(context.inputs).flat()].includes(d.revision_id));
         if (!product) throw new Error("Observation needs one exact prototype");
         const results = selectedActivities(state, product).flatMap(a => {

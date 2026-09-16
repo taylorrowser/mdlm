@@ -2,7 +2,7 @@ kind: action-definition
 id: observe-prototype
 version: 2
 description: Assess the exact prototype execution and recommend a next step
-capability: experiment
+capability: observation
 prompt_ref: prompts/direct-observation.md@3
 types:
 - OBS

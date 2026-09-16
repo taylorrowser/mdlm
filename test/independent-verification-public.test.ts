@@ -81,11 +81,14 @@ test("independent verification reports complete requirements, failures, stale ev
     imp.payload={...imp.payload,title:"Count product",repository_path:product,source_commit:source,command:["python3","app.py"],file_roles:{"app.py":"production"},source_ranges:[{path:"app.py",name:"count",start:1,end:2,requirements:[datum(byTitle.count).id,datum(byTitle.empty).id]}]};imp.links.push({type:"verification",target:activity});
     let productId=(await submit(implementation,"implementation",[imp])).revisions.find((id:string)=>id.startsWith("IMP-"));
     const execute=async(op:string,id:string,activityId=activity) => {const execution=cli(["execution","run",id,op,"--activity",activityId]);const g=guidance("execute-verification",id),c=g.candidates[0];c.payload={...c.payload,title:"Verification result",assessment:"Captured assertions compared public output to independently specified expectations",correction_target:execution.value.receipt.result.outcome==="pass"?"none":"implementation"};c.links.push({type:"evaluates",target:activityId});await submit(g,`${op}-result`,[c],{receipt:execution.value.evidence});return execution;};
-    const first=await execute("pass",productId);
-    expect(first.value.receipt.result.caseResults).toHaveLength(2);
     const beforeReview=cli(["verification","status",productId]);expect(beforeReview.complete).toBe(false);expect(beforeReview.requirements.every((r:any)=>r.overall==="awaiting-review")).toBe(true);
     await review("review-verification",activity,"review-coverage");
-    expect(cli(["verification","status",productId]).requirements[0].overall).toBe("awaiting-coverage-review");
+    const beforeExecution=cli(["verification","status",productId]);
+    expect(beforeExecution.complete).toBe(false);
+    for(const row of beforeExecution.requirements) expect(row).toMatchObject({coverage:"adequate",execution:"not-run",collectiveCoverage:"awaiting-coverage-review",overall:"not-run",nextAction:"Execute the selected activity against this exact product"});
+    const first=await execute("pass",productId);
+    expect(first.value.receipt.result.caseResults).toHaveLength(2);
+    expect(cli(["verification","status",productId]).requirements[0]).toMatchObject({overall:"awaiting-coverage-review",nextAction:"Review collective requirement coverage with the implementation"});
     const settled=cli(["execution","run",productId,"pass","--activity",activity]);expect(settled.value.evidence).toBe(first.value.evidence);
     const rerun=await execute("pass-fresh",productId);
     const oldGuidance=guidance("execute-verification",productId),oldCandidate=oldGuidance.candidates[0];oldCandidate.payload={...oldCandidate.payload,assessment:"Attempt to reuse older evidence",correction_target:"none"};oldCandidate.links.push({type:"evaluates",target:activity});

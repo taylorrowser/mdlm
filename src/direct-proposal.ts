@@ -102,7 +102,7 @@ async function guidance(current: State,ref: string,subject?: string) {
     const predecessor=predecessorInput?context.inputs[predecessorInput]?.[0]:undefined;
     candidates.push({localId:type.toLowerCase(),type,...(predecessor?{predecessor}:{}),payload:{...(context.action.fixed_payload?.[type]??{})},links:fixedLinks(context,type),body:""});
   }
-  const execution=["observation","verification-result","independent-result"].includes(context.action.capability);
+  const execution=(["verification-result","independent-result"].includes(context.action.capability) || (context.action.capability === "observation" && !independentBinding(context.pkg)));
   const implementation=execution?executionSubject(context):undefined;
   return {ok:true,contract:"mdlm-direct-guidance@1",action:actionRef(context.action),...(subject?{subject}:{}),package:current.package,snapshot:current.snapshot,inputs:context.inputs,prompt:prompt.prompt,payloadSchemas:schemas,sourceAssessmentTargets:sourceAssessmentTargets(context),requirementAuthoringTargets:requirementAuthoringTargets(context),context:current.data.filter(d=>Object.values(context.inputs).flat().includes(d.revision_id)||d.revision_id===subject),candidates,...(context.action.authority?{authority:context.action.authority}:{}),...(implementation?{executionSubject:implementation.revision_id,executionCommand:`mdlm execution run ${implementation.revision_id} <operation>${independentBinding(current.pkg)?" --activity <exact-VFY>":""} --json`,evidence:await availableReceipts(current,implementation),receiptDetails:await receiptDetails(current,implementation)}:{})};
 }
@@ -165,7 +165,7 @@ export async function submitDirectProposal(root:string,source:string,authorities
     const authority=await validateDirectAuthority(context,proposal,source);
     const candidates=outputData(context,proposal,prompt.prompt.skills.map(s=>s.reference));
     const finalized=await finalizeDirectDomain({...context,proposal,outputs:candidates});
-    if(["observation","verification-result","independent-result"].includes(context.action.capability)){
+    if((["verification-result","independent-result"].includes(context.action.capability) || (context.action.capability === "observation" && !independentBinding(context.pkg)))){
       if(finalized.outputs.length!==1)fail("Evidence assessment publishes one result");
       const target=executionSubject(context);const d=finalized.outputs[0]!;const activity=d.links.find(l=>l.type==="evaluates")?.target;const receipt=await receiptFor(current,proposal.evidence?.receipt??"",target,activity);
       d.payload.outcome=receipt.outcome;d.payload.receipt=receipt.receipt;
