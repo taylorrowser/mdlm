@@ -1,6 +1,6 @@
 # Iterative Process Package
 
-`mdlm init /path/to/lifecycle --process iterative` starts a fresh `mdlm-iterative@1.3.0` repository. It combines the existing exploratory and formal routes. Existing tiny and exploratory products retain their selected package bytes and history.
+`mdlm init /path/to/lifecycle --process iterative` starts a fresh repository with the bundled `mdlm-iterative` package. It combines the existing exploratory and formal routes. Existing tiny and exploratory products retain their selected package bytes and history.
 
 Discuss the intended product and agree its smallest useful scope. Choose vertical slices that resolve uncertainty, build a usable integrated prototype, then use it while progressively formalizing necessary behavior. EXP records provisional criteria and choices, TRY binds committed runnable source, OBS records actual execution and observations, and FDB records stakeholder feedback. These planning practices guide agent choices; they are not additional kernel gates.
 
