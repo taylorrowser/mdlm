@@ -60,9 +60,10 @@ it("executes two immutable repositories, captures cases/artifact and settles wit
   await writeFile(join(verifier, "verify.py"), `import json, os, pathlib, subprocess, sys
 actual = subprocess.check_output([sys.executable, os.environ["MDLM_PRODUCT_DIR"] + "/app.py"], text=True)
 evidence = pathlib.Path(os.environ["MDLM_EVIDENCE_DIR"])
-(evidence / "actual.txt").write_text(actual)
+(evidence / "captures").mkdir()
+(evidence / "captures" / "actual.txt").write_text(actual)
 passed = actual == "30\\n"
-rows = [{"case_id": "first", "outcome": "pass" if passed else "fail", "actual_results": [actual], "evidence_refs": ["actual.txt"]}, {"case_id": "second", "outcome": "pass", "actual_results": ["Process completed"], "evidence_refs": []}]
+rows = [{"case_id": "first", "outcome": "pass" if passed else "fail", "actual_results": [actual], "evidence_refs": ["captures/actual.txt"]}, {"case_id": "second", "outcome": "pass", "actual_results": ["Process completed"], "evidence_refs": []}]
 (evidence / "results.json").write_text(json.dumps({"contract": "mdlm-verification-results@1", "cases": rows}))
 print("Independent verification executed")
 sys.exit(0 if passed else 1)
