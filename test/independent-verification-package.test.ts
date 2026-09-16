@@ -2,7 +2,7 @@ import {readFile} from "node:fs/promises";
 import path from "node:path";
 import {test, expect} from "vitest";
 import {parse} from "yaml";
-import Ajv2020 from "ajv/dist/2020.js";
+import { Ajv2020 } from "ajv/dist/2020.js";
 
 const definition = async (name: string) => parse(await readFile(path.join(process.cwd(), ".lifecycle/iterative", name), "utf8"));
 

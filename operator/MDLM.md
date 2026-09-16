@@ -67,7 +67,7 @@ mdlm execution run <exact-implementation-or-prototype> <operation-id> --json
 mdlm execution settlement <operation-id> --json
 ```
 
-Read the actual receipt and captured output. Guidance's `evidence` array lists available receipt locators; choose the exact receipt supporting the proposed result or observation. The proposal's `evidence` is an object with a `receipt` field:
+Use `mdlm execution export <operation-id> <new-directory> --json` to inspect saved receipt evidence as files. This read-only export never repeats the command and preserves an existing destination. Read the actual receipt and captured output. Guidance's `evidence` array lists available receipt locators; choose the exact receipt supporting the proposed result or observation. The proposal's `evidence` is an object with a `receipt` field:
 
 ```json
 {"evidence": {"receipt": "<exact git-blob: locator from guidance.evidence>"}}

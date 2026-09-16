@@ -42,13 +42,20 @@ for (const consecutive of [false, true]) test(`unchanged accepted graph reuses t
   expect(eligible(f, "rebind-product")).toBe(true);
   expect(eligible(f, "review-requirements")).toBe(false);
   expect(evaluate(f.data, (pkg.manifest.terminal as {when: unknown}).when)).toBe(false);
-  const nextImp = datum(f.imp.id, 2, [link("implements", f.candidate)]);
-  const result = datum("RES-result", 1, [link("executes", nextImp), link("verifies", f.candidate)], {outcome: "pass"});
+  const activity = datum("VFY-behavior", 1, [link("verifies", f.leaf)]);
+  const boundary = datum("VFY-boundary", 1, [link("verifies", f.need)]);
+  const activityReview = datum("REV-activity", 1, [link("reviews", activity)], {outcome:"pass"});
+  const boundaryReview = datum("REV-boundary", 1, [link("reviews", boundary)], {outcome:"pass"});
+  const nextImp = datum(f.imp.id, 2, [link("implements", f.candidate), link("verification", activity), link("verification", boundary)]);
+  const result = datum("RES-result", 1, [link("executes", nextImp), link("verifies", f.candidate), link("evaluates", activity)], {outcome: "pass"});
+  const boundaryResult = datum("RES-boundary", 1, [link("executes", nextImp), link("verifies", f.candidate), link("evaluates", boundary)], {outcome: "pass"});
   const review = datum("REV-implementation", 1, [link("reviews", nextImp)], {outcome: "pass"});
   const acceptance = datum("ACC-next", 1, [link("accepts", nextImp), link("confirms", f.candidate)], {decision: "accept"});
-  f.data.push(nextImp, result, review, acceptance);
+  f.data.push(activity, boundary, activityReview, boundaryReview, nextImp, result, boundaryResult, review, acceptance);
   expect(evaluate(f.data, (pkg.manifest.terminal as {when: unknown}).when)).toBe(true);
-  for (const required of [result, review, acceptance]) expect(evaluate(f.data.filter(d => d !== required), (pkg.manifest.terminal as {when: unknown}).when)).toBe(false);
+  for (const required of [result, boundaryResult, activityReview, boundaryReview, review, acceptance]) expect(evaluate(f.data.filter(d => d !== required), (pkg.manifest.terminal as {when: unknown}).when)).toBe(false);
+  const laterFailure = datum("RES-later-failure", 1, [link("executes", nextImp), link("verifies", f.candidate), link("evaluates", boundary), link("supersedes", boundaryResult)], {outcome:"fail"});
+  expect(evaluate([...f.data, laterFailure], (pkg.manifest.terminal as {when: unknown}).when)).toBe(false);
 });
 
 const negatives: Array<[string, (f: ReturnType<typeof fixture>) => void]> = [
