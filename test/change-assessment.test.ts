@@ -1,6 +1,6 @@
 import {expect, test} from "vitest";
 import type {DatumEnvelope} from "../src/index.js";
-import {assessRequirements, changeImpact, deriveSourceDispositionCandidates, validateChangeDatum} from "../src/change-assessment.js";
+import {assessRequirements, changeImpact, requirementAuthoringFrontier, deriveSourceDispositionCandidates, validateChangeDatum} from "../src/change-assessment.js";
 import type {RequirementTraceBinding} from "../src/requirement-trace.js";
 const binding: RequirementTraceBinding = {type: "RQS", requirement_type: "REQ", implementation_type: "IMP", scope_type: "SCP", decomposition_type: "DCP", change_type: "CHG", acceptance_type: "ACC", review_type: "REV"};
 function d(id: string, links: Record<string, string[]> = {}, payload: Record<string, unknown> = {}, revision = 1): DatumEnvelope {
@@ -124,6 +124,8 @@ test("draft edits are free but accepted stable requirements require approved bou
 test("approval does not allow skipping the descendant review frontier", () => {
   const f = fixture(); baseline(f);
   const change = request(f, f.root);
+  expect(requirementAuthoringFrontier(f.data, binding, change, f.set)).toEqual({requirements: [id(f.root)], groups: []});
+  expect(changeImpact(f.data, binding, change).requirements).toContain(id(f.leaf));
   const candidate = replace(f, change, f.leaf);
   expect(validateChangeDatum(f.data, binding, candidate.set).map(d => d.code)).toContain("change-frontier");
 });
@@ -328,4 +330,23 @@ test("changed review guidance names affected baseline scopes, not current eviden
   expect(validateChangeDatum(f.data, binding, review).filter(d => d.code === "change-source-review-coverage")).toEqual([]);
   review.payload.source_assessments = current.map(scope => ({source_scope: id(scope), disposition: "valid"}));
   expect(validateChangeDatum(f.data, binding, review).map(d => d.code)).toContain("change-source-review-coverage");
+});
+
+test("review-derived authoring frontier preserves exact child and membership corrections", async () => {
+  const f = fixture(); baseline(f);
+  const change = request(f, f.parent);
+  const candidate = replace(f, change, f.parent);
+  f.data.push(d("REV-corrections", {reviews: [id(candidate.set)]}, {
+    outcome: "fail",
+    requirement_assessments: [{requirement: id(candidate.revision), disposition: "valid"}],
+    decomposition_assessments: [{group: id(candidate.groups[1]!), disposition: "needs-change", membership_action: "revise-membership", children: [{requirement: id(f.leaf), disposition: "needs-change"}]}],
+  }));
+  expect(requirementAuthoringFrontier(f.data, binding, change, candidate.set)).toEqual({requirements: [id(f.leaf)], groups: [id(candidate.groups[1]!)]});
+  const {loadProcessPackage} = await import("../src/index.js");
+  const {requirementAuthoringTargets} = await import("../src/direct-guidance.js");
+  const loaded = await loadProcessPackage(`${process.cwd()}/.lifecycle/process`);
+  if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+  const targets = requirementAuthoringTargets({root: ".", pkg: loaded.package, package: {reference: "fixture@1", digest: "fixture", language: "fixture"}, snapshot: "fixture", data: f.data, inputs: {subject: [id(candidate.set)]}, subject: id(candidate.set), action: loaded.package.actions["correct-requirements-after-review"]!});
+  expect(targets?.frontier).toEqual({requirements: [id(f.leaf)], groups: [id(candidate.groups[1]!)]});
+  expect(targets?.change).toBe(id(change));
 });
