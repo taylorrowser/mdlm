@@ -1,11 +1,11 @@
 ---
 id: implement-product
-version: 8
+version: 9
 skills:
 - skills/product-quality.md@1
 - skills/typed-requirements.md@5
 - skills/verification-starter.md@2
-- skills/source-trace.md@3
+- skills/source-trace.md@4
 ---
 
 # Implement the tiny product
