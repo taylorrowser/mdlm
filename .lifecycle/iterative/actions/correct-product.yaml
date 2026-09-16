@@ -3,7 +3,7 @@ id: correct-product
 version: 1
 description: Correct a failed verification or stakeholder rejection
 capability: implementation
-prompt_ref: prompts/correct-product.md@8
+prompt_ref: prompts/correct-product.md@9
 types:
 - IMP
 subjects: select("implementation-failures@1", {})

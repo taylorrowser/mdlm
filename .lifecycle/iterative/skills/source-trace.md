@@ -1,13 +1,13 @@
 ---
 id: source-trace
-version: 3
+version: 4
 ---
 
 # Attribute the committed source through ordinary requirement links
 
 Start from the reviewed RQS in guidance.context and follow its contains and decomposition links with `mdlm show <exact-revision> --json` to read the complete selected REQs and DCPs. Source annotations name its published stable REQ IDs; the CLI resolves those IDs only against the selected exact revisions. Production code implements software leaves. Verification code verifies leaves and may also name upper-level contracts. Verification setup, fixtures and assertion helpers contribute to their linked contract; they do not each prove it independently.
 
-Declare file_roles for every tracked entry, using production, verification, documentation, build or configuration. The CLI derives product_files, source_inventory, physical ranges and SCP datums from the committed source. Include empty files in the inventory. Classify code honestly; documentation is a role to review, not an escape from attribution. The initial source format is Python comments. Unsupported executable formats, generated code and vendored code need explicit supported treatment before claiming complete coverage.
+Declare file_roles honestly for every tracked entry, including empty files. In formal scope, production, verification and build files must be Python `.py` source; documentation must be nonexecutable prose. The current Python trace path rejects every formal configuration file, including `.gitignore`. For optional local Git ignore rules, use `.git/info/exclude` outside the tracked snapshot. If the formal product needs configuration, report the unsupported treatment instead of relabeling it as documentation. Provisional files outside formal_files retain their declared roles in the complete inventory; that inventory does not make them formally supported or accepted. The CLI derives product_files, source_inventory, physical ranges and SCP datums from the committed source. Unsupported executable formats, generated code and vendored code need explicit supported treatment before claiming complete coverage.
 
 Put every nonblank Python line in the formal scope inside an explicit closed, nonnested named region. Imports, comments, docstrings and support code count as content. Region names are unique within each file. Blank or whitespace-only lines outside regions are exempt; delimiters and blanks inside a region belong to that region. File-default directives are rejected. Use `python3 product.py` invocation without a shebang outside the regions.
 
