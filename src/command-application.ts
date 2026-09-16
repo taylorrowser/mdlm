@@ -1,4 +1,5 @@
 import { promises as fs } from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { parse } from "yaml";
 import { inspectDirectExpectations, submitDirectProposal, inspectDirectSettlement, runDirectExecution, inspectDirectExecution, inspectDirectReview, registerDirectReviewFiles } from "./direct-proposal.js";
@@ -29,7 +30,7 @@ Direct lifecycle work:
   mdlm proposal settlement <operation-id> [--json]
   mdlm execution run <exact-subject> <operation-id> [--json]
   mdlm execution settlement <operation-id> [--json]
-  mdlm review context <action> [<exact-subject>] [--json]
+  mdlm review context <action> [<exact-subject>] [--output <file>] [--json]
   mdlm review register <proposal-file> <verdict-file> [--json]
 
 Inspect lifecycle data:
@@ -688,7 +689,12 @@ async function dispatchCommand(
   repositoryRoot: string,
   standardInput?: string,
 ): Promise<CommandResult> {
-  const operands = commandOperands(arguments_);
+  const outputOptions = optionValues(arguments_, "--output");
+  const exportingReview = arguments_[0] === "review" && arguments_[1] === "context";
+  if (arguments_.includes("--output") && (!exportingReview || outputOptions.length !== 1 || !outputOptions[0] || outputOptions[0].startsWith("--"))) {
+    return failure("review-output-invalid", "--output requires one file path for review context");
+  }
+  const operands = commandOperands(exportingReview ? arguments_.filter((argument, index) => argument !== "--output" && arguments_[index - 1] !== "--output") : arguments_);
   if (
     (arguments_.length === 1 && arguments_[0] === "--help") ||
     (operands.length === 1 && operands[0] === "help")
@@ -742,7 +748,19 @@ async function dispatchCommand(
   }
   if (operands[0] === "review") {
     if (operands[1] === "context" && [3, 4].includes(operands.length)) {
-      return { ...await inspectDirectReview(repositoryRoot, operands[2]!, operands[3]), command: "review.context", diagnostics: [] };
+      const context = await inspectDirectReview(repositoryRoot, operands[2]!, operands[3]);
+      const result = {...context, command: "review.context", diagnostics: []};
+      if (!outputOptions.length) return result;
+      const file = path.resolve(repositoryRoot, outputOptions[0]!);
+      const bytes = Buffer.from(`${JSON.stringify(result, null, 2)}\n`, "utf8");
+      await fs.writeFile(file, bytes, {flag: "wx"});
+      return {
+        ok: true, command: "review.context", contract: "mdlm-review-export@1",
+        export: {path: file, bytes: bytes.length, exportSha256: createHash("sha256").update(bytes).digest("hex")},
+        action: `${context.action.id}@${context.action.version}`,
+        ...(context.subject ? {subject: context.subject} : {}),
+        snapshot: context.snapshot, package: context.package, diagnostics: [],
+      };
     }
     if (operands[1] === "register" && operands.length === 4) {
       const [proposal, verdict] = await Promise.all([

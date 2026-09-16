@@ -45,3 +45,54 @@ test("the kernel accepts the second eligible action without a first-item claim",
     expect(cli("expectations").items.map((item:{action:string})=>item.action)).toContain("first-experiment@1");
   } finally {await fs.rm(root,{recursive:true,force:true});}
 },60_000);
+
+test("saved review context provides exact handoff metadata without replacing exports", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-review-export-"));
+  const repository = path.join(root, "lifecycle");
+  const cli = (...args: string[]) => {
+    const result = spawnSync(process.execPath, [path.join(process.cwd(), "dist/mdlm.js"), ...args, "--json"], {cwd: repository, encoding: "utf8", timeout: 30_000});
+    expect(result.error).toBeUndefined();
+    return {status: result.status, source: result.stdout, value: JSON.parse(result.stdout)};
+  };
+  try {
+    await fs.mkdir(repository);
+    expect(cli("init", repository).status).toBe(0);
+    const guidance = cli("expectations", "show", "draft-requirements@1").value;
+    const candidates = [
+      {localId: "need", type: "REQ", payload: {title: "Counting", publication: "recorded", kind: "stakeholder", statement: "The user shall receive a count", rationale: "Count supplied items"}, links: [], body: ""},
+      {localId: "count", type: "REQ", payload: {title: "Count items", publication: "recorded", kind: "software", ears: {pattern: "ubiquitous", system: "The counter", response: "return the supplied item count"}}, links: [], body: ""},
+      {localId: "group", type: "DCP", payload: {title: "Counting behavior", publication: "recorded"}, links: [{type: "parent", target: "$need"}, {type: "child", target: "$count"}], body: ""},
+      guidance.candidates.find((candidate: {type: string}) => candidate.type === "RQS"),
+    ];
+    const proposal = {operation: "prepare-export", action: guidance.action, package: guidance.package, snapshot: guidance.snapshot, inputs: guidance.inputs, candidates};
+    const proposalFile = path.join(root, "proposal.json");
+    await fs.writeFile(proposalFile, JSON.stringify(proposal));
+    const submitted = cli("proposal", "submit", proposalFile);
+    expect(submitted.status, submitted.source).toBe(0);
+    const subject = submitted.value.revisions.find((id: string) => id.startsWith("RQS-"));
+    const action = cli("expectations").value.items.find((item: {subject?: string}) => item.subject === subject).action;
+    const args = ["review", "context", action, subject];
+    const ordinary = cli(...args);
+    expect(ordinary.status, ordinary.source).toBe(0);
+    const file = path.join(repository, "review-context.json");
+    const exported = cli(...args, "--output", "review-context.json");
+    expect(exported.status, exported.source).toBe(0);
+    const bytes = await fs.readFile(file);
+    expect(bytes.toString("utf8")).toBe(ordinary.source);
+    const {createHash} = await import("node:crypto");
+    expect(exported.value).toEqual({
+      ok: true, command: "review.context", contract: "mdlm-review-export@1",
+      export: {path: file, bytes: bytes.length, exportSha256: createHash("sha256").update(bytes).digest("hex")},
+      action, subject, snapshot: ordinary.value.snapshot, package: ordinary.value.package, diagnostics: [],
+    });
+    const existing = cli(...args, "--output", file);
+    expect(existing.status).toBe(1);
+    expect(existing.value.ok).toBe(false);
+    expect(existing.value).not.toHaveProperty("export");
+    expect(await fs.readFile(file)).toEqual(bytes);
+    const invalid = cli("review", "context", "unknown@1", "--output", "invalid.json");
+    expect(invalid.status).toBe(1);
+    await expect(fs.stat(path.join(repository, "invalid.json"))).rejects.toMatchObject({code: "ENOENT"});
+    expect(cli(...args, "--output", path.join(root, "missing", "export.json")).status).toBe(1);
+  } finally {await fs.rm(root, {recursive: true, force: true});}
+}, 60_000);
