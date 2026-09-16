@@ -195,7 +195,10 @@ export async function executeDockerVerification(input: DockerVerificationInput):
     result.phase = "environment";
     containerAttempted = true;
     await checked("docker", ["create", "--name", container, "--network", "none", "--read-only",
-      "--user", "65534:65534", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
+      // Match the non-root caller for writable evidence, so nested output keeps
+      // host-readable/removable ownership. Root callers retain nobody in Docker.
+      "--user", independent && process.getuid?.() ? `${process.getuid()}:${process.getgid!()}` : "65534:65534",
+      "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
       "--pids-limit", "128", "--tmpfs", "/tmp:rw,nosuid,nodev,size=64m",
       ...(independent ? [
         "--mount", `type=bind,source=${snapshot},target=/product,readonly`,
