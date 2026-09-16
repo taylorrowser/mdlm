@@ -91,6 +91,18 @@ export function deriveSourceDispositionCandidates(
   });
 }
 
+/** Exact editable targets, shared by authoring guidance and publication checks. */
+export function requirementAuthoringFrontier(data: DatumEnvelope[], b: RequirementTraceBinding, change: DatumEnvelope, previous: DatumEnvelope | undefined): {requirements: string[]; groups: string[]} {
+  const baseline = find(data, targets(change, "baseline")[0]);
+  const baseSet = find(data, targets(baseline, "confirms")[0]);
+  const frontier = previous && previous.revision_id !== baseSet?.revision_id
+    ? assessRequirements(data, b, previous).correction
+    : {requirements: targets(change, "changes"), groups: []};
+  const priorChange = find(data, targets(previous, "changes-under")[0]);
+  if (priorChange && priorChange.revision < change.revision) frontier.requirements.push(...targets(change, "changes").filter(id => !targets(priorChange, "changes").includes(id)));
+  return frontier;
+}
+
 /** Derive local review obligations from exact graph evidence, without maintaining a queue. */
 export function assessRequirements(data: DatumEnvelope[], b: RequirementTraceBinding, set: DatumEnvelope): RequirementAssessments {
   const graph = selectedRequirementGraph(data, set, b);
@@ -234,9 +246,7 @@ export function validateChangeDatum(data: DatumEnvelope[], b: RequirementTraceBi
           const requirement = find(all, id);
           if (requirement) allowedIds.add(requirement.id);
         }
-        const frontier = previous && previous !== baseSet ? assessRequirements(others, b, previous).correction : {requirements: targets(authority.change, "changes"), groups: []};
-        const priorChange = find(all, targets(previous, "changes-under")[0]);
-        if (priorChange && priorChange.revision < authority.change.revision) frontier.requirements.push(...targets(authority.change, "changes").filter(id => !targets(priorChange, "changes").includes(id)));
+        const frontier = requirementAuthoringFrontier(others, b, authority.change, previous);
         const frontierIds = new Set(frontier.requirements.flatMap(id => find(all, id)?.id ?? []));
         const groupIds = new Set(frontier.groups.flatMap(id => find(all, id)?.id ?? []));
         for (const r of graph.requirements) {

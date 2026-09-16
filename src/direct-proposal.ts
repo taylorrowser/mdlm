@@ -15,7 +15,7 @@ import { finalizeDirectDomain } from "./direct-domain.js";
 import { validateDirectAuthority, buildDirectReviewContext, registerDirectReview } from "./direct-authority.js";
 import { readVerificationReceiptBlob, validateVerificationReceipt, type VerificationBinding, runVerificationReceipt, verificationRef } from "./verification-receipt.js";
 import { repositoryGitEnvironment } from "./git-environment.js";
-import { authorablePayloadSchema, sourceAssessmentTargets } from "./direct-guidance.js";
+import { authorablePayloadSchema, sourceAssessmentTargets, requirementAuthoringTargets } from "./direct-guidance.js";
 
 const exec = promisify(execFile);
 export const directDigest = (source: string) => `sha256:${createHash("sha256").update(source).digest("hex")}`;
@@ -94,7 +94,7 @@ async function guidance(current: State,ref: string,subject?: string) {
   }
   const execution=["observation","verification-result"].includes(context.action.capability);
   const implementation=execution?executionSubject(context):undefined;
-  return {ok:true,contract:"mdlm-direct-guidance@1",action:actionRef(context.action),...(subject?{subject}:{}),package:current.package,snapshot:current.snapshot,inputs:context.inputs,prompt:prompt.prompt,payloadSchemas:schemas,sourceAssessmentTargets:sourceAssessmentTargets(context),context:current.data.filter(d=>Object.values(context.inputs).flat().includes(d.revision_id)||d.revision_id===subject),candidates,...(context.action.authority?{authority:context.action.authority}:{}),...(implementation?{executionSubject:implementation.revision_id,executionCommand:`mdlm execution run ${implementation.revision_id} <operation> --json`,evidence:await availableReceipts(current,implementation),receiptDetails:await receiptDetails(current,implementation)}:{})};
+  return {ok:true,contract:"mdlm-direct-guidance@1",action:actionRef(context.action),...(subject?{subject}:{}),package:current.package,snapshot:current.snapshot,inputs:context.inputs,prompt:prompt.prompt,payloadSchemas:schemas,sourceAssessmentTargets:sourceAssessmentTargets(context),requirementAuthoringTargets:requirementAuthoringTargets(context),context:current.data.filter(d=>Object.values(context.inputs).flat().includes(d.revision_id)||d.revision_id===subject),candidates,...(context.action.authority?{authority:context.action.authority}:{}),...(implementation?{executionSubject:implementation.revision_id,executionCommand:`mdlm execution run ${implementation.revision_id} <operation> --json`,evidence:await availableReceipts(current,implementation),receiptDetails:await receiptDetails(current,implementation)}:{})};
 }
 export async function inspectDirectExpectations(root:string,action?:string,subject?:string) {
   const current=await directState(root);

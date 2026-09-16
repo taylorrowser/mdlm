@@ -438,6 +438,15 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
       assert.equal(cli(['expectations']).outcome, 'lifecycle-complete');
       const change = submit('request-change', set.revision_id, [candidate('remove-label', 'CHG', {reason: 'The fixture stakeholder now wants only the count; the label adds unused output.', requested_outcome: 'Print only the item count. Retire the label requirement and remove its code and verification.'}, [link('baseline', acceptance.revision_id), link('changes', need.revision_id), link('changes', label.revision_id)])]).find(d => d.type === 'CHG');
       submit('approve-change', change.revision_id, [candidate('scope-approval', 'REV', {outcome: 'pass', findings: `Approve only label retirement and the corresponding stakeholder statement and decomposition. ${fixtureAuthority}`}, [link('reviews', change.revision_id)])]);
+      const revisionGuidance = guidance('revise-requirements', change.revision_id);
+      assert.deepEqual(revisionGuidance.requirementAuthoringTargets.frontier, {requirements: [need.revision_id, label.revision_id], groups: []});
+      assert.ok(revisionGuidance.requirementAuthoringTargets.impact.requirements.includes(count.revision_id));
+      const outsideFrontier = cli(['proposal', 'submit', '-'], {
+        operation: 'reject-outside-authoring-frontier', action: revisionGuidance.action, package: revisionGuidance.package,
+        snapshot: revisionGuidance.snapshot, subject: revisionGuidance.subject, inputs: revisionGuidance.inputs,
+        candidates: [candidate('count', 'REQ', {...count.payload, ears: {...count.payload.ears, response: 'count each supplied argument'}}, [], count.revision_id), candidate('requirements', 'RQS', {}, [], set.revision_id)],
+      }, {expected: 1});
+      assert.match(JSON.stringify(outsideFrontier.diagnostics), /change-frontier/);
       const revised = submit('revise-requirements', change.revision_id, [
         candidate('need', 'REQ', {kind: 'stakeholder', statement: 'Count supplied command-line items.'}, [], need.revision_id),
         candidate('decomposition', 'DCP', {}, [link('parent', '$need'), link('child', count.revision_id)], group.revision_id),
