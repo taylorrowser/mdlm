@@ -15,10 +15,11 @@ export interface RequirementTraceBinding {
   review_type?: string;
   result_type?: string;
   partialSource?: boolean;
+  independentVerification?: boolean;
 }
 export function requirementTraceBinding(pkg: ProcessPackage): RequirementTraceBinding | undefined {
-  const binding = pkg.kernelCapabilities["requirement-trace@3"] ?? pkg.kernelCapabilities["requirement-trace@2"] ?? pkg.kernelCapabilities["requirement-trace@1"];
-  return binding ? {...binding, partialSource: !!pkg.kernelCapabilities["requirement-trace@3"]} as RequirementTraceBinding : undefined;
+  const binding = pkg.kernelCapabilities["requirement-trace@4"] ?? pkg.kernelCapabilities["requirement-trace@3"] ?? pkg.kernelCapabilities["requirement-trace@2"] ?? pkg.kernelCapabilities["requirement-trace@1"];
+  return binding ? {...binding, partialSource: !!(pkg.kernelCapabilities["requirement-trace@3"] || pkg.kernelCapabilities["requirement-trace@4"]), independentVerification: !!pkg.kernelCapabilities["requirement-trace@4"]} as RequirementTraceBinding : undefined;
 }
 export function latestRequirements(data: DatumEnvelope[], binding: RequirementTraceBinding): DatumEnvelope[] {
   const latest = new Map<string, DatumEnvelope>();
@@ -173,10 +174,10 @@ export async function deriveImplementationScopes(
         || new Set(selectedFiles).size !== selectedFiles.length
       : selectedFiles !== undefined;
     if (invalidSelection) return {diagnostics: [{code: "trace-formal-files", message: "Partial acceptance requires distinct exact committed formal_files; whole-product acceptance must omit formal_files"}], inventory: [], scopes: []};
-    if (partial && !(selectedFiles as string[]).includes(String(implementation.payload.verification_script))) return {diagnostics: [{code: "trace-formal-verifier", message: "The verification script must belong to the formal source selection"}], inventory: [], scopes: []};
-    const generated = deriveSourceScopes({ entries, ...(partial ? {formalFiles: selectedFiles as string[]} : {}), selectedRequirements: graph.requirements.map((d) => ({ stableId: d.id, revisionId: d.revision_id, kind: d.payload.kind as "stakeholder" | "software", isLeaf: graph.leaves.has(d.revision_id) })) });
+    if (!binding.independentVerification && partial && !(selectedFiles as string[]).includes(String(implementation.payload.verification_script))) return {diagnostics: [{code: "trace-formal-verifier", message: "The verification script must belong to the formal source selection"}], inventory: [], scopes: []};
+    const generated = deriveSourceScopes({ entries, ...(binding.independentVerification && implementation.payload.source_ranges ? {explicitRanges: implementation.payload.source_ranges as any} : {}), ...(partial ? {formalFiles: selectedFiles as string[]} : {}), selectedRequirements: graph.requirements.map((d) => ({ stableId: d.id, revisionId: d.revision_id, kind: d.payload.kind as "stakeholder" | "software", isLeaf: graph.leaves.has(d.revision_id) })) });
     for (const leaf of graph.leaves) {
-      for (const relation of ["implements", "verifies"]) {
+      for (const relation of (binding.independentVerification ? ["implements"] : ["implements", "verifies"])) {
         if (!generated.scopes.some((scope) => scope.links.some((link) => link.type === relation && link.target === leaf))) generated.diagnostics.push({code: "trace-requirement-uncovered", path: leaf, message: `Software leaf '${leaf}' has no source scope that '${relation}' it`});
       }
     }

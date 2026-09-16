@@ -71,6 +71,8 @@ export interface KernelCapabilityBinding {
   type: string;
   requirement_type?: string;
   implementation_type?: string;
+  prototype_type?: string;
+  criterion_type?: string;
   scope_type?: string;
   decomposition_type?: string;
   change_type?: string;
@@ -207,7 +209,7 @@ function validateKernelCapabilityBindings(
 ): ProcessDiagnostic[] {
   return Object.entries(kernelCapabilities).flatMap(([reference, binding]) => {
     const path = `manifest.kernel_capabilities.${reference}.type`;
-    if (reference !== exactBaselineCapability.reference && reference !== "direct-observation@1" && reference !== "direct-observation@2" && reference !== "docker-verification@1" && reference !== "requirement-trace@1" && reference !== "requirement-trace@2" && reference !== "requirement-trace@3") {
+    if (reference !== exactBaselineCapability.reference && reference !== "direct-observation@1" && reference !== "direct-observation@2" && reference !== "docker-verification@1" && reference !== "requirement-trace@1" && reference !== "requirement-trace@2" && reference !== "requirement-trace@3" && reference !== "requirement-trace@4" && reference !== "independent-verification@1") {
       return [{
         code: "unknown-kernel-capability",
         path,
@@ -239,9 +241,19 @@ function validateKernelCapabilities(
       diagnostics.push(...resolved.diagnostics);
       continue;
     }
-    if (reference === "requirement-trace@1" || reference === "requirement-trace@2" || reference === "requirement-trace@3") {
+    if (reference === "requirement-trace@1" || reference === "requirement-trace@2" || reference === "requirement-trace@3" || reference === "requirement-trace@4") {
       for (const field of (reference !== "requirement-trace@1" ? ["requirement_type", "implementation_type", "scope_type", "decomposition_type", "change_type", "acceptance_type", "review_type", "result_type"] : ["requirement_type", "implementation_type", "scope_type"]) as (keyof KernelCapabilityBinding)[]) {
         if (!binding[field] || !processPackage.types[binding[field]!]) diagnostics.push({code: "incompatible-kernel-capability", path: bindingPath, message: `Requirement trace requires a declared ${field}`});
+      }
+      continue;
+    }
+    if (reference === "independent-verification@1") {
+      for (const field of ["requirement_type", "criterion_type", "implementation_type", "prototype_type", "result_type", "review_type"] as const) {
+        if (!binding[field] || !processPackage.types[binding[field]!]) diagnostics.push({code: "incompatible-kernel-capability", path: bindingPath, message: `Independent verification requires a declared ${field}`});
+      }
+      const resultType = binding.result_type && resolveType(processPackage, binding.result_type);
+      if (resultType && resultType.ok) for (const field of ["outcome", "receipt", "case_results", "artifacts"]) {
+        if (!resultType.type.kernelManagedPayloadPaths.includes(field)) diagnostics.push({code: "incompatible-kernel-capability", path: bindingPath, message: `Independent verification requires managed result ${field}`});
       }
       continue;
     }

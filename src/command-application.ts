@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { parse } from "yaml";
-import { inspectDirectExpectations, submitDirectProposal, inspectDirectSettlement, runDirectExecution, inspectDirectExecution, inspectDirectReview, registerDirectReviewFiles } from "./direct-proposal.js";
+import { inspectDirectExpectations, submitDirectProposal, inspectDirectSettlement, runDirectExecution, inspectDirectExecution, inspectDirectReview, registerDirectReviewFiles, inspectVerificationContext, inspectVerificationStatus } from "./direct-proposal.js";
 import { requirementTraceBinding } from "./requirement-trace.js";
 import { inspectRequirementTrace } from "./requirement-trace-inspection.js";
 import { loadProcessPackage, resolveType, type LifecycleSnapshot, type ProcessDiagnostic } from "./index.js";
@@ -28,7 +28,9 @@ Direct lifecycle work:
   mdlm expectations [show <action> [<exact-subject>]] [--json]
   mdlm proposal submit <proposal-file|-> [--authority <authority-id>] [--json]
   mdlm proposal settlement <operation-id> [--json]
-  mdlm execution run <exact-subject> <operation-id> [--json]
+  mdlm verification context <exact-RQS-or-EXP> [--output <file>] [--json]
+  mdlm verification status <exact-product-or-selection> [--json]
+  mdlm execution run <exact-subject> <operation-id> [--activity <exact-activity>] [--json]
   mdlm execution settlement <operation-id> [--json]
   mdlm review context <action> [<exact-subject>] [--output <file>] [--json]
   mdlm review register <proposal-file> <verdict-file> [--json]
@@ -679,6 +681,8 @@ function commandOperands(arguments_: string[]): string[] {
     argument !== "--json" &&
     argument !== "--ref" &&
     arguments_[index - 1] !== "--ref" &&
+    argument !== "--activity" &&
+    arguments_[index - 1] !== "--activity" &&
     argument !== "--authority" &&
     arguments_[index - 1] !== "--authority"
   );
@@ -690,7 +694,7 @@ async function dispatchCommand(
   standardInput?: string,
 ): Promise<CommandResult> {
   const outputOptions = optionValues(arguments_, "--output");
-  const exportingReview = arguments_[0] === "review" && arguments_[1] === "context";
+  const exportingReview = ["review", "verification"].includes(arguments_[0]!) && arguments_[1] === "context";
   if (arguments_.includes("--output") && (!exportingReview || outputOptions.length !== 1 || !outputOptions[0] || outputOptions[0].startsWith("--"))) {
     return failure("review-output-invalid", "--output requires one file path for review context");
   }
@@ -725,9 +729,22 @@ async function dispatchCommand(
     return { ...initialized, command: "init" };
   }
   if (operands[0] === "doctor") return doctorRepository(repositoryRoot);
+  if (operands[0] === "verification") {
+    try {
+      if (operands.length !== 3) throw new Error("Expected verification context <exact-RQS-or-EXP> or verification status <exact-product-or-selection>");
+      if (operands[1] === "status") return {...await inspectVerificationStatus(repositoryRoot, operands[2]!), command: "verification.status", diagnostics: []};
+      if (operands[1] !== "context") throw new Error("Unknown verification command");
+      const context = {...await inspectVerificationContext(repositoryRoot, operands[2]!), command: "verification.context", diagnostics: []};
+      if (!outputOptions.length) return context;
+      const file = path.resolve(repositoryRoot, outputOptions[0]!);
+      const bytes = Buffer.from(`${JSON.stringify(context, null, 2)}\n`, "utf8");
+      await fs.writeFile(file, bytes, {flag: "wx"});
+      return {ok:true, command:"verification.context", contract:"mdlm-verification-export@1", export:{path:file,bytes:bytes.length,exportSha256:createHash("sha256").update(bytes).digest("hex")},subject:context.subject,package:context.package,snapshot:context.snapshot,authoringContext:context.authoringContext,diagnostics:[]};
+    } catch(error) {return {...failure("verification-invalid", String(error)),command:"verification"};}
+  }
   if (operands[0] === "execution") {
     try {
-      if (operands[1] === "run" && operands.length === 4) return {...await runDirectExecution(repositoryRoot, operands[2]!, operands[3]!), command: "execution.run", diagnostics: []};
+      if (operands[1] === "run" && operands.length === 4) return {...await runDirectExecution(repositoryRoot, operands[2]!, operands[3]!, optionValue(arguments_, "--activity")), command: "execution.run", diagnostics: []};
       if (operands[1] === "settlement" && operands.length === 3) return {...await inspectDirectExecution(repositoryRoot, operands[2]!), command: "execution.settlement", diagnostics: []};
       throw new Error("Expected execution run <exact-subject> <operation-id> or execution settlement <operation-id>");
     } catch (error) { return {...failure("direct-execution-invalid", String(error)), command: "execution"}; }

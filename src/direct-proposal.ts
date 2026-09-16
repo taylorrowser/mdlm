@@ -17,6 +17,8 @@ import { readVerificationReceiptBlob, validateVerificationReceipt, type Verifica
 import { repositoryGitEnvironment } from "./git-environment.js";
 import { authorablePayloadSchema, sourceAssessmentTargets, requirementAuthoringTargets } from "./direct-guidance.js";
 
+import { independentBinding, independentExecutionBinding, verificationAuthoringContext, verificationStatus, currentVerificationResults } from "./independent-verification.js";
+
 const exec = promisify(execFile);
 export const directDigest = (source: string) => `sha256:${createHash("sha256").update(source).digest("hex")}`;
 const digest = (value: unknown) => directDigest(JSON.stringify(value));
@@ -83,7 +85,7 @@ async function guidance(current: State,ref: string,subject?: string) {
   const prompt=await resolvePrompt(current.pkg,context.action.prompt_ref);
   if (!prompt.prompt || prompt.diagnostics.length) fail(JSON.stringify(prompt.diagnostics));
   const schemas:Record<string,unknown>={}; const candidates:DirectCandidate[]=[];
-  const trace=current.pkg.kernelCapabilities["requirement-trace@3"]??current.pkg.kernelCapabilities["requirement-trace@2"]??current.pkg.kernelCapabilities["requirement-trace@1"];
+  const trace=current.pkg.kernelCapabilities["requirement-trace@4"]??current.pkg.kernelCapabilities["requirement-trace@3"]??current.pkg.kernelCapabilities["requirement-trace@2"]??current.pkg.kernelCapabilities["requirement-trace@1"];
   for (const type of context.action.types) {
     if (type===trace?.scope_type) continue;
     const resolved=resolveType(current.pkg,type); if(!resolved.ok) fail(JSON.stringify(resolved.diagnostics));
@@ -92,9 +94,9 @@ async function guidance(current: State,ref: string,subject?: string) {
     const predecessor=predecessorInput?context.inputs[predecessorInput]?.[0]:undefined;
     candidates.push({localId:type.toLowerCase(),type,...(predecessor?{predecessor}:{}),payload:{...(context.action.fixed_payload?.[type]??{})},links:fixedLinks(context,type),body:""});
   }
-  const execution=["observation","verification-result"].includes(context.action.capability);
+  const execution=["observation","verification-result","independent-result"].includes(context.action.capability);
   const implementation=execution?executionSubject(context):undefined;
-  return {ok:true,contract:"mdlm-direct-guidance@1",action:actionRef(context.action),...(subject?{subject}:{}),package:current.package,snapshot:current.snapshot,inputs:context.inputs,prompt:prompt.prompt,payloadSchemas:schemas,sourceAssessmentTargets:sourceAssessmentTargets(context),requirementAuthoringTargets:requirementAuthoringTargets(context),context:current.data.filter(d=>Object.values(context.inputs).flat().includes(d.revision_id)||d.revision_id===subject),candidates,...(context.action.authority?{authority:context.action.authority}:{}),...(implementation?{executionSubject:implementation.revision_id,executionCommand:`mdlm execution run ${implementation.revision_id} <operation> --json`,evidence:await availableReceipts(current,implementation),receiptDetails:await receiptDetails(current,implementation)}:{})};
+  return {ok:true,contract:"mdlm-direct-guidance@1",action:actionRef(context.action),...(subject?{subject}:{}),package:current.package,snapshot:current.snapshot,inputs:context.inputs,prompt:prompt.prompt,payloadSchemas:schemas,sourceAssessmentTargets:sourceAssessmentTargets(context),requirementAuthoringTargets:requirementAuthoringTargets(context),context:current.data.filter(d=>Object.values(context.inputs).flat().includes(d.revision_id)||d.revision_id===subject),candidates,...(context.action.authority?{authority:context.action.authority}:{}),...(implementation?{executionSubject:implementation.revision_id,executionCommand:`mdlm execution run ${implementation.revision_id} <operation>${independentBinding(current.pkg)?" --activity <exact-VFY>":""} --json`,evidence:await availableReceipts(current,implementation),receiptDetails:await receiptDetails(current,implementation)}:{})};
 }
 export async function inspectDirectExpectations(root:string,action?:string,subject?:string) {
   const current=await directState(root);
@@ -121,7 +123,7 @@ async function settlement(root:string,operation:string) {
 }
 export async function inspectDirectSettlement(root:string,operation:string){return (await settlement(root,operation))?.result??{ok:true,contract:"mdlm-proposal-result@2",operation,outcome:"not-published"};}
 function outputData(context:DirectContext,proposal:DirectProposal,promptSkills:string[]):DatumEnvelope[]{
-  if(context.action.capability!=="requirements"&&proposal.candidates.length!==1)fail("This action publishes exactly one authored datum; generated supporting data remain atomic");
+  if(!["requirements","verification-activity"].includes(context.action.capability)&&proposal.candidates.length!==1)fail("This action publishes exactly one authored datum; generated supporting data remain atomic");
   const identities=new Map<string,{id:string;revision:number;revision_id:string}>();
   for(const c of proposal.candidates){
     if(identities.has(c.localId)||!context.action.types.includes(c.type))fail("Duplicate local identity or undeclared output type");
@@ -155,12 +157,20 @@ export async function submitDirectProposal(root:string,source:string,authorities
     const authority=await validateDirectAuthority(context,proposal,source);
     const candidates=outputData(context,proposal,prompt.prompt.skills.map(s=>s.reference));
     const finalized=await finalizeDirectDomain({...context,proposal,outputs:candidates});
-    if(["observation","verification-result"].includes(context.action.capability)){
+    if(["observation","verification-result","independent-result"].includes(context.action.capability)){
       if(finalized.outputs.length!==1)fail("Evidence assessment publishes one result");
-      const target=executionSubject(context);const receipt=await receiptFor(current,proposal.evidence?.receipt??"",target);
-      const d=finalized.outputs[0]!;d.payload.outcome=receipt.outcome;d.payload.receipt=receipt.receipt;
+      const target=executionSubject(context);const d=finalized.outputs[0]!;const activity=d.links.find(l=>l.type==="evaluates")?.target;const receipt=await receiptFor(current,proposal.evidence?.receipt??"",target,activity);
+      d.payload.outcome=receipt.outcome;d.payload.receipt=receipt.receipt;
       if(context.action.capability==="observation"&&receipt.outcome!=="pass"&&!["revise","drop"].includes(String(d.payload.recommendation)))fail("Failed execution allows revise or drop only");
       if(context.action.capability==="verification-result"&&((receipt.outcome==="pass")!==(d.payload.correction_target==="none")))fail("Result correction target must match execution outcome");
+      if (context.action.capability === "independent-result") {
+        if (!activity || !receipt.saved.receipt.binding.independentVerification || receipt.saved.receipt.binding.independentVerification.activityRevision !== activity) fail("Result must select the exact executed activity");
+        d.payload.case_results = receipt.saved.receipt.result?.caseResults ?? [];
+        d.payload.artifacts = (receipt.saved.receipt.result?.artifacts ?? []).map(({contentBase64, ...artifact}) => artifact);
+        if ((receipt.outcome === "pass") !== (d.payload.correction_target === "none")) fail("Result correction target must match captured execution outcome");
+        if (d.links.some(l=>l.type === "supersedes")) fail("Result supersession is derived automatically");
+        d.links.push(...currentVerificationResults(current, target.revision_id, activity).map(r=>({type:"supersedes",target:r.revision_id})));
+      }
       finalized.managedOutputs.push(d);
     }
     const tx:DirectTransaction={contract:"mdlm-direct-transaction@1",id:txId(proposal.operation),operation:proposal.operation,action:actionRef(context.action),proposalDigest,package:current.package,snapshot:current.snapshot,...(proposal.subject?{subject:proposal.subject}:{}),inputs:context.inputs,outputs:finalized.outputs,...(proposal.evidence?{evidence:proposal.evidence}:{}),...(authority?{authority}: {})};
@@ -170,19 +180,23 @@ export async function submitDirectProposal(root:string,source:string,authorities
   });
 }
 async function git(root:string,args:string[]){return(await exec("git",["-C",root,...args],{env:repositoryGitEnvironment(),maxBuffer:16*1024*1024})).stdout.trim();}
-function executionSubject(context:DirectContext){const types=[(context.pkg.kernelCapabilities["requirement-trace@3"]??context.pkg.kernelCapabilities["requirement-trace@2"])?.implementation_type,Object.values(context.pkg.actions).find(a=>a.capability==="prototype")?.types[0]];const d=context.data.find(d=>types.includes(d.type)&&([context.subject,...Object.values(context.inputs).flat()].includes(d.revision_id)));if(!d)fail("Execution requires one exact implementation/prototype");return d;}
-function executionBinding(current:Pick<State,"pkg"|"package"|"data">,implementation:DatumEnvelope,operation:string):VerificationBinding{
+function executionSubject(context:DirectContext){const types=[(context.pkg.kernelCapabilities["requirement-trace@4"]??context.pkg.kernelCapabilities["requirement-trace@3"]??context.pkg.kernelCapabilities["requirement-trace@2"])?.implementation_type,Object.values(context.pkg.actions).find(a=>a.capability==="prototype")?.types[0]];const d=context.data.find(d=>types.includes(d.type)&&([context.subject,...Object.values(context.inputs).flat()].includes(d.revision_id)));if(!d)fail("Execution requires one exact implementation/prototype");return d;}
+export function executionBinding(current:Pick<State,"pkg"|"package"|"data">,implementation:DatumEnvelope,operation:string,activity?:string):VerificationBinding{
+  if (independentBinding(current.pkg)) {if (!activity) fail("Independent execution requires --activity <exact-verification-activity>"); return independentExecutionBinding(current,implementation,activity,operation);}
   const exploratory=implementation.type===Object.values(current.pkg.actions).find(a=>a.capability==="prototype")?.types[0];
   const action=Object.values(current.pkg.actions).find(a=>a.capability===(exploratory?"prototype":"implementation"));
   const link=Object.keys(action?.links?.[implementation.type]??{}).find(l=>l===(exploratory?"explores":"implements"))??(exploratory?"explores":"implements");
   const context=implementation.links.filter(l=>l.type===link);if(context.length!==1)fail("Execution needs one exact requirements/experiment context");
   const p=implementation.payload;return {operation,package:current.package,inputs:[{name:exploratory?"trial":"implementation",revisions:[implementation.revision_id]},{name:exploratory?"experiment":"requirements",revisions:[context[0]!.target]}],repositoryPath:p.repository_path as string,sourceCommit:p.source_commit as string,image:p.verification_image as string,command:p.verification_command as string[],scriptPath:p.verification_script as string,...(p.acceptance_scope === "partial" ? {formalFiles:p.formal_files as string[]} : {})};
 }
-async function receiptFor(current:State,locator:string,implementation:DatumEnvelope){if(!/^git-blob:[a-f0-9]{40}$/.test(locator))fail("Evidence requires an exact receipt blob");const saved=await readVerificationReceiptBlob(current.root,locator.slice(9));const b=saved.receipt.binding;checkOperation(b.operation);const registered=await git(current.root,["rev-parse","--verify",`${verificationRef(b)}/attempt-${saved.receipt.attempt}-receipt`]);if(registered!==saved.oid)fail("Receipt is not registered to the original operation");return validateVerificationReceipt(executionBinding(current,implementation,b.operation),saved);}
+async function receiptFor(current:State,locator:string,implementation:DatumEnvelope,activity?:string){if(!/^git-blob:[a-f0-9]{40}$/.test(locator))fail("Evidence requires an exact receipt blob");const saved=await readVerificationReceiptBlob(current.root,locator.slice(9));const b=saved.receipt.binding;checkOperation(b.operation);const registered=await git(current.root,["rev-parse","--verify",`${verificationRef(b)}/attempt-${saved.receipt.attempt}-receipt`]);if(registered!==saved.oid)fail("Receipt is not registered to the original operation");return validateVerificationReceipt(executionBinding(current,implementation,b.operation,activity??b.independentVerification?.activityRevision),saved);}
 async function availableReceipts(current:State,implementation:DatumEnvelope){const refs=await git(current.root,["for-each-ref","--format=%(objectname)","refs/mdlm/execution"]);const results:string[]=[];for(const oid of new Set(refs.split("\n").filter(Boolean))){try{await receiptFor(current,`git-blob:${oid}`,implementation);results.push(`git-blob:${oid}`);}catch{}}return results;}
-export async function runDirectExecution(root:string,subject:string,operation:string){checkOperation(operation);return withRepositoryLock(root,lock,async()=>{const current=await directState(root);const implementation=current.data.find(d=>d.revision_id===subject);if(!implementation||!Object.values(current.pkg.actions).some(a=>["implementation","prototype"].includes(a.capability)&&a.types.includes(implementation.type)))fail("Unknown exact execution subject or unsupported type");const saved=await runVerificationReceipt(root,executionBinding(current,implementation,operation),false);return{ok:true,contract:"mdlm-execution-result@1",operation,value:{...saved,evidence:`git-blob:${saved.oid}`}};});}
+export async function runDirectExecution(root:string,subject:string,operation:string,activity?:string){checkOperation(operation);return withRepositoryLock(root,lock,async()=>{const current=await directState(root);const implementation=current.data.find(d=>d.revision_id===subject);if(!implementation||!Object.values(current.pkg.actions).some(a=>["implementation","prototype"].includes(a.capability)&&a.types.includes(implementation.type)))fail("Unknown exact execution subject or unsupported type");const saved=await runVerificationReceipt(root,executionBinding(current,implementation,operation,activity),false);return{ok:true,contract:"mdlm-execution-result@1",operation,value:{...saved,evidence:`git-blob:${saved.oid}`}};});}
 export async function inspectDirectExecution(root:string,operation:string){checkOperation(operation);const current=await directState(root);const oid=await git(root,["rev-parse","--verify","--quiet",`refs/mdlm/execution/${operation}/latest`]).catch(e=>{if(e.code===1)return undefined;throw e;});if(!oid)return{ok:true,contract:"mdlm-execution-result@1",operation,value:{state:"not-started"}};const saved=await readVerificationReceiptBlob(root,oid);if(saved.receipt.binding.operation!==operation||!isDeepStrictEqual(saved.receipt.binding.package,current.package))fail("Execution settlement binding changed");return{ok:true,contract:"mdlm-execution-result@1",operation,value:{...saved,...(saved.receipt.state==="completed"?{evidence:`git-blob:${oid}`}:{})}};}
 export async function inspectDirectReview(root:string,action:string,subject?:string){const current=await directState(root);return {ok:true,...await buildDirectReviewContext(directContext(current,action,subject))};}
 export async function registerDirectReviewFiles(root:string,source:string,verdict:string){return withRepositoryLock(root,lock,async()=>{const p=parseDirectProposal(source);const current=await directState(root);if(!isDeepStrictEqual(p.package,current.package)||p.snapshot!==current.snapshot)fail("Review registration package or snapshot changed");const context=directContext(current,p.action,p.subject);const value=await registerDirectReview(root,context,source,verdict);if((await directState(root)).snapshot!==current.snapshot)fail("Review context changed during registration");return{ok:true,value};});}
 
 async function receiptDetails(current:State,implementation:DatumEnvelope){return Promise.all((await availableReceipts(current,implementation)).map(async evidence=>({evidence,...await readVerificationReceiptBlob(current.root,evidence.slice(9))})));}
+
+export async function inspectVerificationContext(root:string,subject:string){const current=await directState(root);return {ok:true,...verificationAuthoringContext(current,subject),snapshot:current.snapshot};}
+export async function inspectVerificationStatus(root:string,subject:string){const current=await directState(root);return {ok:true,...verificationStatus(current,subject),package:current.package,snapshot:current.snapshot};}

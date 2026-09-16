@@ -4,6 +4,8 @@ import type { DirectFinalizationContext, DirectFinalizationResult } from "./dire
 import { assessRequirements, approvedChanges, deriveSourceDispositionCandidates, validateChangeDatum } from "./change-assessment.js";
 import { requirementTraceBinding, latestRequirements, selectedRequirementGraph, deriveImplementationScopes, implementationSourceChanges } from "./requirement-trace.js";
 
+import { independentBinding, validateVerificationActivity, selectedActivities, verificationStatus, currentVerificationResults, independentExecutionBinding } from "./independent-verification.js";
+
 function reject(diagnostics: ProcessDiagnostic[]): never {
   throw new Error(diagnostics.map(d => `${d.code}: ${d.message}`).join("; "));
 }
@@ -124,6 +126,35 @@ export async function finalizeDirectDomain(context: DirectFinalizationContext): 
     const data = [...context.data, ...outputData.map(output => output.datum)];
     const diagnostics = outputData.flatMap(output => validateChangeDatum(data, trace, output.datum));
     if (diagnostics.length) reject(diagnostics);
+  }
+  const independent = independentBinding(context.pkg);
+  if (independent) {
+    const state = {...context, data: [...context.data, ...outputData.map(o => o.datum)]};
+    for (const {datum} of outputData) {
+      if (datum.type === independent.type) validateVerificationActivity(state, datum);
+      if ([independent.implementation_type, independent.prototype_type].includes(datum.type)) {
+        const activities = selectedActivities(state, datum);
+        if (!activities.length) throw new Error("Product must select at least one exact independent verification activity");
+        for (const activity of activities) independentExecutionBinding(state, datum, activity.revision_id, "validate-selection");
+      }
+      if (context.action.capability === "acceptance" && datum.payload.decision === "accept") {
+        const productId = datum.links.find(l => l.type === "accepts")?.target;
+        if (!productId || !verificationStatus(state, productId).complete) throw new Error("Acceptance requires adequate independently reviewed coverage and current passing evidence for every requirement");
+      }
+      if (context.action.id === "observe-prototype") {
+        const product = state.data.find(d => d.type === independent.prototype_type && [context.subject, ...Object.values(context.inputs).flat()].includes(d.revision_id));
+        if (!product) throw new Error("Observation needs one exact prototype");
+        const results = selectedActivities(state, product).flatMap(a => {
+          const current = currentVerificationResults(state, product.revision_id, a.revision_id);
+          if (current.length !== 1) throw new Error("Record a current result for each selected activity before observation");
+          return current;
+        });
+        const outcome = results.some(r => r.payload.outcome === "error") ? "error" : results.some(r => r.payload.outcome === "fail") ? "fail" : "pass";
+        datum.payload.outcome = outcome;
+        if (outcome !== "pass" && !["revise", "drop"].includes(String(datum.payload.recommendation))) throw new Error("Failed/incomplete observations allow revise or drop only");
+        managedOutputs.push(datum);
+      }
+    }
   }
   return {outputs: outputData.map(output => output.datum), managedOutputs};
 }
