@@ -14,7 +14,7 @@ priority: 90
 optional: true
 links:
   REV:
-    reviews: subject
+    reviews: activity
 fixed_payload:
   REV:
     publication: recorded

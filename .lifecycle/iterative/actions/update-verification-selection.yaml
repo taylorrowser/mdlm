@@ -14,7 +14,7 @@ when: 'none("acceptances-for@2", {implementation: subject})'
 priority: 90
 optional: true
 revises:
-  IMP: subject
+  IMP: product
 links:
   IMP:
     implements: requirements

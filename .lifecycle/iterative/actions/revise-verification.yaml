@@ -17,4 +17,4 @@ fixed_payload:
   VFY:
     publication: recorded
 revises:
-  VFY: subject
+  VFY: activity

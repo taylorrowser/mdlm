@@ -14,7 +14,7 @@ when: 'true'
 priority: 90
 optional: true
 revises:
-  TRY: subject
+  TRY: product
 links:
   TRY:
     explores: experiment
