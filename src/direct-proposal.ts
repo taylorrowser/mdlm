@@ -177,7 +177,12 @@ export async function submitDirectProposal(root:string,source:string,authorities
         d.payload.artifacts = (receipt.saved.receipt.result?.artifacts ?? []).map(({contentBase64, ...artifact}) => artifact);
         if ((receipt.outcome === "pass") !== (d.payload.correction_target === "none")) fail("Result correction target must match captured execution outcome");
         if (d.links.some(l=>l.type === "supersedes")) fail("Result supersession is derived automatically");
-        d.links.push(...currentVerificationResults(current, target.revision_id, activity).map(r=>({type:"supersedes",target:r.revision_id})));
+        const previous = currentVerificationResults(current, target.revision_id, activity);
+        for (const result of previous) {
+          const prior = await readVerificationReceiptBlob(current.root, String(result.payload.receipt).slice(9));
+          if (prior.oid === receipt.saved.oid || !prior.receipt.result || prior.receipt.result.startedAt >= receipt.saved.receipt.result!.startedAt) fail("A result must use a fresh execution after the current result; old passing evidence cannot replace a later failure");
+        }
+        d.links.push(...previous.map(r=>({type:"supersedes",target:r.revision_id})));
       }
       finalized.managedOutputs.push(d);
     }
