@@ -1,3 +1,4 @@
+import path from "node:path";
 import { createHash } from "node:crypto";
 import type { DatumEnvelope, ProcessPackage } from "./index.js";
 import { requirementTraceBinding, selectedRequirementGraph } from "./requirement-trace.js";
@@ -69,6 +70,7 @@ export function independentExecutionBinding(state: State, product: DatumEnvelope
   const allowed = new Set(selectedTargets(state, exact(state.data, selection[0]!)).map(d => d.revision_id));
   if (targets(activity, "verifies").some(id => !allowed.has(id))) throw new Error("Selected activity targets differ from the product's exact intent");
   const p = activity.payload;
+  if (path.resolve(String(p.repository_path)) === path.resolve(String(product.payload.repository_path))) throw new Error("Independent verification requires a separate verifier repository");
   return {operation, package: state.package, inputs: [{name: exploratory ? "trial" : "implementation", revisions: [product.revision_id]}, {name: exploratory ? "experiment" : "requirements", revisions: selection}, {name: "activity", revisions: [activity.revision_id]}], repositoryPath: String(product.payload.repository_path), sourceCommit: String(product.payload.source_commit), image: String(p.verification_image), ...(product.payload.acceptance_scope === "partial" ? {formalFiles: product.payload.formal_files as string[]} : {}), independentVerification: {activityRevision: activity.revision_id, repositoryPath: String(p.repository_path), sourceCommit: String(p.source_commit), scriptPath: String(p.verification_script), command: p.verification_command as string[], caseIds: (p.cases as VerificationCase[]).map(c => c.id), resultsPath: String(p.results_path)}};
 }
 export function currentVerificationResults(state: State, product: string, activity: string) {
@@ -98,7 +100,7 @@ export function verificationStatus(state: State, subjectId: string) {
         return {id, outcome: actual?.outcome ?? "not-run", actualResults: actual?.actual_results ?? [], evidenceRefs: actual?.evidence_refs ?? []};
       });
       const currentness = !result && history.length ? "stale" : "current";
-      return [{activity: activity.revision_id, method: activity.payload.method, rationale: claim.rationale, obligations: claim.obligations, adequacy, reviews: reviews.map(r => r.revision_id), cases, result: result?.revision_id ?? null, resultOutcome: current.length > 1 ? "error" : result?.payload.outcome ?? "not-run", currentness, historicalResults: history.map(r => r.revision_id)}];
+      return [{activity: activity.revision_id, method: activity.payload.method, rationale: claim.rationale, obligations: claim.obligations, adequacy, reviews: reviews.map(r => r.revision_id), cases, result: result?.revision_id ?? null, resultOutcome: current.length > 1 ? "error" : result?.payload.outcome ?? "not-run", currentness, reason: currentness === "stale" ? "Historical results do not bind this exact product and activity revision" : result ? `Captured execution ${String(result.payload.outcome)}` : "No execution result is selected", historicalResults: history.map(r => r.revision_id)}];
     });
     const outcomes = claims.flatMap(c => c.cases.map(r => r.outcome));
     const formal = requirement.type === b.requirement_type;
@@ -108,7 +110,8 @@ export function verificationStatus(state: State, subjectId: string) {
     const execution = outcomes.includes("fail") ? "fail" : claims.some(c => c.resultOutcome === "error") || outcomes.includes("error") ? "error" : outcomes.includes("skipped") ? "skipped" : !outcomes.length || outcomes.includes("not-run") ? "not-run" : "pass";
     const currentness = claims.some(c => c.currentness === "stale") ? "stale" : "current";
     const overall = coverage === "missing" ? "uncovered" : execution === "fail" ? "failing" : execution === "error" ? "error" : currentness === "stale" ? "stale" : formal && coverage !== "adequate" ? coverage : formal && collective !== "adequate" ? collective : execution !== "pass" ? execution : formal ? "verified" : "observed-pass";
-    return {requirement: requirement.revision_id, title: requirement.payload.title, coverage, collectiveCoverage: formal ? collective : "experimental", execution, currentness, overall, activities: claims};
+    const nextAction = overall === "uncovered" ? "Select activities covering this requirement" : overall === "awaiting-review" ? "Review the selected activity" : overall === "awaiting-coverage-review" ? "Review collective requirement coverage with the implementation" : ["stale","not-run"].includes(overall) ? "Execute the selected activity against this exact product" : ["failing","error","skipped","rejected"].includes(overall) ? "Inspect captured observations and correct the product, verification or requirement" : "Coverage is current for this exact selection";
+    return {requirement: requirement.revision_id, nextAction, title: requirement.payload.title, coverage, collectiveCoverage: formal ? collective : "experimental", execution, currentness, overall, activities: claims};
   });
   return {contract: "mdlm-verification-status@1", subject: subjectId, selection: selection.revision_id, ...(!product ? {instruction:"Select an exact product revision to assess its activity selection and execution evidence",products:state.data.filter(d=>[b.implementation_type,b.prototype_type].includes(d.type) && d.links.some(l=>["implements","explores"].includes(l.type)&&l.target===selection.revision_id)).map(d=>d.revision_id)} : {}), ...(product ? {sourceCommit: product.payload.source_commit} : {}), complete: rows.length > 0 && rows.every(r => ["verified", "observed-pass"].includes(r.overall)), requirements: rows};
 }

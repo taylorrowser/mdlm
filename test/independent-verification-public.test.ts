@@ -7,7 +7,13 @@ import { expect, test } from "vitest";
 test("independent verification reports complete requirements, failures, stale evidence and recovery through the CLI", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-independent-public-"));
   const repository = path.join(root,"lifecycle"), product = path.join(root,"product"), verifier = path.join(root,"verifier"), registry = path.join(root,"registry");
-  const executable = process.env.MDLM_DIRECT_EXECUTABLE ?? path.join(process.cwd(),"dist/mdlm.js");
+  let executable = process.env.MDLM_DIRECT_EXECUTABLE ?? path.join(process.cwd(),"dist/mdlm.js");
+  if (process.env.MDLM_DIRECT_INSTALLED === "1" && !process.env.MDLM_DIRECT_EXECUTABLE) {
+    const packed=path.join(root,"packed");await fs.mkdir(packed);
+    const archive=execFileSync("npm",["pack","--pack-destination",packed,"--silent"],{cwd:process.cwd(),encoding:"utf8"}).trim().split("\n").at(-1)!;
+    const install=path.join(root,"install");execFileSync("npm",["install","--prefix",install,"--ignore-scripts","--no-audit","--no-fund","--offline",path.join(packed,archive)],{encoding:"utf8"});
+    executable=path.join(install,"node_modules/mdlm/dist/mdlm.js");
+  }
   const commands: unknown[] = []; let outcome = "failed";
   const cli = (args: string[], exit = 0, manager = false) => {
     const argv = executable.endsWith(".js") ? [process.execPath, [executable,...args,"--json"]] as const : [executable,[...args,"--json"]] as const;

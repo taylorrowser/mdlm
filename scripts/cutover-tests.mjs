@@ -36,7 +36,7 @@ if (args[0] === "cutover") {
   run("npm", ["run", "build:mdlm-pi"]);
   run("npm", ["exec", "--workspace=mdlm-pi", "--", "vitest", "run",
     "--testTimeout=180000"]);
-  run("./node_modules/.bin/vitest", ["run", "test/direct-lifecycle-public.test.ts"], {
+  run("./node_modules/.bin/vitest", ["run", "test/direct-lifecycle-public.test.ts", "test/independent-verification-public.test.ts"], {
     MDLM_DIRECT_INSTALLED: "1",
   });
 }

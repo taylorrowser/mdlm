@@ -644,7 +644,7 @@ function renderCommandResult(result: CommandResult): string {
   if (typeof result.help === "string") return result.help;
   if (!result.ok) return result.diagnostics.map(d => `Error [${d.code}]: ${d.message}`).join("\n");
   if (result.command === "verification.status" && Array.isArray(result.requirements)) {
-    return ["Requirement | Coverage | Execution | Currentness | Result", ...result.requirements.map((r: any) => `${r.requirement} | ${r.coverage} | ${r.execution} | ${r.currentness} | ${r.overall}`), `Complete: ${result.complete ? "yes" : "no"}`].join("\n");
+    return ["Requirement | Coverage | Execution | Currentness | Result | Next action", ...result.requirements.map((r: any) => `${r.requirement} | ${r.coverage} | ${r.execution} | ${r.currentness} | ${r.overall} | ${r.nextAction}`), `Complete: ${result.complete ? "yes" : "no"}`].join("\n");
   }
   return JSON.stringify(result, null, 2);
 }
