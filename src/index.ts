@@ -248,6 +248,7 @@ function validateKernelCapabilities(
       continue;
     }
     if (reference === "independent-verification@1") {
+      if (!processPackage.kernelCapabilities["requirement-trace@4"]) diagnostics.push({code:"incompatible-kernel-capability",path:bindingPath,message:"Independent verification requires requirement-trace@4"});
       for (const field of ["requirement_type", "criterion_type", "implementation_type", "prototype_type", "result_type", "review_type"] as const) {
         if (!binding[field] || !processPackage.types[binding[field]!]) diagnostics.push({code: "incompatible-kernel-capability", path: bindingPath, message: `Independent verification requires a declared ${field}`});
       }

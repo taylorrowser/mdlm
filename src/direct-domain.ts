@@ -131,7 +131,29 @@ export async function finalizeDirectDomain(context: DirectFinalizationContext): 
   if (independent) {
     const state = {...context, data: [...context.data, ...outputData.map(o => o.datum)]};
     for (const {datum} of outputData) {
-      if (datum.type === independent.type) validateVerificationActivity(state, datum);
+      if (datum.type === independent.type) {
+        validateVerificationActivity(state, datum);
+        const subject = state.data.find(d=>d.revision_id===context.subject);
+        if (subject && subject.type !== independent.type && datum.payload.authoring_subject !== subject.revision_id) throw new Error("Activity authoring subject differs from its exact action context");
+      }
+      if (datum.type === independent.review_type) {
+        const activity = state.data.find(d=>d.type===independent.type && datum.links.some(l=>l.type==="reviews" && l.target===d.revision_id));
+        if (activity) {
+          const expected = activity.links.filter(l=>l.type==="verifies").map(l=>l.target).sort();
+          const assessments = datum.payload.coverage_assessments as {target:string;disposition:string;rationale:string}[] | undefined;
+          if (!Array.isArray(assessments) || JSON.stringify(assessments.map(a=>a.target).sort()) !== JSON.stringify(expected)) throw new Error("Verification review must assess adequacy for every exact target once");
+          if (datum.payload.outcome === "pass" && assessments.some(a=>a.disposition!=="adequate")) throw new Error("Passing verification review cannot retain inadequate coverage");
+        }
+      }
+      if (datum.type === independent.review_type) {
+        const product = state.data.find(d=>d.type===independent.implementation_type && datum.links.some(l=>l.type==="reviews" && l.target===d.revision_id));
+        if (product) {
+          const expected = verificationStatus(state, product.revision_id).requirements.map(r=>r.requirement).sort();
+          const assessments = datum.payload.coverage_assessments as {target:string;disposition:string}[] | undefined;
+          if (!Array.isArray(assessments) || JSON.stringify(assessments.map(a=>a.target).sort()) !== JSON.stringify(expected)) throw new Error("Product review must judge collective coverage for every exact requirement once, including parents");
+          if (datum.payload.outcome === "pass" && assessments.some(a=>a.disposition!=="adequate")) throw new Error("Passing product review requires adequate collective coverage");
+        }
+      }
       if ([independent.implementation_type, independent.prototype_type].includes(datum.type)) {
         const activities = selectedActivities(state, datum);
         if (!activities.length) throw new Error("Product must select at least one exact independent verification activity");

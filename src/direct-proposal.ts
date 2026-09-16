@@ -76,6 +76,14 @@ export function directContext(current: State, reference: string, subject?: strin
   if (!work) fail("This action is not currently eligible for this exact subject; refresh expectations");
   return {root:current.root,pkg:current.pkg,package:current.package,snapshot:current.snapshot,data:current.data,action,...(subject?{subject}:{}),inputs:work.inputs??{}};
 }
+/** Every fixed relation selects the exact complete input set, including multiplicity. */
+export function validateFixedContextLinks(links: DatumEnvelope["links"], required: DatumEnvelope["links"]) {
+  for (const type of new Set(required.map(l=>l.type))) {
+    const expected=required.filter(l=>l.type===type).map(l=>l.target).sort();
+    const actual=links.filter(l=>l.type===type).map(l=>l.target).sort();
+    if (!isDeepStrictEqual(actual,expected)) fail("Candidate context links differ from the declared exact inputs");
+  }
+}
 function fixedLinks(context: DirectContext,type: string) {
   const rules=context.action.links?.[type]??{};
   return Object.entries(rules).flatMap(([link,input])=>(context.inputs[input]??[]).map(target=>({type:link,target})));
@@ -139,7 +147,7 @@ function outputData(context:DirectContext,proposal:DirectProposal,promptSkills:s
     const resolved=resolveType(context.pkg,c.type);if(!resolved.ok)fail(JSON.stringify(resolved.diagnostics));
     if(resolved.type.kernelManagedPayloadPaths.some(k=>k in c.payload))fail("Candidate may not author kernel-managed payload");
     const links=resolve(c.links) as DatumEnvelope["links"];
-    for(const required of fixedLinks(context,c.type)){if(!links.some(l=>isDeepStrictEqual(l,required)))fail("Candidate omitted an exact required context link");if(links.some(l=>l.type===required.type&&l.target!==required.target))fail("Candidate context link differs from the declared exact input");}
+    validateFixedContextLinks(links,fixedLinks(context,c.type));
     const fixed=context.action.fixed_payload?.[c.type]??{};
     for(const [k,v]of Object.entries(fixed))if(k in c.payload&&!isDeepStrictEqual(c.payload[k],v))fail("Candidate fixed payload differs from package contract");
     return {...identities.get(c.localId)!,type:c.type,payload:{...resolve(c.payload),...fixed},links,body:c.body,created_by:{transaction:"mdlm-direct-transaction@1",process_ref:`${context.package.reference}#${context.package.digest}`,prompt_ref:context.action.prompt_ref,loaded_skill_refs:promptSkills,policy_refs:[]}};
@@ -200,3 +208,21 @@ async function receiptDetails(current:State,implementation:DatumEnvelope){return
 
 export async function inspectVerificationContext(root:string,subject:string){const current=await directState(root);return {ok:true,...verificationAuthoringContext(current,subject),snapshot:current.snapshot};}
 export async function inspectVerificationStatus(root:string,subject:string){const current=await directState(root);return {ok:true,...verificationStatus(current,subject),package:current.package,snapshot:current.snapshot};}
+
+/** Recover captured evidence without executing or changing lifecycle data. Destination is exclusive. */
+export async function exportDirectExecution(root:string,operation:string,destination:string) {
+  const settled=await inspectDirectExecution(root,operation);
+  const value=settled.value as {receipt?:{state:string;result?:{artifacts?:{path:string;sha256:string;bytes:number;contentBase64:string}[];rawReportBase64?:string;stdoutBase64:string;stderrBase64:string}}};
+  if(value.receipt?.state!=="completed" || !value.receipt.result) fail("Only a completed execution has exportable evidence");
+  const result=value.receipt.result;
+  const files=(result.artifacts??[]).map(artifact=>{
+    const bytes=Buffer.from(artifact.contentBase64,"base64");
+    if(!artifact.path || artifact.path.includes("\\") || path.posix.isAbsolute(artifact.path) || artifact.path.split("/").some(p=>!p || p==="." || p==="..") || bytes.length!==artifact.bytes || createHash("sha256").update(bytes).digest("hex")!==artifact.sha256) fail("Captured artifact binding is invalid");
+    return {path:`artifacts/${artifact.path}`,bytes};
+  });
+  files.push({path:"stdout",bytes:Buffer.from(result.stdoutBase64,"base64")},{path:"stderr",bytes:Buffer.from(result.stderrBase64,"base64")});
+  if(result.rawReportBase64!==undefined) files.push({path:"report.json",bytes:Buffer.from(result.rawReportBase64,"base64")});
+  await fs.mkdir(destination);
+  for(const file of files) {const target=path.join(destination,file.path);await fs.mkdir(path.dirname(target),{recursive:true});await fs.writeFile(target,file.bytes,{flag:"wx"});}
+  return {ok:true,contract:"mdlm-execution-export@1",operation,path:destination,files:files.map(file=>({path:file.path,bytes:file.bytes.length,sha256:createHash("sha256").update(file.bytes).digest("hex")}))};
+}

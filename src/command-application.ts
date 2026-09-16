@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { parse } from "yaml";
-import { inspectDirectExpectations, submitDirectProposal, inspectDirectSettlement, runDirectExecution, inspectDirectExecution, inspectDirectReview, registerDirectReviewFiles, inspectVerificationContext, inspectVerificationStatus } from "./direct-proposal.js";
+import { inspectDirectExpectations, submitDirectProposal, inspectDirectSettlement, runDirectExecution, inspectDirectExecution, inspectDirectReview, registerDirectReviewFiles, inspectVerificationContext, inspectVerificationStatus, exportDirectExecution } from "./direct-proposal.js";
 import { requirementTraceBinding } from "./requirement-trace.js";
 import { inspectRequirementTrace } from "./requirement-trace-inspection.js";
 import { loadProcessPackage, resolveType, type LifecycleSnapshot, type ProcessDiagnostic } from "./index.js";
@@ -32,6 +32,7 @@ Direct lifecycle work:
   mdlm verification status <exact-product-or-selection> [--json]
   mdlm execution run <exact-subject> <operation-id> [--activity <exact-activity>] [--json]
   mdlm execution settlement <operation-id> [--json]
+  mdlm execution export <operation-id> <new-directory> [--json]
   mdlm review context <action> [<exact-subject>] [--output <file>] [--json]
   mdlm review register <proposal-file> <verdict-file> [--json]
 
@@ -642,6 +643,9 @@ async function showSelectedPackage(
 function renderCommandResult(result: CommandResult): string {
   if (typeof result.help === "string") return result.help;
   if (!result.ok) return result.diagnostics.map(d => `Error [${d.code}]: ${d.message}`).join("\n");
+  if (result.command === "verification.status" && Array.isArray(result.requirements)) {
+    return ["Requirement | Coverage | Execution | Currentness | Result", ...result.requirements.map((r: any) => `${r.requirement} | ${r.coverage} | ${r.execution} | ${r.currentness} | ${r.overall}`), `Complete: ${result.complete ? "yes" : "no"}`].join("\n");
+  }
   return JSON.stringify(result, null, 2);
 }
 
@@ -745,6 +749,7 @@ async function dispatchCommand(
   if (operands[0] === "execution") {
     try {
       if (operands[1] === "run" && operands.length === 4) return {...await runDirectExecution(repositoryRoot, operands[2]!, operands[3]!, optionValue(arguments_, "--activity")), command: "execution.run", diagnostics: []};
+      if (operands[1] === "export" && operands.length === 4) return {...await exportDirectExecution(repositoryRoot, operands[2]!, path.resolve(repositoryRoot,operands[3]!)),command:"execution.export",diagnostics:[]};
       if (operands[1] === "settlement" && operands.length === 3) return {...await inspectDirectExecution(repositoryRoot, operands[2]!), command: "execution.settlement", diagnostics: []};
       throw new Error("Expected execution run <exact-subject> <operation-id> or execution settlement <operation-id>");
     } catch (error) { return {...failure("direct-execution-invalid", String(error)), command: "execution"}; }

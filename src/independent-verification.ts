@@ -43,6 +43,8 @@ export function validateVerificationActivity(state: State, activity: DatumEnvelo
   }
   if (!Array.isArray(coverage) || coverage.length !== selected.length || new Set(coverage.map(c => c.target)).size !== selected.length) throw new Error("Every selected target needs exactly one coverage claim");
   for (const claim of coverage) {
+    const declaredCases = cases.filter(c=>c.targets.includes(claim.target)).map(c=>c.id).sort();
+    if (JSON.stringify([...claim.case_ids].sort()) !== JSON.stringify(declaredCases)) throw new Error("Coverage must retain every declared case targeting that requirement");
     if (!selected.includes(claim.target) || !claim.obligations?.length || claim.obligations.some(o => !o.trim()) || !claim.rationale?.trim() || !claim.case_ids?.length || new Set(claim.case_ids).size !== claim.case_ids.length || claim.case_ids.some(id => !cases.some(c => c.id === id && c.targets.includes(claim.target)))) throw new Error("Coverage must name its obligations and the cases addressing that exact target");
   }
   const requiredInterfaces = new Set(selected.flatMap(id => targets(exact(state.data, id), "uses-interface")));
@@ -90,7 +92,7 @@ export function verificationStatus(state: State, subjectId: string) {
       const adequacy = reviews.some(r => r.payload.outcome === "fail") ? "rejected" : reviews.some(r => r.payload.outcome === "pass") ? "adequate" : "awaiting-review";
       const current = currentVerificationResults(state, product!.revision_id, activity.revision_id);
       const result = current.length === 1 ? current[0] : undefined;
-      const history = state.data.filter(d => d.type === b.result_type && targets(d, "evaluates").includes(activity.revision_id));
+      const history = state.data.filter(d => d.type === b.result_type && targets(d, "evaluates").some(id => state.data.find(a=>a.revision_id===id)?.id===activity.id));
       const cases = claim.case_ids.map(id => {
         const actual = (result?.payload.case_results as any[] | undefined)?.find(c => c.case_id === id);
         return {id, outcome: actual?.outcome ?? "not-run", actualResults: actual?.actual_results ?? [], evidenceRefs: actual?.evidence_refs ?? []};
@@ -100,11 +102,13 @@ export function verificationStatus(state: State, subjectId: string) {
     });
     const outcomes = claims.flatMap(c => c.cases.map(r => r.outcome));
     const formal = requirement.type === b.requirement_type;
+    const collectiveReviews = product ? state.data.filter(d=>d.type===b.review_type && targets(d,"reviews").includes(product.revision_id)) : [];
+    const collective = collectiveReviews.some(r=>r.payload.outcome==="fail") ? "rejected" : collectiveReviews.some(r=>r.payload.outcome==="pass" && (r.payload.coverage_assessments as any[] | undefined)?.some(a=>a.target===requirement.revision_id && a.disposition==="adequate")) ? "adequate" : "awaiting-coverage-review";
     const coverage = !claims.length ? "missing" : claims.some(c => c.adequacy === "rejected") ? "rejected" : claims.every(c => c.adequacy === "adequate") ? "adequate" : "awaiting-review";
     const execution = outcomes.includes("fail") ? "fail" : claims.some(c => c.resultOutcome === "error") || outcomes.includes("error") ? "error" : outcomes.includes("skipped") ? "skipped" : !outcomes.length || outcomes.includes("not-run") ? "not-run" : "pass";
     const currentness = claims.some(c => c.currentness === "stale") ? "stale" : "current";
-    const overall = coverage === "missing" ? "uncovered" : execution === "fail" ? "failing" : execution === "error" ? "error" : currentness === "stale" ? "stale" : formal && coverage !== "adequate" ? coverage : execution !== "pass" ? execution : formal ? "verified" : "observed-pass";
-    return {requirement: requirement.revision_id, title: requirement.payload.title, coverage, execution, currentness, overall, activities: claims};
+    const overall = coverage === "missing" ? "uncovered" : execution === "fail" ? "failing" : execution === "error" ? "error" : currentness === "stale" ? "stale" : formal && coverage !== "adequate" ? coverage : formal && collective !== "adequate" ? collective : execution !== "pass" ? execution : formal ? "verified" : "observed-pass";
+    return {requirement: requirement.revision_id, title: requirement.payload.title, coverage, collectiveCoverage: formal ? collective : "experimental", execution, currentness, overall, activities: claims};
   });
-  return {contract: "mdlm-verification-status@1", subject: subjectId, selection: selection.revision_id, ...(product ? {sourceCommit: product.payload.source_commit} : {}), complete: rows.length > 0 && rows.every(r => ["verified", "observed-pass"].includes(r.overall)), requirements: rows};
+  return {contract: "mdlm-verification-status@1", subject: subjectId, selection: selection.revision_id, ...(!product ? {instruction:"Select an exact product revision to assess its activity selection and execution evidence",products:state.data.filter(d=>[b.implementation_type,b.prototype_type].includes(d.type) && d.links.some(l=>["implements","explores"].includes(l.type)&&l.target===selection.revision_id)).map(d=>d.revision_id)} : {}), ...(product ? {sourceCommit: product.payload.source_commit} : {}), complete: rows.length > 0 && rows.every(r => ["verified", "observed-pass"].includes(r.overall)), requirements: rows};
 }

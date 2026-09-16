@@ -1,11 +1,11 @@
 // Current supported behavior only. Historical qualification evidence remains in
 // its owning release; deleted workflow tests are not a second supported suite.
 const fast = [
-  "array-expression", "change-assessment", "direct-authority", "direct-domain", "direct-package", "direct-receipt",
+  "independent-verification-package", "independent-verification-public", "array-expression", "change-assessment", "direct-authority", "direct-domain", "direct-package", "direct-receipt",
   "direct-selection-public", "iterative-public", "iterative-maintenance-reuse", "kernel-cutover", "lifecycle-schema-diagnostics", "mdlm-cli-output",
   "release-candidate-gate", "requirement-trace-v2", "source-scopes",
 ];
-const release = ["docker-verification-dialogue", "direct-lifecycle-public"];
+const release = ["independent-verification-execution","docker-verification-dialogue", "direct-lifecycle-public"];
 export const rootTestManifest = Object.freeze([
   ...fast.map(name => ({file:`test/${name}.test.ts`, qualificationGate:"pr", runtimeClass:"cheap-in-process", weight:1})),
   ...release.map(name => ({file:`test/${name}.test.ts`, qualificationGate:"release", runtimeClass:"process-repository-safe", weight:1})),
