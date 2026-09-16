@@ -21,6 +21,7 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
   mkdirSync(evidenceRoot, {recursive: true});
   mkdirSync(root, {recursive: true});
   const lifecycle = path.join(root, 'lifecycle'), source = path.join(root, 'product');
+  const verificationRepositories = [];
   const registry = path.join(evidenceRoot, 'review-registry');
   mkdirSync(registry);
   const commands = [], publications = [], revisions = [], receipts = [], sourceCommits = [];
@@ -55,7 +56,7 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
   function exact(revision) { return cli(['show', revision]).lifecycleDatum.datum; }
   function guidance(action, subject) {
     const before = git(['status', '--porcelain']);
-    const reference = processName === 'iterative' && ['review-requirements', 'rebind-product', 'revise-experiment', 'revise-experiment-from-feedback'].includes(action) ? `${action}@2` : `${action}@1`;
+    const reference = processName === 'iterative' && ['review-requirements', 'rebind-product', 'revise-experiment', 'revise-experiment-from-feedback', 'execute-verification', 'observe-prototype'].includes(action) ? `${action}@2` : `${action}@1`;
     const result = cli(['expectations', 'show', reference, ...(subject ? [subject] : [])]);
     assert.equal(git(['status', '--porcelain']), before, 'Guidance must be read-only');
     return result;
@@ -93,18 +94,23 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
       assert.equal(cli(['expectations']).snapshot, before.snapshot, 'Rejected batch cannot change lifecycle history');
       assert.equal(cli(['proposal', 'settlement', `${operation}-multiple`]).outcome, 'not-published');
     }
-    if (action === 'observe-prototype' && receipts.length > 1) {
+    if (processName !== 'iterative' && action === 'observe-prototype' && receipts.length > 1) {
       const before = data();
       assert.equal(cli(['proposal', 'submit', '-'], {...proposal, operation: 'mismatched-receipt', evidence: {receipt: receipts[0].evidence}}, {expected: 1}).ok, false);
       assert.deepEqual(data(), before, 'Mismatched evidence cannot publish data');
     }
     const result = cli(['proposal', 'submit', proposalFile, ...authorityArgs]);
     assert.equal(result.outcome, 'accepted');
-    const settled = cli(['proposal', 'settlement', operation]);
-    assert.equal(settled.outcome, 'accepted');
-    assert.deepEqual(settled.revisions, result.revisions);
-    const repeated = cli(['proposal', 'submit', proposalFile, ...authorityArgs]);
-    assert.deepEqual(repeated.revisions, result.revisions, 'Completed proposal recovery must not duplicate records');
+    // Existing journey actions exercise generic settlement and duplicate recovery.
+    // New activity publications need their actual accepted data, not another copy
+    // of the same recovery check for each verification plan and coverage review.
+    if (!['plan-verification', 'plan-criterion-verification', 'review-verification', 'execute-criterion-verification'].includes(action)) {
+      const settled = cli(['proposal', 'settlement', operation]);
+      assert.equal(settled.outcome, 'accepted');
+      assert.deepEqual(settled.revisions, result.revisions);
+      const repeated = cli(['proposal', 'submit', proposalFile, ...authorityArgs]);
+      assert.deepEqual(repeated.revisions, result.revisions, 'Completed proposal recovery must not duplicate records');
+    }
     if (sequence === 1) {
       const stale = cli(['proposal', 'submit', '-'], {...proposal, operation: 'stale-snapshot'}, {expected: 1});
       assert.equal(stale.ok, false);
@@ -119,7 +125,8 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
   function execute(implementation, expected) {
     stage = 'execution';
     const operation = `execute-${processName}-${receipts.length + 1}`;
-    cli(['execution', 'run', implementation.revision_id, operation]);
+    const activity = implementation.links.find(l => l.type === 'verification')?.target;
+    cli(['execution', 'run', implementation.revision_id, operation, ...(activity ? ['--activity', activity] : [])]);
     const settled = cli(['execution', 'settlement', operation]);
     const repeated = cli(['execution', 'settlement', operation]);
     assert.deepEqual(repeated.value, settled.value);
@@ -128,6 +135,61 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
     assert.equal(settled.value.receipt.result.sourceCommit, implementation.payload.source_commit);
     receipts.push(settled.value);
     return settled.value.evidence;
+  }
+  // This scripted regression separates repositories and exercises source-free author
+  // context, but does not claim independent human/model authorship. See authority.json.
+  function planVerification(subject, cases) {
+    const context = cli(['verification', 'context', subject.revision_id]);
+    const targets = context.requirements.map(d => d.revision_id);
+    const verifier = path.join(root, `verification-${verificationRepositories.length + 1}`);
+    mkdirSync(verifier);
+    git(['init', '--quiet'], verifier);
+    git(['config', 'user.name', 'Requirement verification fixture'], verifier);
+    git(['config', 'user.email', 'verifier@localhost'], verifier);
+    const script = `import json, os, pathlib, subprocess
+cases = json.loads(bytes.fromhex(${JSON.stringify(Buffer.from(JSON.stringify(cases)).toString('hex'))}).decode())
+output = pathlib.Path(os.environ['MDLM_EVIDENCE_DIR'])
+rows = []
+for case in cases:
+    observed = subprocess.run(case['command'], input=case.get('input'), cwd=os.environ['MDLM_PRODUCT_DIR'], text=True, capture_output=True)
+    passed = observed.returncode == 0 and observed.stderr == '' and observed.stdout == case['expected']
+    evidence = case['id'] + '.json'
+    (output / evidence).write_text(json.dumps({'command': case['command'], 'input': case.get('input'), 'stdout': observed.stdout, 'stderr': observed.stderr, 'exit': observed.returncode}))
+    rows.append({'case_id': case['id'], 'outcome': 'pass' if passed else 'fail', 'actual_results': [json.dumps({'stdout': observed.stdout, 'stderr': observed.stderr, 'exit': observed.returncode})], 'evidence_refs': [evidence]})
+(output / 'results.json').write_text(json.dumps({'contract': 'mdlm-verification-results@1', 'cases': rows}))
+raise SystemExit(0 if all(row['outcome'] == 'pass' for row in rows) else 1)
+`;
+    writeFileSync(path.join(verifier, 'verify.py'), script);
+    commit(verifier, 'Commit requirement-driven command cases before product execution');
+    verificationRepositories.push(verifier);
+    const activity = submit(subject.type === 'EXP' ? 'plan-criterion-verification' : 'plan-verification', subject.revision_id, [candidate('verification-activity', 'VFY', {
+      method: 'test', objective: 'Exercise the specified command behavior through its public process interface.',
+      authoring_subject: context.subject, authoring_context: context.authoringContext,
+      repository_path: verifier, source_commit: git(['rev-parse', 'HEAD'], verifier), verification_image: image,
+      verification_command: ['python3', 'verify.py'], verification_script: 'verify.py', results_path: 'results.json',
+      cases: cases.map(c => ({id: c.id, targets, preconditions: ['A fresh process with the selected committed product is available.'], actions: [JSON.stringify({command: c.command, input: c.input ?? null})], expected_results: [`stdout exactly ${JSON.stringify(c.expected)}, empty stderr and exit zero.`], coverage_rationale: c.rationale})),
+      coverage: context.requirements.map(d => ({target: d.revision_id, obligations: [d.payload.statement ?? d.payload.ears?.response ?? d.payload.criterion], case_ids: cases.map(c => c.id), rationale: 'These public command cases exercise the complete selected fixture behavior; review assesses the cases together for parent and leaf obligations.'})),
+    }, targets.map(target => link('verifies', target)))])[0];
+    submit('review-verification', activity.revision_id, [candidate('coverage-review', 'REV', {
+      outcome: 'pass', findings: 'Scripted fixture assessment of the predetermined actions and results, not an independent model judgment.',
+      coverage_assessments: targets.map(target => ({target, disposition: 'adequate', rationale: 'The command cases cover each selected obligation at the public boundary within this fixture scope.'})),
+    }, [link('reviews', activity.revision_id)])]);
+    return activity;
+  }
+  const countCases = [
+    {id: 'empty', command: ['python3', 'count.py'], expected: '0\n', rationale: 'No supplied arguments produces zero.'},
+    {id: 'two', command: ['python3', 'count.py', 'red', 'blue'], expected: '2\n', rationale: 'Two separate arguments produce two.'},
+    {id: 'quoted', command: ['python3', 'count.py', 'red blue'], expected: '1\n', rationale: 'An argument containing spaces still counts once.'},
+  ];
+  function publishVerification(implementation, selection, expected = 'pass') {
+    const receipt = execute(implementation, expected);
+    const activity = implementation.links.find(l => l.type === 'verification').target;
+    const result = submit(implementation.type === 'TRY' ? 'execute-criterion-verification' : 'execute-verification', implementation.revision_id, [candidate('verification', 'RES', {
+      assessment: 'Captured public command cases and observations from the separate verifier.', correction_target: 'none',
+    }, [link('executes', implementation.revision_id), link('verifies', selection.revision_id), link('evaluates', activity)])], {receipt}).find(d => d.type === 'RES');
+    assert.equal(result.payload.outcome, expected);
+    assert.ok(result.payload.case_results.length > 0);
+    return result;
   }
   function sourceVersion(leaf, extra, failure = false, {zeroBug = false, quoted, zeroCheck = false} = {}) {
     const runtime = `import sys\nprint(${zeroBug ? '(len(sys.argv) - 1) or 1' : 'len(sys.argv) - 1'})\n`;
@@ -138,11 +200,11 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
     const checks = (extra ? verification.replace('.strip()', '.splitlines()[0]') : verification)
       + (quoted === undefined ? '' : `assert subprocess.check_output(['python3', 'count.py', 'red blue'], text=True).strip() == '${quoted}'\n`)
       + (zeroCheck ? `assert subprocess.check_output(['python3', 'count.py'], text=True).strip() == '0'\n` : '');
-    writeFileSync(path.join(source, 'verify.py'), region('checks', 'verifies', leaf, checks) + (extra ? region('label-check', 'verifies', extra, "assert subprocess.check_output(['python3', 'count.py'], text=True).splitlines()[1] == 'items'\n") : ''));
+    if (processName !== 'iterative') writeFileSync(path.join(source, 'verify.py'), region('checks', 'verifies', leaf, checks) + (extra ? region('label-check', 'verifies', extra, "assert subprocess.check_output(['python3', 'count.py'], text=True).splitlines()[1] == 'items'\n") : ''));
     commit(source, 'Record exact product and executable expectations');
     const sourceCommit = git(['rev-parse', 'HEAD'], source);
     sourceCommits.push(sourceCommit);
-    return {repository_path: source, source_commit: sourceCommit, command: ['python3', 'count.py', 'red', 'blue'], verification_image: image, verification_command: ['python3', 'verify.py'], verification_script: 'verify.py'};
+    return {repository_path: source, source_commit: sourceCommit, command: ['python3', 'count.py', 'red', 'blue'], ...(processName === 'iterative' ? {} : {verification_image: image, verification_command: ['python3', 'verify.py'], verification_script: 'verify.py'})};
   }
   function reviewRequirements(set, {failRequirement, findings} = {}) {
     const context = cli(['review', 'context', processName === 'iterative' ? 'review-requirements@2' : 'review-requirements@1', set.revision_id]);
@@ -201,18 +263,20 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
     return record;
   }
   function finishProduct(set, implementation, {decision = 'accept', rationale = fixtureAuthority, checkZero = false} = {}) {
-    const receipt = execute(implementation, 'pass');
-    const result = submit('execute-verification', implementation.revision_id, [candidate('verification', 'RES', {assessment: 'The committed Python assertions passed in the pinned container.', correction_target: 'none'}, [link('executes', implementation.revision_id), link('verifies', set.revision_id)])], {receipt}).find(d => d.type === 'RES');
+    const receipt = processName === 'iterative' ? undefined : execute(implementation, 'pass');
+    const result = processName === 'iterative' ? publishVerification(implementation, set) : submit('execute-verification', implementation.revision_id, [candidate('verification', 'RES', {assessment: 'The committed Python assertions passed in the pinned container.', correction_target: 'none'}, [link('executes', implementation.revision_id), link('verifies', set.revision_id)])], {receipt}).find(d => d.type === 'RES');
     const reviewContext = cli(['review', 'context', 'review-implementation@1', implementation.revision_id]);
     if (implementation.payload.acceptance_scope === 'partial') {
       const sourceContext = reviewContext.sources.find(s => s.implementation === implementation.revision_id);
       assert.equal(sourceContext.acceptanceScope, 'partial');
       assert.ok(sourceContext.files.some(f => f.path === 'cli.py' && f.formal === false && f.content.includes('input(')));
     }
-    const assessment = reviewContext.requirementGraphs.find(g => g.selection === set.revision_id)?.assessment;
+    const requirementGraph = reviewContext.requirementGraphs.find(g => g.selection === set.revision_id);
+    const assessment = requirementGraph?.assessment;
     if (assessment?.change) assert.deepEqual(reviewContext.sourceAssessmentTargets?.sourceScopes, assessment.sourceScopes, 'Changed review must identify affected baseline revisions');
     const scopes = assessment?.change ? data().filter(d => assessment.sourceScopes.includes(d.revision_id)) : data().filter(d => d.type === 'SCP' && d.links.some(l => l.type === 'belongs-to' && l.target === implementation.revision_id));
-    submit('review-implementation', implementation.revision_id, [candidate('implementation-review', 'REV', {outcome: 'pass', findings: 'The committed counting program and independent subprocess assertions support the selected requirements. The receipt binds this exact source.', source_assessments: scopes.map(d => ({source_scope: d.revision_id, disposition: 'valid', rationale: 'This source region implements or verifies its linked software behavior.'}))}, [link('reviews', implementation.revision_id), link('uses-evidence', result.revision_id)])]);
+    submit('review-implementation', implementation.revision_id, [candidate('implementation-review', 'REV', {...(processName === 'iterative' ? {coverage_assessments: requirementGraph.requirements.map(requirement => ({target: requirement.revision_id, disposition: 'adequate', rationale: 'The selected public command cases jointly cover the complete fixture requirement, including parent obligations.'}))} : {}), outcome: 'pass', findings: 'The committed counting program and independent subprocess assertions support the selected requirements. The receipt binds this exact source.', source_assessments: scopes.map(d => ({source_scope: d.revision_id, disposition: 'valid', rationale: 'This source region implements or verifies its linked software behavior.'}))}, [link('reviews', implementation.revision_id), link('uses-evidence', result.revision_id)])]);
+    if (processName === 'iterative') assert.equal(cli(['verification', 'status', implementation.revision_id]).complete, true);
     if (checkZero) {
       const observed = run('python3', ['count.py'], source);
       assert.equal(observed.stdout.trim(), decision === 'reject' ? '1' : '0', 'Record actual zero-input behavior before the fixture stakeholder decision');
@@ -230,10 +294,10 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
     git(['config', 'user.email', 'fixture@localhost']);
     if (partialAcceptance) {
       assert.equal(processName, 'iterative');
-      submit('frame-experiment', undefined, [candidate('river', 'EXP', {criterion: 'Keep River scores through a useful CLI.', question: 'Can scoring be accepted while the CLI remains provisional in this repository?', approach: 'Accept a pure scorer, operate the provisional CLI, then formalize the CLI.', constraints: 'Session only, user formula retained.', allowance_minutes: 15, scope_cut: 'One scored hand.'})]);
+      submit('frame-experiment', undefined, [candidate('river', 'EXP', {criterion: 'Keep River scores through a useful CLI.', question: 'Can scoring be accepted while the CLI remains provisional in this repository?', approach: 'Accept a scoring command, operate the provisional interactive CLI, then formalize the CLI.', constraints: 'Session only, user formula retained.', allowance_minutes: 15, scope_cut: 'One scored hand.'})]);
       const initial = submit('draft-requirements', undefined, [
         candidate('need', 'REQ', {kind: 'stakeholder', statement: 'Calculate River hand scores using the agreed bid and tricks formula.'}),
-        candidate('score', 'REQ', {kind: 'software', ears: {pattern: 'ubiquitous', system: 'The scorer', response: 'return bid * 10 + 10 for an exact bid, otherwise abs(bid - taken) * -10'}}),
+        candidate('score', 'REQ', {kind: 'software', ears: {pattern: 'ubiquitous', system: 'The scorer', response: 'take integer bid and tricks taken as two command arguments and print bid * 10 + 10 for an exact bid, otherwise abs(bid - taken) * -10'}}),
         candidate('decomposition', 'DCP', {}, [link('parent', '$need'), link('child', '$score')]),
         candidate('requirements', 'RQS', {}),
       ]);
@@ -241,27 +305,27 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
       const group = initial.find(d => d.type === 'DCP'), set = initial.find(d => d.type === 'RQS');
       reviewRequirements(set);
       const region = (name, relation, target, code) => `# mdlm:begin ${name} ${relation} ${target}\n${code}# mdlm:end ${name}\n`;
-      const scoring = 'def score(bid, taken):\n    return bid * 10 + 10 if bid == taken else abs(bid - taken) * -10\n';
-      const checks = 'from scoring import score\nassert score(0, 0) == 10\nassert score(2, 2) == 30\nassert score(1, 3) == -20\n';
-      const cliCode = 'from scoring import score\nprint(score(int(input("Bid: ")), int(input("Taken: "))))\n';
+      const scoring = 'import sys\nbid, taken = map(int, sys.argv[1:])\nprint(bid * 10 + 10 if bid == taken else abs(bid - taken) * -10)\n';
+      const cliCode = 'import subprocess\nbid, taken = input("Bid: "), input("Taken: ")\nprint(subprocess.check_output(["python3", "scoring.py", bid, taken], text=True), end="")\n';
       writeFileSync(path.join(source, 'scoring.py'), region('score', 'implements', score.id, scoring));
-      writeFileSync(path.join(source, 'verify.py'), region('score-checks', 'verifies', score.id, checks));
       writeFileSync(path.join(source, 'cli.py'), cliCode);
       commit(source, 'Working scorer and provisional CLI in one source repository');
       const sourceCommit = git(['rev-parse', 'HEAD'], source); sourceCommits.push(sourceCommit);
-      const payload = {repository_path: source, source_commit: sourceCommit, command: ['python3', 'cli.py'], verification_image: image, verification_command: ['python3', 'verify.py'], verification_script: 'verify.py', file_roles: {'scoring.py': 'production', 'verify.py': 'verification', 'cli.py': 'production'}};
+      const scoreCases = [[0, 0, 10], [2, 2, 30], [1, 3, -20], [3, 1, -20]].map(([bid, taken, expected], index) => ({id: `score-${index}`, command: ['python3', 'scoring.py', String(bid), String(taken)], expected: `${expected}\n`, rationale: 'Exact bids including zero and misses on both sides exercise the scoring formula.'}));
+      const activity = planVerification(set, scoreCases);
+      const payload = {repository_path: source, source_commit: sourceCommit, command: ['python3', 'cli.py'], file_roles: {'scoring.py': 'production', 'cli.py': 'production'}};
       const g = guidance('implement-product', set.revision_id);
-      const rejected = cli(['proposal', 'submit', '-'], {operation: 'partial-as-whole', action: g.action, package: g.package, snapshot: g.snapshot, subject: g.subject, inputs: g.inputs, candidates: [candidate('whole', 'IMP', payload, [link('implements', set.revision_id)])]}, {expected: 1});
+      const rejected = cli(['proposal', 'submit', '-'], {operation: 'partial-as-whole', action: g.action, package: g.package, snapshot: g.snapshot, subject: g.subject, inputs: g.inputs, candidates: [candidate('whole', 'IMP', payload, [link('implements', set.revision_id), link('verification', activity.revision_id)])]}, {expected: 1});
       assert.equal(rejected.ok, false, 'Whole-product claim cannot leave the provisional CLI untraced');
-      const imp = submit('implement-product', set.revision_id, [candidate('partial', 'IMP', {...payload, acceptance_scope: 'partial', formal_files: ['scoring.py', 'verify.py']}, [link('implements', set.revision_id)])]).find(d => d.type === 'IMP');
-      assert.deepEqual(imp.payload.source_inventory.map(f => [f.path, f.formal]), [['cli.py', false], ['scoring.py', true], ['verify.py', true]]);
+      const imp = submit('implement-product', set.revision_id, [candidate('partial', 'IMP', {...payload, acceptance_scope: 'partial', formal_files: ['scoring.py']}, [link('implements', set.revision_id), link('verification', activity.revision_id)])]).find(d => d.type === 'IMP');
+      assert.deepEqual(imp.payload.source_inventory.map(f => [f.path, f.formal]), [['cli.py', false], ['scoring.py', true]]);
       assert.ok(!data().some(d => d.type === 'SCP' && d.payload.path === 'cli.py'));
       assert.equal(run('python3', ['-B', 'cli.py'], source, {input: '2\n2\n'}).stdout, 'Bid: Taken: 30\n');
       assert.equal(cli(['trace', 'why', 'cli.py:1', '--implementation', imp.revision_id]).requirementTrace.lineStatus, 'provisional');
-      const acceptance = finishProduct(set, imp, {rationale: `Accept only the scoring module and verifier at this commit. CLI behavior remains provisional. ${fixtureAuthority}`});
+      const acceptance = finishProduct(set, imp, {rationale: `Accept only the scoring command at this commit. CLI behavior remains provisional. ${fixtureAuthority}`});
       // Exact acceptance is readable even when the corresponding review action has closed.
       assert.equal(exact(acceptance.revision_id).links.find(l => l.type === 'accepts').target, imp.revision_id);
-      assert.deepEqual(receipts.at(-1).receipt.binding.formalFiles, ['scoring.py', 'verify.py']);
+      assert.deepEqual(receipts.at(-1).receipt.binding.formalFiles, ['scoring.py']);
       assert.equal(cli(['expectations']).outcome, 'profile-boundary-reached');
       writeFileSync(path.join(source, 'cli.py'), cliCode.replace('Bid: ', 'Your bid: '));
       commit(source, 'Try a provisional prompt change without claiming renewed acceptance');
@@ -272,25 +336,25 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
       submit('approve-change', change.revision_id, [candidate('approval', 'REV', {outcome: 'pass', findings: `Approve minimal input/output scope while retaining the scoring formula. ${fixtureAuthority}`}, [link('reviews', change.revision_id)])]);
       const revised = submit('revise-requirements', change.revision_id, [
         candidate('need', 'REQ', {kind: 'stakeholder', statement: 'Enter a bid and tricks taken at a CLI and receive the agreed River score.'}, [], need.revision_id),
-        candidate('interaction', 'REQ', {kind: 'software', ears: {pattern: 'ubiquitous', system: 'The CLI', response: 'ask for integer bid and tricks taken and print the score returned by the scorer'}}),
+        candidate('interaction', 'REQ', {kind: 'software', ears: {pattern: 'ubiquitous', system: 'The CLI', response: 'prompt Bid: and Taken: for integer inputs and print the score returned by the scorer'}}),
         candidate('decomposition', 'DCP', {}, [link('parent', '$need'), link('child', score.revision_id), link('child', '$interaction')], group.revision_id),
         candidate('requirements', 'RQS', {}, [], set.revision_id),
       ]);
       const nextSet = revised.find(d => d.type === 'RQS'), interaction = revised.find(d => d.payload.title === 'interaction');
       const assessment = reviewRequirements(nextSet);
       writeFileSync(path.join(source, 'cli.py'), region('interaction', 'implements', interaction.id, cliCode));
-      writeFileSync(path.join(source, 'verify.py'), region('score-checks', 'verifies', score.id, checks) + region('interaction-check', 'verifies', interaction.id, 'import subprocess\nassert subprocess.check_output(["python3", "cli.py"], input="2\n2\n", text=True).endswith("30\n")\n'.replace('input="2\n2\n"', 'input="2\\n2\\n"').replace('endswith("30\n")', 'endswith("30\\n")')));
       // Equivalent scorer refactor must still acquire fresh implementation evidence.
       writeFileSync(path.join(source, 'scoring.py'), region('score', 'implements', score.id, scoring.replace('bid * 10 + 10', '(bid + 1) * 10')));
       commit(source, 'Formalize the complete useful product with fresh source evidence');
       const wholeCommit = git(['rev-parse', 'HEAD'], source); sourceCommits.push(wholeCommit);
       const dispositions = assessment.sourceScopes.map(source_scope => ({source_scope, disposition: 'valid', rationale: 'The scoring contract and its attributed responsibilities remain valid; this revision adds the CLI scope.'}));
-      const whole = submit('rebind-product', nextSet.revision_id, [candidate('whole', 'IMP', {...payload, source_commit: wholeCommit, acceptance_scope: 'whole-product', impact_dispositions: dispositions}, [link('implements', nextSet.revision_id)], imp.revision_id)]).find(d => d.type === 'IMP');
+      const wholeActivity = planVerification(nextSet, [...scoreCases, {id: 'interaction', command: ['python3', 'cli.py'], input: '2\n2\n', expected: 'Bid: Taken: 30\n', rationale: 'Exercise both prompts, entered values and displayed score together.'}]);
+      const whole = submit('rebind-product', nextSet.revision_id, [candidate('whole', 'IMP', {...payload, source_commit: wholeCommit, acceptance_scope: 'whole-product', impact_dispositions: dispositions}, [link('implements', nextSet.revision_id), link('verification', wholeActivity.revision_id)], imp.revision_id)]).find(d => d.type === 'IMP');
       assert.notEqual(cli(['expectations']).outcome, 'profile-boundary-reached', 'A changed source cannot inherit the old acceptance');
       assert.ok(whole.payload.source_inventory.every(f => f.formal !== false));
       assert.ok(data().some(d => d.type === 'SCP' && d.payload.path === 'cli.py' && d.links.some(l => l.target === whole.revision_id)));
       const verificationGuidance = guidance('execute-verification', whole.revision_id);
-      const staleReceipt = cli(['proposal', 'submit', '-'], {operation: 'old-partial-receipt', action: verificationGuidance.action, package: verificationGuidance.package, snapshot: verificationGuidance.snapshot, subject: verificationGuidance.subject, inputs: verificationGuidance.inputs, candidates: [candidate('verification', 'RES', {assessment: 'Attempt to reuse old evidence.', correction_target: 'none'}, [link('executes', whole.revision_id), link('verifies', nextSet.revision_id)])], evidence: {receipt: receipts[0].evidence}}, {expected: 1});
+      const staleReceipt = cli(['proposal', 'submit', '-'], {operation: 'old-partial-receipt', action: verificationGuidance.action, package: verificationGuidance.package, snapshot: verificationGuidance.snapshot, subject: verificationGuidance.subject, inputs: verificationGuidance.inputs, candidates: [candidate('verification', 'RES', {assessment: 'Attempt to reuse old evidence.', correction_target: 'none'}, [link('executes', whole.revision_id), link('verifies', nextSet.revision_id), link('evaluates', wholeActivity.revision_id)])], evidence: {receipt: receipts[0].evidence}}, {expected: 1});
       assert.equal(staleReceipt.ok, false, 'Old partial evidence cannot verify the new whole source');
       finishProduct(nextSet, whole);
       assert.equal(receipts.length, 2);
@@ -307,7 +371,8 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
       const need = initial.find(d => d.payload.title === 'need'), count = initial.find(d => d.payload.title === 'count');
       const set = initial.find(d => d.type === 'RQS');
       const originalReview = reviewRequirements(set).review;
-      const imp = submit('implement-product', set.revision_id, [candidate('implementation', 'IMP', {...sourceVersion(count.id), file_roles: {'count.py': 'production', 'verify.py': 'verification'}}, [link('implements', set.revision_id)])]).find(d => d.type === 'IMP');
+      const activity = planVerification(set, countCases);
+      const imp = submit('implement-product', set.revision_id, [candidate('implementation', 'IMP', {...sourceVersion(count.id), file_roles: {'count.py': 'production'}}, [link('implements', set.revision_id), link('verification', activity.revision_id)])]).find(d => d.type === 'IMP');
       if (operationalUse) recordUse(imp, ['red', 'blue'], {negativeChecks: true, wrongSubject: set.revision_id});
       const acceptance = finishProduct(set, imp);
       assert.equal(cli(['expectations']).outcome, 'profile-boundary-reached');
@@ -324,14 +389,14 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
       writeFileSync(path.join(source, 'count.py'), readFileSync(path.join(source, 'count.py'), 'utf8').replace('len(sys.argv) - 1', 'len(sys.argv[1:])'));
       commit(source, 'Simplify implementation without changing requirements');
       const maintainedCommit = git(['rev-parse', 'HEAD'], source); sourceCommits.push(maintainedCommit);
-      const maintained = submit('rebind-product', nextSet.revision_id, [candidate('implementation', 'IMP', {...imp.payload, source_commit: maintainedCommit, impact_dispositions: [], product_files: undefined, source_inventory: undefined, source_changes: undefined}, [link('implements', nextSet.revision_id)], imp.revision_id)]).find(d => d.type === 'IMP');
+      const maintained = submit('rebind-product', nextSet.revision_id, [candidate('implementation', 'IMP', {...imp.payload, source_commit: maintainedCommit, impact_dispositions: [], product_files: undefined, source_inventory: undefined, source_changes: undefined}, [link('implements', nextSet.revision_id), link('verification', activity.revision_id)], imp.revision_id)]).find(d => d.type === 'IMP');
       assert.notEqual(maintained.revision_id, imp.revision_id);
       assert.notEqual(cli(['expectations']).outcome, 'profile-boundary-reached');
       const nextAcceptance = finishProduct(nextSet, maintained);
       assert.notEqual(nextAcceptance.revision_id, acceptance.revision_id);
       assert.deepEqual(exact(originalReview.revision_id), originalReview, 'Reuse must not replace the original review');
       assert.ok(!data().some(d => d.type === 'REV' && d.links.some(l => l.type === 'reviews' && l.target === nextSet.revision_id)), 'No new requirements review is published');
-      assert.equal(publications.length - beforeMaintenance, 7, 'Maintenance retains fresh implementation, result, review and acceptance');
+      for (const action of ['request-change@1', 'approve-change@1', 'revise-requirements@1', 'rebind-product@2', 'execute-verification@2', 'review-implementation@1', 'accept-product@1']) assert.ok(publications.slice(beforeMaintenance).some(publication => publication.action === action), `Maintenance retains ${action}`);
       assert.equal(receipts.length, 2, 'Both baseline and maintained source receive canonical execution');
       if (operationalUse) {
         recordUse(maintained, ['gold', 'silver', 'bronze'], {negativeChecks: true, wrongSubject: imp.revision_id});
@@ -347,12 +412,16 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
       // Reuse the accepted setup above; only the comparison route is new.
       const formalTypes = ['REQ', 'DCP', 'RQS', 'IMP', 'ACC', 'CHG'];
       const frozenFormal = data().filter(d => formalTypes.includes(d.type));
-      const observeComparison = (trial, exp, recommendation) => submit('observe-prototype', trial.revision_id, [candidate('comparison-observation', 'OBS', {
-        assessment: 'The committed candidate passed its own executable expectations.', observation_origin: 'scripted',
+      const observeComparison = (trial, exp, recommendation) => {
+        const result = publishVerification(trial, exp);
+        return submit('observe-prototype', trial.revision_id, [candidate('comparison-observation', 'OBS', {
+        assessment: 'The candidate passed the separately committed criterion verification cases.', observation_origin: 'scripted',
         interaction_observation: 'Captured subprocess execution; no human usability claim.', limitations: fixtureAuthority,
         recommendation, next_action: recommendation === 'nominate' ? 'Request fixture stakeholder direction.' : 'Retain accepted product and close this comparison.',
-      }, [link('observes', trial.revision_id), link('against', exp.revision_id)])], {receipt: execute(trial, 'pass')}).find(d => d.type === 'OBS');
-      const originalTrial = submit('prepare-prototype', initialExperiment.revision_id, [candidate('original-trial', 'TRY', {...maintained.payload, file_roles: undefined, product_files: undefined, source_inventory: undefined, source_changes: undefined, impact_dispositions: undefined}, [link('explores', initialExperiment.revision_id)])]).find(d => d.type === 'TRY');
+      }, [link('observes', trial.revision_id), link('against', exp.revision_id), link('uses-evidence', result.revision_id)])]).find(d => d.type === 'OBS');
+      };
+      const originalActivity = planVerification(initialExperiment, countCases);
+      const originalTrial = submit('prepare-prototype', initialExperiment.revision_id, [candidate('original-trial', 'TRY', {...maintained.payload, file_roles: undefined, product_files: undefined, source_inventory: undefined, source_changes: undefined, impact_dispositions: undefined}, [link('explores', initialExperiment.revision_id), link('verification', originalActivity.revision_id)])]).find(d => d.type === 'TRY');
       observeComparison(originalTrial, initialExperiment, 'keep');
       const start = guidance('explore-change', maintained.revision_id);
       assert.deepEqual(start.inputs.baseline, [nextAcceptance.revision_id]);
@@ -363,13 +432,13 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
       assert.equal(cli(['expectations']).outcome, 'work-available');
       const makeComparisonSource = word => {
         writeFileSync(path.join(source, 'count.py'), `print('${word}')\n`);
-        writeFileSync(path.join(source, 'verify.py'), `import subprocess\nassert subprocess.check_output(['python3', 'count.py', 'red', 'blue'], text=True) == '${word}\\n'\n`);
         commit(source, 'Record experimental output, without changing accepted requirements');
         const source_commit = git(['rev-parse', 'HEAD'], source); sourceCommits.push(source_commit);
         assert.notEqual(source_commit, maintainedCommit);
-        return {repository_path: source, source_commit, command: ['python3', 'count.py', 'red', 'blue'], verification_image: image, verification_command: ['python3', 'verify.py'], verification_script: 'verify.py'};
+        return {repository_path: source, source_commit, command: ['python3', 'count.py', 'red', 'blue']};
       };
-      const firstCandidate = submit('prepare-prototype', comparison.revision_id, [candidate('word-trial', 'TRY', makeComparisonSource('two'), [link('explores', comparison.revision_id)])]).find(d => d.type === 'TRY');
+      const wordActivity = planVerification(comparison, [{id: 'words', command: ['python3', 'count.py', 'red', 'blue'], expected: 'two\n', rationale: 'The two-item comparison candidate should display the word two.'}]);
+      const firstCandidate = submit('prepare-prototype', comparison.revision_id, [candidate('word-trial', 'TRY', makeComparisonSource('two'), [link('explores', comparison.revision_id), link('verification', wordActivity.revision_id)])]).find(d => d.type === 'TRY');
       const nominated = observeComparison(firstCandidate, comparison, 'nominate');
       assert.ok(!cli(['expectations']).optional.some(item => item.action === 'explore-change@1'));
       const feedback = submit('record-feedback', nominated.revision_id, [candidate('comparison-feedback', 'FDB', {action: 'revise-criteria', feedback: 'Try an explicit descriptive phrase, then compare and decide.', source: fixtureAuthority}, [link('responds-to', nominated.revision_id)])]).find(d => d.type === 'FDB');
@@ -381,7 +450,8 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
       const pending = cli(['expectations']);
       assert.equal(pending.outcome, 'work-available');
       assert.deepEqual(pending.items.map(item => item.action), ['prepare-prototype@1']);
-      const secondCandidate = submit('prepare-prototype', revised.revision_id, [candidate('phrase-trial', 'TRY', makeComparisonSource('two supplied items'), [link('explores', revised.revision_id)])]).find(d => d.type === 'TRY');
+      const phraseActivity = planVerification(revised, [{id: 'phrase', command: ['python3', 'count.py', 'red', 'blue'], expected: 'two supplied items\n', rationale: 'The revised comparison should display the explicit phrase for two supplied items.'}]);
+      const secondCandidate = submit('prepare-prototype', revised.revision_id, [candidate('phrase-trial', 'TRY', makeComparisonSource('two supplied items'), [link('explores', revised.revision_id), link('verification', phraseActivity.revision_id)])]).find(d => d.type === 'TRY');
       observeComparison(secondCandidate, revised, 'drop');
       assert.deepEqual(data().filter(d => formalTypes.includes(d.type)), frozenFormal, 'Exploration creates no change request or formal revision');
       assert.deepEqual(exact(initialExperiment.revision_id), initialExperiment, 'Old requirement origins remain exact');
@@ -479,7 +549,7 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
     const capture = (file, args, cwd) => {
       try { return run(file, args, cwd, {expected: null}); } catch (error) { return {error: String(error)}; }
     };
-    const gitState = Object.fromEntries([['lifecycle', lifecycle], ['source', source]].map(([name, cwd]) => [name, existsSync(cwd) ? {head: capture('git', ['rev-parse', 'HEAD'], cwd), tree: capture('git', ['rev-parse', 'HEAD^{tree}'], cwd), status: capture('git', ['status', '--porcelain'], cwd), refs: capture('git', ['for-each-ref', '--format=%(refname) %(objectname)'], cwd)} : null]));
+    const gitState = Object.fromEntries([['lifecycle', lifecycle], ['source', source], ...verificationRepositories.map((directory, index) => [`verification-${index + 1}`, directory])].map(([name, cwd]) => [name, existsSync(cwd) ? {head: capture('git', ['rev-parse', 'HEAD'], cwd), tree: capture('git', ['rev-parse', 'HEAD^{tree}'], cwd), status: capture('git', ['status', '--porcelain'], cwd), refs: capture('git', ['for-each-ref', '--format=%(refname) %(objectname)'], cwd)} : null]));
     const captureFailures = [];
     for (const [name, state] of Object.entries(gitState)) {
       if (!state) { captureFailures.push(`${name} repository is unavailable`); continue; }
@@ -492,7 +562,7 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
     if (existsSync(lifecycle)) { try { lifecycleData = [...new Set(revisions)].map(exact); } catch (error) { lifecycleData = {error: String(error)}; captureFailures.push(`Lifecycle data capture failed: ${error.message}`); } }
     save('lifecycle-data.json', lifecycleData ?? []);
     if (captureFailures.length && !caught) caught = new Error(`Final evidence is incomplete: ${captureFailures.join('; ')}`);
-    const result = {ok: !caught, outcome: caught ? 'failed' : terminal?.outcome ?? 'failed', process: processName, corrections, operationalUse, operationalUses, root, lifecycle, source, evidenceFile, publications, revisions, receipts, sourceCommits, commands, terminal, gitState, captureFailures, scope: fixtureAuthority, error: caught ? {message: caught.message, stack: caught.stack} : undefined};
+    const result = {ok: !caught, outcome: caught ? 'failed' : terminal?.outcome ?? 'failed', process: processName, corrections, operationalUse, operationalUses, root, lifecycle, source, verificationRepositories, evidenceFile, publications, revisions, receipts, sourceCommits, commands, terminal, gitState, captureFailures, scope: fixtureAuthority, error: caught ? {message: caught.message, stack: caught.stack} : undefined};
     save('result.json', result);
     if (caught) { caught.message += `\nPreserved journey evidence: ${evidenceFile}`; throw caught; }
     return result;
