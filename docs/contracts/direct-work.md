@@ -56,6 +56,52 @@ The fresh iterative package opts into `requirement-trace@4` and `independent-ver
 
 `mdlm execution export <operation> <new-directory> --json` materializes the authenticated saved receipt, raw stdout/stderr, report and captured artifacts without rerunning execution or changing lifecycle data. The destination must be new; existing evidence is preserved.
 
+## Native verification runtime
+
+`mdlm execution run` executes committed source in a disposable Docker container.
+Plan the verification method and captured evidence for these limits before
+authoring the script. The method must still support the claim and its required
+coverage.
+
+| Runtime constraint | Public execution behavior |
+| --- | --- |
+| Network | Docker `--network none`; external networking is unavailable. |
+| Filesystem and user | Read-only container root and source mounts; non-root user, all capabilities dropped and no new privileges. Independent verification uses the non-root caller's UID/GID, or `65534:65534` for a root caller. Product-owned verification uses `65534:65534`. |
+| Processes | Fixed Docker PID limit of 128. |
+| Temporary files | Writable `/tmp` tmpfs, limited to 64 MiB, with `nosuid,nodev`. |
+| Execution time | The public command uses a 60-second wait for container completion. Timeout kills the container and records an error. Docker create and start each also have a 60-second timeout; this is not a 60-second limit for the whole CLI invocation. |
+| Captured output | Combined stdout and stderr capture is limited to 16 MiB. Exceeding it records an incomplete-capture error. |
+
+These settings are fixed through the public CLI. There is no activity field or
+execution flag to override the timeout, PID limit, tmpfs size, networking or
+capture budgets.
+
+Independent verification mounts the committed product at `/product` and verifier
+at `/verification`, both read-only, and starts in `/verification`. It supplies
+`MDLM_PRODUCT_DIR=/product` and `MDLM_EVIDENCE_DIR=/evidence`. The writable
+`/evidence` directory holds the report and its referenced artifacts. Product-owned
+verification instead mounts its committed source read-only at `/workspace` and
+starts there. Image tools and committed dependencies must be usable without
+network downloads or writes to those source directories.
+
+An independent activity selects `repository_path`, `source_commit`,
+`verification_script`, `verification_command`, `verification_image` and
+`results_path` through its authorable schema. The command is an argv array whose
+first element becomes the container entrypoint. The image must be pinned as
+`name@sha256:<digest>`; independent verification also accepts an exact local
+`sha256:<image-id>`. Product-owned verification takes its source, script, command
+and digest-pinned image from the product payload.
+
+For independent verification, `results_path` identifies a JSON report relative to
+`/evidence`; case `evidence_refs` are also relative to that directory. Their paths
+must resolve through directories to regular files, without symlinks or `..`
+components. The report bytes plus all distinct referenced artifact bytes share
+one fixed 8 MiB budget, separate from stdout/stderr. This is a capture budget,
+not a quota on the writable directory. Unreferenced files are not captured.
+Missing or oversized referenced evidence makes the run an error, even when the
+script exits successfully. Inspect the receipt diagnostic and export the saved
+evidence before assessing the result.
+
 ## Editable proposal drafts
 
 `proposal draft` uses the same current guidance and action resolution as `expectations show`. The caller selects the action, optional exact subject, operation identity and new output file. The saved JSON contains only the complete proposal envelope and unchanged candidate examples, including fixed payload values, exact links and predecessors. It supplies no semantic claims, receipt selection, review or stakeholder authority. Authored fields still need the prompt and `payloadSchemas` from guidance.
