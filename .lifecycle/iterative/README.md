@@ -36,6 +36,20 @@ operating provisional behavior does not accept it. OPU does not require stakehol
 feedback or change the formal completion conditions. OBS and RES retain their
 separate execution-assessment contracts.
 
+## Correcting a prototype
+
+After an OBS recommends revision, choose `correct-prototype` on the current EXP
+when only product code needs correction. It preserves the observed TRY lineage,
+exact EXP, triggering OBS, selected independent VFY and public ICD links. Commit
+the correction and execute the unchanged verification against the new TRY before
+observing it. Prior failures remain history. The observation no longer requests
+product or experiment correction once its trial has an accepted successor.
+
+Use `revise-experiment` for changed intent or provisional approach, with independent
+verification bound to the revised context. Use independent `revise-verification`
+and `update-criterion-verification-selection` for a faulty verifier. Passing
+nomination and actual stakeholder feedback remain separate from these corrections.
+
 ## Interface agreements
 
 Use optional `record-interface` and `revise-interface` guidance for a meaningful internal software boundary or connection to an external device, service or person. ICDs record both endpoint responsibilities, representation and units, failure behavior, compatibility and assumptions. Prototype TRY and formal REQ records can link to exact ICD revisions with `uses-interface`.

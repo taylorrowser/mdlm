@@ -1,7 +1,7 @@
 kind: selector-definition
 id: revision-observations
-version: 1
-description: revision-observations
+version: 2
+description: Revision observations whose trial has no accepted successor
 parameters:
   - name: experiment
     kind: revision
@@ -17,7 +17,9 @@ query:
     types:
       - OBS
   as: item
-  where: item.payload.recommendation == "revise"
+  where: 'item.payload.recommendation == "revise" &&
+    every("trial-for-observation@1", {observation: item}, trial =>
+    none("newer-revisions@1", {subject: trial}))'
   distinct: true
   order_by:
     - identity.revision_id

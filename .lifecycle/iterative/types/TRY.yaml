@@ -1,6 +1,6 @@
 kind: type-definition
 id: TRY
-version: 4
+version: 5
 name: Prototype trial
 description: Prototype trial
 extends: titled-datum@1
@@ -64,6 +64,7 @@ outgoing_links:
   - kind: datum
     types:
     - FDB
+    - OBS
     identity: revision
   cardinality:
     minimum: 0

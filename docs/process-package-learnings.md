@@ -73,6 +73,32 @@ must leave formal eligibility and endpoints unchanged. The iterative public
 journey exercises distinct uses on unchanged and changed source, exact-link
 rejection, and unchanged verification and acceptance records.
 
+## Product-only prototype correction, #868
+
+The requirements-report demonstration corrected one product warning under an
+unchanged criterion. The failed OBS could request EXP revision, but the existing
+same-EXP TRY correction required passing nomination and stakeholder feedback.
+Revising EXP changed its exact authoring context and required an independent
+handoff for the unchanged verifier. This is a current instance of class 1.
+
+Provide an explicit product-only correction from a current revise OBS. Bind the
+observed TRY predecessor, unchanged exact EXP, trigger, selected VFY and public
+interfaces in the package action. Any accepted successor consumes the old
+observation's product and intent correction work. Retain failures and require
+fresh source-bound execution. Changed intent or verifier still uses independent
+authoring; matching criterion text cannot authorize cross-EXP verification reuse.
+
+The focused compiled public prototype-correction journey checks failure,
+discovery, exact draft bindings, correction, rejection of the old receipt and
+fresh passing evidence before nomination and stakeholder feedback. Package
+evaluator checks cover other recommendations, replaced trials and revised EXPs.
+Measure the next fresh native correction before claiming reduced operational
+cost; the original handoff took 146.909 seconds in one observed episode.
+
+Keep this improve-and-record rule: when operation exposes a correction gap,
+update the owning package route and its learning rule in the same session, with
+one focused check at the public boundary that changed.
+
 ## Historical patterns and checks
 
 ## 1. Every failable output needs a correction route
