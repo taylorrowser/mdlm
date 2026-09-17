@@ -34,8 +34,8 @@ test("iterative requirements retain exact origins and interface context across i
   try {
     expect(cli("init", repository, "--process", "iterative").ok).toBe(true);
     const initial = cli("expectations");
-    expect(initial.optional.map((i: any) => i.action)).toContain("record-interface@1");
-    const interfaceGuidance = cli("expectations", "show", "record-interface@1");
+    expect(initial.optional.map((i: any) => i.action.split("@")[0])).toContain("record-interface");
+    const interfaceGuidance = cli("expectations", "show", "record-interface");
     const icd = interfaceGuidance.candidates[0];
     icd.payload = {...icd.payload, title: "Sensor input", boundary: "external", endpoints: [
       {name: "Simulated sensor", owner: "Fixture maintainer", responsibility: "Emit Celsius readings"},
@@ -44,14 +44,14 @@ test("iterative requirements retain exact origins and interface context across i
     const recorded = await submit(interfaceGuidance, "interface-record", [icd]);
     const interfaceR1 = recorded.revisions[0];
     const originalInterface = cli("show", interfaceR1).lifecycleDatum.datum;
-    expect(initial.items.map((i: any) => i.action)).toContain("frame-experiment@1");
-    const framing = cli("expectations", "show", "frame-experiment@1");
+    expect(initial.items.map((i: any) => i.action.split("@")[0])).toContain("frame-experiment");
+    const framing = cli("expectations", "show", "frame-experiment");
     const exp = framing.candidates[0];
     exp.payload = {...exp.payload, title: "Count supplied items", criterion: "Report the supplied item count", question: "Which behavior should be retained?", approach: "Prototype a counter", constraints: "Formatting remains provisional", allowance_minutes: 5, scope_cut: "No persistence"};
     const framed = await submit(framing, "iterative-frame", [exp]);
     const origin = framed.revisions[0];
     const original = cli("show", origin).lifecycleDatum.datum;
-    const g = cli("expectations", "show", "draft-requirements@1");
+    const g = cli("expectations", "show", "draft-requirements");
     expect(g.inputs.experiment).toEqual([origin]);
     const req = (localId: string, payload: object, links: unknown[] = []) => ({localId, type: "REQ", payload: {title: localId, publication: "recorded", ...payload}, links, body: ""});
     const result = await submit(g, "iterative-requirements", [
@@ -61,7 +61,7 @@ test("iterative requirements retain exact origins and interface context across i
       {localId: "group", type: "DCP", payload: {title: "Counting behavior", publication: "recorded"}, links: [{type: "parent", target: "$need"}, {type: "child", target: "$count"}, {type: "child", target: "$empty"}], body: ""},
       g.candidates.find((c: any) => c.type === "RQS"),
     ]);
-    const revise = cli("expectations", "show", "revise-interface@1", interfaceR1);
+    const revise = cli("expectations", "show", "revise-interface", interfaceR1);
     const revised = revise.candidates[0];
     revised.payload = {...originalInterface.payload, interaction: "JSON temperature number with C or F unit", compatibility: "Accept Celsius and Fahrenheit"};
     const revisionResult = await submit(revise, "interface-revise", [revised]);
@@ -69,19 +69,19 @@ test("iterative requirements retain exact origins and interface context across i
     expect(interfaceR2).not.toBe(interfaceR1);
     expect(cli("show", interfaceR1).lifecycleDatum.datum).toEqual(originalInterface);
     const selection = result.revisions.find((id: string) => id.startsWith("RQS-"));
-    const review = cli("review", "context", "review-requirements@2", selection);
+    const review = cli("review", "context", "review-requirements", selection);
     expect(review.requirementGraphs[0].selection).toBe(selection);
     expect(review.inputs.interfaces).toEqual([interfaceR1]);
     expect(review.records.find((record: any) => record.revision_id === interfaceR1)).toEqual(originalInterface);
     expect(review.records.some((record: any) => record.revision_id === interfaceR2)).toBe(false);
     const authoring = cli("verification", "context", origin);
-    const activityGuidance = cli("expectations", "show", "plan-criterion-verification@1", origin);
+    const activityGuidance = cli("expectations", "show", "plan-criterion-verification", origin);
     const activity = activityGuidance.candidates[0];
     activity.payload = {...activity.payload, title:"Count criterion check", method:"CLI test", objective:"Observe the supplied count", authoring_subject:origin, authoring_context:authoring.authoringContext, repository_path:path.join(root,"verifier"), source_commit:"a".repeat(40), verification_image:"python@sha256:"+"b".repeat(64), verification_command:["python3","verify.py"], verification_script:"verify.py", results_path:"results.json", cases:[{id:"count",targets:[origin],preconditions:["Fresh process"],actions:["Supply two items"],expected_results:["The public output reports two"],coverage_rationale:"The criterion concerns observable item count"}],coverage:[{target:origin,obligations:["Report supplied count"],case_ids:["count"],rationale:"This fixture tests exact interface binding; execution adequacy is reviewed separately"}]};
     activity.links.push({type:"verifies",target:origin});
     const planned = await submit(activityGuidance,"criterion-plan",[activity]);
     const activityRevision = planned.revisions[0];
-    const prototype = cli("expectations", "show", "prepare-prototype@1", origin);
+    const prototype = cli("expectations", "show", "prepare-prototype", origin);
     const invalid = prototype.candidates[0];
     invalid.payload = {...invalid.payload, title: "Invalid interface reference", repository_path: repository, source_commit: "a".repeat(40), command: ["python3", "app.py"]};
     invalid.links.push({type:"verification",target:activityRevision});
@@ -92,7 +92,7 @@ test("iterative requirements retain exact origins and interface context across i
     const rejected = cli("proposal", "submit", invalidFile);
     expectedExit = 0;
     expect(JSON.stringify(rejected)).toContain("uses-interface");
-    const validPrototype = cli("expectations", "show", "prepare-prototype@1", origin);
+    const validPrototype = cli("expectations", "show", "prepare-prototype", origin);
     invalid.links = invalid.links.map((link: any) => link.type === "uses-interface" ? {...link, target: interfaceR2} : link);
     const trial = await submit(validPrototype, "interface-prototype", [invalid]);
     expect(cli("show", trial.revisions[0]).lifecycleDatum.datum.links).toContainEqual({type: "uses-interface", target: interfaceR2});
@@ -103,11 +103,11 @@ test("iterative requirements retain exact origins and interface context across i
     expect(requirements.filter((r: any) => r.links.some((l: any) => l.type === "informed-by" && l.target === origin))).toHaveLength(2);
     expect(requirements.find((r: any) => r.payload.title === "empty").links).toEqual([]);
     expect(cli("show", origin).lifecycleDatum.datum).toEqual(original);
-    const available = cli("expectations").items.map((i: any) => i.action);
-    expect(available).not.toContain("observe-prototype@2");
-    const optional = cli("expectations").optional.map((i:any)=>i.action);
-    expect(optional).toContain("execute-criterion-verification@1");
-    expect(available).toContain("review-requirements@2");
+    const available = cli("expectations").items.map((i: any) => i.action.split("@")[0]);
+    expect(available).not.toContain("observe-prototype");
+    const optional = cli("expectations").optional.map((i:any)=>i.action.split("@")[0]);
+    expect(optional).toContain("execute-criterion-verification");
+    expect(available).toContain("review-requirements");
     outcome = "passed";
   } finally {
     await fs.writeFile(path.join(root, "outcome.json"), JSON.stringify({outcome, executable, repository, commands}, null, 2));

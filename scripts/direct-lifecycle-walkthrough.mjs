@@ -6,6 +6,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const image = 'python@sha256:7415fbc3c9e4979cc717d92377ab2bc7b2b4a2af1ac03cc52b5f3f88efedaf3a';
+const actionId = reference => reference.split('@')[0];
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const fixtureAuthority = 'Operator-selected engineering fixture. Stakeholder decisions are scripted fixture inputs, not acceptance by the actual product user. Review registration exercises a separate manager transport and exact verdict binding; it does not claim human or model review independence.';
 
@@ -56,8 +57,7 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
   function exact(revision) { return cli(['show', revision]).lifecycleDatum.datum; }
   function guidance(action, subject) {
     const before = git(['status', '--porcelain']);
-    const reference = processName === 'iterative' && ['review-requirements', 'rebind-product', 'revise-experiment', 'revise-experiment-from-feedback', 'execute-verification', 'observe-prototype'].includes(action) ? `${action}@2` : `${action}@1`;
-    const result = cli(['expectations', 'show', reference, ...(subject ? [subject] : [])]);
+    const result = cli(['expectations', 'show', action, ...(subject ? [subject] : [])]);
     assert.equal(git(['status', '--porcelain']), before, 'Guidance must be read-only');
     return result;
   }
@@ -207,7 +207,7 @@ raise SystemExit(0 if all(row['outcome'] == 'pass' for row in rows) else 1)
     return {repository_path: source, source_commit: sourceCommit, command: ['python3', 'count.py', 'red', 'blue'], ...(processName === 'iterative' ? {} : {verification_image: image, verification_command: ['python3', 'verify.py'], verification_script: 'verify.py'})};
   }
   function reviewRequirements(set, {failRequirement, findings} = {}) {
-    const context = cli(['review', 'context', processName === 'iterative' ? 'review-requirements@2' : 'review-requirements@1', set.revision_id]);
+    const context = cli(['review', 'context', 'review-requirements', set.revision_id]);
     const graph = context.requirementGraphs.find(g => g.selection === set.revision_id);
     assert.ok(graph?.assessment, 'Review context must expose its exact required assessments');
     const assessment = graph.assessment;
@@ -223,7 +223,7 @@ raise SystemExit(0 if all(row['outcome'] == 'pass' for row in rows) else 1)
   function recordUse(implementation, args, {negativeChecks = false, wrongSubject} = {}) {
     const beforeData = data();
     const before = cli(['expectations']);
-    assert.ok(before.optional.some(item => item.action === 'record-operational-use@1' && item.subject === implementation.revision_id));
+    assert.ok(before.optional.some(item => actionId(item.action) === 'record-operational-use' && item.subject === implementation.revision_id));
     const g = guidance('record-operational-use', implementation.revision_id);
     assert.deepEqual(g.inputs.prior_uses, operationalUses.filter(use => use.subject === implementation.revision_id).map(use => use.revision).sort());
     assert.equal(g.executionCommand, undefined, 'Authored use must not request canonical execution');
@@ -265,7 +265,7 @@ raise SystemExit(0 if all(row['outcome'] == 'pass' for row in rows) else 1)
   function finishProduct(set, implementation, {decision = 'accept', rationale = fixtureAuthority, checkZero = false} = {}) {
     const receipt = processName === 'iterative' ? undefined : execute(implementation, 'pass');
     const result = processName === 'iterative' ? publishVerification(implementation, set) : submit('execute-verification', implementation.revision_id, [candidate('verification', 'RES', {assessment: 'The committed Python assertions passed in the pinned container.', correction_target: 'none'}, [link('executes', implementation.revision_id), link('verifies', set.revision_id)])], {receipt}).find(d => d.type === 'RES');
-    const reviewContext = cli(['review', 'context', 'review-implementation@1', implementation.revision_id]);
+    const reviewContext = cli(['review', 'context', 'review-implementation', implementation.revision_id]);
     if (implementation.payload.acceptance_scope === 'partial') {
       const sourceContext = reviewContext.sources.find(s => s.implementation === implementation.revision_id);
       assert.equal(sourceContext.acceptanceScope, 'partial');
@@ -383,8 +383,8 @@ raise SystemExit(0 if all(row['outcome'] == 'pass' for row in rows) else 1)
       const nextSet = submit('revise-requirements', change.revision_id, [candidate('requirements', 'RQS', {}, [], set.revision_id)]).find(d => d.type === 'RQS');
       for (const relation of ['contains', 'decomposition']) assert.deepEqual(nextSet.links.filter(l => l.type === relation), set.links.filter(l => l.type === relation));
       const available = cli(['expectations']);
-      assert.ok(available.items.some(item => item.action === 'rebind-product@2' && item.subject === nextSet.revision_id));
-      assert.ok(!available.items.some(item => item.action === 'review-requirements@2' && item.subject === nextSet.revision_id));
+      assert.ok(available.items.some(item => actionId(item.action) === 'rebind-product' && item.subject === nextSet.revision_id));
+      assert.ok(!available.items.some(item => actionId(item.action) === 'review-requirements' && item.subject === nextSet.revision_id));
       assert.notEqual(available.outcome, 'profile-boundary-reached');
       writeFileSync(path.join(source, 'count.py'), readFileSync(path.join(source, 'count.py'), 'utf8').replace('len(sys.argv) - 1', 'len(sys.argv[1:])'));
       commit(source, 'Simplify implementation without changing requirements');
@@ -396,7 +396,7 @@ raise SystemExit(0 if all(row['outcome'] == 'pass' for row in rows) else 1)
       assert.notEqual(nextAcceptance.revision_id, acceptance.revision_id);
       assert.deepEqual(exact(originalReview.revision_id), originalReview, 'Reuse must not replace the original review');
       assert.ok(!data().some(d => d.type === 'REV' && d.links.some(l => l.type === 'reviews' && l.target === nextSet.revision_id)), 'No new requirements review is published');
-      for (const action of ['request-change@1', 'approve-change@1', 'revise-requirements@1', 'rebind-product@2', 'execute-verification@2', 'review-implementation@1', 'accept-product@1']) assert.ok(publications.slice(beforeMaintenance).some(publication => publication.action === action), `Maintenance retains ${action}`);
+      for (const action of ['request-change', 'approve-change', 'revise-requirements', 'rebind-product', 'execute-verification', 'review-implementation', 'accept-product']) assert.ok(publications.slice(beforeMaintenance).some(publication => actionId(publication.action) === action), `Maintenance retains ${action}`);
       assert.equal(receipts.length, 2, 'Both baseline and maintained source receive canonical execution');
       if (operationalUse) {
         recordUse(maintained, ['gold', 'silver', 'bronze'], {negativeChecks: true, wrongSubject: imp.revision_id});
@@ -440,7 +440,7 @@ raise SystemExit(0 if all(row['outcome'] == 'pass' for row in rows) else 1)
       const wordActivity = planVerification(comparison, [{id: 'words', command: ['python3', 'count.py', 'red', 'blue'], expected: 'two\n', rationale: 'The two-item comparison candidate should display the word two.'}]);
       const firstCandidate = submit('prepare-prototype', comparison.revision_id, [candidate('word-trial', 'TRY', makeComparisonSource('two'), [link('explores', comparison.revision_id), link('verification', wordActivity.revision_id)])]).find(d => d.type === 'TRY');
       const nominated = observeComparison(firstCandidate, comparison, 'nominate');
-      assert.ok(!cli(['expectations']).optional.some(item => item.action === 'explore-change@1'));
+      assert.ok(!cli(['expectations']).optional.some(item => actionId(item.action) === 'explore-change'));
       const feedback = submit('record-feedback', nominated.revision_id, [candidate('comparison-feedback', 'FDB', {action: 'revise-criteria', feedback: 'Try an explicit descriptive phrase, then compare and decide.', source: fixtureAuthority}, [link('responds-to', nominated.revision_id)])]).find(d => d.type === 'FDB');
       const revisionGuide = guidance('revise-experiment-from-feedback', feedback.revision_id);
       const revisionCandidate = revisionGuide.candidates[0];
@@ -449,7 +449,7 @@ raise SystemExit(0 if all(row['outcome'] == 'pass' for row in rows) else 1)
       assert.deepEqual(revised.links.filter(l => l.type === 'compares-to'), [link('compares-to', nextAcceptance.revision_id)]);
       const pending = cli(['expectations']);
       assert.equal(pending.outcome, 'work-available');
-      assert.deepEqual(pending.items.map(item => item.action), ['prepare-prototype@1']);
+      assert.deepEqual(pending.items.map(item => actionId(item.action)), ['prepare-prototype']);
       const phraseActivity = planVerification(revised, [{id: 'phrase', command: ['python3', 'count.py', 'red', 'blue'], expected: 'two supplied items\n', rationale: 'The revised comparison should display the explicit phrase for two supplied items.'}]);
       const secondCandidate = submit('prepare-prototype', revised.revision_id, [candidate('phrase-trial', 'TRY', makeComparisonSource('two supplied items'), [link('explores', revised.revision_id), link('verification', phraseActivity.revision_id)])]).find(d => d.type === 'TRY');
       observeComparison(secondCandidate, revised, 'drop');

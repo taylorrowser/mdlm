@@ -130,7 +130,10 @@ effect.
 Assert the current Process Package version or digest only when package
 selection, provenance, or migration is the behavior under test. Transaction
 tests assert their own public contract and leave current package identity to
-the canonical package and initialization checks.
+the canonical package and initialization checks. Use unversioned action names
+for current-package guidance and review-context requests, and retain the exact
+returned action reference in proposals. Pin action versions in tests only when
+version selection is the behavior under test.
 
 The root runner writes a Markdown cost report under `artifacts/test-cost/` after
 each qualification. Set `MDLM_TEST_COST_REPORT` when the integration record

@@ -89,7 +89,7 @@ test("saved review context provides exact handoff metadata without replacing exp
   try {
     await fs.mkdir(repository);
     expect(cli("init", repository).status).toBe(0);
-    const guidance = cli("expectations", "show", "draft-requirements@1").value;
+    const guidance = cli("expectations", "show", "draft-requirements").value;
     const candidates = [
       {localId: "need", type: "REQ", payload: {title: "Counting", publication: "recorded", kind: "stakeholder", statement: "The user shall receive a count", rationale: "Count supplied items"}, links: [], body: ""},
       {localId: "count", type: "REQ", payload: {title: "Count items", publication: "recorded", kind: "software", ears: {pattern: "ubiquitous", system: "The counter", response: "return the supplied item count"}}, links: [], body: ""},
