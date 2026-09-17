@@ -1,6 +1,7 @@
 // Current supported behavior only. Historical qualification evidence remains in
 // its owning release; deleted workflow tests are not a second supported suite.
 const fast = [
+  "prototype-correction-package", "prototype-correction-public",
   "independent-verification-package", "independent-verification-public", "array-expression", "change-assessment", "direct-authority", "direct-domain", "direct-package", "direct-receipt",
   "direct-selection-public", "iterative-public", "iterative-maintenance-reuse", "kernel-cutover", "lifecycle-schema-diagnostics", "mdlm-cli-output",
   "release-candidate-gate", "requirement-trace-v2", "source-scopes",
