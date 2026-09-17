@@ -45,6 +45,11 @@ Complete the candidate payloads and body using the returned schemas and package 
 
 Use a new operation for a new proposal. Preserve the exact submitted bytes. After an interrupted or lost submission response, inspect settlement before doing more work. Accepted settlement authenticates the existing publication. Inspect and commit accepted lifecycle data before retrieving fresh guidance.
 
+Before authoring a verification script or choosing its tools and evidence, read
+"Native verification runtime" in `docs/contracts/direct-work.md` in the MDLM
+installation containing your CLI, alongside that installation's `README.md`.
+It describes the fixed runtime and capture limits and the fields authors can set.
+
 When the selected package supports independent verification, export the requirement or criterion context for a fresh verification author:
 
 ```bash
