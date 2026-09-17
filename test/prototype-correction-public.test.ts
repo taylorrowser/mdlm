@@ -70,9 +70,17 @@ test("a failed prototype is corrected under the exact experiment and verifier, w
     const run = async (id: string, op: string) => {
       const execution = cli(["execution", "run", id, op, "--activity", activity]);
       const g = guidance("execute-criterion-verification", id), c = g.candidates[0];
-      c.payload = {...c.payload, assessment: "Captured output compared with unchanged independent criterion", correction_target: execution.value.receipt.result.outcome === "pass" ? "none" : "implementation"};
+      c.payload = {...c.payload, title: "Readiness output compared with the declared criterion", assessment: "Captured output compared with unchanged independent criterion", correction_target: execution.value.receipt.result.outcome === "pass" ? "none" : "implementation"};
       c.links.push({type: "evaluates", target: activity});
+      if (op === "failed-run") {
+        const altered = structuredClone(c);
+        altered.payload.publication = "draft";
+        const rejected = await submit(g, "altered-publication", altered, {receipt: execution.value.evidence}, 1);
+        expect(JSON.stringify(rejected)).toContain("fixed payload differs");
+        expect(cli(["proposal", "settlement", "altered-publication"]).outcome).toBe("not-published");
+      }
       const resultId = (await submit(g, `${op}-result`, c, {receipt: execution.value.evidence})).revisions[0];
+      expect(datum(resultId).payload).toMatchObject({title: c.payload.title, publication: "recorded", receipt: execution.value.evidence, outcome: execution.value.receipt.result.outcome, case_results: execution.value.receipt.result.caseResults});
       return {execution, resultId};
     };
     const failed = await run(failedTrial, "failed-run");
@@ -110,7 +118,7 @@ test("a failed prototype is corrected under the exact experiment and verifier, w
     expect(remaining).not.toContain("revise-experiment");
     expect(remaining).not.toContain("observe-prototype");
     const stale = guidance("execute-criterion-verification", correctedTrial), staleCandidate = stale.candidates[0];
-    staleCandidate.payload = {...staleCandidate.payload, assessment: "Old evidence cannot establish the correction", correction_target: "implementation"};
+    staleCandidate.payload = {...staleCandidate.payload, title: "Old readiness evidence", assessment: "Old evidence cannot establish the correction", correction_target: "implementation"};
     staleCandidate.links.push({type: "evaluates", target: activity});
     const rejectedReceipt = await submit(stale, "old-result", staleCandidate, {receipt: failed.execution.value.evidence}, 1);
     expect(JSON.stringify(rejectedReceipt)).toMatch(/receipt.*(match|bind)|exact|fresh execution/i);

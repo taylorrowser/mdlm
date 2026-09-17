@@ -91,7 +91,7 @@ test("independent verification reports complete requirements, failures, stale ev
     expect(cli(["verification","status",productId]).requirements[0]).toMatchObject({overall:"awaiting-coverage-review",nextAction:"Review collective requirement coverage with the implementation"});
     const settled=cli(["execution","run",productId,"pass","--activity",activity]);expect(settled.value.evidence).toBe(first.value.evidence);
     const rerun=await execute("pass-fresh",productId);
-    const oldGuidance=guidance("execute-verification",productId),oldCandidate=oldGuidance.candidates[0];oldCandidate.payload={...oldCandidate.payload,assessment:"Attempt to reuse older evidence",correction_target:"none"};oldCandidate.links.push({type:"evaluates",target:activity});
+    const oldGuidance=guidance("execute-verification",productId),oldCandidate=oldGuidance.candidates[0];oldCandidate.payload={...oldCandidate.payload,title:"Older count evidence",assessment:"Attempt to reuse older evidence",correction_target:"none"};oldCandidate.links.push({type:"evaluates",target:activity});
     const staleReceipt=await submit(oldGuidance,"old-receipt",[oldCandidate],{receipt:first.value.evidence},false,1);expect(JSON.stringify(staleReceipt)).toContain("fresh execution");
     expect(rerun.value.evidence).not.toBe(first.value.evidence);
     const evidenceDirectory=path.join(root,"exported-evidence");const exportedEvidence=cli(["execution","export","pass-fresh",evidenceDirectory]);expect(exportedEvidence.files.some((f:any)=>f.path==="report.json")).toBe(true);expect(JSON.parse(await fs.readFile(path.join(evidenceDirectory,"report.json"),"utf8")).cases).toHaveLength(2);
