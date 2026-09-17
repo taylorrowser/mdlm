@@ -21,6 +21,14 @@ Core owns read-only missing-data discovery and eligibility. Domain module export
 
 Authority module exports `buildDirectReviewContext(context: DirectContext)`, `registerDirectReview(root,context,proposalSource,verdictSource)`, and `validateDirectAuthority(context: DirectContext,proposal: DirectProposal,proposalSource: string): Promise<unknown>`. The last function returns durable evidence for the transaction or rejects. It must allow autonomous actions and require exact registered independent judgment or explicitly supplied stakeholder authority for protected actions. Complete source and verification receipt context must remain bound. Registry transport is not an OS authentication boundary.
 
+Review context `verifierSources[].files` retains every regular file in the exact
+verifier commit, including committed screenshots and other binary evidence.
+Each file has its `path`, Git `blob` identity and `content`. Without `encoding`,
+content is UTF-8 text. Files containing invalid UTF-8 or NUL bytes instead have
+`encoding: "base64"`; decode their content as base64 to recover the exact bytes.
+Export, review registration and publication bind the same complete content.
+Activity review continues to exclude product implementation source.
+
 Transaction provenance is `created_by.transaction = mdlm-direct-transaction@1`. The immutable record contains exact outputs and package/snapshot/operation/proposal digest bindings. Settlement authenticates all outputs, returns identical accepted work and rejects different content reusing the same operation. Guidance is read-only. No token, Assignment, lease or Scenario invocation authorizes publication.
 
 Manifest declares `direct_contract: mdlm-direct@1` and `terminal: {when: <expression>, outcome: profile-boundary-reached | lifecycle-complete, reason: <text>}`. Result interfaces are in `direct-contract.ts`; guidance is returned directly with `ok:true` added, never wrapped in a packet. Rejected CLI operations return `{ok:false, diagnostics:[{code,message}]}` and nonzero exit.

@@ -1,4 +1,5 @@
 import { promises as fs } from "node:fs";
+import { isUtf8 } from "node:buffer";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify, isDeepStrictEqual } from "node:util";
@@ -30,7 +31,7 @@ export interface DirectReviewContext {
   sourceScopes: {implementation: string; scopes: DatumEnvelope[]; changes: unknown; comparison: unknown}[];
   prospectiveChange?: unknown;
   sources: {implementation: string; repositoryPath: string; sourceCommit: string; acceptanceScope: "whole-product" | "partial"; files: {path: string; role: string; mode: string; blob: string; content: string; formal: boolean}[]}[];
-  verifierSources?: {activity: string; sourceCommit: string; files: {path: string; blob: string; content: string}[]}[];
+  verifierSources?: {activity: string; sourceCommit: string; files: {path: string; blob: string; content: string; encoding?: "base64"}[]}[];
   verificationCoverage?: unknown;
   verificationReceipts: {result: string; implementation: string; requirements: string; locator: string; execution: string; binding: "validated"; receipt: Awaited<ReturnType<typeof readVerificationReceiptBlob>>["receipt"]}[];
 }
@@ -63,9 +64,10 @@ export async function buildDirectReviewContext(context: DirectContext): Promise<
         const match = /^(100644|100755) blob ([a-f0-9]{40})\t([\s\S]+)$/.exec(line);
         if (!match) throw new Error("Verifier review supports regular committed files only");
         const bytes = await exec("git", ["cat-file", "blob", match[2]!], {cwd, encoding:"buffer", maxBuffer:64*1024*1024});
-        const content = new TextDecoder("utf-8", {fatal:true}).decode(bytes.stdout);
-        if (content.includes("\0")) throw new Error("Verifier review requires text source");
-        files.push({path:match[3]!,blob:match[2]!,content});
+        const source = isUtf8(bytes.stdout) && !bytes.stdout.includes(0)
+          ? {content: bytes.stdout.toString("utf8")}
+          : {content: bytes.stdout.toString("base64"), encoding: "base64" as const};
+        files.push({path:match[3]!,blob:match[2]!,...source});
       }
       result.verifierSources.push({activity:activity.revision_id,sourceCommit:commit,files});
       // Activity source review selects only its declared intent and interfaces, never product source.
