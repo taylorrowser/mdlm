@@ -165,6 +165,24 @@ point shared authoring guidance to that contract. Check the documented mapping
 against `verificationReportOutcome` and its existing focused tests. Preserve
 the original report and receipt when an independent author corrects the script.
 
+## Independent author discovery, #875
+
+A fresh browser verifier needed the orchestrator to supply the selected action
+and candidate link keys. The lifecycle author had already discovered the action,
+but the intent-only handoff omitted it. Native VFY candidate examples have empty
+links because coverage targets are authored, and payload schemas do not define
+the candidate envelope. These are classes 3 and 6: pass the selected source-free
+guidance metadata with the intent export, and document the generic link entry in
+the operator guide. Authenticate file digests and package identity without
+passing the full lifecycle guidance context to the independent author.
+
+Check the example against DirectCandidate and the metadata projection against
+saved native guidance. Preserve independent target selection and all validation.
+Use a later qualified native handoff to establish whether authors proceed without
+procedural assistance; documentation checks alone do not establish that result.
+When operation exposes another missing authoring contract, update its owning
+instruction and record the learning here in the same change.
+
 ## Historical patterns and checks
 
 ## 1. Every failable output needs a correction route

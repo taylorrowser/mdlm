@@ -29,6 +29,8 @@ At a package boundary, compare the exact accepted scope with the agreed outcome.
 
 Author a proposal with a unique operation ID, the guidance's action, package, snapshot, exact subject and inputs, and your candidates. Each candidate supplies a localId, type, payload, links and body. A revision also names its exact predecessor. References to another candidate use `$<localId>` for its revision or `$<localId>.id` for its stable identity. MDLM generates revision identities and managed data.
 
+Each entry in `links` has `type` and `target` strings, for example `{"type":"verifies","target":"<exact-REQ-or-EXP-revision>"}` in a verification candidate. Use the exact revisions or candidate local references required by the selected link, and preserve supplied fixed links.
+
 Prepare an editable draft for the action you chose. Use a fresh operation ID and a new file path. For example, after selecting `draft-requirements` on a new tiny product:
 
 ```sh

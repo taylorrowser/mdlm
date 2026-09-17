@@ -1,12 +1,14 @@
 ---
 id: plan-verification
-version: 2
+version: 3
 skills: []
 ---
 
 # Author independent verification
 
-Give a fresh verification author `mdlm verification context <exact-RQS-or-EXP> --output <new-file> --json`. Supply that export and the public operation contact only. The author must work without product source, implementation explanations or product-authored expectations. Copy its subject into authoring_subject and its authoringContext digest into authoring_context. Ask for requirement clarification when the public contract does not define an observable result.
+Give a fresh verification author `mdlm verification context <exact-RQS-or-EXP> --output <new-file> --json`. Supply that export, the public operation contact, and a source-free projection of the selected direct guidance containing only action, subject, package, prompt, payloadSchemas and candidates. Pass these fields unchanged with saved file paths and digests; they identify the selected action/version, exact subject, package identity/digest and candidate bindings. Keep the full guidance context with the lifecycle author.
+
+The receiving author checks the saved bytes against those digests and confirms that the projected package matches the intent export's package. The verification author must work without product source, implementation explanations or product-authored expectations. Copy the intent export's subject into authoring_subject and its authoringContext digest into authoring_context. Ask for requirement clarification when the public contract does not define an observable result.
 
 Commit the verifier in a separate Git repository. Define each activity's method and objective, exact REQ or EXP targets, cases and coverage. Each case has preconditions, intended actions, expected results and a rationale.
 
