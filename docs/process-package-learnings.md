@@ -34,6 +34,29 @@ No removed compiler diagnostic or historical package test is claimed to protect
 these lessons in the direct kernel. Current public journeys and focused integrity
 checks supply the evidence for the implemented direct routes.
 
+## Optional formalization after exploration, #873
+
+The guidance-service experiment closed through explicit stakeholder stop, but
+iterative 2.0.3 still required drafting requirements. Its bounded verification
+service had no selected formal product scope. Treat this as a package completion
+profile limitation: closing exploration must not silently select formalization.
+
+Initial drafting is optional. Reuse the exact experiment closure selector to
+report an exploration-only Profile Boundary when no formal requirement set
+exists. Keep drafting available there; publishing fresh requirements starts the
+ordinary formal obligations in the same history. Once formal scope exists, its
+review, verification and acceptance conditions still govern completion. A shared
+boundary reason must describe both paths without treating exploratory closure as
+acceptance. No extra decision datum or approval step is needed to select the
+existing drafting action.
+
+The focused public optional-formalization test executes a prototype, records
+stakeholder stop, observes the boundary, then explicitly drafts requirements and
+checks that formal review becomes required with exact origins and history intact.
+Optionality alone is insufficient because the unchanged terminal predicate would
+report blocked. A later fresh native experiment must establish operational use
+under the new package; the old service remains externally stopped in its history.
+
 ## Direct authoring guidance, #807
 
 The first live direct scoring author recognized and worked around obsolete
