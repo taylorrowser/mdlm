@@ -49,6 +49,23 @@ Check examples against the direct contract and requirement finalization when
 changing them. Use subsequent live authoring to judge whether agents can submit
 without manual format translation; prose assertions in tests do not establish it.
 
+## Descriptive result titles, #818
+
+River, elapsed and guidance-service authors supplied informative RES titles and
+hit the package's fixed literal title. Each recovered by changing only title and
+operation while retaining the same execution receipt. This is class 6: remove an
+exact-value constraint when the value is only inspection text and no lifecycle
+decision needs it. Keep titles required and nonempty, while preserving fixed
+publication, exact context links and captured receipt-derived results. The shared
+prompt names title as authored; drafts leave it for the author to supply.
+
+The public prototype-correction test submits a descriptive result title and
+checks its preservation alongside the captured outcome, receipt and cases. An
+altered fixed publication still rejects without publishing. Use subsequent
+ordinary authoring to measure whether title-only corrections disappear. When
+operation exposes unnecessary strictness, simplify its owning declaration and
+record the learning here in the same change.
+
 ## Reusing unchanged accepted requirements, #819
 
 River3 maintenance preserved all nine exact requirements and its decomposition,
