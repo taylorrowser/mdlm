@@ -98,6 +98,14 @@ mdlm review context <action> <exact-subject> --output review-context.json --json
 
 Pass the returned handoff to the review manager. It contains the saved file's absolute path, byte count and SHA256, with the exact action, subject, snapshot and package. The fresh reviewer reads that file. Choose a new path for each export; existing files are preserved and cause an error. Omitting `--output` returns the full context on stdout. The export SHA256 identifies the saved bytes; registration's canonical context digest is a separate value.
 
+Verifier files may include binary evidence with `encoding: "base64"`. Inspect the
+saved export by selected fields rather than printing the full binary content.
+For example, list the files with
+`jq '.verifierSources[] | {activity, sourceCommit, files: [.files[] | {path, blob, encoding}]}' review-context.json`.
+Text files have no encoding field and keep readable `content`. To view binary
+evidence, select its exact activity and path, decode its content as base64 to a
+separate file, and open that file. Preserve the original export for registration.
+
 The review manager registers the exact proposal and verdict through `mdlm review register <proposal-file> <verdict-file> --json`. The author must not register its own judgment. Submit the exact registered proposal bytes.
 
 For a fresh useful-product-to-baseline experiment, initialize with `mdlm init /path/to/lifecycle --process iterative`, then read the installed package overview using the selection lookup above. Its accepted formal scope is a profile boundary; compare that exact scope with the agreed whole product before declaring the experiment complete.
