@@ -102,6 +102,22 @@ Missing or oversized referenced evidence makes the run an error, even when the
 script exits successfully. Inspect the receipt diagnostic and export the saved
 evidence before assessing the result.
 
+After writing the complete independent verification report, make the verifier
+script's exit status agree with its case outcomes:
+
+| Report case outcomes | Verifier script exit | Run outcome |
+| --- | --- | --- |
+| Every case is `pass` | `0` | `pass` |
+| At least one `fail`, with no `error` or `skipped` cases | `1` | `fail` |
+| Any `error` or `skipped` case, including when other cases fail | `2` | `error` |
+
+These are the verifier script's exit codes, not the product command's exit codes
+or the MDLM CLI's exit status. Compute the exit from the reported outcomes after
+writing the report; successfully writing a report containing failures does not
+justify exit zero. A disagreement between report and script exit records an
+execution error. An invalid report or incomplete evidence capture also records
+an error regardless of the script's exit status.
+
 ## Editable proposal drafts
 
 `proposal draft` uses the same current guidance and action resolution as `expectations show`. The caller selects the action, optional exact subject, operation identity and new output file. The saved JSON contains only the complete proposal envelope and unchanged candidate examples, including fixed payload values, exact links and predecessors. It supplies no semantic claims, receipt selection, review or stakeholder authority. Authored fields still need the prompt and `payloadSchemas` from guidance.
