@@ -1,6 +1,6 @@
 ---
 id: draft-requirements
-version: 6
+version: 7
 skills:
 - skills/product-quality.md@1
 - skills/typed-requirements.md@5
@@ -15,6 +15,8 @@ Read the stakeholder request. Write stakeholder and software REQ statements in o
 Use the supplied direct proposal guidance and payload schema. The CLI supplies identities, exact required links and publication markers. Submit the authored values with mdlm proposal submit. Keep the body empty when the structured payload contains the whole claim.
 
 Record the stakeholder request reference in source so a reviewer can recover the original intent.
+
+Choose this optional action when stakeholder intent justifies a formal scope. Exploration may close without requirements. Publishing this fresh requirement set starts ordinary formal review, implementation, independent verification and acceptance work in the same history.
 
 Read the exact experiment in guidance.context and its relevant observations with `mdlm show <exact-revision> --json`. State the selected formal scope and the neighboring behavior that remains provisional. Start from stakeholder need or a useful prototype decision, then write fresh obligations. Record optional `informed-by` links to zero or more exact EXP/OBS revisions on each REQ, with rationale identifying what each origin contributed. Several requirements may share origins. A requirement may have no design predecessor. Keep replaceable implementation choices in exploration; do not turn all prototype behavior into requirements. Prior observations explain learning and do not replace current formal verification.
 
