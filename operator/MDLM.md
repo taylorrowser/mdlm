@@ -29,25 +29,19 @@ At a package boundary, compare the exact accepted scope with the agreed outcome.
 
 Author a proposal with a unique operation ID, the guidance's action, package, snapshot, exact subject and inputs, and your candidates. Each candidate supplies a localId, type, payload, links and body. A revision also names its exact predecessor. References to another candidate use `$<localId>` for its revision or `$<localId>.id` for its stable identity. MDLM generates revision identities and managed data.
 
-Save the chosen action's guidance as `guidance.json`. This example builds the complete proposal envelope from those exact values:
+Prepare an editable draft for the action you chose. Use a fresh operation ID and a new file path. For example, after selecting `draft-requirements` on a new tiny product:
 
-```bash
-jq '{
-  operation: "draft-requirements-001",
-  action: .action,
-  package: .package,
-  snapshot: .snapshot,
-  inputs: .inputs,
-  candidates: .candidates
-} + (if has("subject") then {subject: .subject} else {} end)' guidance.json > proposal.json
-```
-
-Choose a fresh `operation` value for your proposal. Edit `candidates` to satisfy the returned payload schemas and package prompt, preserving fixed values, required links and predecessors. Candidate examples are starting points and may lack required authored fields. Add `evidence` when the action needs a receipt, registered review or stakeholder authority; the sections below describe those requirements. Keep the copied action, package, snapshot, subject and inputs unchanged.
-
-```bash
+```sh
+mdlm expectations show draft-requirements --json
+mdlm proposal draft draft-requirements --operation requirements-001 --output proposal.json --json
+# Edit proposal.json using the prompt and payloadSchemas returned above.
 mdlm proposal submit proposal.json --json
-mdlm proposal settlement <operation-id> --json
+mdlm proposal settlement requirements-001 --json
 ```
+
+For work on an exact subject, put its revision after the action in both `expectations show` and `proposal draft`. Drafting resolves the current action version and copies the package, snapshot, exact subject, inputs, candidate fixed values, required links and predecessors. It returns the saved file's absolute path, byte count and SHA256. Existing files are preserved and cause an error. Relative output paths resolve from the current directory, as proposal submission paths do.
+
+Complete the candidate payloads and body using the returned schemas and package prompt. Candidate examples may lack required authored fields. Preserve fixed values and bindings. Add `evidence` when the action needs a receipt, registered review or stakeholder authority; the sections below describe those requirements. Drafting does not choose evidence, grant authority, validate the finished claims or publish lifecycle data. A draft can become stale while being edited; submission still checks the exact snapshot and package.
 
 Use a new operation for a new proposal. Preserve the exact submitted bytes. After an interrupted or lost submission response, inspect settlement before doing more work. Accepted settlement authenticates the existing publication. Inspect and commit accepted lifecycle data before retrieving fresh guidance.
 

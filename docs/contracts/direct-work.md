@@ -7,6 +7,7 @@ Packages declare `actions/<id>.yaml` with kind `action-definition`, integer vers
 CLI:
 - `mdlm expectations --json`
 - `mdlm expectations show <action> [<exact-subject>] --json`
+- `mdlm proposal draft <action> [<exact-subject>] --operation <operation> --output <new-file> --json`
 - `mdlm proposal submit <file|-> [--authority <name>] --json`
 - `mdlm proposal settlement <operation> --json`
 - `mdlm execution run <exact-implementation> <operation> --json`
@@ -54,3 +55,17 @@ The fresh iterative package opts into `requirement-trace@4` and `independent-ver
 `mdlm verification status <exact-product> --json` reports coverage, adequacy review, current case outcomes and missing or stale evidence. Formal verified requires sufficient independently reviewed coverage and current passing results for every required case. The exact product review assesses the union of selected activity coverage for every requirement, so several individually adequate partial activities do not automatically establish complete coverage. EXP outcomes remain provisional observations. Acceptance checks the complete selected requirement graph. An old product or criterion pass does not automatically verify a successor source or promoted requirement.
 
 `mdlm execution export <operation> <new-directory> --json` materializes the authenticated saved receipt, raw stdout/stderr, report and captured artifacts without rerunning execution or changing lifecycle data. The destination must be new; existing evidence is preserved.
+
+## Editable proposal drafts
+
+`proposal draft` uses the same current guidance and action resolution as `expectations show`. The caller selects the action, optional exact subject, operation identity and new output file. The saved JSON contains only the complete proposal envelope and unchanged candidate examples, including fixed payload values, exact links and predecessors. It supplies no semantic claims, receipt selection, review or stakeholder authority. Authored fields still need the prompt and `payloadSchemas` from guidance.
+
+The `mdlm-proposal-draft@1` handoff reports `export.path`, `export.bytes`, `export.exportSha256`, operation, action, package, snapshot, optional subject and inputs, plus authoring instructions and the guidance command arguments. The digest describes the initial saved bytes; editing changes it. Relative paths follow existing CLI file resolution. Exclusive creation preserves existing files. Drafting leaves lifecycle data unchanged and does not reserve the snapshot or operation. Normal submit validation and settlement remain authoritative.
+
+```sh
+mdlm expectations show draft-requirements --json
+mdlm proposal draft draft-requirements --operation requirements-001 --output proposal.json --json
+# Fill authored candidate fields from the prompt and payloadSchemas.
+mdlm proposal submit proposal.json --json
+mdlm proposal settlement requirements-001 --json
+```

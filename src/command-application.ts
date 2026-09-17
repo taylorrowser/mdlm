@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { parse } from "yaml";
-import { inspectDirectExpectations, submitDirectProposal, inspectDirectSettlement, runDirectExecution, inspectDirectExecution, inspectDirectReview, registerDirectReviewFiles, inspectVerificationContext, inspectVerificationStatus, exportDirectExecution } from "./direct-proposal.js";
+import { inspectDirectExpectations, parseDirectProposal, submitDirectProposal, inspectDirectSettlement, runDirectExecution, inspectDirectExecution, inspectDirectReview, registerDirectReviewFiles, inspectVerificationContext, inspectVerificationStatus, exportDirectExecution } from "./direct-proposal.js";
 import { requirementTraceBinding } from "./requirement-trace.js";
 import { inspectRequirementTrace } from "./requirement-trace-inspection.js";
 import { loadProcessPackage, resolveType, type LifecycleSnapshot, type ProcessDiagnostic } from "./index.js";
@@ -26,6 +26,7 @@ const help = `Usage: mdlm <command> [--json]
 Direct lifecycle work:
   mdlm init <destination> [--process exploratory|iterative]
   mdlm expectations [show <action> [<exact-subject>]] [--json]
+  mdlm proposal draft <action> [<exact-subject>] --operation <operation-id> --output <new-file> [--json]
   mdlm proposal submit <proposal-file|-> [--authority <authority-id>] [--json]
   mdlm proposal settlement <operation-id> [--json]
   mdlm verification context <exact-RQS-or-EXP> [--output <file>] [--json]
@@ -698,11 +699,17 @@ async function dispatchCommand(
   standardInput?: string,
 ): Promise<CommandResult> {
   const outputOptions = optionValues(arguments_, "--output");
+  const draftingProposal = arguments_[0] === "proposal" && arguments_[1] === "draft";
   const exportingReview = ["review", "verification"].includes(arguments_[0]!) && arguments_[1] === "context";
-  if (arguments_.includes("--output") && (!exportingReview || outputOptions.length !== 1 || !outputOptions[0] || outputOptions[0].startsWith("--"))) {
-    return failure("review-output-invalid", "--output requires one file path for review context");
+  if (arguments_.includes("--output") && (!(exportingReview || draftingProposal) || arguments_.filter(argument => argument === "--output").length !== 1 || outputOptions.length !== 1 || !outputOptions[0] || outputOptions[0].startsWith("--"))) {
+    return failure("review-output-invalid", "--output requires one file path for context export or proposal draft");
   }
-  const operands = commandOperands(exportingReview ? arguments_.filter((argument, index) => argument !== "--output" && arguments_[index - 1] !== "--output") : arguments_);
+  const operationOptions = optionValues(arguments_, "--operation");
+  if (draftingProposal && (outputOptions.length !== 1 || arguments_.filter(argument => argument === "--operation").length !== 1 || operationOptions.length !== 1 || !operationOptions[0] || operationOptions[0].startsWith("--"))) {
+    return failure("proposal-draft-arguments-invalid", "proposal draft requires --operation <operation-id> and --output <new-file>");
+  }
+  const optionsToRemove = [...(exportingReview || draftingProposal ? ["--output"] : []), ...(draftingProposal ? ["--operation"] : [])];
+  const operands = commandOperands(arguments_.filter((argument, index) => !optionsToRemove.includes(argument) && !optionsToRemove.includes(arguments_[index - 1]!)));
   if (
     (arguments_.length === 1 && arguments_[0] === "--help") ||
     (operands.length === 1 && operands[0] === "help")
@@ -762,6 +769,32 @@ async function dispatchCommand(
   }
   if (operands[0] === "proposal") {
     try {
+      if (draftingProposal) {
+        if (![3, 4].includes(operands.length)) throw new Error("Expected proposal draft <action> [<exact-subject>] --operation <operation-id> --output <new-file>");
+        const guidance = await inspectDirectExpectations(repositoryRoot, operands[2]!, operands[3]);
+        if (!("candidates" in guidance)) throw new Error("Expected guidance for the selected action");
+        const proposal = {
+          operation: operationOptions[0]!, action: guidance.action, package: guidance.package,
+          snapshot: guidance.snapshot, ...(guidance.subject ? {subject: guidance.subject} : {}),
+          inputs: guidance.inputs, candidates: guidance.candidates,
+        };
+        // Check the envelope and operation identity, without claiming authored data is valid.
+        const bytes = Buffer.from(`${JSON.stringify(proposal, null, 2)}\n`, "utf8");
+        parseDirectProposal(bytes.toString("utf8"));
+        const file = path.resolve(repositoryRoot, outputOptions[0]!);
+        await fs.writeFile(file, bytes, {flag: "wx"});
+        return {
+          ok: true, command: "proposal.draft", contract: "mdlm-proposal-draft@1",
+          export: {path: file, bytes: bytes.length, exportSha256: createHash("sha256").update(bytes).digest("hex")},
+          operation: proposal.operation, action: proposal.action, package: proposal.package,
+          snapshot: proposal.snapshot, ...(proposal.subject ? {subject: proposal.subject} : {}), inputs: proposal.inputs,
+          authoring: {
+            instruction: "Draft only. Read the selected action's prompt and payloadSchemas, fill authored fields, preserve fixed values, links and predecessors, and supply required evidence or authority. This file has not been validated for publication or submitted.",
+            guidance: ["mdlm", "expectations", "show", proposal.action, ...(proposal.subject ? [proposal.subject] : []), "--json"],
+          },
+          diagnostics: [],
+        };
+      }
       if (operands[1] === "settlement" && operands.length === 3) return {...await inspectDirectSettlement(repositoryRoot, operands[2]!), command: "proposal.settlement", diagnostics: []};
       if (operands[1] !== "submit" || operands.length !== 3) throw new Error("Expected proposal submit <file|-> or proposal settlement <operation>");
       const source = operands[2] === "-" ? standardInput ?? "" : await fs.readFile(path.resolve(repositoryRoot, operands[2]!), "utf8");
