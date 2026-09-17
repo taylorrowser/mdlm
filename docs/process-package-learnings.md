@@ -99,7 +99,7 @@ Keep this improve-and-record rule: when operation exposes a correction gap,
 update the owning package route and its learning rule in the same session, with
 one focused check at the public boundary that changed.
 
-## Coverage authoring cardinality, #870
+## Independent verifier authoring contracts, #870
 
 The elapsed-time verifier supplied five coverage entries for one exact EXP.
 Publication correctly rejected the candidate, but the shared authoring prompt
@@ -115,6 +115,15 @@ validator or adding wording-only regression tests. Preserve the rejected bytes;
 use the next fresh authoring episode to assess whether the guidance prevents the
 same mistake. Update the owning guidance and this learning in the same session
 when operation exposes a missing copy rule.
+
+The same elapsed verifier later reported seven failing cases but exited zero,
+which the kernel correctly classified as an execution error. Public runtime
+documentation must state the numeric script exits and their precedence: any
+error or skipped case requires 2, otherwise any failure requires 1, and all
+passing cases require 0. Explain that report/exit disagreement is an error and
+point shared authoring guidance to that contract. Check the documented mapping
+against `verificationReportOutcome` and its existing focused tests. Preserve
+the original report and receipt when an independent author corrects the script.
 
 ## Historical patterns and checks
 
