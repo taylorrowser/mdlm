@@ -99,6 +99,23 @@ Keep this improve-and-record rule: when operation exposes a correction gap,
 update the owning package route and its learning rule in the same session, with
 one focused check at the public boundary that changed.
 
+## Coverage authoring cardinality, #870
+
+The elapsed-time verifier supplied five coverage entries for one exact EXP.
+Publication correctly rejected the candidate, but the shared authoring prompt
+did not state the existing one-claim-per-target rule. This is a current instance
+of class 6. State exact grouping and case-ID copy rules before authors freeze
+independent verification: one coverage entry per selected target, its obligations
+combined, and every declared case targeting it listed once. Several obligations
+or cases do not create additional entries for the same target.
+
+Keep this rule in the shared prompt used by criterion, formal and revision
+authoring. Check its public guidance and package references without changing the
+validator or adding wording-only regression tests. Preserve the rejected bytes;
+use the next fresh authoring episode to assess whether the guidance prevents the
+same mistake. Update the owning guidance and this learning in the same session
+when operation exposes a missing copy rule.
+
 ## Historical patterns and checks
 
 ## 1. Every failable output needs a correction route

@@ -1,6 +1,6 @@
 ---
 id: plan-verification
-version: 1
+version: 2
 skills: []
 ---
 
@@ -8,7 +8,11 @@ skills: []
 
 Give a fresh verification author `mdlm verification context <exact-RQS-or-EXP> --output <new-file> --json`. Supply that export and the public operation contact only. The author must work without product source, implementation explanations or product-authored expectations. Copy its subject into authoring_subject and its authoringContext digest into authoring_context. Ask for requirement clarification when the public contract does not define an observable result.
 
-Commit the verifier in a separate Git repository. Define each activity's method and objective, exact REQ or EXP targets, cases and coverage. Each case has preconditions, intended actions, expected results and a rationale. Coverage lists the obligations of each target and the case IDs that establish them. Across the selected activities, address every obligation of each requirement, including relevant boundary and failure behavior. An activity may cover part of a requirement when its coverage claim states that part clearly; the complete selected plan must cover the whole requirement. Parent requirements need their own coverage argument; decomposition alone is not evidence. Many cases may share a script and one case may verify several requirements. Keep verification independent of product source organization and private functions.
+Commit the verifier in a separate Git repository. Define each activity's method and objective, exact REQ or EXP targets, cases and coverage. Each case has preconditions, intended actions, expected results and a rationale.
+
+Create exactly one `coverage` entry for each exact target selected by the activity's `verifies` links. Combine that target's obligations in its `obligations` array. Its `case_ids` must list every declared case whose `targets` contains that exact target, once each, with no other case IDs. Do not split one target into several coverage entries by obligation or case. A single EXP therefore has one coverage entry even when its criterion has several obligations and cases.
+
+Across the selected activities, address every obligation of each requirement, including relevant boundary and failure behavior. An activity may cover part of a requirement when its coverage claim states that part clearly; the complete selected plan must cover the whole requirement. Parent requirements need their own coverage argument; decomposition alone is not evidence. Many cases may share a script and one case may verify several requirements. Keep verification independent of product source organization and private functions.
 
 Choose the method and tool that fit the claim. A CLI test can launch its public command, a web test can interact with a browser, and analysis can evaluate observable outputs against an explicit model. For demonstration, specify intended actions/results first, preserve the actual computer-use run, then write and rerun a reproducible script from those interactions. Preserve the original expected results even when demonstration reveals a product defect. A replay is separate evidence; the recording alone does not establish reproducibility.
 
