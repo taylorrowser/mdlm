@@ -87,12 +87,48 @@ test("saved review context provides exact handoff metadata without replacing exp
     return {status: result.status, source: result.stdout, value: JSON.parse(result.stdout)};
   };
   try {
-    await fs.mkdir(repository);
-    expect(cli("init", repository).status).toBe(0);
+    // A small package fixture publishes origins without running a prototype journey.
+    // The requirements graph, transactions and exported review use the public CLI.
+    const fixture = path.join(root, "package");
+    await fs.cp(path.join(process.cwd(), ".lifecycle/process"), fixture, {recursive: true});
+    const requirement = parse(await fs.readFile(path.join(fixture, "types/REQ.yaml"), "utf8"));
+    const originLink = (id: string, types: string[]) => ({id, description: id, targets: [{kind: "datum", types, identity: "revision"}], cardinality: {minimum: 0, maximum: "many"}, freeze_resolution: "already-exact", inverse_label: `incoming-${id}`});
+    requirement.outgoing_links.push(originLink("informed-by", ["EXP", "OBS"]));
+    await fs.writeFile(path.join(fixture, "types/REQ.yaml"), stringify(requirement));
+    for (const type of ["EXP", "OBS", "TRY"]) {
+      await fs.writeFile(path.join(fixture, `types/${type}.yaml`), stringify({
+        kind: "type-definition", id: type, version: 1, name: type, description: "Review origin fixture", extends: "titled-datum@1",
+        lifecycle: {authorship: "authored", freeze_when: "terminal-outcome", terminal_payload_field: "publication", terminal_values: ["recorded"]},
+        payload_schema: {$schema: "https://json-schema.org/draft/2020-12/schema", type: "object", required: ["publication"], properties: {publication: {const: "recorded"}}},
+        outgoing_links: [originLink("observes", ["TRY"]), originLink("against", ["EXP"])], kernel_managed_payload_paths: [],
+      }));
+    }
+    const draftAction = parse(await fs.readFile(path.join(fixture, "actions/draft-requirements.yaml"), "utf8"));
+    await fs.writeFile(path.join(fixture, "actions/seed-origin.yaml"), stringify({
+      kind: "action-definition", id: "seed-origin", version: 1, capability: "experiment", prompt_ref: draftAction.prompt_ref, types: ["EXP", "OBS", "TRY"], inputs: {}, when: "true",
+    }));
+    const initialized = await initializeRepositoryFromProcessPackage(repository, fixture);
+    expect(initialized.ok, JSON.stringify(initialized)).toBe(true);
+    const seed = async (type: string, title: string, links: unknown[] = [], predecessor?: string) => {
+      const guidance = cli("expectations", "show", "seed-origin").value;
+      const file = path.join(root, `${title}.json`);
+      await fs.writeFile(file, JSON.stringify({operation: title, action: guidance.action, package: guidance.package, snapshot: guidance.snapshot, inputs: guidance.inputs,
+        candidates: [{localId: "origin", type, payload: {title, publication: "recorded"}, links, body: `Exact ${title} payload`, ...(predecessor ? {predecessor} : {})}]}));
+      const submitted = cli("proposal", "submit", file);
+      expect(submitted.status, submitted.source).toBe(0);
+      return submitted.value.revisions[0] as string;
+    };
+    const exp1 = await seed("EXP", "first-intent");
+    const exp2 = await seed("EXP", "revised-intent", [], exp1);
+    const exp3 = await seed("EXP", "current-unselected-intent", [], exp2);
+    const trial = await seed("TRY", "unselected-product", [{type: "against", target: exp3}]);
+    const obs1 = await seed("OBS", "first-observation", [{type: "observes", target: trial}, {type: "against", target: exp3}]);
+    const obs2 = await seed("OBS", "second-observation", [{type: "observes", target: trial}]);
+    const origins = [exp1, exp2, obs1, obs2].map(id => cli("show", id).value.lifecycleDatum.datum);
     const guidance = cli("expectations", "show", "draft-requirements").value;
     const candidates = [
-      {localId: "need", type: "REQ", payload: {title: "Counting", publication: "recorded", kind: "stakeholder", statement: "The user shall receive a count", rationale: "Count supplied items"}, links: [], body: ""},
-      {localId: "count", type: "REQ", payload: {title: "Count items", publication: "recorded", kind: "software", ears: {pattern: "ubiquitous", system: "The counter", response: "return the supplied item count"}}, links: [], body: ""},
+      {localId: "need", type: "REQ", payload: {title: "Counting", publication: "recorded", kind: "stakeholder", statement: "The user shall receive a count", rationale: "Count supplied items"}, links: [exp1, obs1].map(target => ({type: "informed-by", target})), body: ""},
+      {localId: "count", type: "REQ", payload: {title: "Count items", publication: "recorded", kind: "software", ears: {pattern: "ubiquitous", system: "The counter", response: "return the supplied item count"}}, links: [exp1, exp2, obs2].map(target => ({type: "informed-by", target})), body: ""},
       {localId: "group", type: "DCP", payload: {title: "Counting behavior", publication: "recorded"}, links: [{type: "parent", target: "$need"}, {type: "child", target: "$count"}], body: ""},
       guidance.candidates.find((candidate: {type: string}) => candidate.type === "RQS"),
     ];
@@ -118,6 +154,13 @@ test("saved review context provides exact handoff metadata without replacing exp
     expect(exported.status, exported.source).toBe(0);
     const bytes = await fs.readFile(file);
     expect(bytes.toString("utf8")).toBe(ordinary.source);
+    const saved = JSON.parse(bytes.toString("utf8"));
+    expect(saved.records.filter((record: {type: string}) => ["EXP", "OBS"].includes(record.type))).toEqual(expect.arrayContaining(origins));
+    expect(saved.records.map((record: {revision_id: string}) => record.revision_id).sort()).toEqual([subject, exp1, exp2, obs1, obs2].sort());
+    expect(saved.sources).toEqual([]);
+    expect(saved.sourceScopes).toEqual([]);
+    expect(saved.verifierSources ?? []).toEqual([]);
+    expect(saved.verificationReceipts).toEqual([]);
     const {createHash} = await import("node:crypto");
     expect(exported.value).toEqual({
       ok: true, command: "review.context", contract: "mdlm-review-export@1",

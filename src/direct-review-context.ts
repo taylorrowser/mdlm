@@ -91,6 +91,15 @@ export async function buildDirectReviewContext(context: DirectContext): Promise<
     const graph = selectedRequirementGraph(data, set, trace);
     if (graph.diagnostics.length) throw new Error(`Review requirement graph '${set.revision_id}' is invalid: ${JSON.stringify(graph.diagnostics)}`);
     result.requirementGraphs.push({selection: set.revision_id, assessment: assessRequirements(data, trace, set), groups: graph.groups, requirements: graph.requirements.map(datum => ({...datum, leaf: graph.leaves.has(datum.revision_id)}))});
+    // Origins explain derivation. Include only direct exact links, never their source or evidence graph.
+    for (const requirement of graph.requirements) {
+      for (const link of requirement.links) {
+        if (link.type !== "informed-by" || result.records.some(datum => datum.revision_id === link.target)) continue;
+        const origin = data.find(datum => datum.revision_id === link.target);
+        if (!origin) throw new Error(`Review requirement origin '${link.target}' is unavailable`);
+        result.records.push(origin);
+      }
+    }
   }
   for (const implementation of implementations) {
     const baseline = (implementation.payload.source_changes as {baseline_implementation?: unknown} | undefined)?.baseline_implementation;
