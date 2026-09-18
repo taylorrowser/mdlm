@@ -183,6 +183,27 @@ procedural assistance; documentation checks alone do not establish that result.
 When operation exposes another missing authoring contract, update its owning
 instruction and record the learning here in the same change.
 
+## Verification methods follow claims, #881
+
+The report-comparison verifier rejected valid layouts and equivalent wording,
+while keyword predicates accepted incorrect associations and contradictory
+explanations. Repeated repairs extended the parser without establishing those
+meanings. This is class 6: put method selection in the shared authoring prompt
+reached by criterion, formal and revision actions.
+
+Keep exact public numeric and protocol assertions mechanical. Where a claim
+needs judgment, assess captured meaning independently against frozen intent.
+Use relevant valid-alternative and wrong-result controls to check the method,
+and bind any reused inspection to its exact case, intent, inputs and observations.
+Keep actual failures and uncertainty visible. The claim determines the method;
+this adds no universal parser, inspection record or lifecycle gate.
+
+Check package loading and the shared prompt references, then inspect ordinary
+native guidance. The next fresh authoring episode must establish whether authors
+choose adequate methods without procedural coaching; prompt checks alone do
+not prove that improvement. When operation exposes another method gap, update
+the owning shared guidance and this learning in the same session.
+
 ## Historical patterns and checks
 
 ## 1. Every failable output needs a correction route

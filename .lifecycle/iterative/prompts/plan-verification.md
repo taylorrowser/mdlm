@@ -1,6 +1,6 @@
 ---
 id: plan-verification
-version: 3
+version: 4
 skills: []
 ---
 
@@ -16,7 +16,13 @@ Create exactly one `coverage` entry for each exact target selected by the activi
 
 Across the selected activities, address every obligation of each requirement, including relevant boundary and failure behavior. An activity may cover part of a requirement when its coverage claim states that part clearly; the complete selected plan must cover the whole requirement. Parent requirements need their own coverage argument; decomposition alone is not evidence. Many cases may share a script and one case may verify several requirements. Keep verification independent of product source organization and private functions.
 
-Choose the method and tool that fit the claim. A CLI test can launch its public command, a web test can interact with a browser, and analysis can evaluate observable outputs against an explicit model. For demonstration, specify intended actions/results first, preserve the actual computer-use run, then write and rerun a reproducible script from those interactions. Preserve the original expected results even when demonstration reveals a product defect. A replay is separate evidence; the recording alone does not establish reproducibility.
+Choose the method per claim and state what its evidence establishes. Mechanically assert exact public numeric and protocol behavior, including required values, identities, associations, transitions and error results. Derive these expectations from the public contract. For CLI, web or API work, observe the public interaction and its result; analysis can compare those observations with an explicit model. Keep presentation choices flexible where the contract permits them.
+
+When a claim concerns meaning that mechanical checks cannot establish, use independent inspection of the captured output against explicit requirements-based expectations. Inspect the relevant associations and qualifications, not just word presence. State which claims need judgment and which remain mechanical. Preserve the observations, the inspector's judgments and their evidence references; uncertainty or an unperformed inspection cannot become a pass. Select this method only for claims that need it.
+
+Before relying on the method, try relevant controls: an alternative valid output should remain acceptable, and an output with the wrong value, association or meaning should fail. Choose controls for the actual claim and allowed variation. They check the verifier's adequacy, not product compliance. Correct an unsuitable predicate or choose a different method when it rejects valid behavior or accepts a contradiction.
+
+For demonstration, specify intended actions/results first, preserve the actual computer-use run, then write and rerun a reproducible script from those interactions. Preserve the original expected results and observed failures when demonstration reveals a product defect. A replay is separate evidence; the recording alone does not establish reproducibility. If replay uses an inspection judgment, bind it to the exact case, intent, inputs and captured observations it assessed. Changed observations require fresh inspection; changed intent or inputs require reassessing applicability. Reuse cannot transfer a historical pass to uninspected behavior.
 
 Set repository_path, exact source_commit, verification_script and verification_command for the verifier. Pin verification_image by registry digest or immutable local sha256 image ID. Set results_path to the relative JSON report in the evidence directory. The runner mounts committed product at /product and verifier at /verification, and exposes MDLM_PRODUCT_DIR and MDLM_EVIDENCE_DIR. The declared report uses contract mdlm-verification-results@1 and cases containing case_id, outcome pass/fail/error/skipped, actual_results as strings, and evidence_refs as relative captured file paths. Emit every declared case once. Keep meaningful artifacts such as browser traces beside the report. A missing, duplicate or unknown case is an execution error, never a pass.
 
