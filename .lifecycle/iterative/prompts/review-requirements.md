@@ -1,6 +1,6 @@
 ---
 id: review-requirements
-version: 7
+version: 8
 skills:
 - skills/product-quality.md@1
 - skills/typed-requirements.md@5
@@ -16,6 +16,6 @@ Independently review the complete RQS and its contained requirement graph agains
 
 Use the supplied direct proposal guidance and payload schema. The CLI supplies identities, exact required links and publication markers. Submit the authored values with mdlm proposal submit. Keep the body empty when the structured payload contains the whole claim.
 
-For each `informed-by` link in the requirement graph, read its exact EXP/OBS origin with `mdlm show <exact-revision> --json`. Judge necessity against stakeholder intent and the stated formal scope. An origin link explains derivation; it does not prove correctness or establish stakeholder acceptance. Check that adjacent exploratory choices have not silently become obligations.
+For each `informed-by` link in the requirement graph, read its exact EXP/OBS origin in the supplied review context's `records`, matching `revision_id` to the link target. Judge necessity against stakeholder intent and the stated formal scope. An origin link explains derivation; it does not prove correctness or establish stakeholder acceptance. Check that adjacent exploratory choices have not silently become obligations.
 
 Read the exact ICD records supplied in interfaces. Judge the explicit requirement obligations against both endpoint responsibilities, assumptions and integration evidence. Referenced descriptive or provisional design choices are not automatically requirements. Old interface evidence applies to its exact bindings; a revised contract needs an explicit applicability assessment.
