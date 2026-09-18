@@ -1,9 +1,9 @@
 kind: action-definition
 id: plan-criterion-verification
-version: 3
+version: 4
 description: plan criterion verification
 capability: verification-activity
-prompt_ref: prompts/plan-verification.md@3
+prompt_ref: prompts/plan-verification.md@4
 types:
 - VFY
 subjects: select("current-experiments@1", {})
