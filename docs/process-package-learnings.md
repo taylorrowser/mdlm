@@ -34,6 +34,29 @@ No removed compiler diagnostic or historical package test is claimed to protect
 these lessons in the direct kernel. Current public journeys and focused integrity
 checks supply the evidence for the implemented direct routes.
 
+## Prototype interface selection before observation, #884
+
+The River website criterion was framed before its public API ICD. The independent
+VFY selected that ICD, but the EXP type could not express the same selection,
+and its revision action required an OBS. The correct exact-interface validator
+rejected the candidate. These are classes 1 and 3, with class 6 guidance.
+
+Let EXP select exact necessary ICDs and offer an optional same-lineage amendment
+before its first TRY. Preserve its existing feedback or observation origin and
+accepted comparison. Keep observation-driven revisions unchanged. Export the
+new criterion and interfaces before independent authoring; prior contexts and
+verification retain their exact bindings. Neither an ICD nor its selection
+promotes provisional choices into requirements.
+
+The focused compiled public regression frames EXP, records ICD, amends EXP,
+exports the selected contract and publishes a matching VFY. It rejects missing
+or extra interfaces, stale contexts and old activities on new intent. Package
+checks cover amendment eligibility and retained origins. A fresh qualified
+prototype must establish operational use; the current River lane stays pinned
+and formalizes only its stakeholder-selected scope. When operation exposes a
+missing correction or copy rule, fix the owning route and guidance together and
+record the learning here in the same work session.
+
 ## Optional formalization after exploration, #873
 
 The guidance-service experiment closed through explicit stakeholder stop, but

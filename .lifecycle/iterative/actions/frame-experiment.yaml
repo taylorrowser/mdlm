@@ -1,9 +1,9 @@
 kind: action-definition
 id: frame-experiment
-version: 1
+version: 2
 description: frame-experiment
 capability: experiment
-prompt_ref: prompts/frame-experiment.md@1
+prompt_ref: prompts/frame-experiment.md@2
 types:
 - EXP
 inputs: {}

@@ -1,0 +1,24 @@
+kind: action-definition
+id: amend-experiment
+version: 1
+description: Amend a criterion or its public interface selection before its first trial
+capability: experiment
+prompt_ref: prompts/amend-experiment.md@1
+types: [EXP]
+subjects: select("current-experiments@1", {})
+inputs:
+  subject: subject
+  origin: 'select("experiment-origin-for@1", {experiment: subject})'
+  baseline: 'select("comparison-baseline-for@1", {experiment: subject})'
+when: 'none("trials-for@2", {experiment: subject})'
+optional: true
+priority: 100
+links:
+  EXP:
+    responds-to: origin
+    compares-to: baseline
+revises:
+  EXP: subject
+fixed_payload:
+  EXP:
+    publication: recorded

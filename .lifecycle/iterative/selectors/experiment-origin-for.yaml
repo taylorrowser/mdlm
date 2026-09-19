@@ -1,0 +1,19 @@
+kind: selector-definition
+id: experiment-origin-for
+version: 1
+description: Exact observation or feedback retained when amending an untried criterion
+parameters:
+- name: experiment
+  kind: revision
+  types: [EXP]
+result_kind: revision
+query:
+  from:
+    relation: outgoing-links
+    of: experiment
+    link: responds-to
+    emit: target
+    types: [OBS, FDB]
+  as: item
+  distinct: true
+  order_by: [identity.revision_id]

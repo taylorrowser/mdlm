@@ -1,0 +1,112 @@
+import {execFileSync, spawnSync} from "node:child_process";
+import {createHash} from "node:crypto";
+import {promises as fs} from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import {expect, test} from "vitest";
+
+test("prototype criteria adopt exact interfaces before the first trial", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-prototype-interface-"));
+  const repository = path.join(root, "lifecycle"), verifier = path.join(root, "verifier");
+  const executable = process.env.MDLM_DIRECT_EXECUTABLE ?? path.join(process.cwd(), "dist/mdlm.js");
+  const evidenceFile = process.env.MDLM_PROTOTYPE_INTERFACE_EVIDENCE ?? path.join(os.tmpdir(), "mdlm-prototype-interface-evidence", `${path.basename(root)}.json`);
+  const commands: unknown[] = [], identities: Record<string, unknown> = {};
+  let outcome = "failed";
+  const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], {encoding: "utf8"}).trim();
+  const commit = (cwd: string) => {
+    git(cwd, "add", ".");
+    git(cwd, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgSign=false", "commit", "--no-verify", "-qm", "Interface fixture");
+    return git(cwd, "rev-parse", "HEAD");
+  };
+  const cli = (args: string[], exit = 0) => {
+    const result = spawnSync(process.execPath, [executable, ...args, "--json"], {cwd: args[0] === "init" ? root : repository, encoding: "utf8", timeout: 30_000});
+    commands.push({args, exit: result.status, stdout: result.stdout, stderr: result.stderr});
+    expect(result.status, result.stdout + result.stderr).toBe(exit);
+    return JSON.parse(result.stdout);
+  };
+  const guidance = (action: string, subject?: string) => cli(["expectations", "show", action, ...(subject ? [subject] : [])]);
+  const datum = (id: string) => cli(["show", id]).lifecycleDatum.datum;
+  const context = (id: string) => cli(["verification", "context", id]);
+  const submit = async (g: any, operation: string, candidate: any, exit = 0) => {
+    const file = path.join(root, `${operation}.json`);
+    await fs.writeFile(file, JSON.stringify({operation, action: g.action, package: g.package, snapshot: g.snapshot, ...(g.subject ? {subject: g.subject} : {}), inputs: g.inputs, candidates: [candidate]}));
+    const result = cli(["proposal", "submit", file], exit);
+    if (!exit) commit(repository);
+    return result;
+  };
+  try {
+    identities.sourceCommit = git(process.cwd(), "rev-parse", "HEAD");
+    identities.sourceTree = git(process.cwd(), "rev-parse", "HEAD^{tree}");
+    identities.executableSha256 = createHash("sha256").update(await fs.readFile(executable)).digest("hex");
+    cli(["init", repository, "--process", "iterative"]);
+    const frame = guidance("frame-experiment"), exp = frame.candidates[0];
+    identities.package = frame.package;
+    exp.payload = {...exp.payload, title: "Readiness", criterion: "Signal readiness to a caller", question: "Can the caller observe readiness?", approach: "Public command", constraints: "No product source in verification", allowance_minutes: 5, scope_cut: "One readiness signal"};
+    const original = (await submit(frame, "frame", exp)).revisions[0];
+    expect(context(original).interfaces).toEqual([]);
+    const ig = guidance("record-interface"), icd = ig.candidates[0];
+    icd.payload = {...icd.payload, title: "Readiness contract", boundary: "external", endpoints: [{name: "Command", owner: "Product", responsibility: "Emit readiness"}, {name: "Caller", owner: "User", responsibility: "Read stdout"}], interaction: "UTF-8 ready newline", failure_behavior: "Nonzero exit", compatibility: "One line", assumptions: "Command runs to completion"};
+    const interface1 = (await submit(ig, "interface", icd)).revisions[0];
+    const available = cli(["expectations"]);
+    expect(available.optional).toContainEqual(expect.objectContaining({action: "amend-experiment@1", subject: original}));
+    expect(available.items.some((i: any) => i.action.startsWith("amend-experiment@"))).toBe(false);
+    const amend = async (subject: string, selected: string, operation: string) => {
+      const g = guidance("amend-experiment", subject), c = g.candidates[0];
+      expect(c.predecessor).toBe(subject);
+      c.payload = exp.payload;
+      c.links.push({type: "uses-interface", target: selected});
+      return (await submit(g, operation, c)).revisions[0] as string;
+    };
+    const selected = await amend(original, interface1, "select-interface");
+    expect(datum(selected).id).toBe(datum(original).id);
+    const selectedContext = context(selected);
+    expect(selectedContext.interfaces.map((i: any) => i.revision_id)).toEqual([interface1]);
+    await fs.mkdir(verifier); git(verifier, "init", "-q");
+    await fs.writeFile(path.join(verifier, "verify.cjs"), "// Public readiness assertion; execution is outside this binding test.\n");
+    const verifierCommit = commit(verifier);
+    const plan = (subject: string, authoringContext: string, interfaces: string[]) => {
+      const g = guidance("plan-criterion-verification", subject), c = g.candidates[0];
+      c.payload = {...c.payload, title: "Readiness verification", method: "Public CLI assertion", objective: "Check readiness", cases: [{id: "ready", targets: [subject], preconditions: ["Fresh command"], actions: ["Invoke command"], expected_results: ["Contract readiness output"], coverage_rationale: "Checks the criterion"}], coverage: [{target: subject, obligations: ["Readiness signal"], case_ids: ["ready"], rationale: "Direct observation"}], repository_path: verifier, source_commit: verifierCommit, verification_image: "sha256:" + "b".repeat(64), verification_script: "verify.cjs", verification_command: ["node", "verify.cjs"], results_path: "results.json", authoring_subject: subject, authoring_context: authoringContext};
+      c.links = [{type: "verifies", target: subject}, ...interfaces.map(target => ({type: "uses-interface", target}))];
+      return {g, c};
+    };
+    const missing = plan(selected, selectedContext.authoringContext, []);
+    expect(JSON.stringify(await submit(missing.g, "missing-interface", missing.c, 1))).toContain("exact necessary interfaces");
+    const valid = plan(selected, selectedContext.authoringContext, [interface1]);
+    const activity1 = (await submit(valid.g, "plan-first", valid.c)).revisions[0];
+    const revise = guidance("revise-interface", interface1), changed = revise.candidates[0];
+    changed.payload = {...icd.payload, interaction: "UTF-8 READY newline"};
+    const interface2 = (await submit(revise, "revise-interface", changed)).revisions[0];
+    expect(context(selected).authoringContext).toBe(selectedContext.authoringContext);
+    expect(datum(activity1).links).toContainEqual({type: "uses-interface", target: interface1});
+    const adopted = await amend(selected, interface2, "adopt-interface");
+    const adoptedContext = context(adopted);
+    expect(adoptedContext.authoringContext).not.toBe(selectedContext.authoringContext);
+    expect(adoptedContext.interfaces.map((i: any) => i.revision_id)).toEqual([interface2]);
+    const stale = plan(adopted, selectedContext.authoringContext, [interface2]);
+    expect(JSON.stringify(await submit(stale.g, "stale-context", stale.c, 1))).toContain("authoring_context");
+    const extra = plan(adopted, adoptedContext.authoringContext, [interface1, interface2]);
+    expect(JSON.stringify(await submit(extra.g, "extra-interface", extra.c, 1))).toContain("exact necessary interfaces");
+    const current = plan(adopted, adoptedContext.authoringContext, [interface2]);
+    const activity2 = (await submit(current.g, "plan-current", current.c)).revisions[0];
+    const product = path.join(root, "product");
+    await fs.mkdir(product); git(product, "init", "-q");
+    await fs.writeFile(path.join(product, "app.js"), "console.log('READY');\n");
+    const source = commit(product);
+    const trial = guidance("prepare-prototype", adopted), candidate = trial.candidates[0];
+    candidate.payload = {...candidate.payload, title: "Readiness trial", repository_path: product, source_commit: source, command: ["node", "app.js"]};
+    candidate.links.push({type: "verification", target: activity1});
+    expect(JSON.stringify(await submit(trial, "old-activity", candidate, 1))).toContain("exact intent");
+    candidate.links = candidate.links.filter((l: any) => l.type !== "verification");
+    candidate.links.push({type: "verification", target: activity2}, {type: "uses-interface", target: interface2});
+    await submit(trial, "trial", candidate);
+    expect(cli(["expectations"]).optional.some((i: any) => i.action.startsWith("amend-experiment@"))).toBe(false);
+    expect(context(original).interfaces).toEqual([]);
+    Object.assign(identities, {original, selected, adopted, interface1, interface2, activity1, activity2});
+    outcome = "passed";
+  } finally {
+    await fs.mkdir(path.dirname(evidenceFile), {recursive: true});
+    await fs.writeFile(evidenceFile, JSON.stringify({outcome, repository, verifier, executable, identities, commands}, null, 2));
+    process.stdout.write(`PROTOTYPE_INTERFACE_EVIDENCE ${evidenceFile}\n`);
+  }
+}, 90_000);
