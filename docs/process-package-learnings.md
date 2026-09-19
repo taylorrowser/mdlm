@@ -95,6 +95,27 @@ Check examples against the direct contract and requirement finalization when
 changing them. Use subsequent live authoring to judge whether agents can submit
 without manual format translation; prose assertions in tests do not establish it.
 
+## Change approval impact handoff, #886
+
+The Hearts integration author supplied a CHG and its authored impact narrative
+for stakeholder approval. The prompt requested CLI-derived prospective impact
+but omitted the command that exports it, requiring the root to request the
+missing context. This is class 6 and follows the direct authoring guidance rule
+above: name the actual read command when judgment needs expanded evidence.
+
+Before the approval request, the iterative prompt directs the author to export
+`mdlm review context approve-change <exact-CHG-revision> --output <new-context-file> --json`
+for the guidance's exact subject and pass the saved context and returned handoff
+to the stakeholder. `prospectiveChange` supplies the computed impact. The
+stakeholder still supplies the protected decision; this export adds no review
+registration or publication gate.
+
+Check package loading and versioned prompt references without wording-only tests.
+Preserve the original incomplete handoff. The next genuine approval request on a
+fresh qualified installation must show whether authors supply the export without
+manual rescue. When operation exposes another missing context pointer, update
+the owning installed instruction and record the learning in the same change.
+
 ## Descriptive result titles, #818
 
 River, elapsed and guidance-service authors supplied informative RES titles and

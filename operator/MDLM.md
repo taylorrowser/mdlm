@@ -76,7 +76,7 @@ Use `mdlm execution export <operation-id> <new-directory> --json` to inspect sav
 
 Replace the placeholder with the complete selected locator string. This is a top-level proposal field, separate from the candidate payload. Keep the original captured execution when correcting the evidence envelope. A failing execution is evidence to assess, not a reason to discard history. Recover an uncertain execution through settlement; never start another execution merely because its response was lost.
 
-For stakeholder decisions, ask the named stakeholder using the exact guidance context. When the required authority name is `stakeholder`, include this top-level proposal field:
+For stakeholder decisions, ask the named stakeholder using the exact guidance context. For change approval, follow the package prompt's review-context export instructions to include CLI-derived prospective impact in the request. When the required authority name is `stakeholder`, include this top-level proposal field:
 
 ```json
 {"evidence": {"authority": ["stakeholder"]}}
