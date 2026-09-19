@@ -50,3 +50,26 @@ test("a changed experiment removes its previous correction subject", () => {
   expect(subjects.map(d => d.identity.revision_id)).toEqual([revised.revision_id]);
   expect(evaluate([exp, revised, trial, obs], pkg.actions["correct-prototype"]!.when as string, revised)).toBe(false);
 });
+
+test("pre-trial amendment remains optional and retains exact origins and comparison", () => {
+  const origin = datum("FDB-origin"), baseline = datum("ACC-baseline");
+  const exp = datum("EXP-brief", [link("responds-to", origin), link("compares-to", baseline)]);
+  const amendment = pkg.actions["amend-experiment"]!;
+  expect(amendment.optional).toBe(true);
+  expect(amendment.revises).toEqual({EXP: "subject"});
+  expect(amendment.links).toEqual({EXP: {"responds-to": "origin", "compares-to": "baseline"}});
+  expect(evaluate([origin, baseline, exp], amendment.when, exp)).toBe(true);
+  for (const [input, expected] of [["origin", origin], ["baseline", baseline]] as const) {
+    const selected = evaluate([origin, baseline, exp], amendment.inputs![input], exp) as any[];
+    expect(selected.map(d => d.identity.revision_id)).toEqual([expected.revision_id]);
+  }
+  const trial = datum("TRY-product", [link("explores", exp)]);
+  expect(evaluate([origin, baseline, exp, trial], amendment.when, exp)).toBe(false);
+  const obs = datum("OBS-run", [link("against", exp), link("observes", trial)], {recommendation: "revise"});
+  expect(evaluate([origin, baseline, exp, trial, obs], amendment.when, exp)).toBe(false);
+  expect(evaluate([origin, baseline, exp, trial, obs], pkg.actions["revise-experiment"]!.when, exp)).toBe(true);
+
+  const fromObservation = datum(exp.id, [link("responds-to", obs)], {}, 2);
+  const observationOrigins = evaluate([obs, fromObservation], amendment.inputs!.origin, fromObservation) as any[];
+  expect(observationOrigins.map(d => d.identity.revision_id)).toEqual([obs.revision_id]);
+});

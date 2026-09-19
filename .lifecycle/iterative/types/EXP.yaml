@@ -1,6 +1,6 @@
 kind: type-definition
 id: EXP
-version: 3
+version: 4
 name: Experiment brief
 description: Experiment brief
 extends: titled-datum@1
@@ -35,6 +35,17 @@ payload_schema:
       minimum: 1
     scope_cut: *a1
 outgoing_links:
+  - id: uses-interface
+    description: Exact public interfaces needed to verify this provisional criterion
+    targets:
+      - kind: datum
+        types: [ICD]
+        identity: revision
+    cardinality:
+      minimum: 0
+      maximum: many
+    freeze_resolution: already-exact
+    inverse_label: incoming-uses-interface
   - id: responds-to
     description: responds-to
     targets:

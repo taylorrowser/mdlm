@@ -1,9 +1,9 @@
 kind: action-definition
 id: revise-experiment-from-feedback
-version: 3
+version: 4
 description: revise-experiment
 capability: experiment
-prompt_ref: prompts/revise-experiment.md@4
+prompt_ref: prompts/revise-experiment.md@5
 types:
 - EXP
 subjects: select("criteria-feedback@1", {})
