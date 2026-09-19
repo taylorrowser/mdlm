@@ -8,6 +8,15 @@ Discuss the intended product and agree its smallest useful scope. Choose vertica
 
 Formal work uses the existing REQ/DCP/RQS graph, complete source attribution, exact execution receipt, independent reviews and stakeholder acceptance. Only publish REQs for the current formal scope: the graph includes all current REQs, and source inventory covers the whole selected Git repository. Prototype source has no blanket traceability requirement.
 
+Before first acceptance, optional `refine-requirements` records stakeholder
+clarification or changed intent even after requirements review has passed. It
+requires explicit stakeholder authority, preserves unchanged requirements and
+publishes a successor in the same RQS lineage. Refresh expectations for independent
+review of that exact successor and export its verification context before authoring
+dependent evidence. The original wording, PASS and evidence remain history.
+Accepted lineages and work already bound to an approved change retain their
+existing change and correction routes.
+
 ## Independent verification
 
 Version 2 uses a separate committed verification repository. Export `mdlm verification context <exact-RQS-or-EXP> --output <new-file> --json` for a fresh verification author. The export contains requirements or criteria and public interfaces, without product source or implementation explanations. `plan-verification` and `plan-criterion-verification` publish VFY activities with methods, intended actions, expected results and exact case coverage. Use the smallest case set that adequately covers every obligation; scripts and cases may cover several requirements.
