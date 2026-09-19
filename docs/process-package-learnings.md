@@ -34,6 +34,24 @@ No removed compiler diagnostic or historical package test is claimed to protect
 these lessons in the direct kernel. Current public journeys and focused integrity
 checks supply the evidence for the implemented direct routes.
 
+## Stakeholder refinement before first acceptance, #890
+
+The Crazy Eights API requirements passed review before stakeholder clarification
+removed an unintended internal-storage restriction. Iterative 2.2.2 offered only
+failure correction or approved baseline changes, leaving no route for this real
+learning. This is class 1 with class 5 lineage preservation: a truthful refinement
+can be necessary without a failed claim or accepted product.
+
+Offer optional stakeholder-authorized refinement of the current never-accepted
+requirement-set lineage. Preserve unchanged exact requirements and prior reviews;
+refresh affected decomposition endpoints and require independent successor review.
+Keep accepted lineage and change-bound work on its existing controlled route.
+The public regression publishes an initial PASS, refines one requirement, checks
+unchanged history and fresh review/export bindings, then publishes the successor
+review. Package checks cover accepted predecessors and change-bound exclusions.
+When operation exposes missing correction or refinement work, fix the owning
+route and guidance together and record the learning in the same session.
+
 ## Prototype interface selection before observation, #884
 
 The River website criterion was framed before its public API ICD. The independent

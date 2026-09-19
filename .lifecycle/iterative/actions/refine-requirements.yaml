@@ -1,0 +1,25 @@
+kind: action-definition
+id: refine-requirements
+version: 1
+description: Refine requirements with stakeholder intent before first acceptance
+capability: requirements
+prompt_ref: prompts/refine-requirements.md@1
+types: [REQ, DCP, RQS]
+subjects: select("current-requirements@1", {})
+inputs:
+  subject: subject
+when: 'none("accepted-requirement-lineage@1", {requirements: subject}) && none("change-for-set@1", {requirements: subject})'
+optional: true
+priority: 100
+revises:
+  RQS: subject
+fixed_payload:
+  REQ:
+    publication: recorded
+  DCP:
+    publication: recorded
+  RQS:
+    publication: recorded
+authority:
+  kind: stakeholder
+  name: stakeholder

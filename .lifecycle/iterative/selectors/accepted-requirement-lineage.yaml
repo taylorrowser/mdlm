@@ -1,0 +1,18 @@
+kind: selector-definition
+id: accepted-requirement-lineage
+version: 1
+description: Accepted baselines confirming any revision of this requirement-set lineage
+parameters:
+- name: requirements
+  kind: revision
+  types: [RQS]
+result_kind: revision
+query:
+  from:
+    collection: revisions
+    types: [ACC]
+  as: item
+  where: 'state(item, "validity") == "valid" && item.integrity.transaction_valid == true && item.payload.decision == "accept" && !every("confirmed-requirements-for@1", {acceptance: item}, selection => selection.identity.id != requirements.identity.id)'
+  distinct: true
+  order_by:
+  - identity.revision_id
