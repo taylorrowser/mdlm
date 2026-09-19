@@ -5,6 +5,8 @@ import { parse } from "yaml";
 import { inspectDirectExpectations, parseDirectProposal, submitDirectProposal, inspectDirectSettlement, runDirectExecution, inspectDirectExecution, inspectDirectReview, registerDirectReviewFiles, inspectVerificationContext, inspectVerificationStatus, exportDirectExecution } from "./direct-proposal.js";
 import { requirementTraceBinding } from "./requirement-trace.js";
 import { inspectRequirementTrace } from "./requirement-trace-inspection.js";
+import { independentBinding, verificationStatus } from "./independent-verification.js";
+import { renderMaintenanceView } from "./maintenance-view.js";
 import { loadProcessPackage, resolveType, type LifecycleSnapshot, type ProcessDiagnostic } from "./index.js";
 import { evaluateProcessDefinition, evaluateProcessExpression, type ProcessDirectEvaluation } from "./evaluator.js";
 import { processCapabilities, processInspection } from "./process-package-inspection.js";
@@ -46,7 +48,7 @@ Inspect lifecycle data:
   mdlm backlinks <identity> [--json]
   mdlm trace <identity> [--relation <relation>] [--depth <integer>] [--json]
   mdlm trace why <path:line> --implementation <IMP-revision> [--json]
-  mdlm trace impact <REQ-id-or-revision> --implementation <IMP-revision> [--json]
+  mdlm trace impact <REQ-id-or-revision> --implementation <IMP-revision> [--json | --summary]
   mdlm schema <type> [--json]
   mdlm process show|validate|capabilities [--json]
 
@@ -644,6 +646,7 @@ async function showSelectedPackage(
 function renderCommandResult(result: CommandResult): string {
   if (typeof result.help === "string") return result.help;
   if (!result.ok) return result.diagnostics.map(d => `Error [${d.code}]: ${d.message}`).join("\n");
+  if (result.command === "trace" && typeof result.summary === "string") return result.summary;
   if (result.command === "verification.status" && Array.isArray(result.requirements)) {
     return ["Requirement | Coverage | Execution | Currentness | Result | Next action", ...result.requirements.map((r: any) => `${r.requirement} | ${r.coverage} | ${r.execution} | ${r.currentness} | ${r.overall} | ${r.nextAction}`), `Complete: ${result.complete ? "yes" : "no"}`].join("\n");
   }
@@ -698,6 +701,10 @@ async function dispatchCommand(
   repositoryRoot: string,
   standardInput?: string,
 ): Promise<CommandResult> {
+  const summary = arguments_.includes("--summary");
+  if (summary && (arguments_[0] !== "trace" || arguments_[1] !== "impact" || arguments_.includes("--json"))) {
+    return failure("trace-summary-arguments-invalid", "--summary is only supported for trace impact and cannot be combined with --json");
+  }
   const outputOptions = optionValues(arguments_, "--output");
   const draftingProposal = arguments_[0] === "proposal" && arguments_[1] === "draft";
   const exportingReview = ["review", "verification"].includes(arguments_[0]!) && arguments_[1] === "context";
@@ -855,7 +862,13 @@ async function dispatchCommand(
     const line = /^(.*):(\d+)$/.exec(operands[2]);
     if (operands[1] === "why" && !line) return failure("trace-line-invalid", "Expected path:line");
     const query = operands[1] === "why" ? {kind: "why" as const, path: line![1]!, line: Number(line![2])} : {kind: "impact" as const, requirement: operands[2]};
-    const result = inspectRequirementTrace(loaded.value.map((d) => d.lifecycleDatum.datum), binding, implementation, query);
+    const data = loaded.value.map((d) => d.lifecycleDatum.datum);
+    const result = inspectRequirementTrace(data, binding, implementation, query);
+    if (summary && !result.diagnostics.length) {
+      if (!independentBinding(selected.processPackage)) return failure("trace-summary-unsupported", "Maintenance summary requires independent-verification@1; use trace impact without --summary for this package");
+      const status = verificationStatus({pkg: selected.processPackage, package: selected.summary, data}, implementation);
+      return {ok: true, command: "trace", summary: renderMaintenanceView(result, status), diagnostics: []};
+    }
     return {ok: result.diagnostics.length === 0, command: "trace", requirementTrace: result, diagnostics: result.diagnostics};
   }
   if (operands[0] === "trace" && operands[1]) {

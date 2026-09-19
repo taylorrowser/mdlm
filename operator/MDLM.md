@@ -18,6 +18,18 @@ mdlm expectations show <action> [<exact-subject>] --json
 
 Discovery and guidance are read-only. Priority is a suggestion. Follow the package prompt and supplied skills, and inspect its exact inputs, schemas and candidate examples.
 
+For an implementation using independent verification, inspect a requirement's
+recorded code responsibilities, shared needs and related checks together:
+
+```sh
+mdlm trace impact <exact-REQ> --implementation <exact-IMP> --summary
+```
+
+The summary preserves exact revisions and evidence status. Shared needs are not
+automatically changed, and historical passes do not verify a successor. Follow its
+full-output command pointers for details. Omit `--summary` for existing trace JSON;
+`--summary` cannot be combined with `--json`.
+
 Repeat this loop until the agreed outcome or a concrete blocked boundary:
 
 1. Settle any uncertain earlier publication or execution before choosing more work. Otherwise inspect current expectations and compare them with stakeholder intent and actual product-use evidence.
