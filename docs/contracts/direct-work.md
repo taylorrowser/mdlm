@@ -101,7 +101,28 @@ first element becomes the container entrypoint. The image must be pinned as
 and digest-pinned image from the product payload.
 
 For independent verification, `results_path` identifies a JSON report relative to
-`/evidence`; case `evidence_refs` are also relative to that directory. Their paths
+`/evidence`. Write a report with this shape, using the activity's declared case IDs:
+
+```json
+{
+  "contract": "mdlm-verification-results@1",
+  "cases": [
+    {
+      "case_id": "example",
+      "outcome": "pass",
+      "actual_results": ["observation"],
+      "evidence_refs": []
+    }
+  ]
+}
+```
+
+`actual_results` must be a nonempty array of nonblank strings, even for one
+observation. `evidence_refs` is an array of nonblank relative file paths and may
+be empty when no artifact is referenced. `outcome` is `pass`, `fail`, `error` or
+`skipped`. Emit each declared case exactly once.
+
+Case `evidence_refs` are also relative to `/evidence`. Their paths
 must resolve through directories to regular files, without symlinks or `..`
 components. The report bytes plus all distinct referenced artifact bytes share
 one fixed 8 MiB budget, separate from stdout/stderr. This is a capture budget,
