@@ -116,6 +116,27 @@ fresh qualified installation must show whether authors supply the export without
 manual rescue. When operation exposes another missing context pointer, update
 the owning installed instruction and record the learning in the same change.
 
+## Initial change targets, #888
+
+The bag-carry author named only the parent in a change request that already
+described changed scoring and rejection behavior. After approval, the native
+frontier correctly prevented revising the existing children until independent
+review identified their contradictions. This is class 6: explain that exact
+targets also establish the initial authoring frontier before scope is approved.
+
+When both a parent and known children need changed commitments, request those
+exact baseline targets together. Preserve unchanged requirements; impact alone
+does not grant descendant edit permission. Stakeholder approval and independent
+requirements and decomposition review still apply. Later discovered defects use
+the existing review-derived correction frontier.
+
+Check package loading, versioned prompt references and existing frontier tests
+without wording-only assertions. Preserve the original request and substantive
+FAIL. A future qualified native change can assess whether this guidance avoids
+the intermediate correction cycle; active-effort savings remain unmeasured.
+When operation exposes another target-selection ambiguity, update its owning
+prompt and record the learning in the same change.
+
 ## Descriptive result titles, #818
 
 River, elapsed and guidance-service authors supplied informative RES titles and
