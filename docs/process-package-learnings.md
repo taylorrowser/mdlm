@@ -34,6 +34,28 @@ No removed compiler diagnostic or historical package test is claimed to protect
 these lessons in the direct kernel. Current public journeys and focused integrity
 checks supply the evidence for the implemented direct routes.
 
+## Approved new stakeholder roots, #904
+
+River undo maintenance approved a new obligation but could not publish it as a
+separate stakeholder root. The prompt allowed new roots while the change
+frontier required every addition to descend from an existing target. This is
+class 3 declaration-contract agreement with class 6 exact authoring guidance.
+
+Declare exact new root statements in CHG `new_roots`, expose them in approval
+context, and bind each once to its first selected stakeholder root identity.
+Permit its new downward branches with change provenance. Later corrections
+retain that identity; existing requirement edits and retirement retain their
+ordinary scope and review frontier. Historical requests grant no new root scope.
+Amendments preserve approved declarations and require fresh stakeholder approval.
+
+The focused frontier checks cover one-to-one admission, provenance, corrections,
+and retained existing limits. One compiled public change transaction checks
+approval context and atomic authorized publication alongside rejected additions.
+Fresh qualified operation must establish whether the declaration lets authors
+add one obligation per root without manual restructuring. When operation exposes
+another declaration mismatch, update its owning contract and guidance together
+and record the learning in the same session.
+
 ## Stakeholder refinement before first acceptance, #890
 
 The Crazy Eights API requirements passed review before stakeholder clarification

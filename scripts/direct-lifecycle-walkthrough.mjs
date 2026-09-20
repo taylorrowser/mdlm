@@ -11,8 +11,9 @@ const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const fixtureAuthority = 'Operator-selected engineering fixture. Stakeholder decisions are scripted fixture inputs, not acceptance by the actual product user. Review registration exercises a separate manager transport and exact verdict binding; it does not claim human or model review independence.';
 
 /** Ordinary public operations only. Preserve both repositories and external evidence on every outcome. */
-export async function runDirectJourney({process: processName = 'tiny', corrections = false, partialAcceptance = false, operationalUse = false, executable = process.env.MDLM_DIRECT_EXECUTABLE ?? process.env.MDLM_EXECUTABLE, root}) {
+export async function runDirectJourney({process: processName = 'tiny', corrections = false, partialAcceptance = false, operationalUse = false, newRootChange = false, executable = process.env.MDLM_DIRECT_EXECUTABLE ?? process.env.MDLM_EXECUTABLE, root}) {
   assert.ok(['tiny', 'exploratory', 'iterative'].includes(processName));
+  assert.ok(!newRootChange || processName === 'iterative', 'New root change fixture requires the iterative package');
   assert.ok(!operationalUse || processName === 'iterative', 'Operational-use fixture requires the iterative package');
   assert.ok(path.isAbsolute(root), 'A fresh absolute root is required');
   assert.ok(executable && path.isAbsolute(executable), 'An exact absolute executable is required');
@@ -377,6 +378,50 @@ raise SystemExit(0 if all(row['outcome'] == 'pass' for row in rows) else 1)
       const acceptance = finishProduct(set, imp);
       assert.equal(cli(['expectations']).outcome, 'profile-boundary-reached');
       if (operationalUse) recordUse(imp, ['green']);
+      if (newRootChange) {
+        const statement = 'The caller shall undo the latest recorded count.';
+        const change = submit('request-change', set.revision_id, [candidate('add-undo', 'CHG', {reason: 'Add one separate stakeholder obligation.', requested_outcome: statement, new_roots: [statement]})]).find(d => d.type === 'CHG');
+        assert.equal(change.links.filter(l => l.type === 'changes').length, 0, 'New-root-only scope needs no existing target');
+        const context = cli(['review', 'context', 'approve-change', change.revision_id]);
+        save('new-root-approval-context.json', context);
+        assert.deepEqual(context.prospectiveChange.request.new_roots, [statement]);
+        assert.deepEqual(context.prospectiveChange.requirements, []);
+        submit('approve-change', change.revision_id, [candidate('undo-approval', 'REV', {outcome: 'pass', findings: `Approve exactly the declared undo root and its new downward branch. ${fixtureAuthority}`}, [link('reviews', change.revision_id)])]);
+        const g = guidance('revise-requirements', change.revision_id);
+        assert.deepEqual(g.requirementAuthoringTargets.newRoots, [statement]);
+        assert.deepEqual(g.requirementAuthoringTargets.frontier.requirements, []);
+        const added = [
+          candidate('undo', 'REQ', {kind: 'stakeholder', statement}),
+          candidate('remove-latest', 'REQ', {kind: 'software', ears: {pattern: 'event', event: 'undo is requested', system: 'The CLI', response: 'remove the latest recorded count'}}),
+          candidate('undo-group', 'DCP', {}, [link('parent', '$undo'), link('child', '$remove-latest')]),
+          candidate('requirements', 'RQS', {}, [], set.revision_id),
+        ];
+        for (const [operation, outputs, diagnostic] of [
+          ['unauthorized-root', [...added, candidate('foreign', 'REQ', {kind: 'stakeholder', statement: 'Unapproved unrelated capability.'}), candidate('foreign-group', 'DCP', {}, [link('parent', '$foreign'), link('child', '$remove-latest')])], 'change-addition-scope'],
+          ['unauthorized-edit', [...added, candidate('edit-count', 'REQ', {...count.payload, ears: {...count.payload.ears, response: 'print twice the item count'}}, [], count.revision_id)], 'change-outside-scope'],
+        ]) {
+          const rejected = cli(['proposal', 'submit', '-'], {operation, action: g.action, package: g.package, snapshot: g.snapshot, subject: g.subject, inputs: g.inputs, candidates: outputs}, {expected: 1});
+          assert.ok(JSON.stringify(rejected.diagnostics).includes(diagnostic), JSON.stringify(rejected));
+          assert.equal(cli(['proposal', 'settlement', operation]).outcome, 'not-published');
+          assert.equal(guidance('revise-requirements', change.revision_id).snapshot, g.snapshot, 'Rejected proposals publish nothing');
+        }
+        const revised = submit('revise-requirements', change.revision_id, added);
+        const next = revised.find(d => d.type === 'RQS');
+        for (const previous of initial) assert.deepEqual(exact(previous.revision_id), previous, 'Baseline history stays exact');
+        const root = revised.find(d => d.payload.title === 'undo');
+        const child = revised.find(d => d.payload.title === 'remove-latest');
+        const group = revised.find(d => d.payload.title === 'undo-group');
+        assert.equal(root.payload.statement, statement);
+        for (const datum of [root, child, group, next]) assert.ok(datum.links.some(l => l.type === 'changes-under' && l.target === change.revision_id));
+        assert.ok(group.links.some(l => l.type === 'parent' && l.target === root.revision_id));
+        assert.ok(group.links.some(l => l.type === 'child' && l.target === child.revision_id));
+        for (const revision of [need, count, root, child]) assert.ok(next.links.some(l => l.type === 'contains' && l.target === revision.revision_id));
+        terminal = cli(['expectations']);
+        assert.ok(terminal.items.some(item => actionId(item.action) === 'review-requirements' && item.subject === next.revision_id));
+        cli(['doctor']);
+        save('new-root-proof.json', {change: change.revision_id, baseline: acceptance.revision_id, selection: next.revision_id, root: root.revision_id, child: child.revision_id, group: group.revision_id, rejected: ['unauthorized-root', 'unauthorized-edit'], terminal});
+        return;
+      }
       const beforeMaintenance = publications.length;
       const change = submit('request-change', set.revision_id, [candidate('simplify-count', 'CHG', {reason: 'Simplify the implementation while retaining every accepted obligation.', requested_outcome: 'Use an explicit supplied-argument slice to count items with unchanged behavior.'}, [link('baseline', acceptance.revision_id), link('changes', need.revision_id)])]).find(d => d.type === 'CHG');
       submit('approve-change', change.revision_id, [candidate('maintenance-approval', 'REV', {outcome: 'pass', findings: `Approve implementation-only maintenance preserving the exact requirement graph. ${fixtureAuthority}`}, [link('reviews', change.revision_id)])]);
@@ -562,7 +607,7 @@ raise SystemExit(0 if all(row['outcome'] == 'pass' for row in rows) else 1)
     if (existsSync(lifecycle)) { try { lifecycleData = [...new Set(revisions)].map(exact); } catch (error) { lifecycleData = {error: String(error)}; captureFailures.push(`Lifecycle data capture failed: ${error.message}`); } }
     save('lifecycle-data.json', lifecycleData ?? []);
     if (captureFailures.length && !caught) caught = new Error(`Final evidence is incomplete: ${captureFailures.join('; ')}`);
-    const result = {ok: !caught, outcome: caught ? 'failed' : terminal?.outcome ?? 'failed', process: processName, corrections, operationalUse, operationalUses, root, lifecycle, source, verificationRepositories, evidenceFile, publications, revisions, receipts, sourceCommits, commands, terminal, gitState, captureFailures, scope: fixtureAuthority, error: caught ? {message: caught.message, stack: caught.stack} : undefined};
+    const result = {ok: !caught, outcome: caught ? 'failed' : terminal?.outcome ?? 'failed', process: processName, corrections, operationalUse, newRootChange, operationalUses, root, lifecycle, source, verificationRepositories, evidenceFile, publications, revisions, receipts, sourceCommits, commands, terminal, gitState, captureFailures, scope: fixtureAuthority, error: caught ? {message: caught.message, stack: caught.stack} : undefined};
     save('result.json', result);
     if (caught) { caught.message += `\nPreserved journey evidence: ${evidenceFile}`; throw caught; }
     return result;
@@ -573,5 +618,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const args = process.argv.slice(2);
   const option = name => args.includes(name) ? args[args.indexOf(name) + 1] : undefined;
   const executable = option('--executable') ?? process.env.MDLM_DIRECT_EXECUTABLE ?? process.env.MDLM_EXECUTABLE;
-  runDirectJourney({process: option('--process') ?? 'tiny', corrections: args.includes('--corrections'), partialAcceptance: args.includes('--partial-acceptance'), operationalUse: args.includes('--operational-use'), executable, root: option('--root')}).then(result => console.log(JSON.stringify({ok: result.ok, outcome: result.outcome, publications: result.publications, receipts: result.receipts, commands: result.commands, evidenceFile: result.evidenceFile}))).catch(error => { console.error(error.stack); process.exitCode = 1; });
+  runDirectJourney({process: option('--process') ?? 'tiny', corrections: args.includes('--corrections'), partialAcceptance: args.includes('--partial-acceptance'), operationalUse: args.includes('--operational-use'), newRootChange: args.includes('--new-root-change'), executable, root: option('--root')}).then(result => console.log(JSON.stringify({ok: result.ok, outcome: result.outcome, publications: result.publications, receipts: result.receipts, commands: result.commands, evidenceFile: result.evidenceFile}))).catch(error => { console.error(error.stack); process.exitCode = 1; });
 }

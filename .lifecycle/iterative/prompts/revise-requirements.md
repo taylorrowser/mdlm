@@ -1,6 +1,6 @@
 ---
 id: revise-requirements
-version: 11
+version: 12
 skills:
 - skills/product-quality.md@2
 - skills/typed-requirements.md@6
@@ -18,3 +18,5 @@ To expand an accepted component into the agreed whole product, obtain a change t
 For an allowed implementation change, state that the obligations remain unchanged in the approved change. Publish a new RQS selection with the same exact REQs and DCPs where appropriate; the new selection binds the change without inventing requirement revisions. Native expectations may proceed directly to rebind when the existing selector can reuse a valid earlier requirements PASS in the same RQS lineage. The selected exact REQ and DCP revisions must match that earlier reviewed graph and the exact accepted baseline named by the current approved CHG, with no applicable FAIL veto. Changed requirements or decomposition require fresh requirements review. Do not declare reuse or copy a review; follow the eligible native action. Fresh source attribution, canonical verification, independent implementation review and stakeholder acceptance still follow. Record that process cost.
 
 For interface-dependent behavior, add optional uses-interface links to exact ICD revisions. State the necessary obligations in the REQ itself; retain descriptive and provisional choices in the ICD. Adopting a changed ICD in accepted scope requires the normal approved requirement change and fresh applicable evidence.
+
+New stakeholder roots require exact statements in the approved CHG `new_roots` declaration. Match each statement to one new stakeholder root and author its new downward branches and groups in the same batch. The CLI supplies `changes-under` provenance. Reuse each admitted root identity during later corrections; the declaration cannot authorize another root with the same statement. Existing requirements still need their ordinary frontier permission for edits or retirement.
