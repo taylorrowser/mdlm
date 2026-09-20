@@ -37,10 +37,31 @@ export function changeImpact(data: DatumEnvelope[], b: RequirementTraceBinding, 
   const sourceScopes = data.filter(d => d.type === b.scope_type && targets(d, "belongs-to").includes(implementation ?? "") && d.links.some(l => (l.type === "implements" || l.type === "verifies") && requirements.includes(l.target))).map(d => d.revision_id);
   return {requirements, groups: unique(groups), sourceScopes: unique(sourceScopes), ...(implementation ? {implementation} : {}), ...(result ? {result} : {})};
 }
+/** Omitted declarations preserve the historical no-new-root permission. */
+export const declaredNewRoots = (change: DatumEnvelope): string[] => Array.isArray(change.payload.new_roots) ? change.payload.new_roots.filter((value): value is string => typeof value === "string") : [];
+
+/** Bind each declaration once to its first selected root identity. Later corrections
+ * keep that identity even when independent review changes its statement. */
+function declaredRootScope(data: DatumEnvelope[], b: RequirementTraceBinding, change: DatumEnvelope, set: DatumEnvelope) {
+  const declarations = declaredNewRoots(change);
+  const underChange = (d: DatumEnvelope) => targets(d, "changes-under").some(id => find(data, id)?.id === change.id);
+  const baseline = find(data, targets(change, "baseline")[0]);
+  const baseSet = find(data, targets(baseline, "confirms")[0]);
+  const existing = new Set(baseSet ? selectedRequirementGraph(data, baseSet, b).requirements.map(r => r.id) : []);
+  const firstRoots = new Map<string, DatumEnvelope>();
+  const history = data.filter(s => s.type === b.type && s.id === set.id && s.revision <= set.revision && underChange(s)).sort((a, z) => a.revision - z.revision);
+  for (const selection of history) {
+    const graph = selectedRequirementGraph(data, selection, b);
+    for (const root of graph.requirements) if (!existing.has(root.id) && root.payload.kind === "stakeholder" && !graph.parents.get(root.revision_id)?.length && underChange(root) && !firstRoots.has(root.id)) firstRoots.set(root.id, root);
+  }
+  const matches = declarations.map(statement => [...firstRoots.values()].filter(root => root.payload.statement === statement));
+  return {roots: new Set(matches.filter(roots => roots.length === 1).flatMap(roots => roots.map(root => root.id))), complete: matches.every(roots => roots.length === 1)};
+}
+
 /** New requirements inherit only scope established through the approved change's selected groups. */
 function selectedChangeScope(data: DatumEnvelope[], b: RequirementTraceBinding, change: DatumEnvelope, set: DatumEnvelope): string[] {
   const scope = changeScope(data, b, change);
-  const allowed = new Set(scope.flatMap(id => find(data, id)?.id ?? []));
+  const allowed = new Set([...scope.flatMap(id => find(data, id)?.id ?? []), ...declaredRootScope(data, b, change, set).roots]);
   const baseline = find(data, targets(change, "baseline")[0]);
   const baseSet = find(data, targets(baseline, "confirms")[0]);
   const existing = new Set(baseSet ? selectedRequirementGraph(data, baseSet, b).requirements.map(r => r.id) : []);
@@ -193,10 +214,14 @@ export function validateChangeDatum(data: DatumEnvelope[], b: RequirementTraceBi
       const selection = find(all, targets(baseline, "confirms")[0]);
       const members = selection ? selectedRequirementGraph(all, selection, b).requirements.map(r => r.revision_id) : [];
       const roots = targets(datum, "changes");
-      if (!roots.length || new Set(roots).size !== roots.length || roots.some(id => !members.includes(id))) fail("change-target", "Change targets must be distinct exact requirements in its accepted baseline");
+      const newRoots = declaredNewRoots(datum);
+      if ((!roots.length && !newRoots.length) || new Set(roots).size !== roots.length || roots.some(id => !members.includes(id))) fail("change-target", "Change scope needs exact baseline targets or declared new stakeholder roots; existing targets must be distinct baseline requirements");
+      if (new Set(newRoots).size !== newRoots.length || newRoots.some(statement => !statement.trim())) fail("change-new-roots", "New root statements must be distinct and nonempty");
       const prior = others.filter(c => c.id === datum.id && c.revision < datum.revision).sort((a, z) => z.revision - a.revision)[0];
-      const approvedRoots = others.filter(c => c.id === datum.id && c.revision < datum.revision && isApproved(c)).flatMap(c => targets(c, "changes"));
-      if (prior && (targets(prior, "baseline")[0] !== baseline.revision_id || approvedRoots.some(id => !roots.includes(id)))) fail("change-amendment-scope", "An amendment must retain its baseline and previously approved change targets");
+      const approved = others.filter(c => c.id === datum.id && c.revision < datum.revision && isApproved(c));
+      const approvedRoots = approved.flatMap(c => targets(c, "changes"));
+      const approvedNewRoots = approved.flatMap(declaredNewRoots);
+      if (prior && (targets(prior, "baseline")[0] !== baseline.revision_id || approvedRoots.some(id => !roots.includes(id)) || approvedNewRoots.some(statement => !newRoots.includes(statement)))) fail("change-amendment-scope", "An amendment must retain its baseline, previously approved change targets and declared new root statements");
       const successors = baselines.filter(a => targets(a, "changes-under").some(id => targets(find(all, id), "baseline").includes(baseline.revision_id)));
       if (!closed(datum.revision_id) && successors.length) fail("change-baseline-stale", "Request change against the successor accepted baseline");
     }
@@ -249,6 +274,22 @@ export function validateChangeDatum(data: DatumEnvelope[], b: RequirementTraceBi
         const frontier = requirementAuthoringFrontier(others, b, authority.change, previous);
         const frontierIds = new Set(frontier.requirements.flatMap(id => find(all, id)?.id ?? []));
         const groupIds = new Set(frontier.groups.flatMap(id => find(all, id)?.id ?? []));
+        const declared = declaredRootScope(all, b, authority.change, datum);
+        if (!declared.complete) fail("change-new-root-match", "Each approved new root statement must match exactly one added stakeholder root identity");
+        const underChange = (d: DatumEnvelope) => targets(d, "changes-under").some(id => find(all, id)?.id === authority.change.id);
+        const addedIds = new Set(graph.requirements.filter(r => !previousGraph?.requirements.some(old => old.id === r.id) && !baselineGraph?.requirements.some(old => old.id === r.id)).map(r => r.id));
+        const newBranch = new Set([...declared.roots].filter(id => addedIds.has(id)));
+        let size = -1;
+        while (size !== newBranch.size) {
+          size = newBranch.size;
+          for (const group of graph.groups.filter(underChange)) {
+            if (!targets(group, "parent").some(id => newBranch.has(find(all, id)?.id ?? ""))) continue;
+            for (const child of targets(group, "child")) {
+              const requirement = find(all, child);
+              if (requirement && addedIds.has(requirement.id) && underChange(requirement)) newBranch.add(requirement.id);
+            }
+          }
+        }
         for (const r of graph.requirements) {
           if (previousGraph?.requirements.some(old => old.revision_id === r.revision_id)) continue;
           const old = previousGraph?.requirements.find(old => old.id === r.id) ?? baselineGraph?.requirements.find(old => old.id === r.id);
@@ -256,14 +297,14 @@ export function validateChangeDatum(data: DatumEnvelope[], b: RequirementTraceBi
           if (old && !frontierIds.has(r.id)) fail("change-frontier", `Requirement '${r.revision_id}' is outside the current authoring frontier; assess its parent first`);
           if (!old) {
             const parentGroups = graph.groups.filter(g => targets(g, "child").includes(r.revision_id));
-            if (!parentGroups.some(g => groupIds.has(g.id) || targets(g, "parent").some(id => frontierIds.has(find(all, id)?.id ?? "")))) fail("change-addition-scope", `Added requirement '${r.revision_id}' must belong to an authorized affected decomposition group`);
+            if (!newBranch.has(r.id) && !parentGroups.some(g => groupIds.has(g.id) || targets(g, "parent").some(id => frontierIds.has(find(all, id)?.id ?? "")))) fail("change-addition-scope", `Added requirement '${r.revision_id}' must belong to an authorized affected decomposition group`);
           }
         }
         for (const g of graph.groups) {
           const old = previousGraph?.groups.find(old => old.id === g.id);
           const oldChildren = targets(old, "child").map(id => find(all, id)?.id ?? id).sort();
           const newChildren = targets(g, "child").map(id => find(all, id)?.id ?? id).sort();
-          if (JSON.stringify(oldChildren) !== JSON.stringify(newChildren) && !groupIds.has(g.id) && !targets(g, "parent").some(id => frontierIds.has(find(all, id)?.id ?? ""))) fail("change-membership-frontier", `Group '${g.revision_id}' membership needs an authorized parent target or a review membership correction`);
+          if (JSON.stringify(oldChildren) !== JSON.stringify(newChildren) && !(underChange(g) && targets(g, "parent").some(id => newBranch.has(find(all, id)?.id ?? ""))) && !groupIds.has(g.id) && !targets(g, "parent").some(id => frontierIds.has(find(all, id)?.id ?? ""))) fail("change-membership-frontier", `Group '${g.revision_id}' membership needs an authorized parent target or a review membership correction`);
         }
       }
     }

@@ -1,6 +1,6 @@
 kind: type-definition
 id: CHG
-version: 1
+version: 2
 description: Scoped request to change an accepted product
 name: Change request
 extends: titled-datum@1
@@ -23,6 +23,13 @@ payload_schema:
     reason:
       type: string
       minLength: 1
+    new_roots:
+      description: Exact new stakeholder statements approved for one root identity each
+      type: array
+      uniqueItems: true
+      items:
+        type: string
+        minLength: 1
     requested_outcome:
       type: string
       minLength: 1
@@ -47,7 +54,7 @@ outgoing_links:
     - REQ
     identity: revision
   cardinality:
-    minimum: 1
+    minimum: 0
     maximum: many
   freeze_resolution: already-exact
   inverse_label: incoming-changes

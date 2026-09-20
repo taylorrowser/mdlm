@@ -1,7 +1,7 @@
 import type { ResolvedType } from "./index.js";
 import type { DirectContext, SourceAssessmentTargets } from "./direct-contract.js";
 import { requirementTraceBinding } from "./requirement-trace.js";
-import { assessRequirements, changeImpact, requirementAuthoringFrontier } from "./change-assessment.js";
+import { assessRequirements, changeImpact, declaredNewRoots, requirementAuthoringFrontier } from "./change-assessment.js";
 
 /** Output contracts omit computed fields; records under review retain them. */
 export function authorablePayloadSchema(type: ResolvedType): ResolvedType["payloadSchema"] {
@@ -43,7 +43,8 @@ export function requirementAuthoringTargets(context: DirectContext) {
   return {
     change: change.revision_id, selection: previous.revision_id,
     frontier: requirementAuthoringFrontier(context.data, trace, change, previous),
+    newRoots: declaredNewRoots(change),
     impact: changeImpact(context.data, trace, change),
-    instruction: "Revise existing requirements only at frontier.requirements. Group membership changes require frontier.groups or a parent in frontier.requirements. Impact lists affected evidence, not additional permission to revise descendants. Preserve unchanged records; independent review identifies subsequent corrections. New requirements must belong to an authorized group or frontier parent. All existing publication checks still apply.",
+    instruction: "Revise existing requirements only at frontier.requirements. Group membership changes require frontier.groups or a parent in frontier.requirements. Impact lists affected evidence, not additional permission to revise descendants. Preserve unchanged records; independent review identifies subsequent corrections. New stakeholder roots must match newRoots statements exactly, once per change lineage. Their new downward branches are authorized; other additions need an authorized group or frontier parent. All existing publication checks still apply.",
   };
 }

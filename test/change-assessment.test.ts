@@ -350,3 +350,76 @@ test("review-derived authoring frontier preserves exact child and membership cor
   expect(targets?.frontier).toEqual({requirements: [id(f.leaf)], groups: [id(candidate.groups[1]!)]});
   expect(targets?.change).toBe(id(change));
 });
+
+function newRootChange() {
+  const f = fixture(); baseline(f);
+  const statement = "The scorer shall undo the latest hand";
+  const change = d("CHG-new", {baseline: [id(f.acc)]}, {new_roots: [statement]});
+  f.data.push(change, d("REV-new-approved", {reviews: [id(change)]}, {outcome: "pass"}));
+  const root = d("REQ-undo", {"changes-under": [id(change)]}, {kind: "stakeholder", statement});
+  const child = d("REQ-remove", {"changes-under": [id(change)]}, {kind: "software"});
+  const leaf = d("REQ-refresh", {"changes-under": [id(change)]}, {kind: "software"});
+  const group = d("DCP-undo", {parent: [id(root)], child: [id(child)], "changes-under": [id(change)]});
+  const branch = d("DCP-remove", {parent: [id(child)], child: [id(leaf)], "changes-under": [id(change)]});
+  const set = d(f.set.id, {contains: [...targetsForTest(f.set, "contains"), ...[root, child, leaf].map(id)], decomposition: [...targetsForTest(f.set, "decomposition"), ...[group, branch].map(id)], "changes-under": [id(change)]}, {}, 2);
+  f.data.push(root, child, leaf, group, branch);
+  return {...f, change, newRoot: root, child, newLeaf: leaf, group, branch, nextSet: set};
+}
+
+test("declared new roots permit only exact one-to-one roots and their downward new branch", () => {
+  const f = newRootChange();
+  f.change.links.push({type: "changes", target: id(f.parent)});
+  expect(validateChangeDatum(f.data, binding, f.change)).toEqual([]);
+  expect(validateChangeDatum(f.data, binding, f.nextSet)).toEqual([]);
+  const foreign = d("REQ-foreign", {"changes-under": [id(f.change)]}, {kind: "stakeholder", statement: "Unapproved need"});
+  const extra = {...f.nextSet, links: [...f.nextSet.links, {type: "contains", target: id(foreign)}]};
+  expect(validateChangeDatum([...f.data, foreign], binding, extra).map(d => d.code)).toContain("change-addition-scope");
+  foreign.payload.statement = f.newRoot.payload.statement;
+  expect(validateChangeDatum([...f.data, foreign], binding, extra).map(d => d.code)).toContain("change-new-root-match");
+  f.newRoot.payload.statement = "Different wording";
+  expect(validateChangeDatum(f.data, binding, f.nextSet).map(d => d.code)).toContain("change-new-root-match");
+});
+
+for (const member of ["newRoot", "child", "group"] as const) test(`new root branch requires change provenance on ${member}`, () => {
+  const f = newRootChange();
+  f[member].links = f[member].links.filter(l => l.type !== "changes-under");
+  expect(validateChangeDatum(f.data, binding, f.nextSet).map(d => d.code)).toContain("change-addition-scope");
+});
+
+test("new root scope retains existing edit and retirement limits and historical requests grant none", () => {
+  const f = newRootChange();
+  const changed = {...f.peer, revision: 2, revision_id: "REQ-peer-r2"};
+  const edited = {...f.nextSet, links: f.nextSet.links.map(l => l.target === id(f.peer) ? {...l, target: id(changed)} : l)};
+  expect(validateChangeDatum([...f.data, changed], binding, edited).map(d => d.code)).toEqual(expect.arrayContaining(["change-outside-scope", "change-frontier"]));
+  const retired = {...f.nextSet, links: [...f.nextSet.links.filter(l => l.target !== id(f.peer)), {type: "retires", target: id(f.peer)}]};
+  expect(validateChangeDatum(f.data, binding, retired).map(d => d.code)).toContain("change-outside-scope");
+  delete f.change.payload.new_roots;
+  expect(validateChangeDatum(f.data, binding, f.change).map(d => d.code)).toContain("change-target");
+  f.change.links.push({type: "changes", target: id(f.parent)});
+  expect(validateChangeDatum(f.data, binding, f.nextSet).map(d => d.code)).toContain("change-addition-scope");
+});
+
+test("new root declaration survives approved amendments and binds once across corrections", () => {
+  const f = newRootChange();
+  const amendment = d(f.change.id, {baseline: [id(f.acc)]}, {new_roots: ["Different scope"]}, 2);
+  expect(validateChangeDatum(f.data, binding, amendment).map(d => d.code)).toContain("change-amendment-scope");
+  amendment.payload.new_roots = [...f.change.payload.new_roots as string[], "Additional scope"];
+  expect(validateChangeDatum(f.data, binding, amendment)).toEqual([]);
+  f.data.push(f.nextSet);
+  const work = assessRequirements(f.data, binding, f.nextSet);
+  expect(work.allowedRequirements).toEqual(expect.arrayContaining([f.newRoot, f.child, f.newLeaf].map(id)));
+  const failure = d("REV-correct-new", {reviews: [id(f.nextSet)]}, {outcome: "fail", requirement_assessments: [f.newRoot, f.child].map(requirement => ({requirement: id(requirement), disposition: "needs-change"}))});
+  f.data.push(failure);
+  const corrected = {...f.newRoot, revision: 2, revision_id: "REQ-undo-r2", payload: {...f.newRoot.payload, statement: "Clarified undo obligation"}};
+  const correctedChild = {...f.child, revision: 2, revision_id: "REQ-remove-r2"};
+  const correctedGroup = {...f.group, revision: 2, revision_id: "DCP-undo-r2", links: f.group.links.map(l => ({...l, target: l.target === id(f.newRoot) ? id(corrected) : l.target === id(f.child) ? id(correctedChild) : l.target}))};
+  const correctedBranch = {...f.branch, revision: 2, revision_id: "DCP-remove-r2", links: f.branch.links.map(l => l.target === id(f.child) ? {...l, target: id(correctedChild)} : l)};
+  const replacements = new Map([[id(f.newRoot), id(corrected)], [id(f.child), id(correctedChild)], [id(f.group), id(correctedGroup)], [id(f.branch), id(correctedBranch)]]);
+  const next = {...f.nextSet, revision: 3, revision_id: "RQS-set-r3", links: f.nextSet.links.map(l => ({...l, target: replacements.get(l.target) ?? l.target}))};
+  f.data.push(corrected, correctedChild, correctedGroup, correctedBranch);
+  expect(validateChangeDatum(f.data, binding, next)).toEqual([]);
+  f.data.push(next);
+  const duplicate = d("REQ-second-undo", {"changes-under": [id(f.change)]}, f.newRoot.payload);
+  const repeated = {...next, revision: 4, revision_id: "RQS-set-r4", links: [...next.links, {type: "contains", target: id(duplicate)}]};
+  expect(validateChangeDatum([...f.data, duplicate], binding, repeated).map(d => d.code)).toContain("change-new-root-match");
+});
