@@ -1,6 +1,6 @@
 ---
 id: plan-verification
-version: 5
+version: 6
 skills: []
 ---
 
@@ -30,6 +30,19 @@ Identify each activity's execution boundary and its limits in objective and cove
 rationale, rather than treating component passes as evidence for the whole product.
 
 When a claim concerns meaning that mechanical checks cannot establish, use independent inspection of the captured output against explicit requirements-based expectations. Inspect the relevant associations and qualifications, not just word presence. State which claims need judgment and which remain mechanical. Preserve the observations, the inspector's judgments and their evidence references; uncertainty or an unperformed inspection cannot become a pass. Select this method only for claims that need it.
+
+For a method combining automated checks with independent inspection, freeze the
+intended actions, expected results and inspection criteria before observing the
+product. Where public operation is available, complete the planned observation
+and judgment while preparing the verifier, before its first VFY publication when
+practical. Observations may inform invocation adapters and replay mechanics, never
+the required expected behavior. Preserve exact intent, product, input and observation
+bindings with the judgment. A judgment may fail; completion does not mean passing.
+An unavailable or unperformed inspection remains explicitly incomplete. Early
+publication of an incomplete activity remains available when useful. Preparation
+evidence does not replace canonical execution of the selected activity against the
+exact product. Changed observations need fresh inspection rather than rejection
+solely for different wording.
 
 Before relying on the method, try relevant controls: an alternative valid output should remain acceptable, and an output with the wrong value, association or meaning should fail. Choose controls for the actual claim and allowed variation. They check the verifier's adequacy, not product compliance. Correct an unsuitable predicate or choose a different method when it rejects valid behavior or accepts a contradiction.
 
