@@ -1,6 +1,6 @@
 ---
 id: plan-verification
-version: 6
+version: 7
 skills: []
 ---
 
@@ -8,7 +8,7 @@ skills: []
 
 Give a fresh verification author `mdlm verification context <exact-RQS-or-EXP> --output <new-file> --json`. Supply that export, the public operation contact, and a source-free projection of the selected direct guidance containing only action, subject, package, prompt, payloadSchemas and candidates. Pass these fields unchanged with saved file paths and digests; they identify the selected action/version, exact subject, package identity/digest and candidate bindings. Keep the full guidance context with the lifecycle author.
 
-The receiving author checks the saved bytes against those digests and confirms that the projected package matches the intent export's package. The verification author must work without product source, implementation explanations or product-authored expectations. Copy the intent export's subject into authoring_subject and its authoringContext digest into authoring_context. Ask for requirement clarification when the public contract does not define an observable result.
+The receiving author checks the saved bytes against those digests and confirms that the projected package matches the intent export's package. The verification author defines methods, cases, expected results and inspection criteria without product source, implementation explanations or product-authored expectations. Necessary source inspection follows the criteria freeze described below; source provides evidence, never the required behavior. Copy the intent export's subject into authoring_subject and its authoringContext digest into authoring_context. Ask for requirement clarification when the public contract does not define an observable result.
 
 Commit the verifier in a separate Git repository. Define each activity's method and objective, exact REQ or EXP targets, cases and coverage. Each case has preconditions, intended actions, expected results and a rationale.
 
@@ -31,7 +31,16 @@ rationale, rather than treating component passes as evidence for the whole produ
 
 When a claim concerns meaning that mechanical checks cannot establish, use independent inspection of the captured output against explicit requirements-based expectations. Inspect the relevant associations and qualifications, not just word presence. State which claims need judgment and which remain mechanical. Preserve the observations, the inspector's judgments and their evidence references; uncertainty or an unperformed inspection cannot become a pass. Select this method only for claims that need it.
 
-For a method combining automated checks with independent inspection, freeze the
+When a requirement constrains the implementation in a way public behavior cannot
+establish, declare a complementary independent source inspection and its coverage
+limits. For example, matching API scores does not establish that a browser never
+calculates scores itself. After freezing requirement-derived criteria, the inspector
+may examine the exact committed product source and relevant dependencies. Record
+the inspected scope and artifact identities with the judgment; an incomplete scope
+remains unverified. Keep the requirement and expected behavior independent of what
+the source happens to do.
+
+For independent inspection, alone or alongside automated checks, freeze the
 intended actions, expected results and inspection criteria before observing the
 product. Where public operation is available, complete the planned observation
 and judgment while preparing the verifier, before its first VFY publication when
@@ -41,8 +50,8 @@ bindings with the judgment. A judgment may fail; completion does not mean passin
 An unavailable or unperformed inspection remains explicitly incomplete. Early
 publication of an incomplete activity remains available when useful. Preparation
 evidence does not replace canonical execution of the selected activity against the
-exact product. Changed observations need fresh inspection rather than rejection
-solely for different wording.
+exact product. Changed inspected artifacts or observations need fresh inspection;
+a difference alone does not establish a requirement failure.
 
 Before relying on the method, try relevant controls: an alternative valid output should remain acceptable, and an output with the wrong value, association or meaning should fail. Choose controls for the actual claim and allowed variation. They check the verifier's adequacy, not product compliance. Correct an unsuitable predicate or choose a different method when it rejects valid behavior or accepts a contradiction.
 
