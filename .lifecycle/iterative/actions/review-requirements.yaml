@@ -3,7 +3,7 @@ id: review-requirements
 version: 3
 description: Review requirements
 capability: review
-prompt_ref: prompts/review-requirements.md@9
+prompt_ref: prompts/review-requirements.md@10
 types:
 - REV
 subjects: select("current-requirements@1", {})

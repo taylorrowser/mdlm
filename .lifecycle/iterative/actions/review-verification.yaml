@@ -3,7 +3,7 @@ id: review-verification
 version: 1
 description: review verification
 capability: review
-prompt_ref: prompts/review-verification.md@2
+prompt_ref: prompts/review-verification.md@3
 types:
 - REV
 subjects: select("current-verification-activities@1", {})
