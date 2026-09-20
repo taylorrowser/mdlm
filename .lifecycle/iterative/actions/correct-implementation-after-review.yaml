@@ -3,7 +3,7 @@ id: correct-implementation-after-review
 version: 1
 description: Correct implementation after content Review
 capability: implementation
-prompt_ref: prompts/correct-implementation-after-review.md@10
+prompt_ref: prompts/correct-implementation-after-review.md@11
 types:
 - IMP
 subjects: select("current-implementations@1", {})

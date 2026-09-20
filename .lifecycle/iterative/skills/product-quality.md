@@ -1,6 +1,6 @@
 ---
 id: product-quality
-version: 1
+version: 2
 ---
 
 # Shared product quality expectations
@@ -16,19 +16,56 @@ execution-provenance instructions in the run constraints. Those instructions
 remain binding through their existing CLI and orchestration checks; repeating
 them as product requirements does not establish compliance.
 
-Check each outcome against its software behaviors. Account for relevant input
-classes, boundaries, state transitions, failure responses and interactions.
-State assumptions; obtain stakeholder decisions for assumptions that change scope
-or acceptance. Use consistent terms and conditions that a reader can evaluate.
-Split independently verifiable obligations when that makes their meaning clearer.
+### Author checklist
 
-Keep detail at the level that owns it. Outcomes describe what the user needs and
-why. Software requirements describe observable behavior. Add lower-level contracts
-only for a component or interface with a meaningful allocated responsibility.
-Check that children collectively satisfy their parent, including shared state and
-failure interactions. Trace derived constraints to their rationale. Ordinary
-helper functions and design choices stay in implementation. A reference map shows
-relationships, not semantic completeness.
+- Give each requirement one subject and one obligation under defined conditions.
+  Split outcomes with independent reasons to change, responsibility owners or
+  acceptance decisions. A formula or value table can define one obligation.
+- Justify each obligation by stakeholder intent, a parent or a derived need with
+  its origin and upstream consequences. Prototype behavior alone is insufficient.
+  Never copy code into prose. Express necessary semantics through precise text,
+  equations, decision tables or state transitions.
+- Settle relevant inputs, outputs, units, numeric rules, ordering, state changes,
+  boundaries and failures at the level that owns them. Distinguish permitted
+  variation from an unresolved decision. A small scope can need many short REQs.
+- Use meaningful depth until an implementer and verifier can determine required
+  behavior without inventing a product decision. Record the per-system architecture
+  and depth rationale as described in typed-requirements. Keep decomposition,
+  allocation and interface agreements distinct; reuse shared children by reference.
+- Plan verification for every obligation, including retained parents and relevant
+  interactions. Identify intended actions and expected results from the definition.
+  Shared cases and scripts may cover several requirements.
+- Account for every authored product responsibility through meaningful source
+  regions linked to implementation-ready leaves. Explain build, configuration,
+  dependency and generated-source treatment under source-trace. Remove unnecessary
+  behavior or justify the missing requirement before accepting it.
+
+### Reviewer checklist
+
+- Can I state each requirement's one obligation and a concrete violation? For
+  bundled outcomes, name the separate obligations and the decision their combination
+  obscures. Sentence length and conjunction counts are not the criterion.
+- Is each constraint necessary and authorized? Challenge prototype habits and
+  convenient implementation choices presented as stakeholder needs.
+- Could two readers derive materially different required outcomes from the same
+  definition? Give a counterexample, then request the missing rule or confirm that
+  the difference is permitted. Do not impose a language or algorithm without need.
+- Does the architecture/depth rationale fit each system? Do the leaves settle the
+  required behavior, and do the children collectively satisfy every parent,
+  including shared state, failures and cross-component interactions?
+- Does verification establish the complete obligation at its claimed boundary,
+  with independent expectations and reproducible evidence? Component checks alone
+  cannot establish a website/API workflow. Passing child cases alone cannot
+  establish their integrated parent.
+- Does source attribution explain all authored responsibilities without hiding
+  unrelated behavior in broad regions? Trace links show responsibility; source-aware
+  review and verification establish conformance.
+
+For example, preserving saved state after rejection, returning a rejection reason
+and retaining editable browser input are three obligations. In contrast,
+`rank = 1 + count(players with strictly lower totals)` defines one ranking rule,
+including ties. Review these checks within the existing set-level transaction;
+there is no extra authoring, review or test transaction per requirement.
 
 ## Product and evidence
 

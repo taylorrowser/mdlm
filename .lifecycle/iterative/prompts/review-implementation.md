@@ -1,8 +1,8 @@
 ---
 id: review-implementation
-version: 11
+version: 12
 skills:
-- skills/typed-requirements.md@5
+- skills/typed-requirements.md@6
 - skills/source-trace.md@5
 ---
 

@@ -3,7 +3,7 @@ id: refine-requirements
 version: 1
 description: Refine requirements with stakeholder intent before first acceptance
 capability: requirements
-prompt_ref: prompts/refine-requirements.md@1
+prompt_ref: prompts/refine-requirements.md@2
 types: [REQ, DCP, RQS]
 subjects: select("current-requirements@1", {})
 inputs:
