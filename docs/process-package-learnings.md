@@ -309,6 +309,29 @@ choose adequate methods without procedural coaching; prompt checks alone do
 not prove that improvement. When operation exposes another method gap, update
 the owning shared guidance and this learning in the same session.
 
+## Source inspection after independent criteria definition, #907
+
+River verification could reproduce API scores but could not establish that the
+browser never calculated them independently. The shared prompt prohibited source
+access without distinguishing criteria authoring from a necessary inspection.
+The root supplied that distinction to a fresh inspector. This extends class 6
+and the method-selection lesson from #881.
+
+Define the method, cases, expected results and inspection criteria from intent
+before source exposure. When public behavior cannot establish an implementation
+constraint, declare complementary inspection of exact source and dependencies,
+with scope, limits and artifact-bound judgments. Source is evidence, never a
+replacement for required behavior. Incomplete inspection stays unverified;
+changed inspected evidence needs fresh judgment. Existing adequacy controls still
+own overstrict predicates and cases that cannot distinguish required outcomes.
+
+Check package loading and resolve the shared prompt through criterion, formal
+and revision actions. Preserve the failed review and frozen criteria. A future
+qualified authoring episode must establish whether the clarification avoids root
+coaching; structural checks do not prove better verification. When operation
+exposes another method ambiguity, update the owning guidance and this learning
+in the same session.
+
 ## Historical patterns and checks
 
 ## 1. Every failable output needs a correction route
