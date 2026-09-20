@@ -17,13 +17,24 @@ dependent evidence. The original wording, PASS and evidence remain history.
 Accepted lineages and work already bound to an approved change retain their
 existing change and correction routes.
 
+## Requirement quality and depth
+
+Authors and reviewers use the checklists in `skills/product-quality.md`. Each REQ
+states one obligation. Equations, decision tables and state transitions can settle
+required behavior; copying code into prose cannot justify it. `skills/typed-requirements.md`
+explains variable system/software depth and the initial architecture/depth note in
+an owning REQ rationale. The requirement graph supports shared children and uneven
+depth without extra review transactions or fixed tiers. This representation keeps
+the note in ordinary version history and source-free exports, but adds no separate
+architecture query or automatic allocation-impact mechanism.
+
 ## Independent verification
 
 Version 2 uses a separate committed verification repository. Export `mdlm verification context <exact-RQS-or-EXP> --output <new-file> --json` for a fresh verification author. The export contains requirements or criteria and public interfaces, without product source or implementation explanations. `plan-verification` and `plan-criterion-verification` publish VFY activities with methods, intended actions, expected results and exact case coverage. Use the smallest case set that adequately covers every obligation; scripts and cases may cover several requirements.
 
 Select the activities on IMP or TRY through exact verification links. `review-verification` records independent adequacy for formal requirements. Execute each with `mdlm execution run <exact-product> <operation> --activity <exact-VFY> --json`, then record its RES using the supplied guidance. `mdlm verification status <exact-product> --json` reports coverage, reviews, current outcomes and gaps for every requirement. Missing, skipped, failed or stale evidence cannot verify a requirement. Formal verified also requires the implementation review to judge the complete selected coverage for each requirement; passing individual partial activities alone is insufficient. Criterion results support learning without claiming a baseline.
 
-Choose methods for the actual product: command-line behavior, browser interaction, output analysis or demonstration. For demonstration, record intended actions and results first, preserve actual computer-use observations, derive a replay script from the interactions and execute it again. The requirement defines the expected result even when the product behaves differently. Case outputs and declared artifacts are captured with exact product, verifier and environment identities.
+Choose methods and execution levels for the actual claim: independent unit/component tests at declared contracts, command-line behavior, browser interaction, output analysis or demonstration. Language adapters may invoke a contract but may not calculate expectations. Retain actual-product integration evidence for cross-component claims. For demonstration, record intended actions and results first, preserve actual computer-use observations, derive a replay script from the interactions and execute it again. The requirement defines the expected result even when the product behaves differently. Case outputs and declared artifacts are captured with exact product, verifier and environment identities.
 
 Product source keeps its own requirement attribution. Language-neutral source_ranges cover nonblank production, build and configuration lines. The verifier needs no in-product source regions. A new product commit needs new execution; a new activity or requirement revision needs applicable coverage and evidence. Historical accepted products keep their installed package and evidence.
 

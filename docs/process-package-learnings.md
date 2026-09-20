@@ -501,6 +501,17 @@ a fresh author's first annotations and independent review must establish whether
 the example reduces omissions without encouraging unrelated links. Line coverage
 and functional verification alone cannot establish that result.
 
+Issue #900 applies class 10 to the game website's accepted bundled requirements.
+The iterative shared checklist now requires one obligation per REQ and a concrete
+review challenge when separate outcomes obscure a change or acceptance decision.
+Authors record useful system/software depth and one architecture rationale per
+boundary in existing REQ data. Independent component tests use declared contracts;
+parent integration claims retain actual-product evidence. Package loading protects
+exact prompt/skill references. Fresh independent authors and reviewers must test
+whether the guidance produces clearer definitions; matching phrases in a test do
+not establish semantic quality. Keep this first architecture representation simple
+until operation demonstrates a need for a separate datum or query.
+
 ## Typed requirement mappings are mechanical declarations
 
 Issue #741 replaces tiny-package free-string commitments with typed EARS fields,

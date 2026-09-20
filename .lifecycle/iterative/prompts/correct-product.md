@@ -1,8 +1,8 @@
 ---
 id: correct-product
-version: 10
+version: 11
 skills:
-- skills/typed-requirements.md@5
+- skills/typed-requirements.md@6
 - skills/source-trace.md@5
 ---
 

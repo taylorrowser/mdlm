@@ -1,6 +1,6 @@
 ---
 id: plan-verification
-version: 4
+version: 5
 skills: []
 ---
 
@@ -14,9 +14,20 @@ Commit the verifier in a separate Git repository. Define each activity's method 
 
 Create exactly one `coverage` entry for each exact target selected by the activity's `verifies` links. Combine that target's obligations in its `obligations` array. Its `case_ids` must list every declared case whose `targets` contains that exact target, once each, with no other case IDs. Do not split one target into several coverage entries by obligation or case. A single EXP therefore has one coverage entry even when its criterion has several obligations and cases.
 
-Across the selected activities, address every obligation of each requirement, including relevant boundary and failure behavior. An activity may cover part of a requirement when its coverage claim states that part clearly; the complete selected plan must cover the whole requirement. Parent requirements need their own coverage argument; decomposition alone is not evidence. Many cases may share a script and one case may verify several requirements. Keep verification independent of product source organization and private functions.
+Across the selected activities, address every obligation of each requirement, including relevant boundary and failure behavior. An activity may cover part of a requirement when its coverage claim states that part clearly; the complete selected plan must cover the whole requirement. Parent requirements need their own coverage argument; decomposition alone is not evidence. Many cases may share a script and one case may verify several requirements. Derive expectations independently of product source organization and private functions.
 
 Choose the method per claim and state what its evidence establishes. Mechanically assert exact public numeric and protocol behavior, including required values, identities, associations, transitions and error results. Derive these expectations from the public contract. For CLI, web or API work, observe the public interaction and its result; analysis can compare those observations with an explicit model. Keep presentation choices flexible where the contract permits them.
+
+Method and execution level are separate choices. A detailed software rule may use
+an independent unit or component test through a declared stable contract. A
+language-specific adapter may invoke that contract and translate representations;
+it must not compute the expected result, inspect private implementation state or
+conceal a required difference. An internal ICD is useful for a meaningful shared
+boundary; no ICD is required for each function. Obtain missing invocation details
+through the public operation contact without exposing product source or tests.
+Retain actual-product and integration evidence for parent claims spanning components.
+Identify each activity's execution boundary and its limits in objective and coverage
+rationale, rather than treating component passes as evidence for the whole product.
 
 When a claim concerns meaning that mechanical checks cannot establish, use independent inspection of the captured output against explicit requirements-based expectations. Inspect the relevant associations and qualifications, not just word presence. State which claims need judgment and which remain mechanical. Preserve the observations, the inspector's judgments and their evidence references; uncertainty or an unperformed inspection cannot become a pass. Select this method only for claims that need it.
 
@@ -28,6 +39,6 @@ Set repository_path, exact source_commit, verification_script and verification_c
 
 Read "Native verification runtime" in the installation's `docs/contracts/direct-work.md` before authoring the script. After writing the report, exit `0` when every case passes, `1` when any case fails and none is errored or skipped, or `2` when any case is errored or skipped. Report/exit disagreement is an execution error.
 
-Only public interface information may guide interactions and expected outcomes. Separate directories preserve source identities but do not prevent reading product source; independent authoring and review enforce this boundary. Keep the method honest when a requirement needs evidence that the selected execution cannot establish.
+Use the declared product or component contract to guide interactions and requirements to derive expected outcomes. Separate directories preserve source identities but do not prevent reading product source; independent authoring and review enforce this boundary. Keep the method honest when a requirement needs evidence that the selected execution cannot establish.
 
 Publish with the supplied direct guidance. Add exact verifies links matching all case targets and uses-interface links for necessary public ICDs. Revise an activity when its expectations, coverage or verifier change. A faulty verifier is a verification correction, not automatically a product defect. Prior evidence remains historical. Reuse a plan on a new product through exact verification links and fresh execution; a pass on an older commit does not verify the new one.

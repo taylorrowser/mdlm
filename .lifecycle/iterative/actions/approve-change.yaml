@@ -3,7 +3,7 @@ id: approve-change
 version: 2
 description: Approve the requested scope
 capability: review
-prompt_ref: prompts/approve-change.md@2
+prompt_ref: prompts/approve-change.md@3
 types:
 - REV
 subjects: select("current-changes@1", {})

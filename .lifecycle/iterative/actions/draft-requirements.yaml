@@ -3,7 +3,7 @@ id: draft-requirements
 version: 2
 description: Draft necessary requirements for the selected formal scope
 capability: requirements
-prompt_ref: prompts/draft-requirements.md@7
+prompt_ref: prompts/draft-requirements.md@8
 optional: true
 types:
   - REQ

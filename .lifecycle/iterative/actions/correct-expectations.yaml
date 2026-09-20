@@ -3,7 +3,7 @@ id: correct-expectations
 version: 1
 description: Correct a wrong acceptance expectation
 capability: requirements
-prompt_ref: prompts/correct-expectations.md@5
+prompt_ref: prompts/correct-expectations.md@6
 types:
 - REQ
 - DCP

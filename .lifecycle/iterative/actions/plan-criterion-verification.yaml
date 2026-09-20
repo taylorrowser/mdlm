@@ -3,7 +3,7 @@ id: plan-criterion-verification
 version: 4
 description: plan criterion verification
 capability: verification-activity
-prompt_ref: prompts/plan-verification.md@4
+prompt_ref: prompts/plan-verification.md@5
 types:
 - VFY
 subjects: select("current-experiments@1", {})
