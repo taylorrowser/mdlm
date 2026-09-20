@@ -512,6 +512,17 @@ whether the guidance produces clearer definitions; matching phrases in a test do
 not establish semantic quality. Keep this first architecture representation simple
 until operation demonstrates a need for a separate datum or query.
 
+Issue #902 clarifies preparation for mixed automated tests and independent
+inspection. River first published a verifier with a planned skipped inspection,
+then needed a successor and another execution. The inspection also found a real
+diagnostic defect, which correction and fresh evidence resolved. Guidance already
+allowed observation before publication for demonstration; applying it to mixed
+methods was implicit. The package and future host handoffs now make that option
+explicit after expectations are frozen. Preserve incomplete and failed evidence,
+and retain canonical execution. The wording may reduce avoidable publication churn;
+confirm that in a fresh demo rather than claiming the ordering caused this run's
+cost. Package loading protects references, while operation judges the guidance.
+
 ## Typed requirement mappings are mechanical declarations
 
 Issue #741 replaces tiny-package free-string commitments with typed EARS fields,
