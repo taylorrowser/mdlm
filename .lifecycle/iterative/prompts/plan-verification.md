@@ -1,6 +1,6 @@
 ---
 id: plan-verification
-version: 7
+version: 8
 skills: []
 ---
 
@@ -14,7 +14,7 @@ Commit the verifier in a separate Git repository. Define each activity's method 
 
 Create exactly one `coverage` entry for each exact target selected by the activity's `verifies` links. Combine that target's obligations in its `obligations` array. Its `case_ids` must list every declared case whose `targets` contains that exact target, once each, with no other case IDs. Do not split one target into several coverage entries by obligation or case. A single EXP therefore has one coverage entry even when its criterion has several obligations and cases.
 
-Across the selected activities, address every obligation of each requirement, including relevant boundary and failure behavior. An activity may cover part of a requirement when its coverage claim states that part clearly; the complete selected plan must cover the whole requirement. Parent requirements need their own coverage argument; decomposition alone is not evidence. Many cases may share a script and one case may verify several requirements. Derive expectations independently of product source organization and private functions.
+Across the selected activities, address every obligation of each requirement, including relevant boundary and failure behavior. An activity may cover part of a requirement when its coverage claim states that part clearly; the complete selected plan must cover the whole requirement. Parent requirements need their own coverage argument; decomposition alone is not evidence. Many cases may share a script and one case may verify several requirements. Include applicable normative ICD clauses explicitly incorporated by each owning REQ in its coverage rationale; name their clause IDs and any evidence gaps. Derive expectations independently of product source organization and private functions.
 
 Choose the method per claim and state what its evidence establishes. Mechanically assert exact public numeric and protocol behavior, including required values, identities, associations, transitions and error results. Derive these expectations from the public contract. For CLI, web or API work, observe the public interaction and its result; analysis can compare those observations with an explicit model. Keep presentation choices flexible where the contract permits them.
 
@@ -25,6 +25,13 @@ it must not compute the expected result, inspect private implementation state or
 conceal a required difference. An internal ICD is useful for a meaningful shared
 boundary; no ICD is required for each function. Obtain missing invocation details
 through the public operation contact without exposing product source or tests.
+Keep implementation-specific launch commands and UI locators in the invocation
+adapter, separate from requirement-derived actions and expected results. Record
+those adapter details and the exact product they operate. They may change for
+another implementation while expectations remain fixed. When a requirement or
+its incorporated ICD clause prescribes a launch command or locator, verify that
+contract explicitly; an adapter cannot waive it. A finite observation timeout
+for an eventual outcome is a measurement limit unless the contract sets a deadline.
 Retain actual-product and integration evidence for parent claims spanning components.
 Identify each activity's execution boundary and its limits in objective and coverage
 rationale, rather than treating component passes as evidence for the whole product.

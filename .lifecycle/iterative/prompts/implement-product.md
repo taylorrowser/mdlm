@@ -1,9 +1,10 @@
 ---
 id: implement-product
-version: 12
+version: 13
 skills:
-- skills/typed-requirements.md@7
-- skills/source-trace.md@5
+- skills/product-quality.md@3
+- skills/typed-requirements.md@8
+- skills/source-trace.md@6
 ---
 
 # Implement the reviewed product

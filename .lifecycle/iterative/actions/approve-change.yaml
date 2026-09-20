@@ -1,9 +1,9 @@
 kind: action-definition
 id: approve-change
-version: 2
+version: 3
 description: Approve the requested scope
 capability: review
-prompt_ref: prompts/approve-change.md@3
+prompt_ref: prompts/approve-change.md@4
 types:
 - REV
 subjects: select("current-changes@1", {})

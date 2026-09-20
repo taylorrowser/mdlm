@@ -1,9 +1,9 @@
 kind: action-definition
 id: request-change
-version: 3
+version: 4
 description: Propose a bounded change to an accepted product
 capability: change
-prompt_ref: prompts/request-change.md@5
+prompt_ref: prompts/request-change.md@6
 types:
 - CHG
 subjects: select("current-requirements@1", {})

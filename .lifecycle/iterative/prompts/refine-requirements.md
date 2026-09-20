@@ -1,9 +1,9 @@
 ---
 id: refine-requirements
-version: 3
+version: 4
 skills:
-- skills/product-quality.md@2
-- skills/typed-requirements.md@7
+- skills/product-quality.md@3
+- skills/typed-requirements.md@8
 ---
 
 # Refine requirements before first acceptance
