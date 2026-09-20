@@ -1,6 +1,6 @@
 ---
 id: product-quality
-version: 2
+version: 3
 ---
 
 # Shared product quality expectations
@@ -20,7 +20,14 @@ them as product requirements does not establish compliance.
 
 - Give each requirement one subject and one obligation under defined conditions.
   Split outcomes with independent reasons to change, responsibility owners or
-  acceptance decisions. A formula or value table can define one obligation.
+  acceptance decisions. Conditions and branches of one function or state transition
+  can form one coherent obligation, including preservation of unaffected state.
+  Arithmetic correctness and serialization of concurrent updates are separate
+  duties: either can fail while the other holds. A table row alone is not a reason
+  to split; define its domain, boundaries and precedence so the table settles one
+  function. A saved/rejected/unconfirmed response table may be one obligation;
+  local rejection without sending and eventual settlement after silence are
+  separate decisions. Parents may integrate distinct duties allocated to children.
 - Justify each obligation by stakeholder intent, a parent or a derived need with
   its origin and upstream consequences. Prototype behavior alone is insufficient.
   Never copy code into prose. Express necessary semantics through precise text,
@@ -37,8 +44,8 @@ them as product requirements does not establish compliance.
   Shared cases and scripts may cover several requirements.
 - Account for every authored product responsibility through meaningful source
   regions linked to implementation-ready leaves. Explain build, configuration,
-  dependency and generated-source treatment under source-trace. Remove unnecessary
-  behavior or justify the missing requirement before accepting it.
+  dependency and generated-source treatment under source-trace, distinguishing
+  mandatory behavior from justified support and permitted implementation choices.
 
 ### Reviewer checklist
 

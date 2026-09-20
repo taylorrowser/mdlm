@@ -1,9 +1,9 @@
 ---
 id: review-requirements
-version: 10
+version: 11
 skills:
-- skills/product-quality.md@2
-- skills/typed-requirements.md@7
+- skills/product-quality.md@3
+- skills/typed-requirements.md@8
 ---
 
 # Review requirements
@@ -18,4 +18,4 @@ Use the supplied direct proposal guidance and payload schema. The CLI supplies i
 
 For each `informed-by` link in the requirement graph, read its exact EXP/OBS origin in the supplied review context's `records`, matching `revision_id` to the link target. Judge necessity against stakeholder intent and the stated formal scope. An origin link explains derivation; it does not prove correctness or establish stakeholder acceptance. Check that adjacent exploratory choices have not silently become obligations.
 
-Read the exact ICD records supplied in interfaces. Judge the explicit requirement obligations against both endpoint responsibilities, assumptions and integration evidence. Referenced descriptive or provisional design choices are not automatically requirements. Old interface evidence applies to its exact bindings; a revised contract needs an explicit applicability assessment.
+Read the exact ICD records supplied in interfaces. Apply typed-requirements' normative ownership rule: assess the applicable stable clauses named by each owning REQ, and report required behavior found only in rationale or without an explicit owner. Judge those obligations against both endpoint responsibilities, assumptions and integration evidence. Referenced descriptive or provisional design choices are not automatically requirements. Old interface evidence applies to its exact bindings; a revised contract needs an explicit applicability assessment.

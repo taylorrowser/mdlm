@@ -557,6 +557,26 @@ whether the guidance produces clearer definitions; matching phrases in a test do
 not establish semantic quality. Keep this first architecture representation simple
 until operation demonstrates a need for a separate datum or query.
 
+Issue #909 follows the completed counter audit after #906. Compound arithmetic
+and serialization duties passed review, browser behavior remained in rationale,
+and whole-ICD links obscured which requirements owned binding contract details.
+Source review also called some chosen support mechanisms necessary. These are
+class 10 content judgments with class 6 authoring guidance.
+
+Keep one coherent obligation per REQ and allow function/table branches within it.
+Require explicit incorporation of stable normative ICD clauses by the owning REQ,
+with exact revision links, while rationale explains choices. Classify source
+responsibilities as mandatory behavior, justified support or permitted choices.
+Keep launch/locator adapters separate from independent expected results. Use the
+existing assessment and coverage fields; no per-clause lifecycle transaction is
+needed. Preserve role/allocation notes and parent integration evidence.
+
+Check package loading and versioned references without wording-only tests. A fresh
+qualified native counter, followed by one added complexity dimension at a time,
+must show whether authors and reviewers apply these distinctions without coaching.
+The sealed counter remains historical evidence. When operation reveals another
+ambiguity, update the smallest owning guidance and this learning in the same session.
+
 Issue #902 clarifies preparation for mixed automated tests and independent
 inspection. River first published a verifier with a planned skipped inspection,
 then needed a successor and another execution. The inspection also found a real
