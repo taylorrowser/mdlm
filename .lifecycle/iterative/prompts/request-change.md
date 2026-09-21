@@ -1,8 +1,8 @@
 ---
 id: request-change
-version: 6
+version: 7
 skills:
-- skills/product-quality.md@3
+- skills/product-quality.md@4
 ---
 
 Describe the reason and requested outcome. For existing scope, include one or more `changes` links. Copy each target as a distinct exact requirement revision ID from the accepted baseline, including for implementation-only maintenance. Target the affected software requirements when their parents remain correct. The CLI supplies the accepted baseline.

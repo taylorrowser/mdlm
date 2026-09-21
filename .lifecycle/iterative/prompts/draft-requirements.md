@@ -1,8 +1,8 @@
 ---
 id: draft-requirements
-version: 11
+version: 12
 skills:
-- skills/product-quality.md@3
+- skills/product-quality.md@4
 - skills/typed-requirements.md@9
 ---
 
