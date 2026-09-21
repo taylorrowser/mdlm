@@ -1,8 +1,8 @@
 ---
 id: refine-requirements
-version: 7
+version: 8
 skills:
-- skills/product-quality.md@4
+- skills/product-quality.md@5
 - skills/typed-requirements.md@10
 ---
 

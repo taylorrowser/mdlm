@@ -117,6 +117,22 @@ mdlm review context <action> <exact-subject> --output review-context.json --json
 
 Pass the returned handoff to the review manager. It contains the saved file's absolute path, byte count and SHA256, with the exact action, subject, snapshot and package. The fresh reviewer reads that file. Choose a new path for each export; existing files are preserved and cause an error. Omitting `--output` returns the full context on stdout. The export SHA256 identifies the saved bytes; registration's canonical context digest is a separate value.
 
+For related lifecycle context within the review's input boundary, use existing
+inspection commands:
+
+```sh
+mdlm history <stable-id> --json
+mdlm show <exact-revision> --json
+mdlm backlinks <exact-revision> --json
+mdlm trace <exact-revision> --relation <relation> --depth <integer> --json
+```
+
+History lists revisions; read their contents with exact `show` calls. Use `rg` on
+retained lifecycle Markdown or `git grep` at the recorded lifecycle commit to find
+relevant unlinked context. These CLI inspections read current repository state;
+use the retained repository cut for historical review and save material exact
+supplemental records with the existing handoff.
+
 Verifier files may include binary evidence with `encoding: "base64"`. Inspect the
 saved export by selected fields rather than printing the full binary content.
 For example, list the files with

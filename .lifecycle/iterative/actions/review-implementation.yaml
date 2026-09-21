@@ -1,9 +1,9 @@
 kind: action-definition
 id: review-implementation
-version: 5
+version: 6
 description: Review implementation and execution evidence
 capability: review
-prompt_ref: prompts/review-implementation.md@17
+prompt_ref: prompts/review-implementation.md@18
 types:
 - REV
 subjects: select("current-implementations@1", {})
