@@ -97,6 +97,27 @@ and formalizes only its stakeholder-selected scope. When operation exposes a
 missing correction or copy rule, fix the owning route and guidance together and
 record the learning here in the same work session.
 
+## Stakeholder stop after a revise observation, #915
+
+The named-scoreboard trial answered its naming/usefulness question but failed
+Unicode request decoding. Once its OBS recommended revise, feedback required a
+passing nomination, leaving correction or another experiment as the only routes.
+This is a class 1 route gap, with class 2 closure and class 6 guidance rules.
+
+Offer optional stakeholder stop on each exact current unresolved revise OBS,
+using the existing FDB with fixed stop action and explicit authority. Close only
+that observed branch and consume its exploratory corrections together. Preserve
+failed observations and execution evidence. Every current trial still needs a
+closed observation; all formal corrections, verification and acceptance remain.
+Neither a stop nor its prose follow-up creates a formal correction or baseline.
+
+The existing optional-formalization public journey now starts with failed
+execution and tests authorized stop, fixed action, unchanged failure history and
+subsequent formal obligations. Package checks cover separate current observations,
+stale trials/intent, missing observations, formal correction and comparison closure.
+When operation exposes a missing decision route, update the route, closure and
+guidance together and retain one public check of the changed publication boundary.
+
 ## Optional formalization after exploration, #873
 
 The guidance-service experiment closed through explicit stakeholder stop, but

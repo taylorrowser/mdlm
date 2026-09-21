@@ -1,0 +1,22 @@
+kind: action-definition
+id: stop-experiment
+version: 1
+description: Record stakeholder stop of further exploration after a revise observation
+capability: feedback
+prompt_ref: prompts/stop-experiment.md@1
+types: [FDB]
+subjects: select("current-revision-observations@1", {})
+inputs:
+  observation: subject
+when: 'none("feedback-for@1", {observation: subject})'
+optional: true
+links:
+  FDB:
+    responds-to: observation
+fixed_payload:
+  FDB:
+    publication: recorded
+    action: stop
+authority:
+  kind: stakeholder
+  name: stakeholder

@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-iterative
-version: 2.4.6
+version: 2.4.7
 status: experimental
 description: Explore a useful product, then progressively baseline necessary behavior.
 kernel_contract:
@@ -57,8 +57,8 @@ provenance:
 direct_contract: mdlm-direct@1
 terminal:
   when: '(none("current-requirements@1", {}) && exists("current-experiments@1", {}) && every("current-experiments@1",
-    {}, exp => exists("closed-experiment@1", {experiment: exp}))) || (exists("accepted-formal-scope@1", {}) && every("current-experiments@1", {}, exp => none("comparison-baseline-for@1",
-    {experiment: exp}) || exists("closed-experiment@1", {experiment: exp})))'
+    {}, exp => exists("closed-experiment@2", {experiment: exp}))) || (exists("accepted-formal-scope@1", {}) && every("current-experiments@1", {}, exp => none("comparison-baseline-for@1",
+    {experiment: exp}) || exists("closed-experiment@2", {experiment: exp})))'
   outcome: profile-boundary-reached
   reason: Exploration is closed without formal requirements, or the current formal scope is independently reviewed,
     verified and stakeholder accepted with comparison exploration closed. This profile boundary alone does not establish

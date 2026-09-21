@@ -1,7 +1,7 @@
 kind: selector-definition
 id: revision-observations
-version: 2
-description: Revision observations whose trial has no accepted successor
+version: 3
+description: Revision observations without stakeholder stop or an accepted trial successor
 parameters:
   - name: experiment
     kind: revision
@@ -17,7 +17,7 @@ query:
     types:
       - OBS
   as: item
-  where: 'item.payload.recommendation == "revise" &&
+  where: 'item.payload.recommendation == "revise" && none("feedback-for@1", {observation: item}) &&
     every("trial-for-observation@1", {observation: item}, trial =>
     none("newer-revisions@1", {subject: trial}))'
   distinct: true
