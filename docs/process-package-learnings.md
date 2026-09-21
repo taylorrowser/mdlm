@@ -135,6 +135,21 @@ Check examples against the direct contract and requirement finalization when
 changing them. Use subsequent live authoring to judge whether agents can submit
 without manual format translation; prose assertions in tests do not establish it.
 
+Scoreboards on iterative 2.4.5 exposed another class 6 guidance gap, #913. A
+reviewer marked two ancestor groups as needing change solely because deeper
+descendants failed, while their immediate parents, children and membership needed
+no correction. Native publication rejected both rows with
+`change-review-correction`. The reviewer corrected those group judgments and
+retained the failing set outcome and descendant findings.
+
+The requirements-review prompt owns the assessment rule: judge each exact DCP's
+immediate decomposition and identify its own correction targets. Deeper findings
+remain in their owning assessments; sound ancestor groups may remain adequate
+within a failing review. Check package loading and existing decomposition behavior,
+then use a fresh independent review on the qualified package to assess whether the
+clarification prevents this rejection. When operation exposes another assessment
+ambiguity, update the owning prompt and this learning in the same session.
+
 ## Change approval impact handoff, #886
 
 The Hearts integration author supplied a CHG and its authored impact narrative
