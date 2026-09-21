@@ -1,8 +1,8 @@
 ---
 id: approve-change
-version: 4
+version: 5
 skills:
-- skills/product-quality.md@3
+- skills/product-quality.md@4
 ---
 
 Before requesting the stakeholder decision, export `mdlm review context approve-change <exact-CHG-revision> --output <new-context-file> --json` using this guidance's exact subject. Give the stakeholder the saved context and the returned handoff with its action, subject, snapshot, package and SHA256 bindings. Read `prospectiveChange` in the saved context for the CLI-derived impact. The stakeholder supplies the decision under the authority named by this guidance.

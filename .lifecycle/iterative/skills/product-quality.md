@@ -1,6 +1,6 @@
 ---
 id: product-quality
-version: 3
+version: 4
 ---
 
 # Shared product quality expectations
@@ -27,7 +27,11 @@ them as product requirements does not establish compliance.
   to split; define its domain, boundaries and precedence so the table settles one
   function. A saved/rejected/unconfirmed response table may be one obligation;
   local rejection without sending and eventual settlement after silence are
-  separate decisions. Parents may integrate distinct duties allocated to children.
+  separate decisions. A parent must itself state one coherent, independently
+  assessable relationship or outcome across its children. Name that relationship
+  and a concrete way it can fail while the component duties hold in isolation.
+  Keep independently changeable stakeholder needs separate even when they serve
+  one product. Reuse existing children where they contribute to that relationship.
 - Justify each obligation by stakeholder intent, a parent or a derived need with
   its origin and upstream consequences. Prototype behavior alone is insufficient.
   Never copy code into prose. Express necessary semantics through precise text,
@@ -51,7 +55,10 @@ them as product requirements does not establish compliance.
 
 - Can I state each requirement's one obligation and a concrete violation? For
   bundled outcomes, name the separate obligations and the decision their combination
-  obscures. Sentence length and conjunction counts are not the criterion.
+  obscures. Apply this to parents too: identify the claimed relationship and
+  distinguish its failure from separate child failures. A whole-product summary
+  does not establish one obligation. Sentence length and conjunction counts are
+  not the criterion.
 - Is each constraint necessary and authorized? Challenge prototype habits and
   convenient implementation choices presented as stakeholder needs.
 - Could two readers derive materially different required outcomes from the same
@@ -71,7 +78,13 @@ them as product requirements does not establish compliance.
 For example, preserving saved state after rejection, returning a rejection reason
 and retaining editable browser input are three obligations. In contrast,
 `rank = 1 + count(players with strictly lower totals)` defines one ranking rule,
-including ties. Review these checks within the existing set-level transaction;
+including ties. "Keep an accurate, saved game with understandable save feedback"
+bundles scoring, retention and save communication. Give those needs their own
+requirements. "The browser displays the API's authoritative roster and history for
+the selected game" states a relationship: it fails if the browser shows another
+game while each component works correctly in isolation. Keep that integration
+obligation without appending the other product needs or duplicating its children.
+Review these checks within the existing set-level transaction;
 there is no extra authoring, review or test transaction per requirement.
 
 ## Product and evidence

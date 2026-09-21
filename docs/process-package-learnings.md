@@ -639,6 +639,24 @@ first candidate to assess this intervention. Correction in the existing pinned r
 does not show first-pass prevention. Update the owning instruction and this learning
 when operation reveals another avoidable gap.
 
+Issue #921 follows River's first 2.4.8 definition. The author bundled game
+accuracy, saved-play continuity and save understanding in one stakeholder parent.
+Native review and the first audit applied the shared parent exception too broadly,
+despite the user's one-obligation instruction. This is another class 10 defect.
+
+Require each parent to state one coherent, independently assessable relationship
+or outcome. A whole-product summary cannot absorb independently changeable needs.
+Keep useful relational parents, such as the browser showing the API's state for
+the same game, and reuse their justified children without duplicating obligations.
+Keep arbitrary useful depth and many-to-many groups within the set-level review.
+
+Check package loading and exact shared-skill delivery to affected prompts without
+wording-only tests. Preserve the first definition and judgments; a future fresh
+qualified author and reviewer must establish whether this clarification prevents
+bundling. Correction in the pinned run cannot prove first-pass prevention. When
+operation exposes another exception that defeats the shared content rule, narrow
+its owning instruction and record the learning in the same session.
+
 Issue #902 clarifies preparation for mixed automated tests and independent
 inspection. River first published a verifier with a planned skipped inspection,
 then needed a successor and another execution. The inspection also found a real
