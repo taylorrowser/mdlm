@@ -1,9 +1,9 @@
 ---
 id: review-requirements
-version: 14
+version: 15
 skills:
 - skills/product-quality.md@4
-- skills/typed-requirements.md@9
+- skills/typed-requirements.md@10
 ---
 
 # Review requirements
