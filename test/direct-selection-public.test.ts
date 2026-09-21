@@ -49,6 +49,9 @@ test("proposal drafts preserve selected guidance, accept authored work and rejec
       const result = spawnSync(process.execPath,[path.join(process.cwd(),"dist/mdlm.js"),...args,"--json"],{cwd:repository,encoding:"utf8",timeout:30_000});
       expect(result.status,result.stdout+result.stderr).toBe(1);return JSON.parse(result.stdout);
     };
+    const inapplicableFile = path.join(root,"inapplicable-activity.json");
+    expect(rejected("proposal","draft",guidance.action,"--activity","VFY-exact-r00001","--operation","inapplicable-activity","--output",inapplicableFile).diagnostics[0].message).toContain("independent-result");
+    await expect(fs.stat(inapplicableFile)).rejects.toMatchObject({code:"ENOENT"});
     rejected("proposal","draft",guidance.action,"--operation","preserve-existing","--output",file);
     expect(await fs.readFile(file)).toEqual(bytes);
     const candidate = proposal.candidates[0];

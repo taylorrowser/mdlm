@@ -156,7 +156,19 @@ test("independent verification reports complete requirements, failures, stale ev
     const implementation=guidance("implement-product",set), imp=implementation.candidates[0];
     imp.payload={...imp.payload,title:"Count product",repository_path:product,source_commit:source,command:["python3","app.py"],file_roles:{"app.py":"production"},source_ranges:[{path:"app.py",name:"count",start:1,end:2,requirements:[datum(byTitle.count).id,datum(byTitle.empty).id]}]};imp.links.push({type:"verification",target:activity});
     let productId=(await submit(implementation,"implementation",[imp])).revisions.find((id:string)=>id.startsWith("IMP-"));
-    const execute=async(op:string,id:string,activityId=activity) => {const execution=cli(["execution","run",id,op,"--activity",activityId]);const g=guidance("execute-verification",id),c=g.candidates[0];c.payload={...c.payload,title:"Verification result",assessment:"Captured assertions compared public output to independently specified expectations",correction_target:execution.value.receipt.result.outcome==="pass"?"none":"implementation"};c.links.push({type:"evaluates",target:activityId});await submit(g,`${op}-result`,[c],{receipt:execution.value.evidence});return execution;};
+    const execute=async(op:string,id:string,activityId=activity) => {
+      const execution=cli(["execution","run",id,op,"--activity",activityId]);
+      const g=guidance("execute-verification",id), file=path.join(root,`${op}-result.json`);
+      cli(["proposal","draft","execute-verification",id,"--activity",activityId,"--operation",`${op}-result`,"--output",file]);
+      const proposal=JSON.parse(await fs.readFile(file,"utf8")),c=proposal.candidates[0];
+      expect(c.links).toEqual([...g.candidates[0].links,{type:"evaluates",target:activityId}]);
+      expect(proposal).toMatchObject({action:g.action,package:g.package,snapshot:g.snapshot,subject:id,inputs:g.inputs});
+      c.payload={...c.payload,title:"Verification result",assessment:"Captured assertions compared public output to independently specified expectations",correction_target:execution.value.receipt.result.outcome==="pass"?"none":"implementation"};
+      proposal.evidence={receipt:execution.value.evidence};
+      await fs.writeFile(file,JSON.stringify(proposal));
+      expect(cli(["proposal","submit",file]).outcome).toBe("accepted");commit(repository);
+      return execution;
+    };
     const beforeReview=cli(["verification","status",productId]);expect(beforeReview.complete).toBe(false);expect(beforeReview.requirements.every((r:any)=>r.overall==="awaiting-review")).toBe(true);
     await review("review-verification",activity,"review-coverage");
     const beforeExecution=cli(["verification","status",productId]);
@@ -177,6 +189,10 @@ test("independent verification reports complete requirements, failures, stale ev
     // Keep formal acceptance intact. A new provisional product tests implementation substitution and mismatch without rewriting its oracle.
     const criterionContext=cli(["verification","context",expId]);
     const pg=guidance("plan-criterion-verification",expId),pc=pg.candidates[0];pc.payload={...vfy.payload,authoring_subject:expId,authoring_context:criterionContext.authoringContext,cases:cases.map(c=>({...c,targets:[expId]})),coverage:[{target:expId,obligations:["Count supplied arguments"],case_ids:["empty","count"],rationale:"Boundary and ordinary invocation"}]};pc.links=[{type:"verifies",target:expId}];let provisionalActivity=(await submit(pg,"criterion-plan",[pc])).revisions[0];
+    const wrongActivityFile=path.join(root,"wrong-activity-draft.json");
+    const wrongActivity=cli(["proposal","draft","execute-verification",productId,"--activity",provisionalActivity,"--operation","wrong-activity-draft","--output",wrongActivityFile],1);
+    expect(JSON.stringify(wrongActivity)).toContain("selected verification activities");
+    await expect(fs.stat(wrongActivityFile)).rejects.toMatchObject({code:"ENOENT"});
     const trial=async(op:string,sourceCommit:string,previous?:string) => {const tg=guidance(previous?"revise-prototype":"prepare-prototype",previous??expId),tc=tg.candidates[0];tc.payload={...tc.payload,title:"Counter trial",repository_path:product,source_commit:sourceCommit,command:["python3","app.py"]};tc.links.push({type:"verification",target:provisionalActivity});return (await submit(tg,op,[tc])).revisions[0];};
     let trialId=await trial("trial",source);
     const runTrial=async(op:string,id:string) => {const result=cli(["execution","run",id,op,"--activity",provisionalActivity]);const g=guidance("execute-criterion-verification",id),c=g.candidates[0];c.payload={...c.payload,title:"Verification result",assessment:"Exact public observations retained",correction_target:result.value.receipt.result.outcome==="pass"?"none":"implementation"};c.links.push({type:"evaluates",target:provisionalActivity});await submit(g,`${op}-result`,[c],{receipt:result.value.evidence});return result;};
