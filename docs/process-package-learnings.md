@@ -355,6 +355,18 @@ shared action references and generated guidance, then assess the next fresh
 uncoached verifier through ordinary independent review. Preserve the failed
 reviews and update this owning lesson when operation exposes another gap.
 
+Reminder maintenance repeated the method error in #923: a finite success regex's
+negation accepted "Reminder saved successfully. Marker write rejected by verifier
+400" with unchanged state, while valid alternative success wording failed the
+complete case. A retained
+source inspection also found a prior source-hash assertion reported as behavioral
+failure before reassessment; no native failure was claimed for that static finding.
+Make the existing inspection method concrete with this contradiction example.
+Report unassessed or stale judgments as skipped/error until inspected, reserving
+fail for assessed requirement violations. Keep all required field and state checks;
+unrequired fields and prior source hashes are not behavioral expected results.
+Use the same package/routing checks and later uncoached authoring loop above.
+
 ## Source inspection after independent criteria definition, #907
 
 River verification could reproduce API scores but could not establish that the
