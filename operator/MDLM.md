@@ -16,7 +16,12 @@ mdlm expectations --json
 mdlm expectations show <action> [<exact-subject>] --json
 ```
 
-Discovery and guidance are read-only. Priority is a suggestion. Follow the package prompt and supplied skills, and inspect its exact inputs, schemas and candidate examples.
+Discovery and guidance are read-only. Priority is a suggestion. Save the full
+guidance response, then read `prompt.content` and every `prompt.skills[].content`
+before carrying out the action. Display long content in bounded sections until
+all supplied instructions are read; saved paths, digests and metadata alone do not
+establish that reading. Apply those instructions and inspect the exact inputs,
+schemas and candidate examples. Preserve source-free handoff boundaries below.
 
 For an implementation using independent verification, inspect a requirement's
 recorded code responsibilities, shared needs and related checks together:

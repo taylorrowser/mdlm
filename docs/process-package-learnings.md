@@ -577,6 +577,22 @@ must show whether authors and reviewers apply these distinctions without coachin
 The sealed counter remains historical evidence. When operation reveals another
 ambiguity, update the smallest owning guidance and this learning in the same session.
 
+Issue #911 follows the first 2.4.4 counter draft and verification adequacy review.
+Review caught normative ownership, silence-settlement and exact child-membership
+gaps despite supplied rules covering them. Verification cases also left normative
+request details and an integrated failure condition unestablished. Full author-visible
+guidance consumption is unknown; saved content does not prove it was read. These
+are class 6 application instructions with class 10 shared content expectations.
+
+Read actual prompt and skill content, then apply existing checks to final authored
+statements, memberships and verification cases in the same turn. Keep rationale
+explanatory, preserve independent expectations and choose evidence methods by claim.
+Check package loading and exact version references; no wording-only tests or new
+gate. A later fresh qualified run must preserve ordinary guidance reads and the
+first candidate to assess this intervention. Correction in the existing pinned run
+does not show first-pass prevention. Update the owning instruction and this learning
+when operation reveals another avoidable gap.
+
 Issue #902 clarifies preparation for mixed automated tests and independent
 inspection. River first published a verifier with a planned skipped inspection,
 then needed a successor and another execution. The inspection also found a real

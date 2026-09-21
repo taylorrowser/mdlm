@@ -1,9 +1,9 @@
 ---
 id: draft-requirements
-version: 10
+version: 11
 skills:
 - skills/product-quality.md@3
-- skills/typed-requirements.md@8
+- skills/typed-requirements.md@9
 ---
 
 # Define the agreed scope as individual obligations
