@@ -1,6 +1,6 @@
 kind: action-definition
 id: correct-prototype
-version: 1
+version: 2
 description: Correct product source after a revise observation under the unchanged experiment and verification
 capability: prototype
 prompt_ref: prompts/correct-prototype.md@1
@@ -8,11 +8,11 @@ types: [TRY]
 subjects: select("current-experiments@1", {})
 inputs:
   experiment: subject
-  observation: 'one("revision-observations@2", {experiment: subject})'
-  product: 'one("trial-for-observation@1", {observation: one("revision-observations@2", {experiment: subject})})'
-  verification: 'select("selected-verification-activities@1", {product: one("trial-for-observation@1", {observation: one("revision-observations@2", {experiment: subject})})})'
-  interfaces: 'select("interfaces-for@1", {subject: one("trial-for-observation@1", {observation: one("revision-observations@2", {experiment: subject})})})'
-when: 'exists("revision-observations@2", {experiment: subject})'
+  observation: 'one("revision-observations@3", {experiment: subject})'
+  product: 'one("trial-for-observation@1", {observation: one("revision-observations@3", {experiment: subject})})'
+  verification: 'select("selected-verification-activities@1", {product: one("trial-for-observation@1", {observation: one("revision-observations@3", {experiment: subject})})})'
+  interfaces: 'select("interfaces-for@1", {subject: one("trial-for-observation@1", {observation: one("revision-observations@3", {experiment: subject})})})'
+when: 'exists("revision-observations@3", {experiment: subject})'
 priority: 100
 links:
   TRY:

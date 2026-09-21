@@ -1,6 +1,6 @@
 kind: action-definition
 id: revise-experiment
-version: 4
+version: 5
 description: revise-experiment
 capability: experiment
 prompt_ref: prompts/revise-experiment.md@5
@@ -9,9 +9,9 @@ types:
 subjects: select("current-experiments@1", {})
 inputs:
   subject: subject
-  observation: 'one("revision-observations@2", {experiment: subject})'
+  observation: 'one("revision-observations@3", {experiment: subject})'
   baseline: 'select("comparison-baseline-for@1", {experiment: subject})'
-when: 'exists("revision-observations@2", {experiment: subject})'
+when: 'exists("revision-observations@3", {experiment: subject})'
 priority: 100
 links:
   EXP:

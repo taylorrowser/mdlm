@@ -1,0 +1,16 @@
+kind: selector-definition
+id: current-revision-observations
+version: 1
+description: Unresolved revise observations for current trials and experiments
+parameters: []
+result_kind: revision
+query:
+  from:
+    collection: revisions
+    types: [OBS]
+  as: item
+  where: 'item.payload.recommendation == "revise" && none("feedback-for@1", {observation: item}) &&
+    every("trial-for-observation@1", {observation: item}, trial => none("newer-revisions@1", {subject: trial})) &&
+    every("experiment-for-observation@1", {observation: item}, exp => none("newer-revisions@1", {subject: exp}))'
+  distinct: true
+  order_by: [identity.revision_id]

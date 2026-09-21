@@ -72,6 +72,14 @@ verification bound to the revised context. Use independent `revise-verification`
 and `update-criterion-verification-selection` for a faulty verifier. Passing
 nomination and actual stakeholder feedback remain separate from these corrections.
 
+When a revise observation has answered the learning question, optional
+`stop-experiment` takes that exact OBS and records an explicit stakeholder decision
+to end its exploratory branch. It remains available after failed execution and
+preserves that failure. Record useful learning, remaining defects and the chosen
+follow-up in the feedback. Other unresolved trials still need closure. Stopping
+does not satisfy a criterion or accept the product; formal requirements,
+corrections, independent verification and acceptance retain their ordinary rules.
+
 ## Interface agreements
 
 Use optional `record-interface` and `revise-interface` guidance for a meaningful internal software boundary or connection to an external device, service or person. ICDs record both endpoint responsibilities, representation and units, failure behavior, compatibility and assumptions. EXP criteria, prototype TRY and formal REQ records can link to exact ICD revisions with `uses-interface`. Independent verification exports the necessary interfaces selected by its EXP or REQ targets. Record the ICD before selecting it. If it is recorded after framing, use optional `amend-experiment` before the first TRY, then export the amended EXP context for independent verification. A revised ICD changes no existing selection; explicit adoption creates a new criterion context. After a TRY exists, use the normal observation or feedback revision route.
