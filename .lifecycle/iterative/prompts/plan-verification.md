@@ -1,6 +1,6 @@
 ---
 id: plan-verification
-version: 10
+version: 11
 skills: []
 ---
 
@@ -26,7 +26,7 @@ concrete gaps within this authoring turn using methods that fit the claim. Share
 cases and scripts remain valid. Derive expectations independently of product source
 organization and private functions.
 
-Choose the method per claim and state what its evidence establishes. Mechanically assert exact public numeric and protocol behavior, including required values, identities, associations, transitions and error results. Derive these expectations from the public contract. For CLI, web or API work, observe the public interaction and its result; analysis can compare those observations with an explicit model. Keep presentation choices flexible where the contract permits them.
+Choose the method per claim and state what its evidence establishes. Mechanically assert exact public numeric and protocol behavior, including required values, identities, associations, transitions and error results. Derive these expectations from the public contract. Compare every required field and constraint; extra unrequired response fields are not a behavioral failure. Compare full before/after state where preservation is required. For CLI, web or API work, observe the public interaction and its result; analysis can compare those observations with an explicit model. Keep presentation choices flexible where the contract permits them.
 
 Method and execution level are separate choices. A detailed software rule may use
 an independent unit or component test through a declared stable contract. A
@@ -47,6 +47,13 @@ Identify each activity's execution boundary and its limits in objective and cove
 rationale, rather than treating component passes as evidence for the whole product.
 
 When a claim concerns meaning that mechanical checks cannot establish, use independent inspection of the captured output against explicit requirements-based expectations. Inspect the relevant associations and qualifications, not just word presence. State which claims need judgment and which remain mechanical. Preserve the observations, the inspector's judgments and their evidence references; uncertainty or an unperformed inspection cannot become a pass. Select this method only for claims that need it.
+
+For example, "Saved successfully. Write rejected." does not communicate an
+unambiguous rejection even when state is unchanged. A finite success-phrase
+regex and its negation cannot establish rejected-save meaning. Judge the complete
+message and its context with the inspection method above. Exact wording is an
+assertion only when the contract requires it; unfamiliar wording otherwise needs
+judgment against the frozen expectations, not a longer synonym list.
 
 When a requirement constrains the implementation in a way public behavior cannot
 establish, declare a complementary independent source inspection and its coverage
@@ -69,6 +76,14 @@ publication of an incomplete activity remains available when useful. Preparation
 evidence does not replace canonical execution of the selected activity against the
 exact product. Changed inspected artifacts or observations need fresh inspection;
 a difference alone does not establish a requirement failure.
+
+Keep source-specific judgments separate from reusable behavioral assertions.
+For unassessed observations or a judgment whose bound source or observations have
+changed, report the affected case as `skipped` or `error` with the missing judgment
+in actual_results, then obtain fresh inspection. A prior hash mismatch identifies
+stale evidence, not a behavioral failure. Reserve `fail` for an assessed requirement
+violation; retain requirement-derived cases when updating invocation details or
+inspection evidence.
 
 Before relying on the method, try relevant controls: an alternative valid output should remain acceptable, and an output with the wrong value, association or meaning should fail. Choose controls for the actual claim and allowed variation. Apply these controls through the complete relevant case path, including waits, branches and assertions. Check that alternatives expressly allowed by the frozen case remain reachable and acceptable, and that a close contradictory result fails even when it shares the expected words or values. They check the verifier's adequacy, not product compliance. Correct an unsuitable predicate or choose a different method when it rejects valid behavior or accepts a contradiction.
 
