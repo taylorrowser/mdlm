@@ -1,6 +1,6 @@
 ---
 id: product-quality
-version: 4
+version: 5
 ---
 
 # Shared product quality expectations
@@ -110,6 +110,14 @@ requirements, candidate source, script and captured evidence. For a correction,
 also supply prior findings and the candidate changes. Judge the whole relevant
 contract in that review; a later review may still identify a newly discovered
 real defect.
+
+Compare changes with their exact prior or originating obligations and authorized
+intent, accounting for removed or weakened duties while accepting justified
+simplification and preserving shared responsibilities. Independently inspect
+related lifecycle and architecture context beyond supplied inputs, using targeted
+content search where missing links may conceal a relevant dependency. Retain
+material discovered context with its exact revisions and repository cut in the
+existing review evidence, and stop when the concrete review questions are resolved.
 
 Each blocking finding cites the affected commitment or stakeholder outcome,
 identifies the concrete mismatch or justified evidence gap, and explains its

@@ -1,8 +1,8 @@
 ---
 id: correct-expectations
-version: 11
+version: 12
 skills:
-- skills/product-quality.md@4
+- skills/product-quality.md@5
 - skills/typed-requirements.md@10
 ---
 
