@@ -345,6 +345,16 @@ choose adequate methods without procedural coaching; prompt checks alone do
 not prove that improvement. When operation exposes another method gap, update
 the owning shared guidance and this learning in the same session.
 
+Two successive scoreboard adequacy reviews exposed another application gap,
+#919. Isolated controls passed while enclosing waits, branches and assertions
+rejected expressly allowed outcomes or accepted contradictory associations.
+Apply the existing controls through the complete relevant case path and check
+its frozen alternatives. Keep the existing review and method-selection rules;
+this adds no exhaustive wording inventory or new gate. Check package loading,
+shared action references and generated guidance, then assess the next fresh
+uncoached verifier through ordinary independent review. Preserve the failed
+reviews and update this owning lesson when operation exposes another gap.
+
 ## Source inspection after independent criteria definition, #907
 
 River verification could reproduce API scores but could not establish that the
