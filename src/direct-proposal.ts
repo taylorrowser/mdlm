@@ -130,6 +130,7 @@ export async function draftDirectProposal(root: string, action: string, subject:
   return {
     operation, action: selected.action, package: selected.package, snapshot: selected.snapshot,
     ...(selected.subject ? {subject: selected.subject} : {}), inputs: selected.inputs, candidates: selected.candidates,
+    ...(selected.authority?.kind === "stakeholder" ? {evidence: {authority: [selected.authority.name]}} : {}),
   };
 }
 export function parseDirectProposal(source:string):DirectProposal {

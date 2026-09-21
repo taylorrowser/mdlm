@@ -81,6 +81,57 @@ test("proposal drafts preserve selected guidance, accept authored work and rejec
   } finally {await fs.rm(root,{recursive:true,force:true});}
 },60_000);
 
+test("stakeholder drafts prepare the role but still require explicit submission authority", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-draft-authority-"));
+  const fixture = path.join(root, "package"), repository = path.join(root, "lifecycle");
+  const cli = (status: number, ...args: string[]) => {
+    const result = spawnSync(process.execPath, [path.join(process.cwd(), "dist/mdlm.js"), ...args, "--json"], {cwd: repository, encoding: "utf8", timeout: 30_000});
+    expect(result.status, result.stdout + result.stderr).toBe(status);
+    return JSON.parse(result.stdout);
+  };
+  try {
+    // Keep this authority boundary independent of a full stakeholder journey.
+    await fs.cp(path.join(process.cwd(), ".lifecycle/exploratory"), fixture, {recursive: true});
+    const actionPath = path.join(fixture, "actions/frame-experiment.yaml");
+    const action = parse(await fs.readFile(actionPath, "utf8"));
+    action.authority = {kind: "stakeholder", name: "product-owner"};
+    await fs.writeFile(actionPath, stringify(action));
+    const typePath = path.join(fixture, "types/EXP.yaml");
+    const type = parse(await fs.readFile(typePath, "utf8"));
+    type.payload_schema.required.push("decision");
+    type.payload_schema.properties.decision = {enum: ["accept", "reject"]};
+    await fs.writeFile(typePath, stringify(type));
+    const initialized = await initializeRepositoryFromProcessPackage(repository, fixture);
+    expect(initialized.ok, JSON.stringify(initialized)).toBe(true);
+
+    const file = path.join(root, "decision.json"), operation = "stakeholder-decision";
+    const guidance = cli(0, "expectations", "show", "frame-experiment");
+    const draft = cli(0, "proposal", "draft", "frame-experiment", "--operation", operation, "--output", file);
+    const draftBytes = await fs.readFile(file);
+    const proposal = JSON.parse(draftBytes.toString("utf8"));
+    expect(proposal).toEqual({operation, action: guidance.action, package: guidance.package, snapshot: guidance.snapshot, inputs: guidance.inputs, candidates: guidance.candidates, evidence: {authority: ["product-owner"]}});
+    expect(proposal.candidates[0].payload).not.toHaveProperty("decision");
+    expect(draft.export).toEqual({path: file, bytes: draftBytes.length, exportSha256: createHash("sha256").update(draftBytes).digest("hex")});
+    expect(cli(0, "proposal", "settlement", operation).outcome).toBe("not-published");
+
+    const payload = {...proposal.candidates[0].payload, title: "Declined experiment", decision: "reject", criterion: "Count supplied arguments", question: "Should this experiment proceed?", approach: "Ask the product owner", constraints: "Preserve the rejection", allowance_minutes: 5, scope_cut: "No implementation"};
+    proposal.candidates[0].payload = payload;
+    const submittedBytes = `${JSON.stringify(proposal, null, 2)}\n`;
+    await fs.writeFile(file, submittedBytes);
+    for (const flags of [[], ["--authority", "stakeholder"]]) {
+      expect(cli(1, "proposal", "submit", file, ...flags).diagnostics[0].message).toContain("Stakeholder authority must match");
+      expect(cli(0, "proposal", "settlement", operation).outcome).toBe("not-published");
+    }
+    const submitted = cli(0, "proposal", "submit", file, "--authority", "product-owner");
+    expect(submitted.outcome).toBe("accepted");
+    expect(submitted.proposalDigest).toBe(`sha256:${createHash("sha256").update(submittedBytes).digest("hex")}`);
+    expect(cli(0, "show", submitted.revisions[0]).lifecycleDatum.datum.payload).toEqual(payload);
+    const {command: _command, ...accepted} = submitted;
+    expect(cli(0, "proposal", "settlement", operation)).toMatchObject(accepted);
+    expect(await fs.readFile(file, "utf8")).toBe(submittedBytes);
+  } finally {await fs.rm(root, {recursive: true, force: true});}
+}, 60_000);
+
 test("saved review context provides exact handoff metadata without replacing exports", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-review-export-"));
   const repository = path.join(root, "lifecycle");

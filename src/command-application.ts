@@ -794,7 +794,7 @@ async function dispatchCommand(
           operation: proposal.operation, action: proposal.action, package: proposal.package,
           snapshot: proposal.snapshot, ...(proposal.subject ? {subject: proposal.subject} : {}), inputs: proposal.inputs,
           authoring: {
-            instruction: "Draft only. Read the selected action's prompt and payloadSchemas, fill authored fields, preserve fixed values, links and predecessors, and supply required evidence or authority. This file has not been validated for publication or submitted.",
+            instruction: "Draft only. Read the selected action's prompt and payloadSchemas, fill authored fields, preserve fixed values, links and predecessors, and supply required receipt or review evidence. A prepared stakeholder role still requires the matching --authority flag at submission after the actual stakeholder decision. This file has not been validated for publication or submitted.",
             guidance: ["mdlm", "expectations", "show", proposal.action, ...(proposal.subject ? [proposal.subject] : []), "--json"],
           },
           diagnostics: [],
