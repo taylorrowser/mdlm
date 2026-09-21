@@ -519,6 +519,21 @@ rule for exact links and arrays, and never mentions a prohibited field.
 Check: a prompt lint against the Scenario declaration. Package load reports a
 prompt that omits an input name or mentions a prohibited input.
 
+Issue #927 follows River's reminder-removal proposal. Two children were revised in
+the batch, but an authored DCP group kept their old exact revisions. Publication
+rejected the graph. A corrected proposal changed those links to candidate local
+references and accepted under a new operation. This was an author input error. The
+existing local-reference rule was present; no kernel defect or reliance on
+automatic refresh was established.
+
+The typed-requirements correction guidance now distinguishes endpoint refresh in
+retained groups from the endpoints an author supplies in explicit DCP candidates.
+Check package loading and exact skill references without wording-only tests. Keep
+the rejected and corrected proposals unchanged. A future fresh qualified authoring
+attempt must establish any preventive benefit; this recovery does not prove it.
+When operation exposes another ambiguity, update its owning guidance and record
+the learning in the same session.
+
 ## 7. Generated artifacts are not committed
 
 Issues: #478, #498, #553, #557, #561, #563, #574, #577, #589, #601, #634,
