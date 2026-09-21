@@ -62,7 +62,7 @@ For work on an exact subject, put its revision after the action in both `expecta
 
 For an independent verification result, add `--activity <exact-VFY>` to `proposal draft` to generate its `evaluates` link. Use the exact activity selected for the captured execution. Drafting checks that it belongs to the subject's selected verification activities; an invalid selection or a different action capability fails before creating the file. You still select the receipt and author the assessment. Without `--activity`, drafting keeps the ordinary candidate skeleton.
 
-Complete the candidate payloads and body using the returned schemas and package prompt. Candidate examples may lack required authored fields. Preserve fixed values and bindings. Add `evidence` when the action needs a receipt, registered review or stakeholder authority; the sections below describe those requirements. Drafting does not choose evidence, grant authority, validate the finished claims or publish lifecycle data. A draft can become stale while being edited; submission still checks the exact snapshot and package.
+Complete the candidate payloads and body using the returned schemas and package prompt. Candidate examples may lack required authored fields. Preserve fixed values and bindings. Add receipt or registered review evidence when required; the sections below describe those requirements. For stakeholder actions, drafting prepares `evidence.authority` with the required role name. It does not supply the stakeholder decision or submission authority, choose receipts or reviews, validate the finished claims or publish lifecycle data. A draft can become stale while being edited; submission still checks the exact snapshot and package.
 
 Use a new operation for a new proposal. Preserve the exact submitted bytes. After an interrupted or lost submission response, inspect settlement before doing more work. Accepted settlement authenticates the existing publication. Inspect and commit accepted lifecycle data before retrieving fresh guidance.
 
@@ -95,7 +95,7 @@ Use `mdlm execution export <operation-id> <new-directory> --json` to inspect sav
 
 Replace the placeholder with the complete selected locator string. This is a top-level proposal field, separate from the candidate payload. Keep the original captured execution when correcting the evidence envelope. A failing execution is evidence to assess, not a reason to discard history. Recover an uncertain execution through settlement; never start another execution merely because its response was lost.
 
-For stakeholder decisions, ask the named stakeholder using the exact guidance context. For change approval, follow the package prompt's review-context export instructions to include CLI-derived prospective impact in the request. When the required authority name is `stakeholder`, include this top-level proposal field:
+For stakeholder decisions, ask the named stakeholder using the exact guidance context. For change approval, follow the package prompt's review-context export instructions to include CLI-derived prospective impact in the request. When the required authority name is `stakeholder`, drafting prepares this top-level proposal field. Include it yourself when authoring a proposal without drafting:
 
 ```json
 {"evidence": {"authority": ["stakeholder"]}}
