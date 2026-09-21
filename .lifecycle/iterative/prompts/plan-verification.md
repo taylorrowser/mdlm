@@ -1,6 +1,6 @@
 ---
 id: plan-verification
-version: 8
+version: 9
 skills: []
 ---
 
@@ -14,7 +14,17 @@ Commit the verifier in a separate Git repository. Define each activity's method 
 
 Create exactly one `coverage` entry for each exact target selected by the activity's `verifies` links. Combine that target's obligations in its `obligations` array. Its `case_ids` must list every declared case whose `targets` contains that exact target, once each, with no other case IDs. Do not split one target into several coverage entries by obligation or case. A single EXP therefore has one coverage entry even when its criterion has several obligations and cases.
 
-Across the selected activities, address every obligation of each requirement, including relevant boundary and failure behavior. An activity may cover part of a requirement when its coverage claim states that part clearly; the complete selected plan must cover the whole requirement. Parent requirements need their own coverage argument; decomposition alone is not evidence. Many cases may share a script and one case may verify several requirements. Include applicable normative ICD clauses explicitly incorporated by each owning REQ in its coverage rationale; name their clause IDs and any evidence gaps. Derive expectations independently of product source organization and private functions.
+Before publication, check the final cases and coverage against every selected
+requirement and its incorporated normative ICD clauses, including required request
+fields, domain boundaries and failure conditions. Name clause IDs and evidence gaps
+in the existing coverage rationale. An activity may claim part of a requirement;
+the complete selected plan must establish the whole obligation. For each parent,
+check whether the final cases and inspections establish its actual integrated
+conditions, including relevant failures across components. Passing isolated cases
+or fixtures does not establish an unexercised or unassessed interaction. Close
+concrete gaps within this authoring turn using methods that fit the claim. Shared
+cases and scripts remain valid. Derive expectations independently of product source
+organization and private functions.
 
 Choose the method per claim and state what its evidence establishes. Mechanically assert exact public numeric and protocol behavior, including required values, identities, associations, transitions and error results. Derive these expectations from the public contract. For CLI, web or API work, observe the public interaction and its result; analysis can compare those observations with an explicit model. Keep presentation choices flexible where the contract permits them.
 

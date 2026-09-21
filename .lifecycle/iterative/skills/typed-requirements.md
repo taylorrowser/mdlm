@@ -1,6 +1,6 @@
 ---
 id: typed-requirements
-version: 8
+version: 9
 ---
 
 # Author one normal-link requirement graph
@@ -29,7 +29,14 @@ functional transition in the leaves alongside shared success and failure rules;
 generic success or rejection alone does not define the action. A path to an
 ancestor cannot replace a missing leaf obligation.
 
-Fill ears.pattern, system and response. Supply the complete subject in system and the response without a trailing period. Event requires event; state requires state; optional requires feature; unwanted requires unwanted. Ubiquitous has no guard. Complex combines at least two guards, with at most one event or unwanted guard. Preserve necessary semantics from stakeholder and approved design inputs while separating their obligations; existing code is never an authoring source to transcribe. Carry relevant parent constraints into the software contract. Apply the shared author and reviewer checklists regardless of record count.
+Fill ears.pattern, system and response. Supply the complete subject in system and the response without a trailing period. Event requires event; state requires state; optional requires feature; unwanted requires unwanted. Ubiquitous has no guard. Complex combines at least two guards, with at most one event or unwanted guard. Preserve necessary semantics from stakeholder and approved design inputs while separating their obligations; existing code is never an authoring source to transcribe. Carry relevant parent constraints into the software contract.
+
+Before submission, apply the shared checks to the final normative statements and
+exact selected child memberships in this authoring turn. Treat rationale as
+explanation. For each classified outcome, identify the obligation that produces
+it, including required progress when no external event arrives. Try a case where
+every selected child holds but its parent fails; close gaps by reusing existing
+shared requirements where applicable. Keep permitted implementation choices open.
 
 ## Record architecture and chosen depth
 
@@ -61,9 +68,7 @@ under their own owning requirements.
 
 Rationale explains origin, allocation and design choices. If removing a rationale
 sentence changes the required result, move that rule into the normative obligation
-or an explicitly incorporated ICD clause. For example, local rejection without
-sending and eventual settlement after transport silence are required behavior when
-selected; a chosen timeout duration may remain free. Mark normative ICD clauses
+or an explicitly incorporated ICD clause. Mark normative ICD clauses
 separately from provisional or descriptive choices. In the existing requirement
 assessment and verification coverage rationale, identify the applicable clause IDs
 and their evidence or gaps. This adds no per-clause datum or lifecycle transaction.
@@ -101,10 +106,9 @@ assessment fields for these judgments, without a separate proof artifact:
   responsibility or a necessary interaction. For a derived constraint, explain its
   origin, why it is needed and which parent outcome depends on it. Allocation
   labels alone do not justify a design choice.
-- Try a concrete case where every child holds but the parent fails. Include
-  relevant shared-state and failure boundaries. Name any shared requirements and
-  assumptions needed to close the gap; do not silently narrow the parent or treat
-  a graph path as a sufficiency argument.
+- Include relevant shared-state and failure boundaries in the parent counterexample.
+  Name the shared requirements and assumptions needed to close the gap; preserve
+  the parent's meaning and check actual membership rather than graph reachability.
 - Judge each child's validity separately from collective coverage. Resolve a real
   gap through necessary behavior, shared requirements or an authorized clarification.
   Keep permitted variation open and stop at the depth rule above.

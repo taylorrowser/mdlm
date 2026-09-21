@@ -1,9 +1,9 @@
 ---
 id: implement-product
-version: 13
+version: 14
 skills:
 - skills/product-quality.md@3
-- skills/typed-requirements.md@8
+- skills/typed-requirements.md@9
 - skills/source-trace.md@6
 ---
 
