@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { parse } from "yaml";
-import { inspectDirectExpectations, parseDirectProposal, submitDirectProposal, inspectDirectSettlement, runDirectExecution, inspectDirectExecution, inspectDirectReview, registerDirectReviewFiles, inspectVerificationContext, inspectVerificationStatus, exportDirectExecution } from "./direct-proposal.js";
+import { inspectDirectExpectations, draftDirectProposal, parseDirectProposal, submitDirectProposal, inspectDirectSettlement, runDirectExecution, inspectDirectExecution, inspectDirectReview, registerDirectReviewFiles, inspectVerificationContext, inspectVerificationStatus, exportDirectExecution } from "./direct-proposal.js";
 import { requirementTraceBinding } from "./requirement-trace.js";
 import { inspectRequirementTrace } from "./requirement-trace-inspection.js";
 import { independentBinding, verificationStatus } from "./independent-verification.js";
@@ -28,7 +28,7 @@ const help = `Usage: mdlm <command> [--json]
 Direct lifecycle work:
   mdlm init <destination> [--process exploratory|iterative]
   mdlm expectations [show <action> [<exact-subject>]] [--json]
-  mdlm proposal draft <action> [<exact-subject>] --operation <operation-id> --output <new-file> [--json]
+  mdlm proposal draft <action> [<exact-subject>] --operation <operation-id> --output <new-file> [--activity <exact-activity>] [--json]
   mdlm proposal submit <proposal-file|-> [--authority <authority-id>] [--json]
   mdlm proposal settlement <operation-id> [--json]
   mdlm verification context <exact-RQS-or-EXP> [--output <file>] [--json]
@@ -715,6 +715,10 @@ async function dispatchCommand(
   if (draftingProposal && (outputOptions.length !== 1 || arguments_.filter(argument => argument === "--operation").length !== 1 || operationOptions.length !== 1 || !operationOptions[0] || operationOptions[0].startsWith("--"))) {
     return failure("proposal-draft-arguments-invalid", "proposal draft requires --operation <operation-id> and --output <new-file>");
   }
+  const activityOptions = optionValues(arguments_, "--activity");
+  if (draftingProposal && arguments_.includes("--activity") && (arguments_.filter(argument => argument === "--activity").length !== 1 || activityOptions.length !== 1 || !activityOptions[0] || activityOptions[0].startsWith("--"))) {
+    return failure("proposal-draft-arguments-invalid", "proposal draft --activity requires one exact activity revision");
+  }
   const optionsToRemove = [...(exportingReview || draftingProposal ? ["--output"] : []), ...(draftingProposal ? ["--operation"] : [])];
   const operands = commandOperands(arguments_.filter((argument, index) => !optionsToRemove.includes(argument) && !optionsToRemove.includes(arguments_[index - 1]!)));
   if (
@@ -777,14 +781,8 @@ async function dispatchCommand(
   if (operands[0] === "proposal") {
     try {
       if (draftingProposal) {
-        if (![3, 4].includes(operands.length)) throw new Error("Expected proposal draft <action> [<exact-subject>] --operation <operation-id> --output <new-file>");
-        const guidance = await inspectDirectExpectations(repositoryRoot, operands[2]!, operands[3]);
-        if (!("candidates" in guidance)) throw new Error("Expected guidance for the selected action");
-        const proposal = {
-          operation: operationOptions[0]!, action: guidance.action, package: guidance.package,
-          snapshot: guidance.snapshot, ...(guidance.subject ? {subject: guidance.subject} : {}),
-          inputs: guidance.inputs, candidates: guidance.candidates,
-        };
+        if (![3, 4].includes(operands.length)) throw new Error("Expected proposal draft <action> [<exact-subject>] --operation <operation-id> --output <new-file> [--activity <exact-activity>]");
+        const proposal = await draftDirectProposal(repositoryRoot, operands[2]!, operands[3], operationOptions[0]!, activityOptions[0]);
         // Check the envelope and operation identity, without claiming authored data is valid.
         const bytes = Buffer.from(`${JSON.stringify(proposal, null, 2)}\n`, "utf8");
         parseDirectProposal(bytes.toString("utf8"));

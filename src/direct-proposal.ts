@@ -17,7 +17,7 @@ import { readVerificationReceiptBlob, validateVerificationReceipt, type Verifica
 import { repositoryGitEnvironment } from "./git-environment.js";
 import { authorablePayloadSchema, sourceAssessmentTargets, requirementAuthoringTargets } from "./direct-guidance.js";
 
-import { independentBinding, independentExecutionBinding, verificationAuthoringContext, verificationStatus, currentVerificationResults } from "./independent-verification.js";
+import { independentBinding, independentExecutionBinding, selectedActivities, verificationAuthoringContext, verificationStatus, currentVerificationResults } from "./independent-verification.js";
 
 const exec = promisify(execFile);
 export const directDigest = (source: string) => `sha256:${createHash("sha256").update(source).digest("hex")}`;
@@ -113,6 +113,24 @@ export async function inspectDirectExpectations(root:string,action?:string,subje
   const terminal=current.pkg.manifest.terminal as {when?:unknown;outcome?:string}|undefined;
   const completed=terminal?.when!==undefined && expression(current,terminal.when)===true;
   return {ok:true,contract:"mdlm-expectations@2",package:current.package,snapshot:current.snapshot,items,optional,outcome:completed?(terminal?.outcome??"profile-boundary-reached"):items.length?"work-available":"blocked"};
+}
+export async function draftDirectProposal(root: string, action: string, subject: string | undefined, operation: string, activity?: string): Promise<DirectProposal> {
+  const current = await directState(root);
+  const selected = await guidance(current, action, subject);
+  if (activity !== undefined) {
+    const context = directContext(current, action, subject), binding = independentBinding(current.pkg);
+    if (context.action.capability !== "independent-result" || !binding) fail("--activity requires an independent-result action");
+    if (!selectedActivities(current, executionSubject(context)).some(candidate => candidate.revision_id === activity)) fail("Draft activity must belong to the subject's selected verification activities");
+    const results = selected.candidates.filter(candidate => candidate.type === binding.result_type);
+    if (results.length !== 1) fail("Activity draft requires one capability-bound result candidate");
+    const result = results[0]!, existing = result.links.filter(link => link.type === "evaluates");
+    if (existing.length && (existing.length !== 1 || existing[0]!.target !== activity)) fail("Draft activity conflicts with fixed evaluates links");
+    if (!existing.length) result.links.push({type: "evaluates", target: activity});
+  }
+  return {
+    operation, action: selected.action, package: selected.package, snapshot: selected.snapshot,
+    ...(selected.subject ? {subject: selected.subject} : {}), inputs: selected.inputs, candidates: selected.candidates,
+  };
 }
 export function parseDirectProposal(source:string):DirectProposal {
   const p:unknown=JSON.parse(source);

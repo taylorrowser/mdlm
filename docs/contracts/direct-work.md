@@ -7,7 +7,7 @@ Packages declare `actions/<id>.yaml` with kind `action-definition`, integer vers
 CLI:
 - `mdlm expectations --json`
 - `mdlm expectations show <action> [<exact-subject>] --json`
-- `mdlm proposal draft <action> [<exact-subject>] --operation <operation> --output <new-file> --json`
+- `mdlm proposal draft <action> [<exact-subject>] --operation <operation> --output <new-file> [--activity <exact-activity>] --json`
 - `mdlm proposal submit <file|-> [--authority <name>] --json`
 - `mdlm proposal settlement <operation> --json`
 - `mdlm execution run <exact-implementation> <operation> --json`
@@ -149,7 +149,9 @@ an error regardless of the script's exit status.
 
 ## Editable proposal drafts
 
-`proposal draft` uses the same current guidance and action resolution as `expectations show`. The caller selects the action, optional exact subject, operation identity and new output file. The saved JSON contains only the complete proposal envelope and unchanged candidate examples, including fixed payload values, exact links and predecessors. It supplies no semantic claims, receipt selection, review or stakeholder authority. Authored fields still need the prompt and `payloadSchemas` from guidance.
+`proposal draft` uses the same current guidance and action resolution as `expectations show`. The caller selects the action, optional exact subject, operation identity and new output file. By default, the saved JSON contains only the complete proposal envelope and unchanged candidate examples, including fixed payload values, exact links and predecessors. It supplies no semantic claims, receipt selection, review or stakeholder authority. Authored fields still need the prompt and `payloadSchemas` from guidance.
+
+For an `independent-result` action, optional `--activity <exact-activity>` selects one exact revision from the subject's verification activities and adds its `evaluates` link to the capability-bound result candidate. Existing fixed links and envelope bindings remain unchanged. An invalid, conflicting or inapplicable selection fails before output creation. Omitting the option preserves ordinary draft behavior. This only prepares the link; receipt selection and submission's exact receipt/activity validation remain unchanged.
 
 The `mdlm-proposal-draft@1` handoff reports `export.path`, `export.bytes`, `export.exportSha256`, operation, action, package, snapshot, optional subject and inputs, plus authoring instructions and the guidance command arguments. The digest describes the initial saved bytes; editing changes it. Relative paths follow existing CLI file resolution. Exclusive creation preserves existing files. Drafting leaves lifecycle data unchanged and does not reserve the snapshot or operation. Normal submit validation and settlement remain authoritative.
 
