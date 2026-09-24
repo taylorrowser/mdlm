@@ -28,6 +28,9 @@ content is UTF-8 text. Files containing invalid UTF-8 or NUL bytes instead have
 `encoding: "base64"`; decode their content as base64 to recover the exact bytes.
 Export, review registration and publication bind the same complete content.
 Activity review continues to exclude product implementation source.
+When an activity's exact authoring subject is a requirement set, its review
+context includes that set's complete requirement graph. This contextual graph
+does not expand the activity's selected verification or assessment targets.
 
 Transaction provenance is `created_by.transaction = mdlm-direct-transaction@1`. The immutable record contains exact outputs and package/snapshot/operation/proposal digest bindings. Settlement authenticates all outputs, returns identical accepted work and rejects different content reusing the same operation. Guidance is read-only. No token, Assignment, lease or Scenario invocation authorizes publication.
 
