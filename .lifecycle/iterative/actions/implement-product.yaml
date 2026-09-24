@@ -1,9 +1,9 @@
 kind: action-definition
 id: implement-product
-version: 6
+version: 7
 description: Implement the tiny product
 capability: implementation
-prompt_ref: prompts/implement-product.md@17
+prompt_ref: prompts/implement-product.md@18
 types:
 - IMP
 subjects: select("current-requirements@1", {})

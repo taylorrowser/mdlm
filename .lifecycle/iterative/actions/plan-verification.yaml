@@ -1,9 +1,9 @@
 kind: action-definition
 id: plan-verification
-version: 9
+version: 10
 description: plan verification
 capability: verification-activity
-prompt_ref: prompts/plan-verification.md@11
+prompt_ref: prompts/plan-verification.md@12
 types:
 - VFY
 subjects: select("current-requirements@1", {})

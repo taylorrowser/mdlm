@@ -1,9 +1,9 @@
 kind: action-definition
 id: correct-implementation-after-review
-version: 6
+version: 7
 description: Correct implementation after content Review
 capability: implementation
-prompt_ref: prompts/correct-implementation-after-review.md@17
+prompt_ref: prompts/correct-implementation-after-review.md@18
 types:
 - IMP
 subjects: select("current-implementations@1", {})
