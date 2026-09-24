@@ -710,6 +710,27 @@ bundling. Correction in the pinned run cannot prove first-pass prevention. When
 operation exposes another exception that defeats the shared content rule, narrow
 its owning instruction and record the learning in the same session.
 
+Issue #937 follows the queue's first requirements PASS and prompted atomicity
+recheck. Parent assessments discussed admission, calling and lookup fragments of
+one shared child that also combined result association and independently required
+placement. Existing supplied rules prohibited the bundle; the reviewer acknowledged
+the miss after a concrete counterexample. This is class 10 application with class
+6 assessment guidance, not evidence of conflicting rules or a kernel defect.
+
+At the existing immediate-child review step, judge the complete obligation before
+its contribution to this parent. A fragment's relevance cannot establish the
+whole child's validity. Use the invocation/result-association example to make
+that distinction concrete, while retaining coherent shared classification rules
+and their branches. A child failure with a satisfied parent alone does not prove
+invalid sharing. Preserve the original PASS and addendum as distinct judgments.
+
+Check package loading and exact prompt references without wording-only tests.
+A later fresh, uncoached review must distinguish a bundled shared child from a
+legitimate shared function before claiming better first-pass judgment. The current
+lane's correction tests recovery under its pinned package. When operation exposes
+another assessment shortcut, clarify its existing owning step and record the
+observed judgment here in the same session.
+
 Issue #902 clarifies preparation for mixed automated tests and independent
 inspection. River first published a verifier with a planned skipped inspection,
 then needed a successor and another execution. The inspection also found a real
