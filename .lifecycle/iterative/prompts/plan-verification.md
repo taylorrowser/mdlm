@@ -1,6 +1,6 @@
 ---
 id: plan-verification
-version: 11
+version: 12
 skills: []
 ---
 
@@ -16,8 +16,10 @@ Create exactly one `coverage` entry for each exact target selected by the activi
 
 Before publication, check the final cases and coverage against every selected
 requirement and its incorporated normative ICD clauses, including required request
-fields, domain boundaries and failure conditions. Name clause IDs and evidence gaps
-in the existing coverage rationale. An activity may claim part of a requirement;
+fields, domain boundaries and failure conditions. For every coverage claim, check
+that its stated conditions and stimuli occur in the committed case and that its
+assertions establish the claimed result. Name clause IDs and remaining evidence
+gaps in the existing coverage rationale. An activity may claim part of a requirement;
 the complete selected plan must establish the whole obligation. For each parent,
 check whether the final cases and inspections establish its actual integrated
 conditions, including relevant failures across components. Passing isolated cases
@@ -26,7 +28,7 @@ concrete gaps within this authoring turn using methods that fit the claim. Share
 cases and scripts remain valid. Derive expectations independently of product source
 organization and private functions.
 
-Choose the method per claim and state what its evidence establishes. Mechanically assert exact public numeric and protocol behavior, including required values, identities, associations, transitions and error results. Derive these expectations from the public contract. Compare every required field and constraint; extra unrequired response fields are not a behavioral failure. Compare full before/after state where preservation is required. For CLI, web or API work, observe the public interaction and its result; analysis can compare those observations with an explicit model. Keep presentation choices flexible where the contract permits them.
+Choose the method per claim and state what its evidence establishes. Mechanically assert exact public numeric and protocol behavior, including required values, identities, associations, transitions and error results. Derive these expectations from the public contract. Compare public values using the contract's semantics. Preserve required structure, exact-field constraints and meaningful ordering; accept representation differences and extra fields the contract leaves open. Compare full before/after state where preservation is required. For CLI, web or API work, observe the public interaction and its result; analysis can compare those observations with an explicit model. Keep presentation choices flexible where the contract permits them.
 
 Method and execution level are separate choices. A detailed software rule may use
 an independent unit or component test through a declared stable contract. A

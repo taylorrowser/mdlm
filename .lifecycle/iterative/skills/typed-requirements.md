@@ -1,6 +1,6 @@
 ---
 id: typed-requirements
-version: 10
+version: 11
 ---
 
 # Author one normal-link requirement graph
@@ -60,9 +60,10 @@ contract, not for every helper.
 
 Each coherent obligation has an owning REQ. Its `statement` or `ears` states the
 required behavior and explicitly names any applicable stable normative ICD clause
-identifiers, with `uses-interface` selecting the exact ICD revision. The referenced
-clauses may own encoding, schema, ordering and compatibility details; keep their
-normative definition there rather than copying it into the REQ. A whole-ICD link
+identifiers, with `uses-interface` selecting the exact ICD revision. For each
+operation, apply its exact incorporated clauses to the inputs that operation
+actually supplies. The clauses may own encoding, schema, ordering and compatibility
+details; keep their normative definition there rather than copying it into the REQ. A whole-ICD link
 alone does not identify which clauses the REQ requires. Keep unrelated capabilities
 under their own owning requirements.
 
@@ -95,7 +96,7 @@ notes remain history. Review the note as design rationale, not blanket stakehold
 approval of every recorded choice. Keep exploratory choices provisional until their
 necessity is justified for the selected formal scope.
 
-For corrections and approved changes, inspect the exact prior review and approved change inputs to identify the correction scope. Use `predecessor` with the exact prior revision only for requirements whose claims change. Leave unchanged children and ancestors at their existing revisions. The CLI refreshes affected endpoints in retained DCP groups, generates RQS selection and queues review. Author a DCP only when membership changes, using `predecessor` for its existing lineage. In each authored DCP, use `$<localId>` for every parent or child created or revised in the same proposal; use exact selected revisions for unchanged endpoints. To retire a requirement, add `{ "type": "retires", "target": "<exact-selected-REQ-revision>" }` to the existing RQS candidate's links, retaining its predecessor and other guidance links. Its authored payload may be empty and its body should be empty. Revise surviving DCP membership to remove retired endpoints; the CLI omits groups whose parent is retired. Removing one parent link from a shared child does not retire it. Reinstatement is outside this package.
+For corrections and approved changes, inspect the exact prior review and approved change inputs to identify the correction scope. When an interface definition changes, reassess every selected requirement incorporating the changed clause, including parents whose visible outcome is unchanged. Use `predecessor` with the exact prior revision only for requirements whose claims or incorporated clause bindings change, explaining changed bindings in the existing change rationale. Retain compatible exact revisions, including unchanged children and ancestors. The CLI refreshes affected endpoints in retained DCP groups, generates RQS selection and queues review. Author a DCP only when membership changes, using `predecessor` for its existing lineage. In each authored DCP, use `$<localId>` for every parent or child created or revised in the same proposal; use exact selected revisions for unchanged endpoints. To retire a requirement, add `{ "type": "retires", "target": "<exact-selected-REQ-revision>" }` to the existing RQS candidate's links, retaining its predecessor and other guidance links. Its authored payload may be empty and its body should be empty. Revise surviving DCP membership to remove retired endpoints; the CLI omits groups whose parent is retired. Removing one parent link from a shared child does not retire it. Reinstatement is outside this package.
 
 ## Check the refinement
 

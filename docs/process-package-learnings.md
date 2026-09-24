@@ -367,6 +367,32 @@ fail for assessed requirement violations. Keep all required field and state chec
 unrequired fields and prior source hashes are not behavioral expected results.
 Use the same package/routing checks and later uncoached authoring loop above.
 
+## Operation-specific contracts and executed coverage, #935
+
+The recovery-allocation experiment initially applied a request quantity comparison
+where the operation supplied only a reference. Its verifier rejected permitted
+JSON representations and claimed incomplete-response coverage while executing
+silence only. Independent review corrected both verification gaps. These are class
+6 guidance gaps with class 10 shared content expectations; the accepted baseline
+and successor remain valid evidence.
+
+Apply exact incorporated ICD clauses to each operation's actual inputs. When a
+clause changes, reassess selected requirements that incorporate it, including
+parent definitions whose visible outcome is unchanged. Retain compatible exact
+revisions and explain changed bindings through the existing change rationale.
+Compare public values according to the contract's semantics and inspect each
+coverage claim's actual conditions, stimuli and assertions through the complete
+relevant case path. Preserve required structure, exact fields and meaningful
+ordering while accepting representations the contract leaves open.
+
+Check package loading and dependent exact guidance references without prose-only
+tests. Use a fresh author through ordinary README/CLI guidance on the qualified
+package to inspect first submissions, review corrections and accepted maintenance.
+Structural checks and the earlier supplemented experiment do not prove a causal
+wording improvement. When operation exposes another applicability or coverage gap,
+update the existing owning instruction and record its evidence here in the same
+session.
+
 ## Source inspection after independent criteria definition, #907
 
 River verification could reproduce API scores but could not establish that the
