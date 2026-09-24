@@ -1,6 +1,6 @@
 ---
 id: review-requirements
-version: 17
+version: 18
 skills:
 - skills/product-quality.md@5
 - skills/typed-requirements.md@11
@@ -14,7 +14,7 @@ The lifecycle author exports the complete exact review context and requests a fr
 
 Independently review the complete RQS and its contained requirement graph against the stakeholder request. Check that software descendants collectively fulfill their parents and that leaves give appropriate implementation and verification contracts. Apply every shared reviewer check, including one obligation, the architecture/depth decision and a requirements-only reader's ability to derive behavior. Bundling or unresolved required semantics is a content defect, not an optional editorial preference. Judge clarity, scope, assumptions and relevant interactions. Complete the supplied exact requirement and decomposition assessment rows. The CLI owns structural and graph checks.
 
-Each DCP assessment concerns its exact parent and immediate children. Judge each child's validity against that parent separately from their collective adequacy. For a group marked `needs-change`, identify a parent requirement or immediate child assessment marked `needs-change`, or set `membership_action` to `revise-membership` when additions, removals or redistribution are needed, even if all existing children remain valid. Record deeper descendant defects in their owning assessments. Keep an ancestor group `adequate` when its immediate decomposition is sufficient; any defect in its own parent, children or membership still needs an explicit correction target. Return one set-level outcome consistent with all assessments: adequate ancestor groups can coexist with a failing outcome for descendant defects.
+Each DCP assessment concerns its exact parent and immediate children. Judge the child's complete obligation for validity, then its contribution to this parent separately from collective adequacy. For example, a shared child that both invokes several operations and associates returned results with requests still contains those separate duties when reused under a parent for one operation. Discussing only that operation's fragment does not establish the child's validity. A coherent shared result-classification rule may still serve several parents. For a group marked `needs-change`, identify a parent requirement or immediate child assessment marked `needs-change`, or set `membership_action` to `revise-membership` when additions, removals or redistribution are needed, even if all existing children remain valid. Record deeper descendant defects in their owning assessments. Keep an ancestor group `adequate` when its immediate decomposition is sufficient; any defect in its own parent, children or membership still needs an explicit correction target. Return one set-level outcome consistent with all assessments: adequate ancestor groups can coexist with a failing outcome for descendant defects.
 
 Use the supplied direct proposal guidance and payload schema. The CLI supplies identities, exact required links and publication markers. Submit the authored values with mdlm proposal submit. Keep the body empty when the structured payload contains the whole claim.
 
