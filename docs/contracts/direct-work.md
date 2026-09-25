@@ -48,6 +48,17 @@ implementation review, both exports include `sourceAssessmentTargets`: its
 evidence for those judgments. Registration binds a verdict to its context;
 publication still validates field permissions and exact assessment coverage.
 
+For an implementation review, `sourceScopes[].acceptedBaseline` additionally
+follows the reviewed implementation's exact requirement selection through
+`changes-under` to a change, `baseline` to an accepting decision, and `accepts`
+to the prior implementation. It contains those four records as `requirements`,
+`change`, `acceptance` and `implementation`, the prior `source` and `scopes`, and
+the accepted-to-current `comparison`. The existing `changes` and `comparison`
+retain their nearest-source meaning; required assessment rows do not change.
+The extra object is absent without a change baseline. Missing or conflicting
+references fail explicitly; no latest acceptance or review-history inference is
+used. Activity reviews do not receive this product-source context.
+
 ## Explicit formal source selection
 
 The opt-in requirement-trace@3 capability retains the v2 graph contract and permits IMP acceptance_scope partial with an exact nonempty formal_files list. Whole-product coverage remains the default and forbids a file selection. The complete committed source inventory and every file role remain visible. Partial inventory entries expose formal true or false; only formal files derive SCP data. The verifier must be formal. Unsupported binary entries, symlinks and submodules remain unsupported even when provisional.
