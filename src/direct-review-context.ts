@@ -5,7 +5,7 @@ import { execFile } from "node:child_process";
 import { promisify, isDeepStrictEqual } from "node:util";
 import { resolveType, type DatumEnvelope } from "./index.js";
 import type { DirectContext, DirectTransaction, SourceAssessmentTargets } from "./direct-contract.js";
-import { readImplementationSource, requirementTraceBinding, selectedRequirementGraph } from "./requirement-trace.js";
+import { readImplementationSource, requirementTraceBinding, selectedRequirementGraph, type RequirementTraceBinding } from "./requirement-trace.js";
 import { assessRequirements, changeImpact } from "./change-assessment.js";
 import { compareImplementationScopes } from "./requirement-trace-inspection.js";
 import { readVerificationReceiptBlob, validateVerificationReceipt, verificationRef } from "./verification-receipt.js";
@@ -28,12 +28,47 @@ export interface DirectReviewContext {
   sourceAssessmentTargets?: SourceAssessmentTargets | undefined;
   records: DatumEnvelope[];
   requirementGraphs: {selection: string; assessment: ReturnType<typeof assessRequirements>; groups: DatumEnvelope[]; requirements: (DatumEnvelope & {leaf: boolean})[]}[];
-  sourceScopes: {implementation: string; scopes: DatumEnvelope[]; changes: unknown; comparison: unknown}[];
+  sourceScopes: {implementation: string; scopes: DatumEnvelope[]; changes: unknown; comparison: unknown; acceptedBaseline?: {
+    requirements: DatumEnvelope; change: DatumEnvelope; acceptance: DatumEnvelope; implementation: DatumEnvelope;
+    source: DirectReviewContext["sources"][number]; scopes: DatumEnvelope[]; comparison: ReturnType<typeof compareImplementationScopes>;
+  }}[];
   prospectiveChange?: unknown;
   sources: {implementation: string; repositoryPath: string; sourceCommit: string; acceptanceScope: "whole-product" | "partial"; files: {path: string; role: string; mode: string; blob: string; content: string; formal: boolean}[]}[];
   verifierSources?: {activity: string; sourceCommit: string; files: {path: string; blob: string; content: string; encoding?: "base64"}[]}[];
   verificationCoverage?: unknown;
   verificationReceipts: {result: string; implementation: string; requirements: string; locator: string; execution: string; binding: "validated"; receipt: Awaited<ReturnType<typeof readVerificationReceiptBlob>>["receipt"]}[];
+}
+
+async function reviewSource(implementation: DatumEnvelope): Promise<DirectReviewContext["sources"][number]> {
+  const source = await readImplementationSource(implementation);
+  if (source.diagnostics.length) throw new Error(JSON.stringify(source.diagnostics));
+  const files = source.entries.map(entry => {
+    if (!["100644", "100755"].includes(entry.mode)) throw new Error(`Unsupported source entry mode for '${entry.path}'`);
+    let content: string;
+    try { content = new TextDecoder("utf-8", {fatal: true, ignoreBOM: true}).decode(entry.bytes); if (content.includes("\0")) throw new Error("NUL byte"); }
+    catch { throw new Error(`Source '${entry.path}' is not supported UTF-8 text; review context is incomplete`); }
+    return {path: entry.path, role: entry.role!, mode: entry.mode, blob: entry.blob, content, formal: implementation.payload.acceptance_scope !== "partial" || (implementation.payload.formal_files as string[]).includes(entry.path)};
+  });
+  return {implementation: implementation.revision_id, repositoryPath: String(implementation.payload.repository_path), sourceCommit: String(implementation.payload.source_commit), acceptanceScope: implementation.payload.acceptance_scope === "partial" ? "partial" : "whole-product", files};
+}
+
+async function acceptedBaseline(data: DatumEnvelope[], trace: RequirementTraceBinding, implementation: DatumEnvelope): Promise<DirectReviewContext["sourceScopes"][number]["acceptedBaseline"]> {
+  if (!trace.change_type || !trace.acceptance_type) return undefined;
+  const linked = (owner: DatumEnvelope, relation: string, type: string): DatumEnvelope => {
+    const links = owner.links.filter(link => link.type === relation);
+    const matches = data.filter(datum => datum.revision_id === links[0]?.target);
+    if (links.length !== 1 || matches.length !== 1 || matches[0]!.type !== type) throw new Error(`Accepted baseline: '${owner.revision_id}' must bind one available exact '${relation}' ${type} revision`);
+    return matches[0]!;
+  };
+  const requirements = linked(implementation, "implements", trace.type);
+  if (!requirements.links.some(link => link.type === "changes-under")) return undefined;
+  const change = linked(requirements, "changes-under", trace.change_type);
+  const acceptance = linked(change, "baseline", trace.acceptance_type);
+  if (acceptance.payload.decision !== "accept") throw new Error(`Accepted baseline: '${acceptance.revision_id}' is not an acceptance`);
+  const previous = linked(acceptance, "accepts", trace.implementation_type);
+  return {requirements, change, acceptance, implementation: previous, source: await reviewSource(previous),
+    scopes: data.filter(datum => datum.type === trace.scope_type && datum.links.some(link => link.type === "belongs-to" && link.target === previous.revision_id)),
+    comparison: compareImplementationScopes(data, trace, previous.revision_id, implementation.revision_id)};
 }
 
 /** The caller authenticates context freshness before registration/publication. */
@@ -104,17 +139,9 @@ export async function buildDirectReviewContext(context: DirectContext): Promise<
   }
   for (const implementation of implementations) {
     const baseline = (implementation.payload.source_changes as {baseline_implementation?: unknown} | undefined)?.baseline_implementation;
-    result.sourceScopes.push({implementation: implementation.revision_id, scopes: data.filter(datum => datum.type === trace.scope_type && datum.links.some(link => link.type === "belongs-to" && link.target === implementation.revision_id)), changes: implementation.payload.source_changes ?? null, comparison: typeof baseline === "string" ? compareImplementationScopes(data, trace, baseline, implementation.revision_id) : null});
-    const source = await readImplementationSource(implementation);
-    if (source.diagnostics.length) throw new Error(JSON.stringify(source.diagnostics));
-    const files = source.entries.map(entry => {
-      if (!["100644", "100755"].includes(entry.mode)) throw new Error(`Unsupported source entry mode for '${entry.path}'`);
-      let content: string;
-      try { content = new TextDecoder("utf-8", {fatal: true, ignoreBOM: true}).decode(entry.bytes); if (content.includes("\0")) throw new Error("NUL byte"); }
-      catch { throw new Error(`Source '${entry.path}' is not supported UTF-8 text; review context is incomplete`); }
-      return {path: entry.path, role: entry.role!, mode: entry.mode, blob: entry.blob, content, formal: implementation.payload.acceptance_scope !== "partial" || (implementation.payload.formal_files as string[]).includes(entry.path)};
-    });
-    result.sources.push({implementation: implementation.revision_id, repositoryPath: String(implementation.payload.repository_path), sourceCommit: String(implementation.payload.source_commit), acceptanceScope: implementation.payload.acceptance_scope === "partial" ? "partial" : "whole-product", files});
+    const accepted = context.action.capability === "review" && context.subject === implementation.revision_id ? await acceptedBaseline(data, trace, implementation) : undefined;
+    result.sourceScopes.push({implementation: implementation.revision_id, scopes: data.filter(datum => datum.type === trace.scope_type && datum.links.some(link => link.type === "belongs-to" && link.target === implementation.revision_id)), changes: implementation.payload.source_changes ?? null, comparison: typeof baseline === "string" ? compareImplementationScopes(data, trace, baseline, implementation.revision_id) : null, ...(accepted ? {acceptedBaseline: accepted} : {})});
+    result.sources.push(await reviewSource(implementation));
   }
   const results = selected.filter(datum => datum.type === trace.result_type);
   for (const datum of results) {
