@@ -1,9 +1,9 @@
 kind: action-definition
 id: refine-requirements
-version: 10
+version: 11
 description: Refine requirements with stakeholder intent before first acceptance
 capability: requirements
-prompt_ref: prompts/refine-requirements.md@12
+prompt_ref: prompts/refine-requirements.md@13
 types: [REQ, DCP, RQS]
 subjects: select("current-requirements@1", {})
 inputs:

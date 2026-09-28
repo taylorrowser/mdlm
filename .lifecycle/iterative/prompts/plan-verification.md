@@ -1,6 +1,6 @@
 ---
 id: plan-verification
-version: 15
+version: 16
 skills: []
 ---
 
@@ -34,8 +34,8 @@ Method and execution level are separate choices. A detailed software rule may us
 an independent unit or component test through a declared stable contract. When
 levels are used, target system and high-level requirements through their ICD
 clauses and product entry points so the activity survives a rewrite; verify
-low-level requirements by declared inspection or a component test through a stable
-seam. A
+behavioral low-level requirements by a component test through a stable seam, and a
+realization constraint by declared inspection where behavior cannot establish it. A
 language-specific adapter may invoke that contract and translate representations;
 it must not compute the expected result, inspect private implementation state or
 conceal a required difference. An internal ICD is useful for a meaningful shared

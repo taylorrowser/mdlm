@@ -421,7 +421,7 @@ in the same session.
 Two- and three-component fable products marked components only in titles and
 EARS subjects, and put language choices into product-wide requirements and
 normative interface clauses. Nothing could select one component's requirements or
-the ones a rewrite should replace. ADR-0005 dropped levels because they were
+the ones a rewrite would change. ADR-0005 deferred levels because they were
 mandatory, separately verified phases for one-component products, not because
 levels are wrong. This is class 3 for the payload fields and class 10 for shared
 author and reviewer expectations.
@@ -430,8 +430,13 @@ REQ 4 adds optional `level` (`system`, `high-level`, `low-level`) and `component
 The schema rejects either field on a stakeholder REQ, requires `component` for
 high-level and low-level, and forbids it for system. Parent fit, implementation
 neutrality and whether levels apply are review judgments in the existing
-requirements review. Low-level requirements exist only for real design or
-realization decisions and are the only ones a component rewrite replaces.
+requirements review. Low-level requirements exist only for a real open
+calculation, validation, transition or justified realization constraint, and a
+decomposed parent's children together keep its functional duty. Issue #963
+corrected the first guidance and fixture. A storage-only child left the parent's
+reporting duty unowned, and the claim that a rewrite replaces exactly the low-level
+tier was wrong: a rewrite keeps every requirement and clause whose meaning stays
+valid, at any level (classes 10 and 12).
 Single-component products omit both fields. See ADR-0008.
 
 Check the schema conditions at the package seam and one public draft of a
