@@ -1,6 +1,6 @@
 ---
 id: typed-requirements
-version: 13
+version: 14
 ---
 
 # Author one normal-link requirement graph
@@ -42,7 +42,7 @@ shared requirements where applicable. Keep permitted implementation choices open
 
 For each system boundary, designate one owning REQ and put a short architecture/depth
 note in its `rationale`, listing the components, the ICDs that join them and whether
-requirement levels are used, separate from the obligation in `statement` or `ears`.
+requirement levels are used (see Settle useful depth), separate from the obligation in `statement` or `ears`.
 Explain the allocation of responsibilities, state ownership and interactions,
 the chosen requirement roles and why the leaves settle required behavior. Put
 required interactions in normative obligations, including parent integration claims.

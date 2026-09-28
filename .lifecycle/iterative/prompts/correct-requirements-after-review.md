@@ -1,9 +1,9 @@
 ---
 id: correct-requirements-after-review
-version: 15
+version: 16
 skills:
-- skills/product-quality.md@6
-- skills/typed-requirements.md@13
+- skills/product-quality.md@7
+- skills/typed-requirements.md@14
 ---
 
 # Correct requirements after content Review

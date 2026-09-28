@@ -1,6 +1,6 @@
 ---
 id: product-quality
-version: 6
+version: 7
 ---
 
 # Shared product quality expectations
@@ -37,7 +37,8 @@ them as product requirements does not establish compliance.
   its origin and upstream consequences. Prototype behavior alone is insufficient.
   Never copy code into prose. Express necessary semantics through precise text,
   equations, decision tables or state transitions.
-- Settle relevant inputs, outputs, units, numeric rules, ordering, state changes,
+- Settle relevant inputs, outputs, units, numeric rules, ordering that a stakeholder
+  outcome or another component depends on, state changes,
   boundaries and failures at the level that owns them. Distinguish permitted
   variation from an unresolved decision. Count follows obligations: a small scope
   can need several short REQs or very few; neither number is a goal.
