@@ -13,7 +13,7 @@ import { repositoryGitEnvironment } from "./git-environment.js";
 import { resolvePrompt } from "./direct-prompt.js";
 import { authorablePayloadSchema, sourceAssessmentTargets } from "./direct-guidance.js";
 
-import { independentBinding, independentExecutionBinding, verificationStatus } from "./independent-verification.js";
+import { independentBinding, independentExecutionBinding, verificationStatus, type VerificationCase } from "./independent-verification.js";
 
 const exec = promisify(execFile);
 export interface DirectReviewContext {
@@ -36,9 +36,44 @@ export interface DirectReviewContext {
   sources: {implementation: string; repositoryPath: string; sourceCommit: string; acceptanceScope: "whole-product" | "partial"; files: {path: string; role: string; mode: string; blob: string; content: string; formal: boolean}[]}[];
   verifierSources?: {activity: string; sourceCommit: string; files: {path: string; blob: string; content: string; encoding?: "base64"}[]}[];
   verificationCoverage?: unknown;
+  verificationCoverageChanges?: {
+    advisory: string;
+    predecessor: VerificationActivityReference;
+    current: VerificationActivityReference;
+    removedCases: {caseId: string; oldTargets: string[]; retiredTargets: string[];
+      survivingTargets: {previousRequirement: string; currentRequirement: string; currentCaseIds: string[]}[]}[];
+  };
   verificationReceipts: {result: string; implementation: string; requirements: string; locator: string; execution: string; binding: "validated"; receipt: Awaited<ReturnType<typeof readVerificationReceiptBlob>>["receipt"]}[];
   lineage?: {predecessors: DatumEnvelope[]; answers: string[]; changes: DatumEnvelope[]; decisions: DatumEnvelope[];
     predecessorGraph?: {selection: string; groups: DatumEnvelope[]; requirements: (DatumEnvelope & {leaf: boolean})[]; diagnostics: unknown[]}};
+}
+
+export interface VerificationActivityReference {activity: string; authoringSubject: string; repositoryPath: string; sourceCommit: string}
+
+/** Case IDs identify comparisons for judgment; they cannot establish preserved stimuli or assertions. */
+function verificationCoverageChanges(context: DirectContext, result: DirectReviewContext): DirectReviewContext["verificationCoverageChanges"] {
+  const activityType = independentBinding(context.pkg)?.type;
+  const current = context.data.find(d => d.revision_id === context.subject && d.type === activityType);
+  const previous = result.lineage?.predecessors.at(-1);
+  const graph = result.requirementGraphs.find(g => g.selection === current?.payload.authoring_subject);
+  if (!current || !previous || !graph) return undefined;
+  const byRevision = new Map(context.data.map(d => [d.revision_id, d]));
+  const selected = new Map(graph.requirements.map(d => [d.id, d.revision_id]));
+  const cases = current.payload.cases as VerificationCase[];
+  const currentIds = new Set(cases.map(c => c.id));
+  const removedCases = (previous.payload.cases as VerificationCase[]).filter(c => !currentIds.has(c.id)).map(c => {
+    const oldTargets = [...c.targets].sort();
+    const survivingTargets = oldTargets.flatMap(previousRequirement => {
+      const currentRequirement = selected.get(byRevision.get(previousRequirement)!.id);
+      return currentRequirement ? [{previousRequirement, currentRequirement, currentCaseIds: cases.filter(c => c.targets.includes(currentRequirement)).map(c => c.id).sort()}] : [];
+    });
+    return {caseId: c.id, oldTargets, retiredTargets: oldTargets.filter(id => !survivingTargets.some(t => t.previousRequirement === id)), survivingTargets};
+  }).filter(c => c.survivingTargets.length).sort((a, b) => a.caseId.localeCompare(b.caseId));
+  const reference = (d: DatumEnvelope): VerificationActivityReference => ({activity: d.revision_id, authoringSubject: String(d.payload.authoring_subject), repositoryPath: String(d.payload.repository_path), sourceCommit: String(d.payload.source_commit)});
+  return {
+    advisory: "Changed coverage for review, not proof of missing coverage or adequacy. Removed case IDs may be renamed, merged or replaced; coverage may move to another selected activity. An empty local case list does not establish missing coverage. An empty comparison does not establish that assertions or stimuli were preserved beneath unchanged case IDs; changes within those cases still need semantic review.",
+    predecessor: reference(previous), current: reference(current), removedCases,
+  };
 }
 
 async function reviewSource(implementation: DatumEnvelope): Promise<DirectReviewContext["sources"][number]> {
@@ -138,7 +173,13 @@ export async function buildDirectReviewContext(context: DirectContext): Promise<
   }
   const trace = requirementTraceBinding(pkg);
   // Lineage is added last so existing exact-context failures keep precedence.
-  const withLineage = () => { const lineage = reviewLineage(context, trace); if (lineage) result.lineage = lineage; return result; };
+  const withLineage = () => {
+    const lineage = reviewLineage(context, trace);
+    if (lineage) result.lineage = lineage;
+    const changes = verificationCoverageChanges(context, result);
+    if (changes) result.verificationCoverageChanges = changes;
+    return result;
+  };
   if (!trace) return withLineage();
   const changes = selected.filter(datum => datum.type === trace.change_type);
   if (changes.length === 1) {
