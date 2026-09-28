@@ -442,6 +442,36 @@ re-authored versus re-executed, and whether high-level requirements stayed
 language-free without coaching. Add kernel parent-order enforcement only when
 review misses it in operation, and record that evidence here.
 
+## Prerequisites and correction routes in guidance, #931 #945 #932
+
+Every fresh fable author and maintainer learned three route rules from a rejection
+or from `verification status` instead of from guidance or `expectations`:
+
+- A TRY or IMP cannot be published before it selects a VFY. A rebind cannot select
+  activities whose targets are older requirement revisions.
+- An activity's interface links must equal the union of its targets' own
+  interface links.
+- A failed activity review left `revise-verification` optional, with no required
+  correction.
+
+The first two are class 6. The prompts now state each prerequisite before the
+author drafts: plan first, rebind only on activities that target the current
+selection (revise them first), and derive interface links from each target's
+exported `links`.
+
+The third is class 1. The new required `correct-verification-after-review` action
+revises the exact failed activity, matching how failed requirement and product
+reviews already surface their correction.
+
+#951 (`prepare-prototype` stays required after formal scope) remains open. The
+route is established after acceptance, so hiding it breaks supported journeys, and
+an action's `optional` flag is static.
+
+Check: one public CLI journey shows `expectations` after a failed activity review.
+Before the change, it listed only `prepare-prototype` as required. Package loading
+covers exact references. When a lane still meets one of these rejections first,
+move the rule into the step that owns the prerequisite and record it here.
+
 ## Historical patterns and checks
 
 ## 1. Every failable output needs a correction route

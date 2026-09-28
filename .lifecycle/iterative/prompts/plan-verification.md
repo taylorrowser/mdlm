@@ -1,6 +1,6 @@
 ---
 id: plan-verification
-version: 14
+version: 15
 skills: []
 ---
 
@@ -101,4 +101,4 @@ Read "Native verification runtime" in the installation's `docs/contracts/direct-
 
 Use the declared product or component contract to guide interactions and requirements to derive expected outcomes. Separate directories preserve source identities but do not prevent reading product source; independent authoring and review enforce this boundary. Keep the method honest when a requirement needs evidence that the selected execution cannot establish.
 
-Publish with the supplied direct guidance. Add exact verifies links matching all case targets and uses-interface links for necessary public ICDs. Revise an activity when its expectations, coverage or verifier change. A faulty verifier is a verification correction, not automatically a product defect. Prior evidence remains historical. Reuse a plan on a new product through exact verification links and fresh execution; a pass on an older commit does not verify the new one.
+Publish with the supplied direct guidance. Add exact verifies links matching all case targets. The activity's uses-interface links must equal the union of its targets' own uses-interface links, listed in each target's `links` in the verification context export: include every ICD a target uses and none that no target uses. Revise an activity when its expectations, coverage, verifier or targets change; after a failed adequacy review, `correct-verification-after-review` is the required correction of that exact activity. A faulty verifier is a verification correction, not automatically a product defect. Prior evidence remains historical. Reuse a plan on a new product through exact verification links and fresh execution; a pass on an older commit does not verify the new one.

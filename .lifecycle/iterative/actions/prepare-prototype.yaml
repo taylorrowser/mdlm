@@ -1,9 +1,9 @@
 kind: action-definition
 id: prepare-prototype
-version: 1
+version: 2
 description: prepare-prototype
 capability: prototype
-prompt_ref: prompts/prepare-prototype.md@3
+prompt_ref: prompts/prepare-prototype.md@4
 types:
 - TRY
 subjects: select("current-experiments@1", {})
