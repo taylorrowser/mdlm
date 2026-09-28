@@ -1,11 +1,11 @@
 ---
 id: record-interface
-version: 3
+version: 4
 ---
 
 # Record an interface agreement
 
-Describe one meaningful boundary and both endpoints: owner or contact role, what each supplies and consumes, and the assumptions each depends on. State representation, units, valid values, ordering or timing where relevant, error behavior and compatibility. Give examples in the body when useful. Give normative clauses stable identifiers in the existing text fields and distinguish them from descriptive or provisional choices. Mark unresolved prototype decisions explicitly. An external owner name describes responsibility; it does not establish third-party approval. State simulation limits.
+Describe one meaningful boundary and both endpoints: owner or contact role, what each supplies and consumes, and the assumptions each depends on. State representation, units, valid values, ordering or timing where relevant, error behavior and compatibility. Give examples in the body when useful. Give normative clauses stable identifiers in the existing text fields and distinguish them from descriptive or provisional choices. Mark unresolved prototype decisions explicitly. Name endpoints by role, not by source file or language. Identify a program by a product-relative entry point (for example `bin/enrol`) rather than an interpreter command; interpreter, file names and libraries are not interface clauses unless an external party depends on them. Accept the narrowest input domain the stakeholder need justifies, bound every numeric and length field, and refuse everything outside it with one general rule. An agreement carries messages, codes and representation; state changes and decisions belong to the owning requirement. An external owner name describes responsibility; it does not establish third-party approval. State simulation limits.
 
 The ICD revision identifies this lifecycle claim. A protocol version identifies an endpoint convention and may remain unchanged across documentation revisions. Use protocol_version only when the boundary has one.
 

@@ -1,6 +1,6 @@
 ---
 id: product-quality
-version: 5
+version: 6
 ---
 
 # Shared product quality expectations
@@ -24,7 +24,8 @@ them as product requirements does not establish compliance.
   can form one coherent obligation, including preservation of unaffected state.
   Arithmetic correctness and serialization of concurrent updates are separate
   duties: either can fail while the other holds. A table row alone is not a reason
-  to split; define its domain, boundaries and precedence so the table settles one
+  to split; define its domain and boundaries, and precedence where overlapping rows
+  would give different stakeholder-visible results, so the table settles one
   function. A saved/rejected/unconfirmed response table may be one obligation;
   local rejection without sending and eventual settlement after silence are
   separate decisions. A parent must itself state one coherent, independently
@@ -38,10 +39,13 @@ them as product requirements does not establish compliance.
   equations, decision tables or state transitions.
 - Settle relevant inputs, outputs, units, numeric rules, ordering, state changes,
   boundaries and failures at the level that owns them. Distinguish permitted
-  variation from an unresolved decision. A small scope can need many short REQs.
-- Use meaningful depth until an implementer and verifier can determine required
-  behavior without inventing a product decision. Record the per-system architecture
-  and depth rationale as described in typed-requirements. Keep decomposition,
+  variation from an unresolved decision. Count follows obligations: a small scope
+  can need several short REQs or very few; neither number is a goal.
+- Use meaningful depth until an implementer and verifier can determine every result
+  that a stakeholder outcome or another component depends on. State other choices,
+  such as message wording, check order among rejections or option placement, as
+  permitted variation unless the stakeholder asks for them. Record the per-system
+  architecture and depth rationale as described in typed-requirements. Keep decomposition,
   allocation and interface agreements distinct; reuse shared children by reference.
 - Plan verification for every obligation, including retained parents and relevant
   interactions. Identify intended actions and expected results from the definition.
@@ -59,11 +63,19 @@ them as product requirements does not establish compliance.
   distinguish its failure from separate child failures. A whole-product summary
   does not establish one obligation. Sentence length and conjunction counts are
   not the criterion.
-- Is each constraint necessary and authorized? Challenge prototype habits and
-  convenient implementation choices presented as stakeholder needs.
+- Is each requirement and constraint necessary and authorized? Name the stakeholder
+  outcome, parent or derived need it serves and what would be lost if it were
+  removed or merged. Challenge prototype habits, convenient implementation choices
+  and details no stakeholder outcome or other component depends on; recommend
+  removal or relaxation as readily as addition.
 - Could two readers derive materially different required outcomes from the same
-  definition? Give a counterexample, then request the missing rule or confirm that
-  the difference is permitted. Do not impose a language or algorithm without need.
+  definition? Give a counterexample. Request the missing rule only when the
+  difference changes a stakeholder outcome or breaks another component's contract;
+  otherwise record it as permitted variation. Do not impose a language or algorithm
+  without need.
+- For an interface used only between the product's own components, require defined
+  behavior for what those components send and one general refusal for everything
+  else, unless the stakeholder names other callers.
 - Does the architecture/depth rationale fit each system? Do the leaves settle the
   required behavior, and do the children collectively satisfy every parent,
   including shared state, failures and cross-component interactions?
@@ -121,8 +133,11 @@ existing review evidence, and stop when the concrete review questions are resolv
 
 Each blocking finding cites the affected commitment or stakeholder outcome,
 identifies the concrete mismatch or justified evidence gap, and explains its
-impact. Return pass when no blocking finding remains. Optional improvements are
-nonblocking and do not add acceptance criteria. Authors address concrete findings
+impact. A demonstrated violation of a selected requirement or incorporated clause
+is blocking however unusual the input, unless the stakeholder narrows the
+requirement. Return pass when no blocking finding remains. Optional improvements
+are nonblocking; they add no requirement or acceptance criterion without a
+stakeholder decision that names the need. Authors address concrete findings
 against the same contract, preserving prior evidence and requirement lineage.
 The CLI owns schema, identity and receipt mechanics; review judges meaning,
 collective coverage, assumptions and evidence adequacy.

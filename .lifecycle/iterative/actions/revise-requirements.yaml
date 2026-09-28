@@ -1,9 +1,9 @@
 kind: action-definition
 id: revise-requirements
-version: 8
+version: 9
 description: Revise the CLI-supplied approved frontier
 capability: requirements
-prompt_ref: prompts/revise-requirements.md@19
+prompt_ref: prompts/revise-requirements.md@20
 types:
 - REQ
 - DCP

@@ -1,11 +1,11 @@
 ---
 id: typed-requirements
-version: 11
+version: 12
 ---
 
 # Author one normal-link requirement graph
 
-Read the exact input records in guidance.context. For an existing RQS, follow its contains and decomposition links with `mdlm show <exact-revision> --json` to inspect REQs and DCPs. A software leaf is a selected software requirement with no selected children. Write one REQ per obligation in the direct requirements batch. Stakeholder requirements use kind: stakeholder and statement for the user outcome or constraint. All non-stakeholder levels use kind: software and ears for required behavior, including system, software high-level and software low-level roles. Give each a useful title and keep source or rationale when needed to explain intent. The CLI supplies ordinary identities and generates one RQS containing the complete selected graph. The set receives one independent Review; individual requirements need no extra authoring or review turns.
+Read the exact input records in guidance.context. For an existing RQS, follow its contains and decomposition links with `mdlm show <exact-revision> --json` to inspect REQs and DCPs. A software leaf is a selected software requirement with no selected children. Write one REQ per obligation in the direct requirements batch. Stakeholder requirements use kind: stakeholder and statement for the user outcome or a constraint the stakeholder imposes; record the constraint's reason and the components it binds, and allocate it to those components rather than restating it product-wide. All non-stakeholder levels use kind: software and ears for required behavior, including system, software high-level and software low-level roles. Give each a useful title and keep source or rationale when needed to explain intent. The CLI supplies ordinary identities and generates one RQS containing the complete selected graph. The set receives one independent Review; individual requirements need no extra authoring or review turns.
 
 Author REQs and DCPs in the proposal's `candidates` array, each with a unique `localId`. A group names its parent's complete immediate children:
 
@@ -29,7 +29,7 @@ functional transition in the leaves alongside shared success and failure rules;
 generic success or rejection alone does not define the action. A path to an
 ancestor cannot replace a missing leaf obligation.
 
-Fill ears.pattern, system and response. Supply the complete subject in system and the response without a trailing period. Event requires event; state requires state; optional requires feature; unwanted requires unwanted. Ubiquitous has no guard. Complex combines at least two guards, with at most one event or unwanted guard. Preserve necessary semantics from stakeholder and approved design inputs while separating their obligations; existing code is never an authoring source to transcribe. Carry relevant parent constraints into the software contract.
+Fill ears.pattern, system and response. Supply the complete subject in system and the response without a trailing period. Event requires event; state requires state; optional requires feature; unwanted requires unwanted. Ubiquitous has no guard. Complex combines at least two guards, with at most one event or unwanted guard. Preserve necessary semantics from stakeholder and approved design inputs while separating their obligations; existing code is never an authoring source to transcribe. Carry a parent constraint into the requirement of each component it binds, keeping its stated reason; do not restate it as a product-wide obligation or add a version floor the stakeholder did not ask for.
 
 Before submission, apply the shared checks to the final normative statements and
 exact selected child memberships in this authoring turn. Treat rationale as
@@ -63,7 +63,7 @@ required behavior and explicitly names any applicable stable normative ICD claus
 identifiers, with `uses-interface` selecting the exact ICD revision. For each
 operation, apply its exact incorporated clauses to the inputs that operation
 actually supplies. The clauses may own encoding, schema, ordering and compatibility
-details; keep their normative definition there rather than copying it into the REQ. A whole-ICD link
+details; keep their normative definition there rather than copying it into the REQ. Define a shared term once, in one cited interface clause or one owning requirement, and cite it elsewhere. A whole-ICD link
 alone does not identify which clauses the REQ requires. Keep unrelated capabilities
 under their own owning requirements.
 
@@ -96,7 +96,7 @@ notes remain history. Review the note as design rationale, not blanket stakehold
 approval of every recorded choice. Keep exploratory choices provisional until their
 necessity is justified for the selected formal scope.
 
-For corrections and approved changes, inspect the exact prior review and approved change inputs to identify the correction scope. When an interface definition changes, reassess every selected requirement incorporating the changed clause, including parents whose visible outcome is unchanged. Use `predecessor` with the exact prior revision only for requirements whose claims or incorporated clause bindings change, explaining changed bindings in the existing change rationale. Retain compatible exact revisions, including unchanged children and ancestors. The CLI refreshes affected endpoints in retained DCP groups, generates RQS selection and queues review. Author a DCP only when membership changes, using `predecessor` for its existing lineage. In each authored DCP, use `$<localId>` for every parent or child created or revised in the same proposal; use exact selected revisions for unchanged endpoints. To retire a requirement, add `{ "type": "retires", "target": "<exact-selected-REQ-revision>" }` to the existing RQS candidate's links, retaining its predecessor and other guidance links. Its authored payload may be empty and its body should be empty. Revise surviving DCP membership to remove retired endpoints; the CLI omits groups whose parent is retired. Removing one parent link from a shared child does not retire it. Reinstatement is outside this package.
+For corrections and approved changes, inspect the exact prior review and approved change inputs to identify the correction scope. When an interface definition changes, reassess every selected requirement incorporating the changed clause, including parents whose visible outcome is unchanged. Use `predecessor` with the exact prior revision only for requirements whose claims change or whose incorporated clauses change meaning. A requirement whose clauses are unchanged keeps its existing exact ICD binding. Retain compatible exact revisions, including unchanged children and ancestors. The CLI refreshes affected endpoints in retained DCP groups, generates RQS selection and queues review. Author a DCP only when membership changes, using `predecessor` for its existing lineage. In each authored DCP, use `$<localId>` for every parent or child created or revised in the same proposal; use exact selected revisions for unchanged endpoints. To retire a requirement, add `{ "type": "retires", "target": "<exact-selected-REQ-revision>" }` to the existing RQS candidate's links, retaining its predecessor and other guidance links. Its authored payload may be empty and its body should be empty. Revise surviving DCP membership to remove retired endpoints; the CLI omits groups whose parent is retired. Removing one parent link from a shared child does not retire it. Reinstatement is outside this package.
 
 ## Check the refinement
 
@@ -105,8 +105,9 @@ assessment fields for these judgments, without a separate proof artifact:
 
 - Identify what each child adds to the parent: a settled decision, an allocated
   responsibility or a necessary interaction. For a derived constraint, explain its
-  origin, why it is needed and which parent outcome depends on it. Allocation
-  labels alone do not justify a design choice.
+  origin, why it is needed and which parent outcome depends on it. A derived child
+  is the weakest obligation that still delivers its parent. Allocation labels alone
+  do not justify a design choice.
 - Include relevant shared-state and failure boundaries in the parent counterexample.
   Name the shared requirements and assumptions needed to close the gap; preserve
   the parent's meaning and check actual membership rather than graph reachability.
