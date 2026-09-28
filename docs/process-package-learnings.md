@@ -777,6 +777,38 @@ MDLM_EXPLORATORY_INSTALLED=1 npx vitest run --config vitest.cutover.config.ts te
 It initializes from the installed package and completes the revision loop. A pack
 file listing alone does not establish that the installed package can load.
 
+## 12. Growth needs a necessity counterweight
+
+Issue: #958.
+
+Pattern: guidance rewards adding, splitting or settling obligations and has no
+symmetric rule for removing them. Three accepted fable products invented no
+features but carried obligations nobody needed: fixed rejection order, exact
+wording, version floors and behavior for callers that do not exist. Of 48
+requirements-review findings, 27 added, split or settled an obligation and one
+removal took effect. Sixteen of 29 box-office software requirements paraphrased
+the interface clauses they cite, and 8 of 26 requirement revisions changed no
+obligation. An unrequested Python version floor cost a second verification
+activity. Interface agreements named `python3 <file>` in normative clauses.
+Evidence: `operations/fable-campaign-20260928/audit/` in the demos repository.
+
+Rule: every instruction that asks for completeness, splitting or precision names
+the stakeholder outcome or component contract that needs it. Reviewers challenge
+necessity and recommend removal or relaxation as readily as addition. Choices no
+stakeholder outcome or other component depends on stay permitted variation.
+Interfaces accept the narrowest justified domain and name programs by entry
+point; requirements cite clauses rather than copying them. A demonstrated
+violation of a selected obligation still blocks. Stakeholder decisions judge
+necessity and may narrow instead of demanding a fix. This extends classes 6 and
+10 without a new action, type, review row or gate.
+
+Check: package loading and exact prompt, skill and action references, with no
+wording tests. A fresh uncoached lane must report obligations removed or relaxed
+beside obligations added, link-only revisions and requirements per stakeholder
+root before this guidance is judged effective. When operation exposes another
+one-directional instruction, add its counterweight to the owning guidance and
+record it here in the same session.
+
 ## Partial source acceptance must expose its omissions
 
 Observed restriction: the River scoring baseline needed a copied source repository because the original trace contract required full source attribution. The iterative package now opts into requirement-trace@3. A partial IMP lists formal_files while its complete inventory and review source expose provisional neighbors. Canonical verification sees only formal files and its receipt binds that selection. Whole-product defaults retain complete tracing.

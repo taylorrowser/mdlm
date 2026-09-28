@@ -1,9 +1,9 @@
 kind: action-definition
 id: accept-product
-version: 1
+version: 2
 description: Accept the working tiny product
 capability: acceptance
-prompt_ref: prompts/accept-product.md@3
+prompt_ref: prompts/accept-product.md@4
 types:
 - ACC
 subjects: select("current-implementations@1", {})

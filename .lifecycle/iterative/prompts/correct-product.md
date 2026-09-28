@@ -1,9 +1,9 @@
 ---
 id: correct-product
-version: 18
+version: 19
 skills:
-- skills/product-quality.md@5
-- skills/typed-requirements.md@11
+- skills/product-quality.md@6
+- skills/typed-requirements.md@12
 - skills/source-trace.md@6
 ---
 
