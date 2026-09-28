@@ -1,6 +1,6 @@
 ---
 id: typed-requirements
-version: 14
+version: 15
 ---
 
 # Author one normal-link requirement graph
@@ -78,24 +78,34 @@ and their evidence or gaps. This adds no per-clause datum or lifecycle transacti
 ## Settle useful depth
 
 When the architecture note names two or more components that run separately or
-may be replaced separately and are joined by an internal ICD, or the stakeholder
-says a component may be replaced, set `level` on every software REQ and `component`
-on high-level and low-level REQs. Use the component's role name from its ICDs, never
-a file. `system` states behavior at the product boundary or an integration claim
-across components and names no internal component; its parents are stakeholder
-REQs. `high-level` states one component's behavior against its ICD clauses and
-owned state and names no language, library, file or interpreter; its parents are
-stakeholder, system or same-component high-level REQs. `low-level` records a design
-or realization decision inside one component that its high-level requirement leaves
-open and a maintainer must know, such as runtime and launcher, persistence
-mechanism, concurrency control or a required algorithm or data structure; its
-parents are same-component high-level REQs or a stakeholder constraint. It is the
-only level that may name a language, library, file or interpreter, and the only
-level a rewrite of that component replaces. Decompose a high-level REQ into
-low-level REQs only where such a decision exists; never restate a high-level REQ as
-a low-level one. A high-level REQ without such a decision stays a leaf and owns its
-code; when decomposed, its low-level children together own its code. Single-component
-products omit both fields. Levels are not a fixed tier count: add a level only where
+may be replaced separately and are joined by an internal ICD, set `level` on every
+software REQ and `component` on high-level and low-level REQs. Single-component
+products normally omit both fields; an explicit need to distinguish replacement
+contracts may justify them. Tags never require extra decomposition. Use the
+component's role name from its ICDs, never a file. `system` states behavior at the
+product boundary or an integration claim across components; it is not allocated to
+one component and may name component roles when stating their relationship. Its
+parents are stakeholder REQs. `high-level` states one component's behavior against
+its ICD clauses and owned state and names no language, library, file or
+interpreter; its parents are stakeholder, system or same-component high-level REQs.
+`low-level` settles a necessary calculation, validation rule, state transition or
+justified realization constraint inside one component that its high-level
+requirement leaves open; its parents are same-component high-level REQs or a
+stakeholder constraint. Only low-level software REQs may prescribe implementation
+technology. When a high-level REQ is decomposed, its children together keep its
+complete functional duty; a mechanism constraint is additional to that duty, never
+a substitute for it. For example, an admission duty may be refined into one child
+that accepts a request for q units exactly when q ≤ a, leaving a − q, and otherwise
+rejects it, leaving a, and a separate child that applies admissions for one pool in
+some serial order, each using what its predecessor left. A child requiring only
+that the pool is stored in one file written atomically keeps neither duty.
+A high-level REQ with nothing to refine stays a leaf; never restate it as a
+low-level one. An author's freely chosen mechanism belongs in implementation and
+rationale, not in an obligation made to fill the low-level field. A rewrite of one
+component revises only requirements and incorporated clauses whose meaning changes,
+including any prescribed language or runtime; it retains every other exact
+revision at every level, including language-neutral low-level behavior. Retained
+requirements still need fresh verification against the new product commit. Levels are not a fixed tier count: add a level only where
 it settles a decision, allocates a responsibility or expresses an integration claim.
 Stop when a reader can derive the
 required inputs, outputs, state changes and relevant failures from the leaf and

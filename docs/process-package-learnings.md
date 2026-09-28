@@ -421,7 +421,7 @@ in the same session.
 Two- and three-component fable products marked components only in titles and
 EARS subjects, and put language choices into product-wide requirements and
 normative interface clauses. Nothing could select one component's requirements or
-the ones a rewrite should replace. ADR-0005 dropped levels because they were
+the ones a rewrite would change. ADR-0005 deferred levels because they were
 mandatory, separately verified phases for one-component products, not because
 levels are wrong. This is class 3 for the payload fields and class 10 for shared
 author and reviewer expectations.
@@ -430,8 +430,13 @@ REQ 4 adds optional `level` (`system`, `high-level`, `low-level`) and `component
 The schema rejects either field on a stakeholder REQ, requires `component` for
 high-level and low-level, and forbids it for system. Parent fit, implementation
 neutrality and whether levels apply are review judgments in the existing
-requirements review. Low-level requirements exist only for real design or
-realization decisions and are the only ones a component rewrite replaces.
+requirements review. Low-level requirements exist only for a real open
+calculation, validation, transition or justified realization constraint, and a
+decomposed parent's children together keep its functional duty. Issue #963
+corrected the first guidance and fixture. A storage-only child left the parent's
+reporting duty unowned, and the claim that a rewrite replaces exactly the low-level
+tier was wrong: a rewrite keeps every requirement and clause whose meaning stays
+valid, at any level (classes 10 and 12).
 Single-component products omit both fields. See ADR-0008.
 
 Check the schema conditions at the package seam and one public draft of a
@@ -615,6 +620,16 @@ the rejected and corrected proposals unchanged. A future fresh qualified authori
 attempt must establish any preventive benefit; this recovery does not prove it.
 When operation exposes another ambiguity, update its owning guidance and record
 the learning in the same session.
+
+Issue #966 follows a box-office change that removed a feature. Its verification
+author deleted the feature-named cases. Two of them were the only evidence for
+conditions that surviving requirements still depend on. Nothing mechanical failed,
+and two adequacy reviews caught the gap. The plan-verification revision sentence
+now asks the author, before removing or narrowing a case, to list the targets it
+covered that remain selected and to keep that evidence, with a new stimulus if
+needed. It does not require the old case id, stimulus or count to survive. Check
+package loading and exact references; a later change lane must show whether
+authors keep the evidence without review prompting.
 
 ## 7. Generated artifacts are not committed
 

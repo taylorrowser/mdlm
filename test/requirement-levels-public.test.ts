@@ -40,16 +40,17 @@ test("iterative drafts a levelled two-component set and an unlevelled one-compon
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-requirement-levels-"));
   const levelled = await draft(root, "two-component", req => [
     req("need", {kind: "stakeholder", statement: "Staff see the current seat count"}),
-    req("product", {kind: "software", level: "system", ears: ears("The seat product", "show staff the seat count the service stores"), rationale: "Architecture: seat service and staff client joined by an internal HTTP agreement; levels used"}),
+    req("tools", {kind: "stakeholder", statement: "The seat service uses only its runtime's standard library, because the operator's machine has no package manager"}),
+    req("product", {kind: "software", level: "system", ears: ears("The seat product", "show staff the seat count the seat service stores"), rationale: "Architecture: seat service and staff client joined by an internal HTTP agreement; levels used"}),
     req("service", {kind: "software", level: "high-level", component: "seat service", ears: ears("The seat service", "return the stored seat count for a count request")}),
     req("client", {kind: "software", level: "high-level", component: "staff client", ears: ears("The staff client", "print the seat count returned by the seat service")}),
-    req("runtime", {kind: "software", level: "low-level", component: "seat service", ears: ears("The seat service", "keep the seat count in one JSON file written atomically")}),
+    req("runtime", {kind: "software", level: "low-level", component: "seat service", ears: ears("The seat service", "use no library outside its runtime's standard library")}),
     group("need-group", "need", ["product"]),
     group("product-group", "product", ["service", "client"]),
-    group("service-group", "service", ["runtime"]),
+    group("tools-group", "tools", ["runtime"]),
   ]);
   expect(levelled.map((p: any) => [p.title, p.level, p.component])).toEqual(expect.arrayContaining([
-    ["need", undefined, undefined], ["product", "system", undefined], ["service", "high-level", "seat service"],
+    ["need", undefined, undefined], ["tools", undefined, undefined], ["product", "system", undefined], ["service", "high-level", "seat service"],
     ["client", "high-level", "staff client"], ["runtime", "low-level", "seat service"],
   ]));
   const plain = await draft(root, "one-component", req => [

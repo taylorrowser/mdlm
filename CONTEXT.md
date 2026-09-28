@@ -156,7 +156,7 @@ One exact parent requirement and its complete group of immediate child requireme
 _Avoid_: Decomposition work package
 
 **Requirement Level**:
-An optional `system`, `high-level` or `low-level` tag on a software requirement in a multi-component product, with a `component` tag for the last two. Among software requirements, only low-level ones may name implementation technology, and a component rewrite replaces only them. Single-component products omit levels.
+An optional `system`, `high-level` or `low-level` tag on a software requirement in a multi-component product, with a `component` tag for the last two. Among software requirements, only low-level ones may name implementation technology. A component rewrite retains every requirement and interface clause whose meaning stays valid, at any level. Single-component products normally omit levels.
 _Avoid_: Mandatory tiers, a separate type per level
 
 **Requirement Set (RQS)**:

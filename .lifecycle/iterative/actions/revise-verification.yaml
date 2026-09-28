@@ -1,9 +1,9 @@
 kind: action-definition
 id: revise-verification
-version: 13
+version: 14
 description: revise verification
 capability: verification-activity
-prompt_ref: prompts/plan-verification.md@15
+prompt_ref: prompts/plan-verification.md@16
 types:
 - VFY
 subjects: select("current-verification-activities@1", {})

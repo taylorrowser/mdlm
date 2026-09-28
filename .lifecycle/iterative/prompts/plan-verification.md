@@ -1,6 +1,6 @@
 ---
 id: plan-verification
-version: 15
+version: 16
 skills: []
 ---
 
@@ -34,8 +34,8 @@ Method and execution level are separate choices. A detailed software rule may us
 an independent unit or component test through a declared stable contract. When
 levels are used, target system and high-level requirements through their ICD
 clauses and product entry points so the activity survives a rewrite; verify
-low-level requirements by declared inspection or a component test through a stable
-seam. A
+behavioral low-level requirements by a component test through a stable seam, and a
+realization constraint by declared inspection where behavior cannot establish it. A
 language-specific adapter may invoke that contract and translate representations;
 it must not compute the expected result, inspect private implementation state or
 conceal a required difference. An internal ICD is useful for a meaningful shared
@@ -101,4 +101,4 @@ Read "Native verification runtime" in the installation's `docs/contracts/direct-
 
 Use the declared product or component contract to guide interactions and requirements to derive expected outcomes. Separate directories preserve source identities but do not prevent reading product source; independent authoring and review enforce this boundary. Keep the method honest when a requirement needs evidence that the selected execution cannot establish.
 
-Publish with the supplied direct guidance. Add exact verifies links matching all case targets. The activity's uses-interface links must equal the union of its targets' own uses-interface links, listed in each target's `links` in the verification context export: include every ICD a target uses and none that no target uses. Revise an activity when its expectations, coverage, verifier or targets change; after a failed adequacy review, `correct-verification-after-review` is the required correction of that exact activity. A faulty verifier is a verification correction, not automatically a product defect. Prior evidence remains historical. Reuse a plan on a new product through exact verification links and fresh execution; a pass on an older commit does not verify the new one.
+Publish with the supplied direct guidance. Add exact verifies links matching all case targets. The activity's uses-interface links must equal the union of its targets' own uses-interface links, listed in each target's `links` in the verification context export: include every ICD a target uses and none that no target uses. Revise an activity when its expectations, coverage, verifier or targets change; after a failed adequacy review, `correct-verification-after-review` is the required correction of that exact activity. Before removing, merging or narrowing a case, list the targets it covered that remain selected and the condition and assertion it gave each. Keep that evidence for every target whose obligation is unchanged, in the same case or another, with a different stimulus where the old one no longer exists. A case named for a removed feature may still be the only evidence for a surviving requirement. A faulty verifier is a verification correction, not automatically a product defect. Prior evidence remains historical. Reuse a plan on a new product through exact verification links and fresh execution; a pass on an older commit does not verify the new one.
