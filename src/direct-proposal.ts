@@ -213,7 +213,7 @@ export async function submitDirectProposal(root:string,source:string,authorities
   if(!isDeepStrictEqual(proposal.evidence?.authority??[],authorities))fail("Stakeholder authority must match the explicitly supplied command authority");
   return withRepositoryLock(root,lock,async()=>{
     const saved=await settlement(root,proposal.operation);if(saved){if(saved.tx.proposalDigest!==proposalDigest)fail("Operation already published different candidate bytes");return saved.result;}
-    const current=await directState(root);if(!isDeepStrictEqual(proposal.package,current.package))fail("Proposal package changed; refresh guidance");if(proposal.snapshot!==current.snapshot)fail(`Proposal snapshot does not match lifecycle repository ${current.repository} and its current data; it was drafted in another repository or an earlier state. Refresh guidance in this repository`);
+    const current=await directState(root);if(!isDeepStrictEqual(proposal.package,current.package))fail("Proposal package changed; refresh guidance");if(proposal.snapshot!==current.snapshot)fail(`Proposal snapshot does not match lifecycle repository ${current.repository} and its current data; it was drafted in another repository, an earlier state or by an earlier MDLM release. Redraft it from fresh guidance in this repository`);
     const context=directContext(current,proposal.action,proposal.subject);
     if(proposal.inputs&&!isDeepStrictEqual(proposal.inputs,context.inputs))fail("Proposal exact inputs changed");
     const prompt=await resolvePrompt(current.pkg,context.action.prompt_ref);if(!prompt.prompt||prompt.diagnostics.length)fail("Package prompt unavailable");
