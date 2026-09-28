@@ -24,7 +24,9 @@ states one obligation. Equations, decision tables and state transitions can sett
 required behavior; copying code into prose cannot justify it. `skills/typed-requirements.md`
 explains variable system/software depth and the initial architecture/depth note in
 an owning REQ rationale. The requirement graph supports shared children and uneven
-depth without extra review transactions or fixed tiers. This representation keeps
+depth without extra review transactions or fixed tiers. Multi-component products
+may tag software REQs with optional `level` and `component` fields, as
+types/REQ.yaml and typed-requirements describe. This representation keeps
 the note in ordinary version history and source-free exports, but adds no separate
 architecture query or automatic allocation-impact mechanism.
 
