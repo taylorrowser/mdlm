@@ -100,10 +100,11 @@ test("a failed prototype is corrected under the exact experiment and verifier, w
     cli(["proposal", "draft", "correct-prototype", expId, "--operation", "correct", "--output", draftFile]);
     const draft = JSON.parse(await fs.readFile(draftFile, "utf8")), corrected = draft.candidates[0];
     expect(corrected.predecessor).toBe(failedTrial);
-    expect(corrected.links).toEqual(expect.arrayContaining([{type: "explores", target: expId}, {type: "responds-to", target: observation}, {type: "verification", target: activity}, {type: "uses-interface", target: interfaceId}]));
+    expect(corrected.links).toEqual([{type: "explores", target: expId}, {type: "responds-to", target: observation}, {type: "verification", target: activity}, {type: "uses-interface", target: interfaceId}]);
+    expect(corrected.payload).toEqual(tc.payload);
     await fs.writeFile(path.join(product, "app.py"), "print('ready')\n");
     const correctedSource = commit(product);
-    corrected.payload = {...tc.payload, source_commit: correctedSource};
+    corrected.payload.source_commit = correctedSource;
     corrected.body = "Correct the product output. Intent, public interface and independent verifier remain unchanged.";
     await fs.writeFile(draftFile, JSON.stringify(draft));
     const correctedTrial = cli(["proposal", "submit", draftFile]).revisions[0]; commit(repository);
