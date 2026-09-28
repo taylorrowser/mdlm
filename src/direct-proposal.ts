@@ -114,9 +114,24 @@ export async function inspectDirectExpectations(root:string,action?:string,subje
   const completed=terminal?.when!==undefined && expression(current,terminal.when)===true;
   return {ok:true,contract:"mdlm-expectations@2",package:current.package,snapshot:current.snapshot,items,optional,outcome:completed?(terminal?.outcome??"profile-boundary-reached"):items.length?"work-available":"blocked"};
 }
+/** A revision draft starts from its predecessor's authored content; fixed values and fixed link relations stay as the action declares them. */
+function carryPredecessors(current: State, context: DirectContext, candidates: DirectCandidate[]) {
+  for (const candidate of candidates) {
+    const prior = current.data.find(datum => datum.revision_id === candidate.predecessor && datum.type === candidate.type);
+    if (!prior) continue;
+    const resolved = resolveType(current.pkg, candidate.type); if (!resolved.ok) fail(JSON.stringify(resolved.diagnostics));
+    const payload = structuredClone(prior.payload);
+    for (const field of resolved.type.kernelManagedPayloadPaths) delete payload[field];
+    const fixedRelations = new Set(Object.keys(context.action.links?.[candidate.type] ?? {}));
+    candidate.payload = {...payload, ...candidate.payload};
+    candidate.links = [...candidate.links, ...structuredClone(prior.links).filter(link => !fixedRelations.has(link.type))];
+    candidate.body = prior.body;
+  }
+}
 export async function draftDirectProposal(root: string, action: string, subject: string | undefined, operation: string, activity?: string): Promise<DirectProposal> {
   const current = await directState(root);
   const selected = await guidance(current, action, subject);
+  carryPredecessors(current, directContext(current, action, subject), selected.candidates);
   if (activity !== undefined) {
     const context = directContext(current, action, subject), binding = independentBinding(current.pkg);
     if (context.action.capability !== "independent-result" || !binding) fail("--activity requires an independent-result action");
