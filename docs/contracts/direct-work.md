@@ -59,6 +59,18 @@ The extra object is absent without a change baseline. Missing or conflicting
 references fail explicitly; no latest acceptance or review-history inference is
 used. Activity reviews do not receive this product-source context.
 
+A review of a revised subject additionally receives `lineage`: every earlier
+revision of the subject's stable ID as `predecessors`, the subject's exact
+`corrects` targets as `answers`, its exact `changes-under` targets as `changes`,
+and as `decisions` the answered records plus every review-output or acceptance
+record linking to a predecessor or change. For a requirement set,
+`predecessorGraph` is the immediately preceding set's graph with its
+diagnostics. `lineage` is absent for a first revision without such links; an
+unavailable exact link target fails explicitly. It is context only: selected
+records, requirement graphs and required assessment rows do not change. Because
+it is part of the digested context, a later judgment on a predecessor makes an
+earlier registration stale.
+
 ## Explicit formal source selection
 
 The opt-in requirement-trace@3 capability retains the v2 graph contract and permits IMP acceptance_scope partial with an exact nonempty formal_files list. Whole-product coverage remains the default and forbids a file selection. The complete committed source inventory and every file role remain visible. Partial inventory entries expose formal true or false; only formal files derive SCP data. The verifier must be formal. Unsupported binary entries, symlinks and submodules remain unsupported even when provisional.
