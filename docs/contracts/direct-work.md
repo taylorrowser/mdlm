@@ -71,6 +71,22 @@ records, requirement graphs and required assessment rows do not change. Because
 it is part of the digested context, a later judgment on a predecessor makes an
 earlier registration stale.
 
+A revised verification activity authored against a requirement set also receives
+`verificationCoverageChanges`. It compares case IDs with the immediate activity
+predecessor and lists removed cases whose old targets have the same stable ID as
+a requirement in the current exact authoring set. Each entry retains all exact
+old targets, separates retired targets, and pairs surviving old/current requirement
+revisions with the current activity's case IDs. Both activity revisions, authoring
+subjects, verifier repository paths and source commits remain explicit. Ordering
+is deterministic; first revisions omit the comparison and retired-only removals
+produce no entries. The requirements-only authoring export is unchanged.
+
+This is changed coverage for review, not proof of missing coverage or adequacy.
+Cases can be renamed, merged or replaced, and coverage can move to another
+selected activity. An empty comparison does not establish that assertions or
+stimuli survived beneath unchanged case IDs. Those changes still need semantic
+review. Publication and acceptance rules are unchanged.
+
 ## Explicit formal source selection
 
 The opt-in requirement-trace@3 capability retains the v2 graph contract and permits IMP acceptance_scope partial with an exact nonempty formal_files list. Whole-product coverage remains the default and forbids a file selection. The complete committed source inventory and every file role remain visible. Partial inventory entries expose formal true or false; only formal files derive SCP data. The verifier must be formal. Unsupported binary entries, symlinks and submodules remain unsupported even when provisional.
