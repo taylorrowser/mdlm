@@ -59,6 +59,18 @@ The extra object is absent without a change baseline. Missing or conflicting
 references fail explicitly; no latest acceptance or review-history inference is
 used. Activity reviews do not receive this product-source context.
 
+A review of a revised subject additionally receives `lineage`: every earlier
+revision of the subject's stable ID as `predecessors`, the subject's exact
+`corrects` targets as `answers`, its exact `changes-under` targets as `changes`,
+and as `decisions` the answered records plus every review-output or acceptance
+record linking to a predecessor or change. For a requirement set,
+`predecessorGraph` is the immediately preceding set's graph with its
+diagnostics. `lineage` is absent for a first revision without such links; an
+unavailable exact link target fails explicitly. It is context only: selected
+records, requirement graphs and required assessment rows do not change. Because
+it is part of the digested context, a later judgment on a predecessor makes an
+earlier registration stale.
+
 ## Explicit formal source selection
 
 The opt-in requirement-trace@3 capability retains the v2 graph contract and permits IMP acceptance_scope partial with an exact nonempty formal_files list. Whole-product coverage remains the default and forbids a file selection. The complete committed source inventory and every file role remain visible. Partial inventory entries expose formal true or false; only formal files derive SCP data. The verifier must be formal. Unsupported binary entries, symlinks and submodules remain unsupported even when provisional.
@@ -163,7 +175,7 @@ an error regardless of the script's exit status.
 
 ## Editable proposal drafts
 
-`proposal draft` uses the same current guidance and action resolution as `expectations show`. The caller selects the action, optional exact subject, operation identity and new output file. The saved JSON contains the complete proposal envelope and unchanged candidate examples, including fixed payload values, exact links and predecessors. For stakeholder actions it also prepares `evidence.authority` with the exact required role name. Autonomous and independent-review drafts do not receive that field. This declaration supplies no stakeholder decision or submission authority: the caller still supplies the matching explicit `--authority` flag after the actual decision. Drafting supplies no semantic claims, receipt selection or review evidence. Authored fields still need the prompt and `payloadSchemas` from guidance.
+`proposal draft` uses the same current guidance and action resolution as `expectations show`. The caller selects the action, optional exact subject, operation identity and new output file. The saved JSON contains the complete proposal envelope and the candidate examples, including fixed payload values, exact links and predecessors. A candidate that names a predecessor also starts from that predecessor's authored payload and body, with kernel-managed fields omitted and fixed payload values replacing carried ones. Links are carried narrowly. The draft keeps a predecessor link only when its target is still the latest revision and its relation is authored for the type. Some relations are never carried: any relation a package action fixes for the type (context such as `corrects` or `responds-to`, which comes fresh from this action's inputs), relations the CLI generates for requirement tracing (`contains`, `decomposition`, `retires`, `changes-under`, `baseline`), and product `verification` selections. The author must choose current activities again, so an unedited correction without that choice is rejected. Review the carried payload and links, add the links that were not carried, and edit what changes. Submission validates the edited candidate as usual. For stakeholder actions it also prepares `evidence.authority` with the exact required role name. Autonomous and independent-review drafts do not receive that field. This declaration supplies no stakeholder decision or submission authority: the caller still supplies the matching explicit `--authority` flag after the actual decision. Drafting supplies no semantic claims, receipt selection or review evidence. Authored fields still need the prompt and `payloadSchemas` from guidance.
 
 For an `independent-result` action, optional `--activity <exact-activity>` selects one exact revision from the subject's verification activities and adds its `evaluates` link to the capability-bound result candidate. Existing fixed links and envelope bindings remain unchanged. An invalid, conflicting or inapplicable selection fails before output creation. Omitting the option preserves ordinary draft behavior. This only prepares the link; receipt selection and submission's exact receipt/activity validation remain unchanged.
 

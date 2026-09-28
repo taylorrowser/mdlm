@@ -70,8 +70,12 @@ test("stakeholder refinement preserves reviewed history and requires successor r
     expect(cli(["expectations"]).optional).toContainEqual(expect.objectContaining({action: expect.stringMatching(/^refine-requirements@/), subject: set}));
     const refine = guidance("refine-requirements", set);
     expect(refine.authority).toEqual({kind: "stakeholder", name: "stakeholder"});
-    const nextSet = refine.candidates.find((c: any) => c.type === "RQS");
+    // The requirement-set draft carries no CLI-generated contains or decomposition links, so it can be submitted as drafted.
+    const draftFile = path.join(root, "refine-draft.json");
+    cli(["proposal", "draft", "refine-requirements", set, "--operation", "refine", "--output", draftFile]);
+    const nextSet = JSON.parse(await fs.readFile(draftFile, "utf8")).candidates.find((c: any) => c.type === "RQS");
     expect(nextSet.predecessor).toBe(set);
+    expect(nextSet.links).toEqual([]);
     const nextCount = {localId: "count", type: "REQ", predecessor: count.revision_id, payload: {...count.payload, ears: {...count.payload.ears, response: "return the supplied item count independently of all earlier requests"}, rationale: "Stakeholder clarified that independent responses and caller-owned history are required; internal storage is not constrained"}, links: count.links, body: ""};
     const denied = await submit(refine, "missing-authority", [nextCount, nextSet], false, false, 1);
     expect(JSON.stringify(denied)).toContain("explicit authority");

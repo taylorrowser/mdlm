@@ -73,11 +73,16 @@ test("proposal drafts preserve selected guidance, accept authored work and rejec
     const revisionFile = path.join(root,"revision.json");
     cli("proposal","draft","revise-selected",subject,"--operation","revise-selected","--output",revisionFile);
     const revisionProposal = JSON.parse(await fs.readFile(revisionFile,"utf8"));
-    expect(revisionProposal.candidates).toEqual(revisionGuidance.candidates);
+    // The revision draft starts from the predecessor's authored content, so one change edits one field.
+    expect(revisionProposal.candidates).toEqual([{...revisionGuidance.candidates[0],payload:candidate.payload,body:candidate.body}]);
     expect(revisionProposal.candidates[0].predecessor).toBe(subject);
     expect(revisionProposal.subject).toBe(subject);
     expect(revisionProposal.inputs).toEqual({subject:[subject]});
     expect([git("status","--porcelain"),git("show-ref")]).toEqual(published);
+    revisionProposal.candidates[0].payload.title = "Revised second experiment";
+    await fs.writeFile(revisionFile,JSON.stringify(revisionProposal));
+    const revised = cli("proposal","submit",revisionFile);
+    expect(cli("show",revised.revisions[0]).lifecycleDatum.datum).toMatchObject({payload:{...candidate.payload,title:"Revised second experiment"},body:candidate.body});
   } finally {await fs.rm(root,{recursive:true,force:true});}
 },60_000);
 

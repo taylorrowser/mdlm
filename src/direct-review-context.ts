@@ -37,6 +37,8 @@ export interface DirectReviewContext {
   verifierSources?: {activity: string; sourceCommit: string; files: {path: string; blob: string; content: string; encoding?: "base64"}[]}[];
   verificationCoverage?: unknown;
   verificationReceipts: {result: string; implementation: string; requirements: string; locator: string; execution: string; binding: "validated"; receipt: Awaited<ReturnType<typeof readVerificationReceiptBlob>>["receipt"]}[];
+  lineage?: {predecessors: DatumEnvelope[]; answers: string[]; changes: DatumEnvelope[]; decisions: DatumEnvelope[];
+    predecessorGraph?: {selection: string; groups: DatumEnvelope[]; requirements: (DatumEnvelope & {leaf: boolean})[]; diagnostics: unknown[]}};
 }
 
 async function reviewSource(implementation: DatumEnvelope): Promise<DirectReviewContext["sources"][number]> {
@@ -69,6 +71,29 @@ async function acceptedBaseline(data: DatumEnvelope[], trace: RequirementTraceBi
   return {requirements, change, acceptance, implementation: previous, source: await reviewSource(previous),
     scopes: data.filter(datum => datum.type === trace.scope_type && datum.links.some(link => link.type === "belongs-to" && link.target === previous.revision_id)),
     comparison: compareImplementationScopes(data, trace, previous.revision_id, implementation.revision_id)};
+}
+
+/** Exact earlier revisions of a reviewed subject and the recorded judgments bound to them or to its change. */
+function reviewLineage(context: DirectContext, trace: RequirementTraceBinding | undefined): DirectReviewContext["lineage"] {
+  const {data} = context, subject = data.find(datum => datum.revision_id === context.subject);
+  if (context.action.capability !== "review" || !subject) return undefined;
+  const exact = (relation: string) => subject.links.filter(link => link.type === relation).map(link => {
+    const matches = data.filter(datum => datum.revision_id === link.target);
+    if (matches.length !== 1) throw new Error(`Review lineage: '${subject.revision_id}' ${relation} '${link.target}' is unavailable`);
+    return matches[0]!;
+  });
+  const predecessors = data.filter(datum => datum.id === subject.id && datum.revision < subject.revision).sort((a, b) => a.revision - b.revision);
+  const answered = exact("corrects"), changes = exact("changes-under");
+  if (!predecessors.length && !answered.length && !changes.length) return undefined;
+  const anchors = new Set([...predecessors, ...changes].map(datum => datum.revision_id));
+  const decisions = data.filter(datum => answered.includes(datum) || ((context.action.types.includes(datum.type) || datum.type === trace?.acceptance_type) && datum.links.some(link => anchors.has(link.target))));
+  const previous = predecessors.at(-1);
+  let predecessorGraph: NonNullable<DirectReviewContext["lineage"]>["predecessorGraph"];
+  if (trace && previous?.type === trace.type) {
+    const graph = selectedRequirementGraph(data, previous, trace);
+    predecessorGraph = {selection: previous.revision_id, groups: graph.groups, requirements: graph.requirements.map(datum => ({...datum, leaf: graph.leaves.has(datum.revision_id)})), diagnostics: graph.diagnostics};
+  }
+  return {predecessors, answers: answered.map(datum => datum.revision_id), changes, decisions, ...(predecessorGraph ? {predecessorGraph} : {})};
 }
 
 /** The caller authenticates context freshness before registration/publication. */
@@ -112,7 +137,9 @@ export async function buildDirectReviewContext(context: DirectContext): Promise<
     if (product) result.verificationCoverage = verificationStatus(context, product.revision_id);
   }
   const trace = requirementTraceBinding(pkg);
-  if (!trace) return result;
+  // Lineage is added last so existing exact-context failures keep precedence.
+  const withLineage = () => { const lineage = reviewLineage(context, trace); if (lineage) result.lineage = lineage; return result; };
+  if (!trace) return withLineage();
   const changes = selected.filter(datum => datum.type === trace.change_type);
   if (changes.length === 1) {
     const change = changes[0]!, baseline = data.find(datum => datum.revision_id === change.links.find(link => link.type === "baseline")?.target);
@@ -172,5 +199,5 @@ export async function buildDirectReviewContext(context: DirectContext): Promise<
     if (registered !== saved.oid || verified.outcome !== datum.payload.outcome) throw new Error("Result conflicts with its registered execution receipt");
     result.verificationReceipts.push({result: datum.revision_id, implementation: implementation.revision_id, requirements: requirements.revision_id, locator: datum.payload.receipt as string, execution: transaction.id, binding: "validated", receipt: saved.receipt});
   }
-  return result;
+  return withLineage();
 }

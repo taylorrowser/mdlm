@@ -185,6 +185,18 @@ test("independent verification reports complete requirements, failures, stale ev
     const evidenceDirectory=path.join(root,"exported-evidence");const exportedEvidence=cli(["execution","export","pass-fresh",evidenceDirectory]);expect(exportedEvidence.files.some((f:any)=>f.path==="report.json")).toBe(true);expect(JSON.parse(await fs.readFile(path.join(evidenceDirectory,"report.json"),"utf8")).cases).toHaveLength(2);
     await review("review-implementation",productId,"review-implementation");
     expect(cli(["verification","status",productId]).complete).toBe(true);
+    // A correction draft carries the product payload but never its verification selection: unedited, it is rejected until the author selects current activities.
+    const rejecting=guidance("accept-product",productId),rej=rejecting.candidates[0];rej.payload={...rej.payload,title:"Reject count",decision:"reject",rationale:"Stakeholder asks for a corrected product"};await submit(rejecting,"reject",[rej],{authority:["stakeholder"]});
+    const correctionFile=path.join(root,"correction-draft.json");
+    cli(["proposal","draft","correct-rejected-product",productId,"--operation","correction","--output",correctionFile]);
+    const correction=JSON.parse(await fs.readFile(correctionFile,"utf8")),corrected=correction.candidates[0];
+    expect(corrected.links.map((l:any)=>l.type).sort()).toEqual(["corrects","implements"]);
+    expect(corrected.payload).toMatchObject({title:"Count product",source_commit:source});
+    expect(JSON.stringify(cli(["proposal","submit",correctionFile],1))).toContain("select at least one exact independent verification activity");
+    expect(cli(["proposal","settlement","correction"]).outcome).toBe("not-published");
+    corrected.links.push({type:"verification",target:activity});await fs.writeFile(correctionFile,JSON.stringify(correction));
+    productId=cli(["proposal","submit",correctionFile]).revisions.find((id:string)=>id.startsWith("IMP-"));commit(repository);
+    await execute("corrected",productId);await review("review-implementation",productId,"review-corrected");
     const accepting=guidance("accept-product",productId),acc=accepting.candidates[0];acc.payload={...acc.payload,title:"Accept count",decision:"accept",rationale:"Independent public cases and coverage reviewed"};await submit(accepting,"accept",[acc],{authority:["stakeholder"]});
     // Keep formal acceptance intact. A new provisional product tests implementation substitution and mismatch without rewriting its oracle.
     const criterionContext=cli(["verification","context",expId]);
