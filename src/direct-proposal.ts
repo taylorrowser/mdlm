@@ -36,7 +36,14 @@ export async function directState(root: string) {
   const data = loaded.value.map(p => p.lifecycleDatum.datum).sort((a,b) => a.revision_id.localeCompare(b.revision_id));
   const {reference,digest: packageDigest,language} = selected.summary;
   const identity = {reference,digest:packageDigest,language};
-  return {root,pkg:selected.processPackage,package:identity,snapshot:digest({package:identity,data}),data,parsed:loaded.value};
+  const repository = await repositoryIdentity(root);
+  return {root,pkg:selected.processPackage,package:identity,repository,snapshot:digest({package:identity,repository,data}),data,parsed:loaded.value};
+}
+/** The first-parent root commit identifies one lifecycle repository lineage; `mdlm init` makes it unique with a nonce. */
+async function repositoryIdentity(root: string) {
+  const roots = (await git(root,["rev-list","--first-parent","--max-parents=0","HEAD"]).catch(()=>"")).split("\n").filter(Boolean);
+  if (roots.length !== 1 || !/^[a-f0-9]{40,64}$/.test(roots[0]!)) fail("Lifecycle repository identity requires one initial commit");
+  return `git-commit:${roots[0]}`;
 }
 type State = Awaited<ReturnType<typeof directState>>;
 function snapshot(current: State) { return {processRef:`${current.package.reference}#${current.package.digest}`,records:current.parsed.map(p=>p.lifecycleDatum),dependencyComparisons:[]}; }
@@ -206,7 +213,7 @@ export async function submitDirectProposal(root:string,source:string,authorities
   if(!isDeepStrictEqual(proposal.evidence?.authority??[],authorities))fail("Stakeholder authority must match the explicitly supplied command authority");
   return withRepositoryLock(root,lock,async()=>{
     const saved=await settlement(root,proposal.operation);if(saved){if(saved.tx.proposalDigest!==proposalDigest)fail("Operation already published different candidate bytes");return saved.result;}
-    const current=await directState(root);if(!isDeepStrictEqual(proposal.package,current.package)||proposal.snapshot!==current.snapshot)fail("Proposal package or snapshot changed; refresh guidance");
+    const current=await directState(root);if(!isDeepStrictEqual(proposal.package,current.package))fail("Proposal package changed; refresh guidance");if(proposal.snapshot!==current.snapshot)fail(`Proposal snapshot does not match lifecycle repository ${current.repository} and its current data; it was drafted in another repository, an earlier state or by an earlier MDLM release. Redraft it from fresh guidance in this repository`);
     const context=directContext(current,proposal.action,proposal.subject);
     if(proposal.inputs&&!isDeepStrictEqual(proposal.inputs,context.inputs))fail("Proposal exact inputs changed");
     const prompt=await resolvePrompt(current.pkg,context.action.prompt_ref);if(!prompt.prompt||prompt.diagnostics.length)fail("Package prompt unavailable");

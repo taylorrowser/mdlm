@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -128,6 +129,8 @@ async function initializeGit(repositoryRoot: string): Promise<void> {
     "--no-verify",
     "--message",
     "Initialize MDLM repository",
+    "--message",
+    `MDLM-Repository-Nonce: ${randomUUID()}`,
   ]);
   const commitCount = (await git(repositoryRoot, [
     "rev-list",

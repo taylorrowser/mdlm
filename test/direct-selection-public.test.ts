@@ -86,6 +86,28 @@ test("proposal drafts preserve selected guidance, accept authored work and rejec
   } finally {await fs.rm(root,{recursive:true,force:true});}
 },60_000);
 
+test("a draft from one fresh repository is rejected by another with the same initial data", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(),"mdlm-direct-repository-"));
+  try {
+    const run = (cwd:string,status:number,...args:string[]) => {
+      const result = spawnSync(process.execPath,[path.join(process.cwd(),"dist/mdlm.js"),...args,"--json"],{cwd,encoding:"utf8",timeout:30_000});
+      expect(result.status,result.stdout+result.stderr).toBe(status);return JSON.parse(result.stdout);
+    };
+    const [a,b] = ["a","b"].map(name=>path.join(root,name)) as [string,string];
+    run(root,0,"init",a,"--process","exploratory");run(root,0,"init",b,"--process","exploratory");
+    const file = path.join(root,"proposal.json");
+    run(a,0,"proposal","draft","frame-experiment","--operation","foreign-draft","--output",file);
+    const proposal = JSON.parse(await fs.readFile(file,"utf8"));
+    Object.assign(proposal.candidates[0].payload,{title:"Foreign",criterion:"Count arguments",question:"Which repository?",approach:"Submit elsewhere",constraints:"None",allowance_minutes:5,scope_cut:"None"});
+    proposal.candidates[0].body = "Drafted for repository a.";
+    await fs.writeFile(file,JSON.stringify(proposal));
+    const rejected = run(b,1,"proposal","submit",file);
+    expect(rejected.diagnostics[0].message).toMatch(/drafted in another repository/);
+    expect(run(b,0,"proposal","settlement","foreign-draft").outcome).toBe("not-published");
+    expect(run(a,0,"proposal","submit",file).outcome).toBe("accepted");
+  } finally {await fs.rm(root,{recursive:true,force:true});}
+},60_000);
+
 test("stakeholder drafts prepare the role but still require explicit submission authority", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-draft-authority-"));
   const fixture = path.join(root, "package"), repository = path.join(root, "lifecycle");
