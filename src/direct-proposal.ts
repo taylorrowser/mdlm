@@ -15,6 +15,7 @@ import { finalizeDirectDomain } from "./direct-domain.js";
 import { validateDirectAuthority, buildDirectReviewContext, registerDirectReview } from "./direct-authority.js";
 import { readVerificationReceiptBlob, validateVerificationReceipt, type VerificationBinding, runVerificationReceipt, verificationRef } from "./verification-receipt.js";
 import { repositoryGitEnvironment } from "./git-environment.js";
+import { requirementTraceBinding } from "./requirement-trace.js";
 import { authorablePayloadSchema, sourceAssessmentTargets, requirementAuthoringTargets } from "./direct-guidance.js";
 
 import { independentBinding, independentExecutionBinding, selectedActivities, verificationAuthoringContext, verificationStatus, currentVerificationResults } from "./independent-verification.js";
@@ -114,24 +115,37 @@ export async function inspectDirectExpectations(root:string,action?:string,subje
   const completed=terminal?.when!==undefined && expression(current,terminal.when)===true;
   return {ok:true,contract:"mdlm-expectations@2",package:current.package,snapshot:current.snapshot,items,optional,outcome:completed?(terminal?.outcome??"profile-boundary-reached"):items.length?"work-available":"blocked"};
 }
-/** A revision draft starts from its predecessor's authored content; fixed values and fixed link relations stay as the action declares them. */
-function carryPredecessors(current: State, context: DirectContext, candidates: DirectCandidate[]) {
+/**
+ * A revision draft starts from its predecessor's authored payload and body. It carries a predecessor link only when
+ * the author owns that relation and its target is still current. Not carried: relations any package action fixes for
+ * the type (context such as corrects or responds-to, supplied fresh from this action's inputs), relations the kernel
+ * generates for requirement tracing, and product verification selections, which need a fresh author choice.
+ */
+function carryPredecessors(current: State, candidates: DirectCandidate[]) {
+  const kernelRelations = new Set([
+    ...(requirementTraceBinding(current.pkg) ? ["contains", "decomposition", "retires", "changes-under", "baseline"] : []),
+    ...(independentBinding(current.pkg) ? ["verification"] : []),
+  ]);
+  const latest = (target: string) => {
+    const datum = current.data.find(d => d.revision_id === target);
+    return !!datum && !current.data.some(d => d.id === datum.id && d.revision > datum.revision);
+  };
   for (const candidate of candidates) {
     const prior = current.data.find(datum => datum.revision_id === candidate.predecessor && datum.type === candidate.type);
     if (!prior) continue;
     const resolved = resolveType(current.pkg, candidate.type); if (!resolved.ok) fail(JSON.stringify(resolved.diagnostics));
     const payload = structuredClone(prior.payload);
     for (const field of resolved.type.kernelManagedPayloadPaths) delete payload[field];
-    const fixedRelations = new Set(Object.keys(context.action.links?.[candidate.type] ?? {}));
+    const contextRelations = new Set(Object.values(current.pkg.actions).flatMap(action => Object.keys(action.links?.[candidate.type] ?? {})));
     candidate.payload = {...payload, ...candidate.payload};
-    candidate.links = [...candidate.links, ...structuredClone(prior.links).filter(link => !fixedRelations.has(link.type))];
+    candidate.links = [...candidate.links, ...prior.links.filter(link => !contextRelations.has(link.type) && !kernelRelations.has(link.type) && latest(link.target)).map(link => ({...link}))];
     candidate.body = prior.body;
   }
 }
 export async function draftDirectProposal(root: string, action: string, subject: string | undefined, operation: string, activity?: string): Promise<DirectProposal> {
   const current = await directState(root);
   const selected = await guidance(current, action, subject);
-  carryPredecessors(current, directContext(current, action, subject), selected.candidates);
+  carryPredecessors(current, selected.candidates);
   if (activity !== undefined) {
     const context = directContext(current, action, subject), binding = independentBinding(current.pkg);
     if (context.action.capability !== "independent-result" || !binding) fail("--activity requires an independent-result action");
