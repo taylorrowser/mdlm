@@ -1,17 +1,17 @@
 ---
 id: rebind-product
-version: 21
+version: 22
 skills:
-- skills/product-quality.md@6
-- skills/typed-requirements.md@13
-- skills/source-trace.md@7
+- skills/product-quality.md@7
+- skills/typed-requirements.md@14
+- skills/source-trace.md@8
 ---
 
 # Bind the product to the current requirements
 
 Apply the supplied shared product-quality skill before authoring or reviewing.
 
-Publish a new revision in the same IMP lineage linked to the reviewed current RQS graph. Reuse the previous product source commit and file_roles when the product is unchanged. Select independent VFY revisions through verification links. Revise the product or independent activity in its own repository when the requirements require it, and record each exact commit. Fresh CLI verification and independent implementation Review follow. The CLI supplies exact links, lineage and publication marker, and regenerates source scopes against the selected exact requirements.
+Publish a new revision in the same IMP lineage linked to the reviewed current RQS graph. Reuse the previous product source commit and file_roles when the product is unchanged. Select independent VFY revisions through verification links; each selected activity must verify only exact requirement revisions in the current RQS. Before drafting, compare each existing activity's `verifies` targets with that selection. When a target was revised or retired, first revise the activity with `revise-verification` from a fresh `mdlm verification context` export of the current RQS, obtain its independent review, then select the new revision. Revise the product in its own repository when the requirements require it, and record each exact commit. Fresh CLI verification and independent implementation Review follow. The CLI supplies exact links, lineage and publication marker, and regenerates source scopes against the selected exact requirements.
 
 For an approved change, run `mdlm review context <action> <exact-subject> --json` using this guidance's exact action and subject. In `requirementGraphs[]`, select the graph whose `selection` matches the sole revised RQS in `inputs.requirements`. Copy that graph's `assessment.sourceScopes` into `impact_dispositions[].source_scope`, one row per exact baseline revision and no extra rows. An empty list means `impact_dispositions: []`. Select by identity, not array position.
 

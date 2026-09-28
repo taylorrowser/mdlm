@@ -1,7 +1,7 @@
 kind: action-definition
-id: revise-verification
-version: 13
-description: revise verification
+id: correct-verification-after-review
+version: 1
+description: Correct a verification activity after a failed adequacy review
 capability: verification-activity
 prompt_ref: prompts/plan-verification.md@15
 types:
@@ -9,9 +9,9 @@ types:
 subjects: select("current-verification-activities@1", {})
 inputs:
   activity: subject
-when: 'true'
+  failure: 'one("fail-reviews@1", {subject: subject})'
+when: 'exists("fail-reviews@1", {subject: subject})'
 priority: 90
-optional: true
 links: {}
 fixed_payload:
   VFY:

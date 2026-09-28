@@ -1,8 +1,8 @@
 ---
 id: request-change
-version: 10
+version: 11
 skills:
-- skills/product-quality.md@6
+- skills/product-quality.md@7
 ---
 
 Describe the reason and requested outcome. For existing scope, include one or more `changes` links. Copy each target as a distinct exact requirement revision ID from the accepted baseline, including for implementation-only maintenance. Target the affected software requirements when their parents remain correct. To rewrite one component in another language, target that component's low-level requirements and any stakeholder constraint that names its language; its high-level, system and interface requirements remain unchanged. The CLI supplies the accepted baseline.

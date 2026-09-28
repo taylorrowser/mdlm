@@ -1,12 +1,12 @@
 ---
 id: source-trace
-version: 7
+version: 8
 skills: []
 ---
 
 # Attribute production source
 
-Declare file_roles for every committed product entry. Production, build and configuration files are attributed to exact selected software requirements. When levels are used, a component's launcher, runtime manifest and build files belong to its low-level leaves where they exist. Documentation is nonexecutable prose. Verification source belongs to its separate VFY repository and is not part of this inventory.
+Declare file_roles for every committed product entry. Production, build and configuration files are attributed to exact selected software requirements. When levels are used, a component's launcher, runtime manifest and build files belong to its low-level leaves where they exist; with their siblings those leaves also own the rest of the decomposed high-level requirement's code. Documentation is nonexecutable prose. Verification source belongs to its separate VFY repository and is not part of this inventory.
 
 Use source_ranges for language-neutral attribution. Each entry contains path, name, start, end and requirements, a nonempty list of stable requirement IDs. Ranges are inclusive physical line numbers. Give every nonblank supported source line a clear responsibility; several ranges may support one requirement and one range may support several requirements. The CLI binds stable IDs to exact revisions in the selected RQS, checks coverage and generates source inventory and SCP data. Python source may retain supported closed comment regions when source_ranges is omitted. Do not mix representations ambiguously.
 
