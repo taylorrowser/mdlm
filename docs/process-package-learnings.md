@@ -621,6 +621,16 @@ attempt must establish any preventive benefit; this recovery does not prove it.
 When operation exposes another ambiguity, update its owning guidance and record
 the learning in the same session.
 
+Issue #966 follows a box-office change that removed a feature. Its verification
+author deleted the feature-named cases. Two of them were the only evidence for
+conditions that surviving requirements still depend on. Nothing mechanical failed,
+and two adequacy reviews caught the gap. The plan-verification revision sentence
+now asks the author, before removing or narrowing a case, to list the targets it
+covered that remain selected and to keep that evidence, with a new stimulus if
+needed. It does not require the old case id, stimulus or count to survive. Check
+package loading and exact references; a later change lane must show whether
+authors keep the evidence without review prompting.
+
 ## 7. Generated artifacts are not committed
 
 Issues: #478, #498, #553, #557, #561, #563, #574, #577, #589, #601, #634,
