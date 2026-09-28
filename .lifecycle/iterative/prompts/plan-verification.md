@@ -1,6 +1,6 @@
 ---
 id: plan-verification
-version: 13
+version: 14
 skills: []
 ---
 
@@ -31,7 +31,11 @@ organization and private functions.
 Choose the method per claim and state what its evidence establishes. Mechanically assert exact public numeric and protocol behavior, including required values, identities, associations, transitions and error results. Derive these expectations from the public contract. Compare public values using the contract's semantics. Preserve required structure, exact-field constraints and meaningful ordering; accept representation differences and extra fields the contract leaves open. Compare full before/after state where preservation is required. For CLI, web or API work, observe the public interaction and its result; analysis can compare those observations with an explicit model. Keep presentation choices flexible where the contract permits them.
 
 Method and execution level are separate choices. A detailed software rule may use
-an independent unit or component test through a declared stable contract. A
+an independent unit or component test through a declared stable contract. When
+levels are used, target system and high-level requirements through their ICD
+clauses and product entry points so the activity survives a rewrite; verify
+low-level requirements by declared inspection or a component test through a stable
+seam. A
 language-specific adapter may invoke that contract and translate representations;
 it must not compute the expected result, inspect private implementation state or
 conceal a required difference. An internal ICD is useful for a meaningful shared

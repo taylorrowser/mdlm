@@ -416,6 +416,32 @@ coaching; structural checks do not prove better verification. When operation
 exposes another method ambiguity, update the owning guidance and this learning
 in the same session.
 
+## Optional requirement levels, #959
+
+Two- and three-component fable products marked components only in titles and
+EARS subjects, and put language choices into product-wide requirements and
+normative interface clauses. Nothing could select one component's requirements or
+the ones a rewrite should replace. ADR-0005 dropped levels because they were
+mandatory, separately verified phases for one-component products, not because
+levels are wrong. This is class 3 for the payload fields and class 10 for shared
+author and reviewer expectations.
+
+REQ 4 adds optional `level` (`system`, `high-level`, `low-level`) and `component`.
+The schema rejects either field on a stakeholder REQ, requires `component` for
+high-level and low-level, and forbids it for system. Parent fit, implementation
+neutrality and whether levels apply are review judgments in the existing
+requirements review. Low-level requirements exist only for real design or
+realization decisions and are the only ones a component rewrite replaces.
+Single-component products omit both fields. See ADR-0008.
+
+Check the schema conditions at the package seam and one public draft of a
+four-level two-component set beside an unlevelled one-component set. A fresh
+two-component product, followed by a change that rewrites one component, must
+show which requirements were revised versus retained, which activities were
+re-authored versus re-executed, and whether high-level requirements stayed
+language-free without coaching. Add kernel parent-order enforcement only when
+review misses it in operation, and record that evidence here.
+
 ## Historical patterns and checks
 
 ## 1. Every failable output needs a correction route

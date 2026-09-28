@@ -153,7 +153,11 @@ _Avoid_: Latest requirement, acceptance inferred without the selected package's 
 
 **Decomposition Group (DCP)**:
 One exact parent requirement and its complete group of immediate child requirements. Each child's validity under that parent and the group's collective adequacy are separate judgments.
-_Avoid_: Requirement level, decomposition work package
+_Avoid_: Decomposition work package
+
+**Requirement Level**:
+An optional `system`, `high-level` or `low-level` tag on a software requirement in a multi-component product, with a `component` tag for the last two. Only low-level requirements may name implementation technology, and a component rewrite replaces only them. Single-component products omit levels.
+_Avoid_: Mandatory tiers, a separate type per level
 
 **Requirement Set (RQS)**:
 An exact selection of requirements and their decomposition groups for a product. Explicit retirements exclude requirements from a successor selection without changing historical selections.

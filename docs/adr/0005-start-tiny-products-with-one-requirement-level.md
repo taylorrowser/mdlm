@@ -11,6 +11,8 @@ to exact parent revisions for useful decomposition instead of a fixed level
 limit. CLI-managed batching and generated source scopes preserve one set-level
 review and the direct implementation and verification route. The rationale and
 execution description below record the earlier package, not current guidance.
+[ADR-0008](0008-optional-requirement-levels-for-multi-component-products.md)
+later adds optional requirement levels for multi-component products.
 
 The default Process Package for tiny products keeps intent, software commitments,
 and acceptance examples in one requirement set, followed by implementation,

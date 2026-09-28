@@ -1,6 +1,6 @@
 kind: type-definition
 id: REQ
-version: 3
+version: 4
 description: Requirement statement
 name: Requirement statement
 extends: titled-datum@1
@@ -176,6 +176,13 @@ payload_schema:
           response: return the requested result
     rationale: *a2
     source: *a2
+    level:
+      type: string
+      enum:
+        - system
+        - high-level
+        - low-level
+    component: *a2
   allOf:
     - if:
         properties:
@@ -195,6 +202,40 @@ payload_schema:
         not:
           required:
             - statement
+    - if:
+        properties:
+          kind:
+            const: stakeholder
+        required:
+          - kind
+      then:
+        not:
+          anyOf:
+            - required:
+                - level
+            - required:
+                - component
+    - if:
+        properties:
+          level:
+            enum:
+              - high-level
+              - low-level
+        required:
+          - level
+      then:
+        required:
+          - component
+    - if:
+        properties:
+          level:
+            const: system
+        required:
+          - level
+      then:
+        not:
+          required:
+            - component
 outgoing_links:
   - id: uses-interface
     description: Exact interface context; necessary obligations remain explicit requirements

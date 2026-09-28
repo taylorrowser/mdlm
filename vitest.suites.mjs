@@ -2,7 +2,7 @@
 // its owning release; deleted workflow tests are not a second supported suite.
 const fast = [
   "new-root-change-public", "preacceptance-refinement-public", "preacceptance-refinement-package",
-  "prototype-interface-public", "prototype-correction-package", "prototype-correction-public", "optional-formalization-public",
+  "prototype-interface-public", "requirement-levels-package", "requirement-levels-public", "prototype-correction-package", "prototype-correction-public", "optional-formalization-public",
   "independent-verification-package", "independent-verification-public", "array-expression", "change-assessment", "direct-authority", "direct-domain", "direct-package", "direct-receipt",
   "direct-selection-public", "iterative-public", "iterative-maintenance-reuse", "kernel-cutover", "lifecycle-schema-diagnostics", "mdlm-cli-output",
   "release-candidate-gate", "requirement-trace-v2", "source-scopes",

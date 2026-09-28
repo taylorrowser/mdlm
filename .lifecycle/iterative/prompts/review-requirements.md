@@ -1,9 +1,9 @@
 ---
 id: review-requirements
-version: 19
+version: 20
 skills:
 - skills/product-quality.md@6
-- skills/typed-requirements.md@12
+- skills/typed-requirements.md@13
 ---
 
 # Review requirements
@@ -12,7 +12,7 @@ Apply the supplied shared product-quality skill before authoring or reviewing.
 
 The lifecycle author exports the complete exact review context and requests a fresh independent reviewer through the root. The manager authenticates and registers the returned verdict using the direct review registration command supplied in the guidance. The author submits that exact unchanged verdict using the normal submit-proposal command. Do not author your own review or replace the registration with completionEvidence. The following content judgments belong to the independent reviewer.
 
-Independently review the complete RQS and its contained requirement graph against the stakeholder request. Check that software descendants collectively fulfill their parents and that leaves give appropriate implementation and verification contracts. Apply every shared reviewer check, including one obligation, the architecture/depth decision and a requirements-only reader's ability to derive behavior. Bundling, unresolved required semantics, and unneeded or over-specified obligations are content defects, not optional editorial preferences. Judge clarity, scope, assumptions and relevant interactions. Complete the supplied exact requirement and decomposition assessment rows. The CLI owns structural and graph checks.
+Independently review the complete RQS and its contained requirement graph against the stakeholder request. Check that software descendants collectively fulfill their parents and that leaves give appropriate implementation and verification contracts. Apply every shared reviewer check, including one obligation, the architecture/depth decision and a requirements-only reader's ability to derive behavior. Bundling, unresolved required semantics, and unneeded or over-specified obligations are content defects, not optional editorial preferences. Judge clarity, scope, assumptions and relevant interactions. Complete the supplied exact requirement and decomposition assessment rows. When levels are used, mark needs-change a system or high-level requirement that names a language, library, file or interpreter, a missing or wrong `component`, a low-level requirement that restates its parent, and a child whose level or component does not fit its parent. The CLI owns structural and graph checks.
 
 Each DCP assessment concerns its exact parent and immediate children. Judge the child's complete obligation for validity, then its contribution to this parent separately from collective adequacy. For example, a shared child that both invokes several operations and associates returned results with requests still contains those separate duties when reused under a parent for one operation. Discussing only that operation's fragment does not establish the child's validity. A coherent shared result-classification rule may still serve several parents. For a group marked `needs-change`, identify a parent requirement or immediate child assessment marked `needs-change`, or set `membership_action` to `revise-membership` when additions, removals or redistribution are needed, even if all existing children remain valid. Record deeper descendant defects in their owning assessments. Keep an ancestor group `adequate` when its immediate decomposition is sufficient; any defect in its own parent, children or membership still needs an explicit correction target. Return one set-level outcome consistent with all assessments: adequate ancestor groups can coexist with a failing outcome for descendant defects.
 

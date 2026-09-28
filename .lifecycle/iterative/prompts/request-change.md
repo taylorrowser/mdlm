@@ -1,11 +1,11 @@
 ---
 id: request-change
-version: 9
+version: 10
 skills:
 - skills/product-quality.md@6
 ---
 
-Describe the reason and requested outcome. For existing scope, include one or more `changes` links. Copy each target as a distinct exact requirement revision ID from the accepted baseline, including for implementation-only maintenance. Target the affected software requirements when their parents remain correct. The CLI supplies the accepted baseline.
+Describe the reason and requested outcome. For existing scope, include one or more `changes` links. Copy each target as a distinct exact requirement revision ID from the accepted baseline, including for implementation-only maintenance. Target the affected software requirements when their parents remain correct. To rewrite one component in another language, target that component's low-level requirements and any stakeholder constraint that names its language; its high-level, system and interface requirements remain unchanged. The CLI supplies the accepted baseline.
 
 Targets define the scope to inspect for impact and the initial authoring frontier after approval. If a parent and known existing children each need changed commitments, include each as an exact baseline target in this request. Impact alone does not authorize revising descendants. Targeting a requirement does not require changing its meaning or decomposition. For an implementation change allowed by existing requirements, state that the obligations and decomposition remain unchanged. After approval, follow native revision guidance to preserve the same exact REQ and DCP revisions where appropriate.
 

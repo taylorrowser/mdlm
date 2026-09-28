@@ -1,10 +1,10 @@
 ---
 id: review-implementation
-version: 20
+version: 21
 skills:
 - skills/product-quality.md@6
-- skills/typed-requirements.md@12
-- skills/source-trace.md@6
+- skills/typed-requirements.md@13
+- skills/source-trace.md@7
 ---
 
 # Review product implementation and current evidence

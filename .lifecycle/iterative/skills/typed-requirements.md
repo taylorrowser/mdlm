@@ -1,6 +1,6 @@
 ---
 id: typed-requirements
-version: 12
+version: 13
 ---
 
 # Author one normal-link requirement graph
@@ -41,7 +41,8 @@ shared requirements where applicable. Keep permitted implementation choices open
 ## Record architecture and chosen depth
 
 For each system boundary, designate one owning REQ and put a short architecture/depth
-note in its `rationale`, separate from the obligation in `statement` or `ears`.
+note in its `rationale`, listing the components, the ICDs that join them and whether
+requirement levels are used, separate from the obligation in `statement` or `ears`.
 Explain the allocation of responsibilities, state ownership and interactions,
 the chosen requirement roles and why the leaves settle required behavior. Put
 required interactions in normative obligations, including parent integration claims.
@@ -76,10 +77,27 @@ and their evidence or gaps. This adds no per-clause datum or lifecycle transacti
 
 ## Settle useful depth
 
-Stakeholder roles describe needed outcomes; system roles define boundary behavior;
-software high-level roles allocate behavior; low-level roles settle necessary
-calculations, validation and state transitions. These roles are descriptive, not
-extra `kind` values or a fixed tier count. Stop when a reader can derive the
+When the architecture note names two or more components that run separately or
+may be replaced separately and are joined by an internal ICD, or the stakeholder
+says a component may be replaced, set `level` on every software REQ and `component`
+on high-level and low-level REQs. Use the component's role name from its ICDs, never
+a file. `system` states behavior at the product boundary or an integration claim
+across components and names no internal component; its parents are stakeholder
+REQs. `high-level` states one component's behavior against its ICD clauses and
+owned state and names no language, library, file or interpreter; its parents are
+stakeholder, system or same-component high-level REQs. `low-level` records a design
+or realization decision inside one component that its high-level requirement leaves
+open and a maintainer must know, such as runtime and launcher, persistence
+mechanism, concurrency control or a required algorithm or data structure; its
+parents are same-component high-level REQs or a stakeholder constraint. It is the
+only level that may name a language, library, file or interpreter, and the only
+level a rewrite of that component replaces. Decompose a high-level REQ into
+low-level REQs only where such a decision exists; never restate a high-level REQ as
+a low-level one. A high-level REQ without such a decision stays a leaf and owns its
+code; when decomposed, its low-level children together own its code. Single-component
+products omit both fields. Levels are not a fixed tier count: add a level only where
+it settles a decision, allocates a responsibility or expresses an integration claim.
+Stop when a reader can derive the
 required inputs, outputs, state changes and relevant failures from the leaf and
 its exact applicable contracts; remaining choices must be permitted implementation
 variation. Another level must settle a decision, allocate a meaningful responsibility
