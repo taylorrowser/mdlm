@@ -48,7 +48,9 @@ selecting the exact current requirements set. Explicit requirement assessments
 name distinct selected revisions and open only those statements. Coverage and
 source assessments grant no requirement-edit permission. A PASS cannot claim a
 requirement needs change. Authoring guidance and canonical publication share the
-same frontier. Findings outside approved change scope use the existing amendment
+same frontier. The exact late failure also bounds correction before first
+acceptance when no CHG exists; ordinary initial authoring retains its flexibility.
+Findings outside approved change scope use the existing amendment
 and fresh stakeholder approval route.
 
 Retain the failed Review and prior exact claims. Correct same-lineage requirements

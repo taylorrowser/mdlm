@@ -144,6 +144,12 @@ function implementationRequirementFindings(data: DatumEnvelope[], b: Requirement
   });
 }
 
+/** Bind initial late correction to its exact implementation failure, not all reviews. */
+export function lateRequirementCorrectionFrontier(data: DatumEnvelope[], b: RequirementTraceBinding, set: DatumEnvelope, failure: DatumEnvelope | undefined): {requirements: string[]; groups: string[]} | undefined {
+  const review = implementationRequirementFindings(data, b, set).find(r => r.revision_id === failure?.revision_id);
+  return review ? {requirements: unique(rows(review.payload.requirement_assessments).filter(a => a.disposition === "needs-change").map(a => String(a.requirement))), groups: []} : undefined;
+}
+
 /** Derive local review obligations from exact graph evidence, without maintaining a queue. */
 export function assessRequirements(data: DatumEnvelope[], b: RequirementTraceBinding, set: DatumEnvelope): RequirementAssessments {
   const graph = selectedRequirementGraph(data, set, b);
@@ -272,6 +278,27 @@ export function validateChangeDatum(data: DatumEnvelope[], b: RequirementTraceBi
     const historicalRetired = others.filter(s => s.type === b.type && s.id === datum.id && s.revision < datum.revision).flatMap(s => targets(s, "retires"));
     if (historicalRetired.some(id => !retired.includes(id))) fail("change-retirement-history", "Retirement links must preserve prior exact retirements; reinstatement is unsupported");
     if (retired.some(id => { const r = find(all, id); return !r || r.type !== b.requirement_type || selected.some(s => s.id === r.id); })) fail("change-retirement-selection", "Retired requirements must be exact requirements excluded from the current selection");
+    const failure = find(all, targets(datum, "corrects")[0]);
+    const reviewed = find(all, targets(failure, "reviews")[0]);
+    if (!change && previousSet && reviewed?.type === b.implementation_type) {
+      // Validate historical permission before this selection and its later products existed.
+      const laterSets = new Set(all.filter(s => s.type === b.type && s.id === datum.id && s.revision >= datum.revision).map(s => s.revision_id));
+      const authoringData = others.filter(d => !laterSets.has(d.revision_id) && !(d.type === b.implementation_type && targets(d, "implements").some(id => laterSets.has(id))));
+      const frontier = lateRequirementCorrectionFrontier(authoringData, b, previousSet, failure);
+      if (!frontier) fail("change-frontier-source", "Initial late correction requires its exact current implementation failure and selected requirement findings");
+      const previousGraph = selectedRequirementGraph(all, previousSet, b);
+      const graph = selectedRequirementGraph(all, datum, b);
+      for (const r of graph.requirements) {
+        const old = previousGraph.requirements.find(old => old.id === r.id);
+        if (old?.revision_id !== r.revision_id && (!old || !frontier?.requirements.includes(old.revision_id))) fail("change-frontier", `Requirement '${r.revision_id}' is outside the exact late-review correction frontier`);
+      }
+      if (previousGraph.requirements.some(old => !graph.requirements.some(r => r.id === old.id))) fail("change-frontier", "Initial late correction must preserve selected requirement identities");
+      for (const g of graph.groups) {
+        const old = previousGraph.groups.find(old => old.id === g.id);
+        const children = (group: DatumEnvelope | undefined) => targets(group, "child").map(id => find(all, id)?.id ?? id).sort();
+        if (!old || JSON.stringify(children(old)) !== JSON.stringify(children(g))) fail("change-membership-frontier", "Initial late requirement findings do not authorize decomposition membership changes");
+      }
+    }
   }
   if (datum.type === b.type && baselines.length) {
     const graph = selectedRequirementGraph(all, datum, b);
