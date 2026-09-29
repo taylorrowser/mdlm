@@ -196,9 +196,9 @@ test("independent verification reports complete requirements, failures, stale ev
     expect(cli(["proposal","settlement","correction"]).outcome).toBe("not-published");
     corrected.links.push({type:"verification",target:activity});await fs.writeFile(correctionFile,JSON.stringify(correction));
     productId=cli(["proposal","submit",correctionFile]).revisions.find((id:string)=>id.startsWith("IMP-"));commit(repository);
-    await execute("corrected",productId);await review("review-implementation",productId,"review-corrected");
-    const accepting=guidance("accept-product",productId),acc=accepting.candidates[0];acc.payload={...acc.payload,title:"Accept count",decision:"accept",rationale:"Independent public cases and coverage reviewed"};await submit(accepting,"accept",[acc],{authority:["stakeholder"]});
-    // Keep formal acceptance intact. A new provisional product tests implementation substitution and mismatch without rewriting its oracle.
+    expect(datum(productId).links).toContainEqual({type:"verification",target:activity});
+    // The regression ends at the published correction; executing and accepting it adds a container run and no draft coverage.
+    // Keep the formal product and its oracle intact. A new provisional product tests implementation substitution and mismatch.
     const criterionContext=cli(["verification","context",expId]);
     const pg=guidance("plan-criterion-verification",expId),pc=pg.candidates[0];pc.payload={...vfy.payload,authoring_subject:expId,authoring_context:criterionContext.authoringContext,cases:cases.map(c=>({...c,targets:[expId]})),coverage:[{target:expId,obligations:["Count supplied arguments"],case_ids:["empty","count"],rationale:"Boundary and ordinary invocation"}]};pc.links=[{type:"verifies",target:expId}];let provisionalActivity=(await submit(pg,"criterion-plan",[pc])).revisions[0];
     const wrongActivityFile=path.join(root,"wrong-activity-draft.json");
