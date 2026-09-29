@@ -850,6 +850,27 @@ and retain canonical execution. The wording may reduce avoidable publication chu
 confirm that in a fresh demo rather than claiming the ordering caused this run's
 cost. Package loading protects references, while operation judges the guidance.
 
+Issue #982 follows the static audit of the shop's accepted holding-time release
+group. Its children bounded sending to 60 seconds but left application unbounded;
+sending at second 59 and applying at second 61 satisfies the children while the
+parent's completed-release promise fails. This is class 10 shared content judgment,
+not a measured executable failure.
+
+Extend the existing refinement counterexample check with the clock-start event,
+completed outcome, operating conditions and supported workload. Selected child
+responsibilities must jointly deliver the parent's interval through the steps they
+own. Requirements review applies that same shared check in its existing exact group
+assessment. A complete leaf keeps the existing depth rule.
+
+Package loading checks exact references. In a bounded fresh paper comparison,
+one reviewer using prior guidance and one using this clarification both rejected
+the deficient group, accepted a corrected group under explicit assumptions and
+kept a complete non-timed leaf. No correctness improvement was demonstrated;
+their timing bases differ and support no speed claim. Preserve the judgments and
+exact inputs. Further evidence comes from timed multi-component demos. When
+operation exposes another composition gap, clarify the owning check and record
+the learning here in the same session.
+
 ## Typed requirement mappings are mechanical declarations
 
 Issue #741 replaces tiny-package free-string commitments with typed EARS fields,
