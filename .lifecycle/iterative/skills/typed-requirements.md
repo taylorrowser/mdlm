@@ -1,6 +1,6 @@
 ---
 id: typed-requirements
-version: 15
+version: 16
 ---
 
 # Author one normal-link requirement graph
@@ -137,8 +137,13 @@ assessment fields for these judgments, without a separate proof artifact:
   is the weakest obligation that still delivers its parent. Allocation labels alone
   do not justify a design choice.
 - Include relevant shared-state and failure boundaries in the parent counterexample.
-  Name the shared requirements and assumptions needed to close the gap; preserve
-  the parent's meaning and check actual membership rather than graph reachability.
+  For a timed parent, name its clock-start event, completed outcome, operating
+  conditions and supported workload. Check that the selected children's scheduling,
+  queueing, delivery, processing and retry bounds jointly deliver that outcome
+  within the parent's interval wherever those steps apply. Sending a request alone
+  does not complete its effect. Name the shared requirements and assumptions needed
+  to close the gap; preserve the parent's meaning and check actual membership
+  rather than graph reachability.
 - Judge each child's validity separately from collective coverage. Resolve a real
   gap through necessary behavior, shared requirements or an authorized clarification.
   Keep permitted variation open and stop at the depth rule above.

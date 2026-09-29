@@ -1,9 +1,9 @@
 ---
 id: correct-requirements-after-review
-version: 18
+version: 19
 skills:
 - skills/product-quality.md@7
-- skills/typed-requirements.md@15
+- skills/typed-requirements.md@16
 ---
 
 # Correct requirements after set or implementation Review
