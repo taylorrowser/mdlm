@@ -34,6 +34,43 @@ No removed compiler diagnostic or historical package test is claimed to protect
 these lessons in the direct kernel. Current public journeys and focused integrity
 checks supply the evidence for the implemented direct routes.
 
+## Late implementation findings can correct requirements, #980
+
+The locker upgrade implementation followed an unsound requirement. Its registered
+implementation FAIL explicitly marked that exact requirement needs-change, but
+only implementation correction was offered because the requirements-set Review
+had passed. Product documentation then stated a stronger rule than the selected
+requirement. This is class 1 correction-route completeness with classes 5 and 6
+for exact lineage and matching authoring guidance.
+
+Reuse requirement correction for a failed Review of the current implementation
+selecting the exact current requirements set. Explicit requirement assessments
+name distinct selected revisions and open only those statements. Coverage and
+source assessments grant no requirement-edit permission. A PASS cannot claim a
+requirement needs change. Authoring guidance and canonical publication share the
+same frontier. The exact late failure also bounds correction before first
+acceptance when no CHG exists; ordinary initial authoring retains its flexibility.
+Findings outside approved change scope use the existing amendment
+and fresh stakeholder approval route.
+
+Retain the failed Review and prior exact claims. Correct same-lineage requirements
+and selection, refresh affected group endpoints, and obtain fresh independent
+requirements review before ordinary rebind and current independent verification.
+Historical validation retains the frontier that authorized a correction before
+that selection existed; later implementation successors cannot erase it.
+A README or external ruling cannot substitute for the selected definition. Record
+an authorized departure explicitly; do not call it satisfying an unchanged rule.
+
+One compiled public journey recreates the office-applied return with a lost station
+acknowledgement, captures the missing route before the fix, rejects an unmarked
+edit atomically, then reaches successor execution, implementation Review and
+acceptance. Narrow checks cover current and stale targets, assessment identities,
+coverage-only findings and scope amendment. Fixture registration proves binding
+mechanics, not independent semantic judgment. Fresh qualified operation must
+establish that the correction route resolves the real late finding. When another
+failure exposes a missing authoring source, update eligibility, publication and
+the owning guidance together in the same session.
+
 ## Approved new stakeholder roots, #904
 
 River undo maintenance approved a new obligation but could not publish it as a

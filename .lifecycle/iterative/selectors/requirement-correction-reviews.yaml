@@ -1,0 +1,20 @@
+kind: selector-definition
+id: requirement-correction-reviews
+version: 1
+description: Exact failed set reviews or current implementation reviews with explicit requirement corrections
+parameters:
+- name: requirements
+  kind: revision
+  types:
+  - RQS
+result_kind: revision
+query:
+  from:
+    collection: revisions
+    types:
+    - REV
+  as: item
+  where: 'state(item, "validity") == "valid" && item.integrity.transaction_valid == true && item.payload.outcome == "fail" && (!every("fail-reviews@1", {subject: requirements}, failed => failed.identity.revision_id != item.identity.revision_id) || (array_has_field(item.payload.requirement_assessments, "disposition", "needs-change") && exists("reviewed-current-product-for-set@1", {review: item, requirements: requirements})))'
+  distinct: true
+  order_by:
+  - identity.revision_id

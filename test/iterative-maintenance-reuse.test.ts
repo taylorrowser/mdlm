@@ -85,3 +85,34 @@ test("initial requirements still require a fresh review", () => {
   expect(evaluate(f.data, pkg.actions["review-requirements"]!.when, f.reviewed.revision_id)).toBe(true);
   expect(evaluate(f.data, pkg.actions["implement-product"]!.when, f.reviewed.revision_id)).toBe(false);
 });
+
+test("late requirement correction uses exact current registered implementation findings", () => {
+  const f = fixture();
+  const product = datum(f.imp.id, 2, [link("implements", f.candidate), link("changes-under", f.change)]);
+  const failure = datum("REV-late", 1, [link("reviews", product)], {outcome: "fail", scope_amendment_required: false, requirement_assessments: [{requirement: f.leaf.revision_id, disposition: "needs-change"}]});
+  f.data.push(product, failure);
+  expect(eligible(f, "correct-requirements-after-review")).toBe(true);
+  expect(evaluate(f.data, pkg.actions["correct-requirements-after-review"]!.inputs!.failure, f.candidate.revision_id)).toMatchObject({identity: {revision_id: failure.revision_id}});
+  expect(eligible(f, "correct-requirements-after-review", failure.revision_id)).toBe(false);
+  const original = structuredClone(failure.payload);
+  for (const payload of [
+    {outcome: "fail", scope_amendment_required: false, coverage_assessments: [{target: f.leaf.revision_id, disposition: "needs-change"}]},
+    {outcome: "fail", scope_amendment_required: false, source_assessments: [{source_scope: "SCP-source-r00001", disposition: "needs-change"}]},
+    {...original, outcome: "pass"},
+  ]) {
+    failure.payload = payload;
+    expect(eligible(f, "correct-requirements-after-review")).toBe(false);
+  }
+  failure.payload = original;
+  failure.payload.scope_amendment_required = true;
+  expect(eligible(f, "correct-requirements-after-review")).toBe(false);
+  expect(eligible(f, "amend-change-scope")).toBe(true);
+  failure.payload.scope_amendment_required = false;
+  failure.links = [link("reviews", f.imp)];
+  expect(eligible(f, "correct-requirements-after-review")).toBe(false);
+  failure.links = [link("reviews", product)];
+  f.data.push(datum(product.id, 3, [link("implements", f.candidate)]));
+  expect(eligible(f, "correct-requirements-after-review")).toBe(false);
+  f.data.pop(); f.data.push(datum(f.candidate.id, 3, f.candidate.links));
+  expect(eligible(f, "correct-requirements-after-review")).toBe(false);
+});

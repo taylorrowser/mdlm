@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { DatumEnvelope, ProcessDiagnostic } from "./index.js";
 import type { DirectFinalizationContext, DirectFinalizationResult } from "./direct-contract.js";
-import { assessRequirements, approvedChanges, deriveSourceDispositionCandidates, validateChangeDatum } from "./change-assessment.js";
+import { assessRequirements, approvedChanges, deriveSourceDispositionCandidates, reviewedRequirementSet, validateChangeDatum } from "./change-assessment.js";
 import { requirementTraceBinding, latestRequirements, selectedRequirementGraph, deriveImplementationScopes, implementationSourceChanges } from "./requirement-trace.js";
 
 import { independentBinding, validateVerificationActivity, selectedActivities, verificationStatus, currentVerificationResults, independentExecutionBinding } from "./independent-verification.js";
@@ -115,7 +115,7 @@ export async function finalizeDirectDomain(context: DirectFinalizationContext): 
     const allData = [...context.data, ...outputData.map(o => o.datum)];
     for (const output of outputData.filter(o => o.datum.type === trace.review_type)) {
       if ("scope_amendment_required" in output.datum.payload) reject([{code: "change-derived-review-field", message: "The CLI derives scope amendment work"}]);
-      const set = allData.find(d => d.type === trace.type && output.datum.links.some(l => l.type === "reviews" && l.target === d.revision_id));
+      const set = reviewedRequirementSet(allData, trace, output.datum);
       const assessment = set ? assessRequirements(allData, trace, set) : undefined;
       const allowed = new Set(assessment?.allowedRequirements.map(id => allData.find(d => d.revision_id === id)?.id));
       output.datum.payload.scope_amendment_required = Boolean(assessment?.change && assessment.correction.requirements.some(id => !allowed.has(allData.find(d => d.revision_id === id)?.id)));

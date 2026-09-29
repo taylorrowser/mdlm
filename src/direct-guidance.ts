@@ -1,7 +1,7 @@
 import type { ResolvedType } from "./index.js";
 import type { DirectContext, SourceAssessmentTargets } from "./direct-contract.js";
 import { requirementTraceBinding } from "./requirement-trace.js";
-import { assessRequirements, changeImpact, declaredNewRoots, requirementAuthoringFrontier } from "./change-assessment.js";
+import { assessRequirements, changeImpact, declaredNewRoots, lateRequirementCorrectionFrontier, requirementAuthoringFrontier } from "./change-assessment.js";
 
 /** Output contracts omit computed fields; records under review retain them. */
 export function authorablePayloadSchema(type: ResolvedType): ResolvedType["payloadSchema"] {
@@ -39,7 +39,12 @@ export function requirementAuthoringTargets(context: DirectContext) {
   const inputIds = Object.values(context.inputs).flat();
   const change = context.data.find(datum => datum.type === trace.change_type && inputIds.includes(datum.revision_id))
     ?? context.data.find(datum => datum.type === trace.change_type && previous.links.some(link => link.type === "changes-under" && link.target === datum.revision_id));
-  if (!change) return undefined;
+  if (!change) {
+    const failureInput = context.action.links?.[trace.type]?.corrects;
+    const failure = context.data.find(d => d.revision_id === context.inputs[failureInput ?? ""]?.[0]);
+    const frontier = lateRequirementCorrectionFrontier(context.data, trace, previous, failure);
+    return frontier ? {selection: previous.revision_id, failure: failure!.revision_id, frontier, newRoots: [], instruction: "Revise only the exact requirements listed in frontier.requirements. Preserve all other selected requirement identities and exact revisions, and existing group membership. The CLI refreshes group endpoints. Obtain fresh independent requirements review and current implementation verification after correction."} : undefined;
+  }
   return {
     change: change.revision_id, selection: previous.revision_id,
     frontier: requirementAuthoringFrontier(context.data, trace, change, previous),
