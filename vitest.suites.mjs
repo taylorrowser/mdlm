@@ -5,7 +5,7 @@ const fast = [
   "prototype-interface-public", "requirement-levels-package", "requirement-levels-public", "route-expectations-public", "prototype-correction-package", "prototype-correction-public", "optional-formalization-public",
   "independent-verification-package", "independent-verification-public", "verification-coverage-changes-public", "array-expression", "change-assessment", "direct-authority", "direct-domain", "direct-package", "direct-receipt",
   "direct-selection-public", "iterative-public", "iterative-maintenance-reuse", "kernel-cutover", "lifecycle-schema-diagnostics", "mdlm-cli-output",
-  "release-candidate-gate", "requirement-trace-v2", "source-scopes",
+  "release-candidate-gate", "requirement-trace-v2", "source-scopes", "review-lineage",
 ];
 const release = ["maintenance-summary-public", "independent-verification-execution","docker-verification-dialogue", "direct-lifecycle-public"];
 export const rootTestManifest = Object.freeze([
