@@ -75,7 +75,7 @@ Continue each lane through accepted Reviews, publications, qualification, and Ph
 
 ### Focused fixes
 
-Assign every known demo-blocking issue a sole owner when an isolated worktree and host capacity are available. Fix lanes may run in parallel with all demo lanes.
+Assign every known demo-blocking issue a sole owner when an isolated worktree and host capacity are available. Fix lanes may run in parallel with all demo lanes. Keep dependency directories local to the fix worktree. Test tooling writes caches into them, so a symlink to release-owned dependencies can mutate the release worktree.
 
 Rank fixes by operational effect:
 

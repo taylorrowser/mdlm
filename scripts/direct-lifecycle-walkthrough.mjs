@@ -11,8 +11,9 @@ const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const fixtureAuthority = 'Operator-selected engineering fixture. Stakeholder decisions are scripted fixture inputs, not acceptance by the actual product user. Review registration exercises a separate manager transport and exact verdict binding; it does not claim human or model review independence.';
 
 /** Ordinary public operations only. Preserve both repositories and external evidence on every outcome. */
-export async function runDirectJourney({process: processName = 'tiny', corrections = false, partialAcceptance = false, operationalUse = false, newRootChange = false, executable = process.env.MDLM_DIRECT_EXECUTABLE ?? process.env.MDLM_EXECUTABLE, root}) {
+export async function runDirectJourney({process: processName = 'tiny', corrections = false, partialAcceptance = false, operationalUse = false, newRootChange = false, lateRequirementCorrection = false, executable = process.env.MDLM_DIRECT_EXECUTABLE ?? process.env.MDLM_EXECUTABLE, root}) {
   assert.ok(['tiny', 'exploratory', 'iterative'].includes(processName));
+  assert.ok(!lateRequirementCorrection || processName === 'iterative');
   assert.ok(!newRootChange || processName === 'iterative', 'New root change fixture requires the iterative package');
   assert.ok(!operationalUse || processName === 'iterative', 'Operational-use fixture requires the iterative package');
   assert.ok(path.isAbsolute(root), 'A fresh absolute root is required');
@@ -68,7 +69,7 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
   let sequence = 0;
   function submit(action, subject, candidates, evidence = {}) {
     stage = action;
-    cli(['expectations']);
+    if (!lateRequirementCorrection) cli(['expectations']);
     const g = guidance(action, subject);
     const operation = `fixture-${processName}-${++sequence}-${action}`;
     const proposal = {operation, action: g.action, package: g.package, snapshot: g.snapshot, ...(g.subject ? {subject: g.subject} : {}), inputs: g.inputs, candidates, ...(Object.keys(evidence).length ? {evidence} : {})};
@@ -105,7 +106,7 @@ export async function runDirectJourney({process: processName = 'tiny', correctio
     // Existing journey actions exercise generic settlement and duplicate recovery.
     // New activity publications need their actual accepted data, not another copy
     // of the same recovery check for each verification plan and coverage review.
-    if (!['plan-verification', 'plan-criterion-verification', 'review-verification', 'execute-criterion-verification'].includes(action)) {
+    if (!lateRequirementCorrection && !['plan-verification', 'plan-criterion-verification', 'review-verification', 'execute-criterion-verification'].includes(action)) {
       const settled = cli(['proposal', 'settlement', operation]);
       assert.equal(settled.outcome, 'accepted');
       assert.deepEqual(settled.revisions, result.revisions);
@@ -293,7 +294,79 @@ raise SystemExit(0 if all(row['outcome'] == 'pass' for row in rows) else 1)
     cli(['init', lifecycle, ...(processName !== 'tiny' ? ['--process', processName] : [])], undefined, {cwd: root});
     git(['config', 'user.name', 'Direct lifecycle fixture']);
     git(['config', 'user.email', 'fixture@localhost']);
-    if (partialAcceptance) {
+    if (lateRequirementCorrection) {
+      const acknowledged = 'print safe only when the office has no pending return and the station has acknowledged its returned event; otherwise print blocked';
+      const faulty = 'print safe when the office has no pending return, otherwise print blocked';
+      const experiment = submit('frame-experiment', undefined, [candidate('upgrade-experiment', 'EXP', {criterion: 'Keep deliveries moving after an office upgrade.', question: 'Can a late implementation review correct an unsound upgrade rule?', approach: 'Apply a returned event while losing its acknowledgement.', constraints: 'One office and one station; command fixture only.', allowance_minutes: 10, scope_cut: 'Upgrade permission.'})]).find(d => d.type === 'EXP');
+      const initial = submit('draft-requirements', undefined, [
+        candidate('need', 'REQ', {kind: 'stakeholder', statement: 'Permit office upgrades while preserving delivery progress.'}, [link('informed-by', experiment.revision_id)]),
+        candidate('upgrade', 'REQ', {kind: 'software', ears: {pattern: 'ubiquitous', system: 'The upgrade checker', response: acknowledged}}),
+        candidate('status', 'REQ', {kind: 'software', ears: {pattern: 'ubiquitous', system: 'The station', response: 'print acknowledged or awaiting according to its returned-event acknowledgement state'}}),
+        candidate('group', 'DCP', {}, [link('parent', '$need'), link('child', '$upgrade'), link('child', '$status')]), candidate('requirements', 'RQS', {}),
+      ]);
+      const need = initial.find(d => d.payload.title === 'need'), duty = initial.find(d => d.payload.title === 'upgrade'), peer = initial.find(d => d.payload.title === 'status');
+      const set = initial.find(d => d.type === 'RQS'), group = initial.find(d => d.type === 'DCP');
+      function upgradeSource(requirement, strict) {
+        writeFileSync(path.join(source, 'upgrade.py'), `# mdlm:begin permission implements ${requirement}\nimport sys\noffice_empty = sys.argv[1] == 'empty'\nstation_acknowledged = sys.argv[2] == 'acknowledged'\nprint('safe' if office_empty${strict ? ' and station_acknowledged' : ''} else 'blocked')\n# mdlm:end permission\n# mdlm:begin status implements ${peer.id}\nprint('acknowledged' if station_acknowledged else 'awaiting')\n# mdlm:end status\n`);
+        commit(source, 'Record exact office upgrade rule');
+        const sourceCommit = git(['rev-parse', 'HEAD'], source); sourceCommits.push(sourceCommit);
+        return {repository_path: source, source_commit: sourceCommit, command: ['python3', 'upgrade.py', 'empty', 'acknowledged'], file_roles: {'upgrade.py': 'production'}};
+      }
+      const cases = strict => [
+        {id: 'acknowledged', command: ['python3', 'upgrade.py', 'empty', 'acknowledged'], expected: 'safe\nacknowledged\n', rationale: 'The office is empty and the station has no unacknowledged event.'},
+        {id: 'lost-acknowledgement', command: ['python3', 'upgrade.py', 'empty', 'awaiting'], expected: `${strict ? 'blocked' : 'safe'}\nawaiting\n`, rationale: 'The office applied the return but lost its response; the station still holds the old event.'},
+      ];
+      reviewRequirements(set);
+      const activity = planVerification(set, cases(true));
+      const imp = submit('implement-product', set.revision_id, [candidate('implementation', 'IMP', upgradeSource(duty.id, true), [link('implements', set.revision_id), link('verification', activity.revision_id)])]).find(d => d.type === 'IMP');
+      const acceptance = finishProduct(set, imp);
+      const change = submit('request-change', set.revision_id, [candidate('upgrade-change', 'CHG', {reason: 'Simplify upgrade permission using office state.', requested_outcome: faulty}, [link('changes', duty.revision_id), link('changes', peer.revision_id)])]).find(d => d.type === 'CHG');
+      submit('approve-change', change.revision_id, [candidate('approval', 'REV', {outcome: 'pass', findings: fixtureAuthority}, [link('reviews', change.revision_id)])]);
+      const changed = submit('revise-requirements', change.revision_id, [candidate('upgrade', 'REQ', {...duty.payload, ears: {...duty.payload.ears, response: faulty}}, [], duty.revision_id), candidate('requirements', 'RQS', {}, [], set.revision_id)]);
+      const badDuty = changed.find(d => d.type === 'REQ'), badSet = changed.find(d => d.type === 'RQS');
+      const requirementsPass = reviewRequirements(badSet).review;
+      const weakActivity = planVerification(badSet, cases(false));
+      const affected = data().filter(d => d.type === 'SCP' && d.links.some(l => l.type === 'belongs-to' && l.target === imp.revision_id) && d.links.some(l => l.type === 'implements' && l.target === duty.revision_id)).map(d => d.revision_id);
+      const impact = affected.map(source_scope => ({source_scope, disposition: 'changed', rationale: 'The permission region follows the changed rule.'}));
+      const badImp = submit('rebind-product', badSet.revision_id, [candidate('implementation', 'IMP', {...upgradeSource(duty.id, false), impact_dispositions: impact}, [link('implements', badSet.revision_id), link('verification', weakActivity.revision_id)], imp.revision_id)]).find(d => d.type === 'IMP');
+      const oldResult = publishVerification(badImp, badSet);
+      const observed = run('python3', ['upgrade.py', 'empty', 'awaiting'], source);
+      assert.equal(observed.stdout, 'safe\nawaiting\n', 'Office-applied return remains unacknowledged at the station');
+      const failed = submit('review-implementation', badImp.revision_id, [candidate('late-failure', 'REV', {outcome: 'fail', findings: 'The implementation obeys the requirement but its rule is unsound: an applied return can remain unacknowledged at the station and prevent delivery after upgrade.', requirement_assessments: [{requirement: badDuty.revision_id, disposition: 'needs-change', rationale: 'Require the station acknowledgement before upgrade.'}], coverage_assessments: [need, badDuty, peer].map(d => ({target: d.revision_id, disposition: 'needs-change', rationale: 'Late operational counterexample needs corrected verification.'})), source_assessments: affected.map(source_scope => ({source_scope, disposition: 'valid', rationale: 'Code correctly follows the faulty rule.'}))}, [link('reviews', badImp.revision_id), link('uses-evidence', oldResult.revision_id)])]).find(d => d.type === 'REV');
+      const available = cli(['expectations']);
+      save('late-review-expectations.json', available);
+      assert.ok(available.items.some(item => actionId(item.action) === 'correct-requirements-after-review' && item.subject === badSet.revision_id), 'Current implementation requirement finding must offer correction after RQS PASS');
+      const g = guidance('correct-requirements-after-review', badSet.revision_id);
+      assert.deepEqual(g.inputs.failure, [failed.revision_id]);
+      assert.deepEqual(g.requirementAuthoringTargets.frontier, {requirements: [badDuty.revision_id], groups: []});
+      const correctedOutputs = [candidate('upgrade', 'REQ', {...badDuty.payload, ears: {...badDuty.payload.ears, response: acknowledged}}, [], badDuty.revision_id), candidate('requirements', 'RQS', {}, [link('corrects', failed.revision_id)], badSet.revision_id)];
+      const rejected = cli(['proposal', 'submit', '-'], {operation: 'unmarked-edit', action: g.action, package: g.package, snapshot: g.snapshot, subject: g.subject, inputs: g.inputs, candidates: [...correctedOutputs, candidate('status', 'REQ', {...peer.payload, ears: {...peer.payload.ears, response: 'hide awaiting events'}}, [], peer.revision_id)]}, {expected: 1});
+      assert.ok(JSON.stringify(rejected.diagnostics).includes('change-frontier'));
+      assert.equal(cli(['expectations']).snapshot, g.snapshot);
+      assert.equal(cli(['proposal', 'settlement', 'unmarked-edit']).outcome, 'not-published');
+      const corrected = submit('correct-requirements-after-review', badSet.revision_id, correctedOutputs);
+      const correctedDuty = corrected.find(d => d.type === 'REQ'), correctedSet = corrected.find(d => d.type === 'RQS'), correctedGroup = corrected.find(d => d.type === 'DCP');
+      assert.equal(correctedDuty.id, duty.id); assert.equal(correctedSet.id, set.id); assert.equal(correctedGroup.id, group.id);
+      assert.ok(correctedGroup.links.some(l => l.target === correctedDuty.revision_id));
+      for (const retained of [need, peer]) { assert.ok(correctedSet.links.some(l => l.target === retained.revision_id)); assert.deepEqual(exact(retained.revision_id), retained); }
+      assert.ok(correctedSet.links.some(l => l.type === 'corrects' && l.target === failed.revision_id));
+      assert.ok(cli(['expectations']).items.some(item => actionId(item.action) === 'review-requirements' && item.subject === correctedSet.revision_id));
+      const context = cli(['verification', 'context', correctedSet.revision_id]); save('corrected-verification-context.json', context);
+      assert.equal(context.requirements.find(d => d.revision_id === correctedDuty.revision_id).payload.ears.response, acknowledged);
+      assert.equal(context.sources, undefined, 'Verification authoring receives no product source');
+      reviewRequirements(correctedSet);
+      const freshActivity = planVerification(correctedSet, cases(true));
+      const successor = submit('rebind-product', correctedSet.revision_id, [candidate('implementation', 'IMP', {...upgradeSource(duty.id, true), impact_dispositions: impact}, [link('implements', correctedSet.revision_id), link('verification', freshActivity.revision_id)], badImp.revision_id)]).find(d => d.type === 'IMP');
+      assert.equal(cli(['verification', 'status', successor.revision_id]).complete, false, 'Old PASS results cannot verify successor');
+      const executionGuidance = guidance('execute-verification', successor.revision_id);
+      const stale = cli(['proposal', 'submit', '-'], {operation: 'old-upgrade-receipt', action: executionGuidance.action, package: executionGuidance.package, snapshot: executionGuidance.snapshot, subject: executionGuidance.subject, inputs: executionGuidance.inputs, candidates: [candidate('verification', 'RES', {assessment: 'Attempt old result reuse.', correction_target: 'none'}, [link('executes', successor.revision_id), link('verifies', correctedSet.revision_id), link('evaluates', freshActivity.revision_id)])], evidence: {receipt: receipts.at(-1).evidence}}, {expected: 1});
+      assert.equal(stale.ok, false);
+      const finalAcceptance = finishProduct(correctedSet, successor);
+      terminal = cli(['expectations']); assert.equal(terminal.outcome, 'profile-boundary-reached'); cli(['doctor']);
+      for (const historical of [badDuty, badSet, requirementsPass, failed, oldResult, acceptance]) assert.deepEqual(exact(historical.revision_id), historical);
+      save('late-correction-proof.json', {change: change.revision_id, badDuty: badDuty.revision_id, failed: failed.revision_id, correction: correctedSet.revision_id, correctedDuty: correctedDuty.revision_id, successor: successor.revision_id, activity: freshActivity.revision_id, acceptance: finalAcceptance.revision_id, terminal});
+      return;
+    } else if (partialAcceptance) {
       assert.equal(processName, 'iterative');
       submit('frame-experiment', undefined, [candidate('river', 'EXP', {criterion: 'Keep River scores through a useful CLI.', question: 'Can scoring be accepted while the CLI remains provisional in this repository?', approach: 'Accept a scoring command, operate the provisional interactive CLI, then formalize the CLI.', constraints: 'Session only, user formula retained.', allowance_minutes: 15, scope_cut: 'One scored hand.'})]);
       const initial = submit('draft-requirements', undefined, [
@@ -607,7 +680,7 @@ raise SystemExit(0 if all(row['outcome'] == 'pass' for row in rows) else 1)
     if (existsSync(lifecycle)) { try { lifecycleData = [...new Set(revisions)].map(exact); } catch (error) { lifecycleData = {error: String(error)}; captureFailures.push(`Lifecycle data capture failed: ${error.message}`); } }
     save('lifecycle-data.json', lifecycleData ?? []);
     if (captureFailures.length && !caught) caught = new Error(`Final evidence is incomplete: ${captureFailures.join('; ')}`);
-    const result = {ok: !caught, outcome: caught ? 'failed' : terminal?.outcome ?? 'failed', process: processName, corrections, operationalUse, newRootChange, operationalUses, root, lifecycle, source, verificationRepositories, evidenceFile, publications, revisions, receipts, sourceCommits, commands, terminal, gitState, captureFailures, scope: fixtureAuthority, error: caught ? {message: caught.message, stack: caught.stack} : undefined};
+    const result = {ok: !caught, outcome: caught ? 'failed' : terminal?.outcome ?? 'failed', process: processName, corrections, operationalUse, newRootChange, lateRequirementCorrection, operationalUses, root, lifecycle, source, verificationRepositories, evidenceFile, publications, revisions, receipts, sourceCommits, commands, terminal, gitState, captureFailures, scope: fixtureAuthority, error: caught ? {message: caught.message, stack: caught.stack} : undefined};
     save('result.json', result);
     if (caught) { caught.message += `\nPreserved journey evidence: ${evidenceFile}`; throw caught; }
     return result;
@@ -618,5 +691,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const args = process.argv.slice(2);
   const option = name => args.includes(name) ? args[args.indexOf(name) + 1] : undefined;
   const executable = option('--executable') ?? process.env.MDLM_DIRECT_EXECUTABLE ?? process.env.MDLM_EXECUTABLE;
-  runDirectJourney({process: option('--process') ?? 'tiny', corrections: args.includes('--corrections'), partialAcceptance: args.includes('--partial-acceptance'), operationalUse: args.includes('--operational-use'), newRootChange: args.includes('--new-root-change'), executable, root: option('--root')}).then(result => console.log(JSON.stringify({ok: result.ok, outcome: result.outcome, publications: result.publications, receipts: result.receipts, commands: result.commands, evidenceFile: result.evidenceFile}))).catch(error => { console.error(error.stack); process.exitCode = 1; });
+  runDirectJourney({process: option('--process') ?? 'tiny', corrections: args.includes('--corrections'), partialAcceptance: args.includes('--partial-acceptance'), operationalUse: args.includes('--operational-use'), newRootChange: args.includes('--new-root-change'), lateRequirementCorrection: args.includes('--late-requirement-correction'), executable, root: option('--root')}).then(result => console.log(JSON.stringify({ok: result.ok, outcome: result.outcome, publications: result.publications, receipts: result.receipts, commands: result.commands, evidenceFile: result.evidenceFile}))).catch(error => { console.error(error.stack); process.exitCode = 1; });
 }

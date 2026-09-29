@@ -124,6 +124,26 @@ export function requirementAuthoringFrontier(data: DatumEnvelope[], b: Requireme
   return frontier;
 }
 
+/** Exact selected definition for a requirements or implementation review. */
+export function reviewedRequirementSet(data: DatumEnvelope[], b: RequirementTraceBinding, review: DatumEnvelope): DatumEnvelope | undefined {
+  const subject = find(data, targets(review, "reviews")[0]);
+  return subject?.type === b.type ? subject : subject?.type === b.implementation_type ? find(data, targets(subject, "implements")[0]) : undefined;
+}
+
+/** Late implementation findings authorize statements only, never coverage or source edits. */
+function implementationRequirementFindings(data: DatumEnvelope[], b: RequirementTraceBinding, set: DatumEnvelope): DatumEnvelope[] {
+  if (data.some(newer => newer.id === set.id && newer.revision > set.revision)) return [];
+  const selected = new Set(selectedRequirementGraph(data, set, b).requirements.map(r => r.revision_id));
+  return data.filter(review => {
+    if (review.type !== b.review_type || review.payload.outcome !== "fail") return false;
+    const product = find(data, targets(review, "reviews")[0]);
+    if (product?.type !== b.implementation_type || !targets(product, "implements").includes(set.revision_id) || data.some(newer => newer.id === product.id && newer.revision > product.revision)) return false;
+    const assessments = rows(review.payload.requirement_assessments);
+    const ids = assessments.map(a => String(a.requirement));
+    return new Set(ids).size === ids.length && ids.every(id => selected.has(id)) && assessments.some(a => a.disposition === "needs-change");
+  });
+}
+
 /** Derive local review obligations from exact graph evidence, without maintaining a queue. */
 export function assessRequirements(data: DatumEnvelope[], b: RequirementTraceBinding, set: DatumEnvelope): RequirementAssessments {
   const graph = selectedRequirementGraph(data, set, b);
@@ -137,9 +157,10 @@ export function assessRequirements(data: DatumEnvelope[], b: RequirementTraceBin
   const passedGroups = new Set(passing.flatMap(r => rows(r.payload.decomposition_assessments).filter(a => a.disposition === "adequate" && a.membership_action === "none" && rows(a.children).every(c => c.disposition === "valid")).map(a => String(a.group))));
   const groups = graph.groups.filter(g => !passedGroups.has(g.revision_id)).map(g => ({revision: g.revision_id, parent: targets(g, "parent")[0]!, children: targets(g, "child")}));
   const failed = reviews(data, b, set.revision_id).filter(r => r.payload.outcome === "fail");
-  const requirementCorrections = failed.flatMap(r => [
+  const lateFailures = implementationRequirementFindings(data, b, set);
+  const requirementCorrections = [...failed, ...lateFailures].flatMap(r => [
     ...rows(r.payload.requirement_assessments).filter(a => a.disposition === "needs-change").map(a => String(a.requirement)),
-    ...rows(r.payload.decomposition_assessments).flatMap(a => rows(a.children).filter(c => c.disposition === "needs-change").map(c => String(c.requirement))),
+    ...(failed.includes(r) ? rows(r.payload.decomposition_assessments).flatMap(a => rows(a.children).filter(c => c.disposition === "needs-change").map(c => String(c.requirement))) : []),
   ]);
   const groupCorrections = failed.flatMap(r => rows(r.payload.decomposition_assessments).filter(a => a.membership_action === "revise-membership").map(a => String(a.group)));
   const resultType = (b as RequirementTraceBinding & {result_type?: string}).result_type;
@@ -271,7 +292,11 @@ export function validateChangeDatum(data: DatumEnvelope[], b: RequirementTraceBi
           const requirement = find(all, id);
           if (requirement) allowedIds.add(requirement.id);
         }
-        const frontier = requirementAuthoringFrontier(others, b, authority.change, previous);
+        // Validate historical permission before this selection existed. Later set and
+        // implementation successors must not erase the exact failure that authorized it.
+        const laterSets = new Set(all.filter(s => s.type === b.type && s.id === datum.id && s.revision >= datum.revision).map(s => s.revision_id));
+        const authoringData = others.filter(d => !laterSets.has(d.revision_id) && !(d.type === b.implementation_type && targets(d, "implements").some(id => laterSets.has(id))));
+        const frontier = requirementAuthoringFrontier(authoringData, b, authority.change, previous);
         const frontierIds = new Set(frontier.requirements.flatMap(id => find(all, id)?.id ?? []));
         const groupIds = new Set(frontier.groups.flatMap(id => find(all, id)?.id ?? []));
         const declared = declaredRootScope(all, b, authority.change, datum);
@@ -331,6 +356,11 @@ export function validateChangeDatum(data: DatumEnvelope[], b: RequirementTraceBi
     }
     if (subject?.type === b.implementation_type) {
       const set = find(all, targets(subject, "implements")[0]);
+      const statements = rows(datum.payload.requirement_assessments);
+      const selected = new Set(set ? selectedRequirementGraph(all, set, b).requirements.map(r => r.revision_id) : []);
+      const ids = statements.map(a => String(a.requirement));
+      if (new Set(ids).size !== ids.length || ids.some(id => !selected.has(id))) fail("change-review-requirement-target", "Implementation requirement assessments must name distinct exact requirements selected by the reviewed implementation, with no foreign or stale entries");
+      if (datum.payload.outcome === "pass" && statements.some(a => a.disposition === "needs-change")) fail("change-review-pass", "Passing implementation review cannot contain a requirement needing correction");
       if (set && targets(set, "changes-under").length) {
         const expected = assessRequirements(others, b, set).sourceScopes;
         const assessments = rows(datum.payload.source_assessments);

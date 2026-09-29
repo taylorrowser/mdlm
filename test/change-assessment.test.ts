@@ -423,3 +423,83 @@ test("new root declaration survives approved amendments and binds once across co
   const repeated = {...next, revision: 4, revision_id: "RQS-set-r4", links: [...next.links, {type: "contains", target: id(duplicate)}]};
   expect(validateChangeDatum([...f.data, duplicate], binding, repeated).map(d => d.code)).toContain("change-new-root-match");
 });
+
+test("current implementation failure opens only explicit selected requirement corrections", () => {
+  const f = fixture(); baseline(f);
+  const change = request(f, f.leaf);
+  const candidate = replace(f, change, f.leaf);
+  const implementation = d(f.imp.id, {implements: [id(candidate.set)], "changes-under": [id(change)]}, {}, 2);
+  const review = d("REV-late", {reviews: [id(implementation)]}, {outcome: "fail", requirement_assessments: [{requirement: id(candidate.revision), disposition: "needs-change"}], coverage_assessments: [{target: id(f.root), disposition: "needs-change"}]});
+  f.data.push(implementation, review);
+  expect(assessRequirements(f.data, binding, candidate.set).correction).toEqual({requirements: [id(candidate.revision)], groups: []});
+  expect(requirementAuthoringFrontier(f.data, binding, change, candidate.set).requirements).toEqual([id(candidate.revision)]);
+  const marked = structuredClone(review);
+  for (const assessments of [undefined, [], [{requirement: id(candidate.revision), disposition: "valid"}]]) {
+    review.payload.requirement_assessments = assessments;
+    expect(assessRequirements(f.data, binding, candidate.set).correction.requirements).toEqual([]);
+  }
+  review.payload = marked.payload;
+  for (const target of [id(f.imp), "IMP-foreign-r1"]) {
+    review.links = [{type: "reviews", target}];
+    expect(assessRequirements(f.data, binding, candidate.set).correction.requirements).toEqual([]);
+  }
+  review.links = marked.links;
+  f.data.push(d(implementation.id, {implements: [id(candidate.set)]}, {}, 3));
+  expect(assessRequirements(f.data, binding, candidate.set).correction.requirements).toEqual([]);
+  f.data.pop(); f.data.push(d(candidate.set.id, {}, {}, 3));
+  expect(assessRequirements(f.data, binding, candidate.set).correction.requirements).toEqual([]);
+});
+
+test("implementation requirement assessments cannot grant foreign, duplicate or PASS correction permission", () => {
+  const f = fixture(); baseline(f);
+  const review = d("REV-late", {reviews: [id(f.imp)]}, {outcome: "fail"});
+  for (const assessments of [[], [{requirement: id(f.leaf), disposition: "needs-change"}]]) {
+    review.payload.requirement_assessments = assessments;
+    expect(validateChangeDatum(f.data, binding, review)).toEqual([]);
+  }
+  for (const assessments of [
+    [{requirement: "REQ-foreign-r1", disposition: "needs-change"}],
+    [{requirement: id(f.leaf), disposition: "valid"}, {requirement: id(f.leaf), disposition: "needs-change"}],
+  ]) {
+    review.payload.requirement_assessments = assessments;
+    expect(validateChangeDatum(f.data, binding, review).map(d => d.code)).toContain("change-review-requirement-target");
+  }
+  review.payload = {outcome: "pass", requirement_assessments: [{requirement: id(f.leaf), disposition: "needs-change"}]};
+  expect(validateChangeDatum(f.data, binding, review).map(d => d.code)).toContain("change-review-pass");
+});
+
+test("late requirement corrections retain scope and need approval for amendments", () => {
+  const f = fixture(); baseline(f);
+  const change = request(f, f.leaf);
+  const candidate = replace(f, change, f.leaf);
+  const implementation = d(f.imp.id, {implements: [id(candidate.set)], "changes-under": [id(change)]}, {}, 2);
+  const review = d("REV-late", {reviews: [id(implementation)]}, {outcome: "fail", source_assessments: [{source_scope: id(f.scope), disposition: "valid"}], requirement_assessments: [{requirement: id(f.peer), disposition: "needs-change"}]});
+  f.data.push(implementation, review);
+  expect(validateChangeDatum(f.data, binding, review)).toEqual([]);
+  expect(assessRequirements(f.data, binding, candidate.set).correction.requirements).toEqual([id(f.peer)]);
+  const peer = d(f.peer.id, {"changes-under": [id(change)]}, f.peer.payload, 2);
+  expect(validateChangeDatum(f.data, binding, peer).map(d => d.code)).toContain("change-outside-scope");
+  const amendment = d(change.id, {baseline: [id(f.acc)], changes: [id(f.leaf), id(f.peer)]}, {}, 2);
+  f.data.push(amendment); peer.links = [{type: "changes-under", target: id(amendment)}];
+  expect(validateChangeDatum(f.data, binding, peer).map(d => d.code)).toContain("change-approval-required");
+  f.data.push(d("REV-amendment", {reviews: [id(amendment)]}, {outcome: "pass"}));
+  expect(validateChangeDatum(f.data, binding, peer)).toEqual([]);
+});
+
+test("a published late correction keeps its authorization history after successor implementation", () => {
+  const f = fixture(); baseline(f);
+  const change = request(f, f.leaf);
+  const candidate = replace(f, change, f.leaf);
+  const implementation = d(f.imp.id, {implements: [id(candidate.set)], "changes-under": [id(change)]}, {}, 2);
+  const review = d("REV-late", {reviews: [id(implementation)]}, {outcome: "fail", requirement_assessments: [{requirement: id(candidate.revision), disposition: "needs-change"}]});
+  f.data.push(implementation, review);
+  const corrected = {...candidate.revision, revision: 3, revision_id: "REQ-leaf-r3"};
+  const group = {...candidate.groups[1]!, revision: 3, revision_id: "DCP-bottom-r3", links: candidate.groups[1]!.links.map(l => l.target === id(candidate.revision) ? {...l, target: id(corrected)} : l)};
+  const selection = d(f.set.id, {contains: [id(f.root), id(f.parent), id(corrected), id(f.peer)], decomposition: [id(f.top), id(group)], "changes-under": [id(change)], corrects: [id(review)]}, {}, 3);
+  f.data.push(corrected, group, selection);
+  expect(validateChangeDatum(f.data, binding, selection)).toEqual([]);
+  f.data.push(d(implementation.id, {implements: [id(selection)], "changes-under": [id(change)]}, {}, 3));
+  expect(validateChangeDatum(f.data, binding, selection)).toEqual([]);
+  f.data.push(d(f.set.id, selection.links.reduce<Record<string, string[]>>((links, l) => ({...links, [l.type]: [...(links[l.type] ?? []), l.target]}), {}), {}, 4));
+  expect(validateChangeDatum(f.data, binding, selection)).toEqual([]);
+});

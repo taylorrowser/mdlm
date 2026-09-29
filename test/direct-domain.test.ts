@@ -45,3 +45,24 @@ test("authored source scopes and generated membership cannot bypass the deriving
   set.links = [{type:"contains",target:"REQ-invented-r00001"}];
   await expect(finalizeDirectDomain(await context([], [set]))).rejects.toThrow("trace-generated-selection");
 });
+
+test("implementation requirement findings derive scope amendment through their exact selection", async () => {
+  const parent = {...datum("REQ", 1), payload: {kind: "stakeholder"}};
+  const child = {...datum("REQ", 2), payload: {kind: "software"}};
+  const group = {...datum("DCP", 1), links: [{type: "parent", target: parent.revision_id}, {type: "child", target: child.revision_id}]};
+  const set = {...datum("RQS", 1), links: [{type: "contains", target: parent.revision_id}, {type: "contains", target: child.revision_id}, {type: "decomposition", target: group.revision_id}]};
+  const baselineProduct = {...datum("IMP", 1), links: [{type: "implements", target: set.revision_id}]};
+  const baseline = {...datum("ACC", 1), payload: {decision: "accept"}, links: [{type: "confirms", target: set.revision_id}, {type: "accepts", target: baselineProduct.revision_id}]};
+  const change = {...datum("CHG", 1), links: [{type: "baseline", target: baseline.revision_id}, {type: "changes", target: child.revision_id}]};
+  const approval = {...datum("REV", 1), payload: {outcome: "pass"}, links: [{type: "reviews", target: change.revision_id}]};
+  const current = {...set, revision: 2, revision_id: `${set.id}-r00002`, links: [...set.links, {type: "changes-under", target: change.revision_id}]};
+  const product = {...datum("IMP", 1, 2), links: [{type: "implements", target: current.revision_id}, {type: "changes-under", target: change.revision_id}]};
+  const data = [parent, child, group, set, baselineProduct, baseline, change, approval, current, product];
+  for (const target of [parent, child]) {
+    const review = {...datum("REV", 2), payload: {outcome: "fail", source_assessments: [], requirement_assessments: [{requirement: target.revision_id, disposition: "needs-change"}]}, links: [{type: "reviews", target: product.revision_id}]};
+    const ctx = await context(data, [review]); ctx.action = {...ctx.action, capability: "review", types: ["REV"]};
+    const finalized = await finalizeDirectDomain(ctx);
+    expect(finalized.outputs[0]?.payload.scope_amendment_required).toBe(target === parent);
+    expect(review.payload).not.toHaveProperty("scope_amendment_required");
+  }
+});
