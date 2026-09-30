@@ -47,13 +47,17 @@ test("a failed prototype is corrected under the exact experiment and verifier, w
     }
     const framing = guidance("frame-experiment"), exp = framing.candidates[0];
     identities.package = framing.package;
+    expect(framing.prompt.content).toBe(await fs.readFile(path.join(process.cwd(), ".lifecycle/iterative/prompts/frame-experiment.md"), "utf8"));
     exp.payload = {...exp.payload, title: "Ready CLI", criterion: "Print ready followed by a newline and exit zero", question: "Can the command signal readiness?", approach: "A single CLI invocation", constraints: "No persistent state", allowance_minutes: 5, scope_cut: "No interactive mode"};
+    const decisionRule = "Before implementation: a fresh invocation that exits nonzero or prints anything other than ready newline calls for product correction; a passing invocation supports this bounded readiness choice only.";
+    exp.body = decisionRule;
     const expId = (await submit(framing, "frame", exp)).revisions[0];
     const originalExp = datum(expId);
     const ig = guidance("record-interface"), ic = ig.candidates[0];
     ic.payload = {...ic.payload, title: "Readiness stdout", boundary: "external", endpoints: [{name: "CLI", owner: "Product", responsibility: "Emit readiness"}, {name: "Caller", owner: "User", responsibility: "Read stdout and exit code"}], interaction: "UTF-8 ready newline on stdout", failure_behavior: "Nonzero exit signals failure", compatibility: "One line", assumptions: "Command runs to completion"};
     const interfaceId = (await submit(ig, "interface", ic)).revisions[0];
     const context = cli(["verification", "context", expId]);
+    expect(context.requirements).toContainEqual(expect.objectContaining({revision_id: expId, body: decisionRule, payload: expect.objectContaining({constraints: "No persistent state"})}));
     const script = `import json,os,subprocess\nfrom pathlib import Path\nr=subprocess.run(['python3',os.environ['MDLM_PRODUCT_DIR']+'/app.py'],capture_output=True,text=True)\npassed=r.returncode==0 and r.stdout=='ready\\n'\nrow={'case_id':'ready','outcome':'pass' if passed else 'fail','actual_results':[repr(r.stdout),'exit '+str(r.returncode)],'evidence_refs':[]}\nPath(os.environ['MDLM_EVIDENCE_DIR']+'/results.json').write_text(json.dumps({'contract':'mdlm-verification-results@1','cases':[row]}))\nraise SystemExit(0 if passed else 1)\n`;
     await fs.writeFile(path.join(verifier, "verify.py"), script);
     const verifierCommit = commit(verifier);
@@ -87,7 +91,9 @@ test("a failed prototype is corrected under the exact experiment and verifier, w
     expect(failed.execution.value.receipt.result.outcome).toBe("fail");
     const originalResult = datum(failed.resultId);
     const og = guidance("observe-prototype", failedTrial), oc = og.candidates[0];
-    oc.payload = {...oc.payload, title: "Wrong readiness output", assessment: "The product prints wrong, while intent and verifier require ready", observation_origin: "scripted", interaction_observation: "Captured wrong newline", limitations: "One bounded CLI criterion", recommendation: "nominate", next_action: "Correct product code under unchanged intent"};
+    expect(og.prompt.content).toBe(await fs.readFile(path.join(process.cwd(), ".lifecycle/iterative/prompts/direct-observation.md"), "utf8"));
+    expect(og.context).toContainEqual(originalExp);
+    oc.payload = {...oc.payload, title: "Wrong readiness output", assessment: "The product prints wrong. This contradicts the frozen ready-newline rule and calls for product correction under unchanged intent", observation_origin: "scripted", interaction_observation: "Captured wrong newline", limitations: "One bounded CLI criterion", recommendation: "nominate", next_action: "Correct product code under unchanged intent"};
     const rejectedNomination = await submit(og, "false-nomination", oc, undefined, 1);
     expect(JSON.stringify(rejectedNomination)).toContain("revise or drop");
     oc.payload.recommendation = "revise";
@@ -129,6 +135,7 @@ test("a failed prototype is corrected under the exact experiment and verifier, w
     expect(passed.execution.value.evidence).not.toBe(failed.execution.value.evidence);
     expect(cli(["verification", "status", correctedTrial]).complete).toBe(true);
     const good = guidance("observe-prototype", correctedTrial), goodCandidate = good.candidates[0];
+    expect(good.context).toContainEqual(originalExp);
     goodCandidate.payload = {...oc.payload, title: "Corrected readiness output", assessment: "The unchanged case passes on the corrected product", interaction_observation: "Captured ready newline", recommendation: "nominate", next_action: "Ask stakeholder for feedback"};
     const passingObservation = (await submit(good, "passing-observation", goodCandidate)).revisions[0];
     const feedback = guidance("record-feedback", passingObservation), fc = feedback.candidates[0];
