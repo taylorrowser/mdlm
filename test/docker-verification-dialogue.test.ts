@@ -6,6 +6,23 @@ import path from "node:path";
 import { expect, it } from "vitest";
 import { executeDockerVerification } from "../src/docker-verification.js";
 
+it("allocates 128 MiB shared memory for verification", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-shared-memory-proof-"));
+  const git = (...args: string[]) => execFileSync("git", ["-C", root, ...args], {encoding: "utf8"}).trim();
+  git("init", "--quiet");
+  await fs.writeFile(path.join(root, "verify.py"), "import os\ns = os.statvfs('/dev/shm')\nsize = s.f_blocks * s.f_frsize\nassert size == 128 * 1024 * 1024, size\nprint(f'PASS: shared memory {size} bytes')\n");
+  git("add", ".");
+  git("-c", "user.name=Fixture", "-c", "user.email=fixture@localhost", "commit", "-qm", "Shared memory fixture");
+  const input = {repositoryPath: root, sourceCommit: git("rev-parse", "HEAD"), image: "python@sha256:7415fbc3c9e4979cc717d92377ab2bc7b2b4a2af1ac03cc52b5f3f88efedaf3a", command: ["python3", "verify.py"], scriptPath: "verify.py"};
+  const result = await executeDockerVerification(input);
+  const evidence = path.join(root, "evidence.json");
+  await fs.writeFile(evidence, JSON.stringify({input, result}, null, 2) + "\n");
+  console.log(`Shared memory evidence: ${evidence}`);
+  expect(result, JSON.stringify(result)).toMatchObject({outcome: "pass", started: true, exitCode: 0, sourceCommit: input.sourceCommit});
+  expect(Buffer.from(result.stdoutBase64, "base64").toString()).toBe("PASS: shared memory 134217728 bytes\n");
+  expect(result.stderrBase64).toBe("");
+}, 45_000);
+
 // Exercise the existing execution seam with real Docker, without duplicating
 // the public lifecycle's review, receipt-publication, and correction tests.
 it("verifies a finite prompted dialogue through child stdin without a TTY", async () => {

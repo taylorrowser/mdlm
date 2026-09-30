@@ -118,12 +118,13 @@ coverage.
 | Network | Docker `--network none`; external networking is unavailable. |
 | Filesystem and user | Read-only container root and source mounts; non-root user, all capabilities dropped and no new privileges. Independent verification uses the non-root caller's UID/GID, or `65534:65534` for a root caller. Product-owned verification uses `65534:65534`. |
 | Processes | Fixed Docker PID limit of 128. |
+| Shared memory | Writable `/dev/shm`, fixed at 128 MiB (`--shm-size=128m`). |
 | Temporary files | Writable `/tmp` tmpfs, limited to 64 MiB, with `nosuid,nodev`. |
 | Execution time | The public command uses a 60-second wait for container completion. Timeout kills the container and records an error. Docker create and start each also have a 60-second timeout; this is not a 60-second limit for the whole CLI invocation. |
 | Captured output | Combined stdout and stderr capture is limited to 16 MiB. Exceeding it records an incomplete-capture error. |
 
 These settings are fixed through the public CLI. There is no activity field or
-execution flag to override the timeout, PID limit, tmpfs size, networking or
+execution flag to override the timeout, PID limit, shared-memory or tmpfs size, networking or
 capture budgets.
 
 Independent verification mounts the committed product at `/product` and verifier
