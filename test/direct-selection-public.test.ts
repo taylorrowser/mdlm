@@ -7,6 +7,83 @@ import { parse, stringify } from "yaml";
 import { expect, test } from "vitest";
 import { initializeRepositoryFromProcessPackage } from "../src/repository-initialization.js";
 
+test("verification correction drafts retain the exact interface revisions required by unchanged targets", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-draft-interfaces-"));
+  const repository = path.join(root, "lifecycle"), verifier = path.join(root, "verifier"), registry = path.join(root, "registry");
+  const cli = (args: string[], manager = false) => {
+    const result = spawnSync(process.execPath, [path.join(process.cwd(), "dist/mdlm.js"), ...args, "--json"], {
+      cwd: args[0] === "init" ? root : repository, encoding: "utf8", timeout: 30_000,
+      env: {...process.env, MDLM_REVIEW_REGISTRY: registry, MDLM_REVIEW_REGISTRAR: manager ? "1" : "0"},
+    });
+    expect(result.status, result.stdout + result.stderr).toBe(0);
+    return JSON.parse(result.stdout);
+  };
+  const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], {encoding: "utf8"}).trim();
+  const commit = (cwd: string) => {
+    git(cwd, "add", ".");
+    git(cwd, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgSign=false", "commit", "--no-verify", "-qm", "Interface draft fixture");
+    return git(cwd, "rev-parse", "HEAD");
+  };
+  const guidance = (action: string, subject?: string) => cli(["expectations", "show", action, ...(subject ? [subject] : [])]);
+  const submit = async (g: any, operation: string, review = false) => {
+    const file = path.join(root, `${operation}.json`);
+    await fs.writeFile(file, JSON.stringify({operation, action: g.action, package: g.package, snapshot: g.snapshot, ...(g.subject ? {subject: g.subject} : {}), inputs: g.inputs, candidates: g.candidates}));
+    if (review) cli(["review", "register", file, file], true);
+    const result = cli(["proposal", "submit", file]);
+    commit(repository);
+    return result.revisions as string[];
+  };
+  try {
+    cli(["init", repository, "--process", "iterative"]);
+    await fs.mkdir(verifier); await fs.mkdir(registry);
+    git(verifier, "init", "-q");
+    await fs.writeFile(path.join(verifier, "verify.js"), "// Independent verification draft fixture.\n");
+    const sourceCommit = commit(verifier);
+    const interfaces: string[] = [];
+    for (let revision = 1; revision <= 3; revision++) {
+      const g = guidance(revision === 1 ? "record-interface" : "revise-interface", interfaces.at(-1));
+      g.candidates[0].payload = {...g.candidates[0].payload, title: "Service interface", boundary: "external", endpoints: [
+        {name: "client", owner: "client", responsibility: "Request the result"},
+        {name: "service", owner: "service", responsibility: "Return the result"},
+      ], interaction: `Compatible interface revision ${revision}`, failure_behavior: "Return an explicit refusal", compatibility: "Earlier clauses remain applicable", assumptions: "Public requests"};
+      interfaces.push((await submit(g, `interface-${revision}`))[0]!);
+    }
+    const frame = guidance("frame-experiment");
+    frame.candidates[0].payload = {...frame.candidates[0].payload, title: "Service result", criterion: "Show the result", question: "Can the client obtain the result?", approach: "Public requests", constraints: "No source access", allowance_minutes: 5, scope_cut: "One service"};
+    await submit(frame, "frame");
+    const requirements = guidance("draft-requirements");
+    requirements.candidates = [
+      {localId: "need", type: "REQ", payload: {title: "Result", publication: "recorded", kind: "stakeholder", statement: "The user shall obtain the result", rationale: "Public result"}, links: [{type: "uses-interface", target: interfaces[0]}], body: ""},
+      ...["request", "response"].map((localId, index) => ({localId, type: "REQ", payload: {title: localId, publication: "recorded", kind: "software", ears: {pattern: "ubiquitous", system: "The service", response: `provide the ${localId}`}}, links: [{type: "uses-interface", target: interfaces[index + 1]}], body: ""})),
+      {localId: "group", type: "DCP", payload: {title: "Result behavior", publication: "recorded"}, links: [{type: "parent", target: "$need"}, {type: "child", target: "$request"}, {type: "child", target: "$response"}], body: ""},
+      requirements.candidates.find((c: any) => c.type === "RQS"),
+    ];
+    const revisions = await submit(requirements, "requirements"), set = revisions.find(id => id.startsWith("RQS-"))!;
+    const targets = revisions.filter(id => id.startsWith("REQ-"));
+    const authoring = cli(["verification", "context", set]), plan = guidance("plan-verification", set);
+    const candidate = plan.candidates[0];
+    candidate.payload = {...candidate.payload, title: "Result checks", method: "Public API checks", objective: "Observe the result", authoring_subject: set, authoring_context: authoring.authoringContext, repository_path: verifier, source_commit: sourceCommit, verification_image: "node@sha256:" + "b".repeat(64), verification_command: ["node", "verify.js"], verification_script: "verify.js", results_path: "results.json", cases: [{id: "result", targets, preconditions: ["Service is available"], actions: ["Request the result"], expected_results: ["The requested result is returned"], coverage_rationale: "Addresses the selected result obligations"}], coverage: targets.map(target => ({target, obligations: ["Provide the result"], case_ids: ["result"], rationale: "The public case observes the result"}))};
+    candidate.links = [...targets.map(target => ({type: "verifies", target})), ...interfaces.map(target => ({type: "uses-interface", target}))];
+    candidate.body = "Retain these cases while correcting the verifier.";
+    const activity = (await submit(plan, "plan"))[0]!;
+    const review = guidance("review-verification", activity);
+    review.candidates[0].payload = {...review.candidates[0].payload, title: "Reject method", outcome: "fail", findings: "Improve the result assertion", coverage_assessments: targets.map(target => ({target, disposition: "needs-change", rationale: "Improve the result assertion"}))};
+    await submit(review, "review", true);
+    const before = [git(repository, "status", "--porcelain"), git(repository, "show-ref")];
+    const correction = guidance("correct-verification-after-review", activity), file = path.join(root, "correction.json");
+    cli(["proposal", "draft", "correct-verification-after-review", activity, "--operation", "correction", "--output", file]);
+    const draft = JSON.parse(await fs.readFile(file, "utf8"));
+    expect(draft.candidates[0]).toEqual({...correction.candidates[0], payload: candidate.payload, links: candidate.links, body: candidate.body});
+    expect(draft.candidates[0].predecessor).toBe(activity);
+    expect(draft.inputs).toEqual(correction.inputs);
+    expect([git(repository, "status", "--porcelain"), git(repository, "show-ref")]).toEqual(before);
+    // The draft is already structurally publishable without manually restoring older ICD links.
+    const accepted = cli(["proposal", "submit", file]);
+    expect(accepted.outcome).toBe("accepted");
+    expect(cli(["show", accepted.revisions[0]]).lifecycleDatum.datum.links).toEqual(candidate.links);
+  } finally { await fs.rm(root, {recursive: true, force: true}); }
+}, 60_000);
+
 test("proposal drafts preserve selected guidance, accept authored work and reject stale drafts", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(),"mdlm-direct-selection-"));
   const fixture = path.join(root,"package"), repository = path.join(root,"lifecycle");
