@@ -101,8 +101,9 @@ export function deriveSourceScopes(input: {
       const prose = /\.(?:md|txt|rst)$/i.test(name) || /^(?:readme|license|notice)$/i.test(name);
       if (!prose || entry.mode === "100755" || /^\uFEFF?#!/.test(text)) {
         report("source-documentation", entry.path, "Documentation must be a nonexecutable prose file; code and behavior-changing configuration need their own source role.");
+        continue;
       }
-      continue;
+      if (!input.explicitRanges) continue;
     }
     if (input.explicitRanges) {
       const declarations = input.explicitRanges.filter(range => range.path === entry.path);
@@ -126,7 +127,7 @@ export function deriveSourceScopes(input: {
         }
         result.scopes.push({name: range.name, path: entry.path, blob: entry.blob, role: entry.role, inherited: false, ranges: [{start: range.start, end: range.end}], links});
       }
-      lines.forEach((line, index) => {if (line.trim() && !covered.has(index + 1)) report("source-line-unmapped", entry.path, "Nonblank source must belong to an explicit mapped range.", index + 1);});
+      if (entry.role !== "documentation") lines.forEach((line, index) => {if (line.trim() && !covered.has(index + 1)) report("source-line-unmapped", entry.path, "Nonblank source must belong to an explicit mapped range.", index + 1);});
       continue;
     }
     if (entry.role === "configuration") {

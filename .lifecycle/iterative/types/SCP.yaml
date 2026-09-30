@@ -1,6 +1,6 @@
 kind: type-definition
 id: SCP
-version: 1
+version: 2
 description: Committed source scope
 name: Committed source scope
 extends: titled-datum@1
@@ -43,6 +43,7 @@ payload_schema:
       enum:
       - production
       - verification
+      - documentation
       - build
       - configuration
     ranges:

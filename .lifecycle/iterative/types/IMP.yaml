@@ -1,6 +1,6 @@
 kind: type-definition
 id: IMP
-version: 5
+version: 6
 description: Implementation
 name: Implementation
 extends: titled-datum@1
@@ -193,6 +193,7 @@ payload_schema:
                 enum:
                 - production
                 - verification
+                - documentation
           rationale:
             type: string
             minLength: 1
