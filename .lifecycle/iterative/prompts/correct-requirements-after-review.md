@@ -1,8 +1,8 @@
 ---
 id: correct-requirements-after-review
-version: 19
+version: 20
 skills:
-- skills/product-quality.md@7
+- skills/product-quality.md@8
 - skills/typed-requirements.md@16
 ---
 

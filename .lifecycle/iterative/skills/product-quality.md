@@ -1,6 +1,6 @@
 ---
 id: product-quality
-version: 7
+version: 8
 ---
 
 # Shared product quality expectations
@@ -79,7 +79,9 @@ them as product requirements does not establish compliance.
   else, unless the stakeholder names other callers.
 - Does the architecture/depth rationale fit each system? Do the leaves settle the
   required behavior, and do the children collectively satisfy every parent,
-  including shared state, failures and cross-component interactions?
+  including shared state, failures and cross-component interactions? For a
+  system-wide prohibition, try each relevant component's startup, ordinary and
+  refusal paths for a case where all children hold but the prohibition fails.
 - Does verification establish the complete obligation at its claimed boundary,
   with independent expectations and reproducible evidence? Component checks alone
   cannot establish a website/API workflow. Passing child cases alone cannot
