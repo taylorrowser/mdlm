@@ -1,6 +1,6 @@
 ---
 id: plan-verification
-version: 16
+version: 17
 skills: []
 ---
 
@@ -97,7 +97,7 @@ For demonstration, specify intended actions/results first, preserve the actual c
 
 Set repository_path, exact source_commit, verification_script and verification_command for the verifier. Pin verification_image by registry digest or immutable local sha256 image ID. Set results_path to the relative JSON report in the evidence directory. The runner mounts committed product at /product and verifier at /verification, and exposes MDLM_PRODUCT_DIR and MDLM_EVIDENCE_DIR. The declared report uses contract mdlm-verification-results@1 and cases containing case_id, outcome pass/fail/error/skipped, actual_results as strings, and evidence_refs as relative captured file paths. Emit every declared case once. Keep meaningful artifacts such as browser traces beside the report. A missing, duplicate or unknown case is an execution error, never a pass.
 
-Read "Native verification runtime" in the installation's `docs/contracts/direct-work.md` before authoring the script. After writing the report, exit `0` when every case passes, `1` when any case fails and none is errored or skipped, or `2` when any case is errored or skipped. Report/exit disagreement is an execution error.
+Read "Native verification runtime" in the installation's `docs/contracts/direct-work.md` before authoring the script. If the complete suite exceeds its fixed execution budget, publish multiple VFY candidates using the same committed verifier with per-activity case selectors. Preserve the frozen cases and expectations; declare each activity's exact partial coverage and required ICD links. The complete selected plan must still establish every selected obligation. After writing the report, exit `0` when every case passes, `1` when any case fails and none is errored or skipped, or `2` when any case is errored or skipped. Report/exit disagreement is an execution error.
 
 Use the declared product or component contract to guide interactions and requirements to derive expected outcomes. Separate directories preserve source identities but do not prevent reading product source; independent authoring and review enforce this boundary. Keep the method honest when a requirement needs evidence that the selected execution cannot establish.
 
