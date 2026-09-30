@@ -66,6 +66,8 @@ Complete the candidate payloads and body using the returned schemas and package 
 
 Use a new operation for a new proposal. Preserve the exact submitted bytes. After an interrupted or lost submission response, inspect settlement before doing more work. Accepted settlement authenticates the existing publication. Inspect and commit accepted lifecycle data before retrieving fresh guidance.
 
+When an independent reviewer withdraws the only blocking requirements finding and no definition needs correction, an eligible iterative `correct-requirements-after-review` can publish only the RQS candidate. Remove unused REQ and DCP draft placeholders; keep the exact RQS predecessor and `corrects` link to the failed Review, and explain the independent withdrawal in the RQS body. The CLI derives the selection. After publication and settlement, verify that all selected requirement and group revisions remain unchanged, then export fresh `review-requirements` context for the returned RQS successor and use the normal independent review handoff. The reviewer judges the complete context and supplies exactly the current native assessment rows. This revises the RQS history boundary while preserving requirement definitions and prior Reviews; the author relays the independently registered verdict unchanged.
+
 Before authoring a verification script or choosing its tools and evidence, read
 "Native verification runtime" in `docs/contracts/direct-work.md` in the MDLM
 installation containing your CLI, alongside that installation's `README.md`.
