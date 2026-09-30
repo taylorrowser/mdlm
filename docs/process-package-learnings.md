@@ -871,6 +871,23 @@ exact inputs. Further evidence comes from timed multi-component demos. When
 operation exposes another composition gap, clarify the owning check and record
 the learning here in the same session.
 
+## Verification activity execution budgets, #986
+
+The invoice's unchanged eleven-case suite exceeded the fixed 60-second execution
+budget. Preparation with the shared verifier split into contract and envelope
+activities took 37.028 and 46.670 seconds. This is class 6 authoring guidance:
+native multiple-candidate support and partial coverage already existed, but the
+canonical prompt did not explain using them for the execution budget.
+
+Partition execution into multiple VFY candidates sharing a committed verifier and
+per-activity case selectors. Preserve frozen cases and expectations, exact partial
+coverage and required ICD links; the complete selected plan retains every obligation.
+Package loading checks versioned references without wording-only tests. A fresh
+uncoached author must show that an over-budget suite can be partitioned with complete
+coverage and then canonically executed; preparation timing alone proves neither
+method adequacy nor product conformance. When operation exposes another avoidable
+budget workaround, clarify the smallest owning instruction and record its evidence.
+
 ## Typed requirement mappings are mechanical declarations
 
 Issue #741 replaces tiny-package free-string commitments with typed EARS fields,
