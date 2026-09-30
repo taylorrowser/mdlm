@@ -1,14 +1,16 @@
 ---
 id: source-trace
-version: 8
+version: 9
 skills: []
 ---
 
-# Attribute production source
+# Attribute committed source
 
 Declare file_roles for every committed product entry. Production, build and configuration files are attributed to exact selected software requirements. When levels are used, a component's launcher, runtime manifest and build files belong to its low-level leaves where they exist; with their siblings those leaves also own the rest of the decomposed high-level requirement's code. Documentation is nonexecutable prose. Verification source belongs to its separate VFY repository and is not part of this inventory.
 
-Use source_ranges for language-neutral attribution. Each entry contains path, name, start, end and requirements, a nonempty list of stable requirement IDs. Ranges are inclusive physical line numbers. Give every nonblank supported source line a clear responsibility; several ranges may support one requirement and one range may support several requirements. The CLI binds stable IDs to exact revisions in the selected RQS, checks coverage and generates source inventory and SCP data. Python source may retain supported closed comment regions when source_ranges is omitted. Do not mix representations ambiguously.
+Use source_ranges for language-neutral attribution. Each entry contains path, name, start, end and requirements, a nonempty list of stable requirement IDs. Ranges are inclusive physical line numbers. Give every nonblank production, build and configuration source line a clear responsibility; several ranges may support one requirement and one range may support several requirements. The CLI binds stable IDs to exact revisions in the selected RQS, checks coverage and generates source inventory and SCP data. Python source may retain supported closed comment regions when source_ranges is omitted. Do not mix representations ambiguously.
+
+When a selected software leaf requires documentation, keep the file's documentation role and supply explicit source_ranges for the prose that fulfills it. These ranges generate documentation SCPs with normal implements links to the exact selected leaf revisions. Documentation must have a supported prose filename, nonexecutable Git mode and no shebang. Other prose may remain outside ranges; documentation without ranges remains in the inventory. Every selected software leaf still needs an implements scope, and every nonblank executable source line still needs attribution.
 
 Before calculating ranges, inspect numbered source from the exact committed revision.
 For example, use `git show <source_commit>:<path> | nl -ba`.

@@ -5,6 +5,116 @@ import os from "node:os";
 import path from "node:path";
 import { expect, test } from "vitest";
 
+test("committed documentation ranges cover selected leaves without weakening executable coverage", async () => {
+  const root = await fs.mkdtemp(path.join(process.env.MDLM_DOCUMENTATION_TRACE_EVIDENCE_ROOT ?? os.tmpdir(), "mdlm-documentation-trace-"));
+  const repository = path.join(root, "lifecycle"), product = path.join(root, "product"), verifier = path.join(root, "verifier"), registry = path.join(root, "reviews");
+  const executable = path.join(process.cwd(), "dist/mdlm.js");
+  const commands: unknown[] = [];
+  let outcome = "failed";
+  const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], {encoding: "utf8"}).trim();
+  const commit = (cwd: string) => {
+    git(cwd, "add", ".");
+    git(cwd, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgSign=false", "commit", "--no-verify", "-qm", "Documentation fixture");
+    return git(cwd, "rev-parse", "HEAD");
+  };
+  const cli = (args: string[], exit = 0, manager = false) => {
+    const result = spawnSync(process.execPath, [executable, ...args, "--json"], {
+      cwd: args[0] === "init" ? root : repository, encoding: "utf8", timeout: 30_000,
+      env: {...process.env, MDLM_REVIEW_REGISTRY: registry, MDLM_REVIEW_REGISTRAR: manager ? "1" : "0"},
+    });
+    commands.push({args, exit: result.status, stdout: result.stdout, stderr: result.stderr});
+    expect(result.status, result.stdout + result.stderr).toBe(exit);
+    return JSON.parse(result.stdout);
+  };
+  const guidance = (action: string, subject?: string) => cli(["expectations", "show", action, ...(subject ? [subject] : [])]);
+  const submit = async (g: any, operation: string, candidates: any[], exit = 0, review = false) => {
+    const file = path.join(root, `${operation}.json`);
+    await fs.writeFile(file, JSON.stringify({operation, action: g.action, package: g.package, snapshot: g.snapshot,
+      ...(g.subject ? {subject: g.subject} : {}), inputs: g.inputs, candidates}));
+    if (review) cli(["review", "register", file, file], 0, true);
+    const result = cli(["proposal", "submit", file], exit);
+    if (!exit) commit(repository);
+    return result;
+  };
+  try {
+    cli(["init", repository, "--process", "iterative"]);
+    await fs.mkdir(registry);
+    for (const cwd of [product, verifier]) { await fs.mkdir(cwd); git(cwd, "init", "-q"); }
+    const frame = guidance("frame-experiment"), exp = frame.candidates[0];
+    exp.payload = {...exp.payload, title: "Local counter", criterion: "Count supplied items", question: "Can a caller use the counter?", approach: "A local command", constraints: "No stored state", allowance_minutes: 5, scope_cut: "Count only"};
+    await submit(frame, "frame", [exp]);
+    const draft = guidance("draft-requirements");
+    const requirement = (localId: string, payload: object) => ({localId, type: "REQ", payload: {title: localId, publication: "recorded", ...payload}, links: [], body: ""});
+    const published = await submit(draft, "requirements", [
+      requirement("need", {kind: "stakeholder", statement: "The caller shall know how to obtain item counts"}),
+      requirement("count", {kind: "software", ears: {pattern: "ubiquitous", system: "The counter", response: "print the number of supplied arguments"}}),
+      requirement("instructions", {kind: "software", ears: {pattern: "ubiquitous", system: "The product", response: "document local invocation and its expected output"}}),
+      {localId: "group", type: "DCP", payload: {title: "Local use", publication: "recorded"}, links: [{type: "parent", target: "$need"}, {type: "child", target: "$count"}, {type: "child", target: "$instructions"}], body: ""},
+      draft.candidates.find((c: any) => c.type === "RQS"),
+    ]);
+    const set = published.revisions.find((id: string) => id.startsWith("RQS-"));
+    const context = cli(["verification", "context", set]);
+    const byTitle = Object.fromEntries(context.requirements.map((r: any) => [r.payload.title, r]));
+    const review = guidance("review-requirements", set), r = review.candidates[0];
+    const graph = cli(["review", "context", "review-requirements", set]).requirementGraphs[0];
+    r.payload = {...r.payload, title: "Fixture review", outcome: "pass", findings: "Fixture tests source attribution mechanics only",
+      requirement_assessments: graph.assessment.requirements.map((requirement: string) => ({requirement, disposition: "valid", rationale: "Necessary local use behavior"})),
+      decomposition_assessments: graph.assessment.groups.map((g: any) => ({group: g.revision, children: g.children.map((requirement: string) => ({requirement, disposition: "valid", rationale: "Necessary behavior"})), disposition: "adequate", membership_action: "none", rationale: "Covers behavior and instructions"}))};
+    await submit(review, "review", [r], 0, true);
+    await fs.writeFile(path.join(verifier, "verify.py"), "# Public invocation and documentation checks; not executed by this attribution fixture.\n");
+    const plan = guidance("plan-verification", set), activity = plan.candidates[0];
+    const targets = context.requirements.map((row: any) => row.revision_id);
+    activity.payload = {...activity.payload, title: "Local use checks", method: "Public invocation and document inspection", objective: "Check the documented local invocation",
+      cases: [{id: "local-use", targets, preconditions: ["Fresh local checkout"], actions: ["Read the instructions and invoke the counter"], expected_results: ["Documented invocation prints the expected count"], coverage_rationale: "Checks the documented public command"}],
+      coverage: targets.map((target: string) => ({target, obligations: ["Documented local counting"], case_ids: ["local-use"], rationale: "Exercises local use"})),
+      repository_path: verifier, source_commit: commit(verifier), verification_image: "python@sha256:" + "a".repeat(64),
+      verification_command: ["python3", "verify.py"], verification_script: "verify.py", results_path: "results.json", authoring_subject: set, authoring_context: context.authoringContext};
+    activity.links = targets.map((target: string) => ({type: "verifies", target}));
+    const activityId = (await submit(plan, "plan", [activity])).revisions[0];
+    await fs.writeFile(path.join(product, "app.py"), "import sys\nprint(len(sys.argv)-1)\n");
+    await fs.writeFile(path.join(product, "README.md"), "# Counter\nRun `python3 app.py a b`.\nExpected output: `2`.\nAdditional project background.\n");
+    const source = commit(product), implement = guidance("implement-product", set), imp = implement.candidates[0];
+    const codeRange = {path: "app.py", name: "count", start: 1, end: 2, requirements: [byTitle.count.revision_id.split("-r")[0]]};
+    const docRange = {path: "README.md", name: "local-use", start: 2, end: 3, requirements: [byTitle.instructions.revision_id.split("-r")[0]]};
+    imp.payload = {...imp.payload, title: "Counter", repository_path: product, source_commit: source, command: ["python3", "app.py"],
+      file_roles: {"app.py": "production", "README.md": "documentation"}, source_ranges: [codeRange]};
+    imp.links.push({type: "verification", target: activityId});
+    const before = [git(repository, "rev-parse", "HEAD"), git(repository, "status", "--porcelain")];
+    const uncovered = await submit(implement, "without-doc-range", [imp], 1);
+    expect(uncovered.diagnostics).toEqual([{code: "direct-proposal-invalid", message: `Error: trace-requirement-uncovered: Software leaf '${byTitle.instructions.revision_id}' has no source scope that 'implements' it`}]);
+    expect([git(repository, "rev-parse", "HEAD"), git(repository, "status", "--porcelain")]).toEqual(before);
+    imp.payload.source_ranges = [docRange, {...codeRange, end: 1}];
+    const incomplete = await submit(implement, "uncovered-executable-line", [imp], 1);
+    expect(incomplete.diagnostics[0].message).toContain("source-line-unmapped: Nonblank source must belong to an explicit mapped range.");
+    expect([git(repository, "rev-parse", "HEAD"), git(repository, "status", "--porcelain")]).toEqual(before);
+    imp.payload.source_ranges = [codeRange, docRange];
+    const accepted = await submit(implement, "with-doc-range", [imp]);
+    expect(accepted.outcome).toBe("accepted");
+    const implementation = accepted.revisions.find((id: string) => id.startsWith("IMP-"));
+    const scopes = accepted.revisions.filter((id: string) => id.startsWith("SCP-")).map((id: string) => cli(["show", id]).lifecycleDatum.datum);
+    const doc = scopes.find((s: any) => s.payload.path === "README.md");
+    expect(doc.payload).toMatchObject({role: "documentation", name: "local-use", source_commit: source, blob: git(product, "rev-parse", `${source}:README.md`), ranges: [{start: 2, end: 3}]});
+    expect(doc.links).toEqual(expect.arrayContaining([{type: "belongs-to", target: implementation}, {type: "implements", target: byTitle.instructions.revision_id}]));
+    expect(scopes.find((s: any) => s.payload.path === "app.py").payload).toMatchObject({role: "production", ranges: [{start: 1, end: 2}]});
+    const why = cli(["trace", "why", "README.md:2", "--implementation", implementation]).requirementTrace;
+    expect(why.diagnostics).toEqual([]);
+    expect(why.lineStatus).toBe("mapped");
+    expect(why.scopes).toHaveLength(1);
+    expect(why.scopes[0]).toMatchObject({revision: doc.revision_id, role: "documentation", blob: doc.payload.blob, ranges: doc.payload.ranges,
+      reasons: [expect.objectContaining({requirement: byTitle.instructions.revision_id, path: [byTitle.instructions.revision_id, byTitle.need.revision_id]})]});
+    const impact = cli(["trace", "impact", byTitle.instructions.revision_id, "--implementation", implementation]).requirementTrace;
+    expect(impact.diagnostics).toEqual([]);
+    expect(impact.resolvedRequirement).toBe(byTitle.instructions.revision_id);
+    expect(impact.scopes.map((s: any) => s.revision)).toEqual([doc.revision_id]);
+    expect(impact.scopes[0].reasons).toEqual([expect.objectContaining({requirement: byTitle.instructions.revision_id, path: [byTitle.instructions.revision_id]})]);
+    outcome = "passed";
+  } finally {
+    const evidenceFile = path.join(root, "outcome.json");
+    await fs.writeFile(evidenceFile, JSON.stringify({outcome, executable, repository, product, verifier, commands}, null, 2));
+    process.stdout.write(`DOCUMENTATION_TRACE_EVIDENCE ${evidenceFile}\n`);
+  }
+}, 60_000);
+
 test("binary verifier evidence survives public review export, registration and publication", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-binary-review-"));
   const repository = path.join(root, "lifecycle"), verifier = path.join(root, "verifier"), registry = path.join(root, "registry");

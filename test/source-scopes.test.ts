@@ -122,3 +122,38 @@ test("explicit committed ranges trace web code and configuration without relabel
   expect(deriveSourceScopes({entries,selectedRequirements,explicitRanges:explicitRanges.slice(1)}).diagnostics.some(d=>d.code==="source-line-unmapped")).toBe(true);
   expect(deriveSourceScopes({entries,selectedRequirements}).diagnostics.some(d=>d.code==="source-code-format")).toBe(true);
 });
+
+test("explicit documentation ranges retain prose validation and optional untraced content", () => {
+  const doc = entry("# Local use\nRun the command.\nProject background.\n", {path: "README.md", role: "documentation"});
+  const range = {path: doc.path, name: "local-use", start: 2, end: 2, requirements: [R1, R2]};
+  const result = deriveSourceScopes({entries: [doc], selectedRequirements, explicitRanges: [range]});
+  expect(result.diagnostics).toEqual([]);
+  expect(result.scopes).toEqual([{name: range.name, path: doc.path, blob: doc.blob, role: "documentation", inherited: false,
+    ranges: [{start: 2, end: 2}], links: selectedRequirements.slice(0, 2).map(r => ({type: "implements", target: r.revisionId}))}]);
+  expect(deriveSourceScopes({entries: [doc], selectedRequirements, explicitRanges: []}).scopes).toEqual([]);
+  for (const invalid of [
+    {...doc, path: "README.py"}, {...doc, mode: "100755"},
+    entry("#!/bin/sh\necho hi\n", {path: doc.path, role: "documentation"}),
+    entry("\uFEFF#!/bin/sh\necho hi\n", {path: doc.path, role: "documentation"}),
+  ]) {
+    const rejected = deriveSourceScopes({entries: [invalid], selectedRequirements, explicitRanges: [{...range, path: invalid.path}]});
+    expect(rejected.diagnostics.map(d => d.code)).toEqual(["source-documentation"]);
+    expect(rejected.scopes).toEqual([]);
+  }
+});
+
+test("documentation ranges keep existing bounds, names, selected leaf and overlap checks", () => {
+  const doc = entry("One\nTwo\n", {path: "README.txt", role: "documentation"});
+  const range = {path: doc.path, name: "instructions", start: 1, end: 1, requirements: [R1]};
+  const cases: [typeof range[], string][] = [
+    [[{...range, start: 0}], "source-range-invalid"],
+    [[{...range, end: 3}], "source-range-invalid"],
+    [[range, {...range, start: 2, end: 2}], "source-range-invalid"],
+    [[{...range, requirements: [R3]}], "source-range-target"],
+    [[{...range, requirements: ["REQ-missing"]}], "source-range-target"],
+    [[range, {...range, name: "overlap"}], "source-region-overlap"],
+  ];
+  for (const [ranges, code] of cases) {
+    expect(deriveSourceScopes({entries: [doc], selectedRequirements, explicitRanges: ranges}).diagnostics.map(d => d.code)).toContain(code);
+  }
+});

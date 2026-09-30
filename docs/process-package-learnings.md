@@ -514,6 +514,20 @@ Before the change, it listed only `prepare-prototype` as required. Package loadi
 covers exact references. When a lane still meets one of these rejections first,
 move the rule into the step that owns the prerequisite and record it here.
 
+## Required documentation attribution, #996
+
+Issue #996 exposed required local-use documentation that could not cover its
+selected software leaf. Valid prose was skipped before explicit ranges, and the
+generated SCP and impact-disposition schemas excluded its honest role. This is
+class 3 declaration-contract agreement with class 6 exact authoring guidance.
+Reuse explicit ranges after prose validation, retain optional untraced prose,
+and admit documentation in the generated scope and impact candidate contracts.
+Keep executable coverage and selected-leaf coverage intact. One compiled public
+transaction rejects the uncovered documentation leaf, accepts its exact committed
+range, and checks trace why and impact. Focused parser checks retain prose and
+range validation. Fresh qualified operation must establish the real correction;
+the stopped Queue lane and its rejection remain pinned.
+
 ## Historical patterns and checks
 
 ## 1. Every failable output needs a correction route

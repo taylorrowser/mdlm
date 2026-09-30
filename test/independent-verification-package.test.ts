@@ -26,6 +26,9 @@ test("fresh iterative results retain incomplete outcomes and separate verificati
   const observation = await definition("actions/observe-prototype.yaml");
   expect(imp.payload_schema.required).not.toContain("verification_script");
   expect(imp.outgoing_links.find((l:any)=>l.id==="verification").cardinality.minimum).toBe(1);
+  const impactCandidate = imp.payload_schema.properties.impact_dispositions.items.properties.candidate;
+  const validateImpactCandidate = new Ajv2020({strict: false}).compile(impactCandidate);
+  expect(validateImpactCandidate({path: "README.md", name: "local-use", role: "documentation"})).toBe(true);
   expect(res.payload_schema.properties.case_results.items.properties.outcome.enum).toContain("skipped");
   expect(res.kernel_managed_payload_paths).toEqual(expect.arrayContaining(["case_results","artifacts","outcome","receipt"]));
   expect(observation.links.OBS["uses-evidence"]).toBe("results");
