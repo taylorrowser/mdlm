@@ -95,6 +95,21 @@ Use `mdlm execution export <operation-id> <new-directory> --json` to inspect sav
 
 Replace the placeholder with the complete selected locator string. This is a top-level proposal field, separate from the candidate payload. Keep the original captured execution when correcting the evidence envelope. A failing execution is evidence to assess, not a reason to discard history. Recover an uncertain execution through settlement; never start another execution merely because its response was lost.
 
+For a review handoff, reuse the file identities from the already saved successful
+`execution.export` JSON result. For example, if that capture is saved as
+`execution-export-metadata.json`, derive absolute file references with:
+
+```sh
+jq '. as $export | $export.files | map({path: ($export.path + "/" + .path), bytes, sha256})' execution-export-metadata.json
+```
+
+Use these rows in the existing handoff without manually copying or recalculating
+their byte counts and hashes. Retain the saved result's operation and export root,
+the complete review-context handoff, and every supplemental claim, prior finding,
+control result and command capture. Continue the existing operation/context and
+artifact-byte authentication and independent review. This composition does not
+require another execution or export.
+
 For stakeholder decisions, ask the named stakeholder using the exact guidance context. For change approval, follow the package prompt's review-context export instructions to include CLI-derived prospective impact in the request. When the required authority name is `stakeholder`, drafting prepares this top-level proposal field. Include it yourself when authoring a proposal without drafting:
 
 ```json
