@@ -1,6 +1,6 @@
 ---
 id: plan-verification
-version: 17
+version: 18
 skills: []
 ---
 
@@ -18,8 +18,8 @@ Before publication, check the final cases and coverage against every selected
 requirement and its incorporated normative ICD clauses, including required request
 fields, domain boundaries and failure conditions. For every coverage claim, check
 that its stated conditions and stimuli occur in the committed case and that its
-assertions establish the claimed result. Name clause IDs and remaining evidence
-gaps in the existing coverage rationale. An activity may claim part of a requirement;
+combined assertions and declared inspections establish the claimed result. Name
+clause IDs and remaining evidence gaps in the existing coverage rationale. An activity may claim part of a requirement;
 the complete selected plan must establish the whole obligation. For each parent,
 check whether the final cases and inspections establish its actual integrated
 conditions, including relevant failures across components. Passing isolated cases
@@ -69,6 +69,16 @@ may examine the exact committed product source and relevant dependencies. Record
 the inspected scope and artifact identities with the judgment; an incomplete scope
 remains unverified. Keep the requirement and expected behavior independent of what
 the source happens to do.
+
+## Optional formal postrun inspection
+
+For an activity targeting formal REQs selected by an IMP, you may opt into a two-stage method named "formal collection and independent postrun inspection". Before product source access or observation, freeze the complete semantic criteria and evidence sufficiency criteria in the existing objective, coverage obligations and rationale. Associate every criterion with its exact requirement and case. State separately which assertions complete during execution and which obligations the independent implementation REV must judge. The complete selected plan and its independent REV must establish every selected requirement, including integrated meaning and relevant failures. Keep reusable deterministic cases and assertions unchanged.
+
+The executable stage exercises the frozen stimuli, preserves complete observations and checks its declared collection assertions. A case may report pass only for those assertions, with actual_results stating that semantic judgment remains for implementation review. Its expected_results and coverage rationale must make that limited claim explicit. Capture complete messages, exact inputs, stimulus associations and required before/after state, with sufficient context for every frozen criterion. A missing collection artifact or failed assertion retains its truthful fail, error or skipped outcome. Collection PASS is not complete verification or a semantic PASS.
+
+The adequacy review judges this combined method before relying on it. After native execution and truthful RES publication, export the full existing implementation-review context, including exact verifier source, receipt, streams and captured artifacts. A fresh independent implementation reviewer judges every frozen semantic criterion against those bytes and records conclusions and evidence references in findings and the relevant coverage_assessments rationale. Formal verification and acceptance remain blocked until that review supports every obligation. Supply missing already-retained context before registration and preserve intermediate assessments; a genuine evidence gap remains incomplete. A registered failure or raw fail/error/skipped result cannot be overridden by inspection.
+
+This option applies only to formal IMP verification. TRY and EXP activities retain completed semantic judgments in their executable method before reporting pass, so observed-pass continues to mean an assessed observation. Demonstration claims still require their declared recording and replay. The preparation and stale-judgment rules below apply to methods that carry inspection judgments into executable cases; the formal postrun option instead completes its declared inspection in implementation REV.
 
 For independent inspection, alone or alongside automated checks, freeze the
 intended actions, expected results and inspection criteria before observing the

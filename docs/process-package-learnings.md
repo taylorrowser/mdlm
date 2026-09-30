@@ -977,3 +977,28 @@ evaluator covers keep/drop/stop and unresolved states; the existing iterative
 public journey adds two candidate iterations and discard after its accepted
 maintenance setup, preserving formal records and origins. Adoption remains the
 existing approved-change route, not automatic promotion.
+
+## Formal inspection after preserved execution, #993
+
+The frozen browser comparison retained a contradictory-message failure and an
+independent passing interpretation after exact executed method metadata supplied
+missing context. It established useful post-observation judgment, not canonical
+acceptance or saved runtime. The independent design review selected the existing
+aggregate implementation REV before adding case state. This feature applies class
+6 method guidance and class 10 complete content judgment.
+
+An explicitly opted-in formal VFY freezes every semantic and evidence sufficiency
+criterion before product access. Executable case PASS establishes its declared
+collection assertions; independent implementation REV establishes the remaining
+meaning from full retained context, including exact verifier source. Every selected
+requirement must be established by the combined method before acceptance. Keep TRY
+semantics, deterministic assertions and demonstration replay unchanged. Preserve
+raw fail/error/skipped and unsupported judgment as incomplete evidence.
+
+Check package loading and the aggregate status/acceptance seam for pending, supported
+passing and failing review, without wording-only tests. A separately qualified fresh
+formal browser trial must show one execution, no observation-specific preparation,
+complete frozen criteria and supported independent conclusions. Count supplemental
+exports and failed/incomplete recovery honestly; source checks prove neither semantic
+quality nor operational savings. When operation exposes a missed obligation or
+context gap, update the smallest owning guidance and record its evidence here.

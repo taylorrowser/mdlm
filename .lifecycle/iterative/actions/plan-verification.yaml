@@ -3,7 +3,7 @@ id: plan-verification
 version: 15
 description: plan verification
 capability: verification-activity
-prompt_ref: prompts/plan-verification.md@17
+prompt_ref: prompts/plan-verification.md@18
 types:
 - VFY
 subjects: select("current-requirements@1", {})
