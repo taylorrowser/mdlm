@@ -1016,3 +1016,26 @@ complete frozen criteria and supported independent conclusions. Count supplement
 exports and failed/incomplete recovery honestly; source checks prove neither semantic
 quality nor operational savings. When operation exposes a missed obligation or
 context gap, update the smallest owning guidance and record its evidence here.
+
+
+## Provisional choices need a decision-changing observation, #998
+
+The iterative framing prompt named a vertical slice and uncertainty but left the
+observation that would change the provisional choice implicit. Observation guidance
+asked for assessment without explicitly comparing it with that prior rule. This
+is a class 6 guidance gap, not a missing schema or publication gate.
+
+Use the existing EXP fields and body to name the uncertainty, stakeholder outcome,
+decision-changing observation and relevant operating conditions before implementing
+the slice. OBS compares actual evidence and its limitations with that exact prior
+rule. Missing rules and insufficient evidence remain explicit limitations; do not
+retrofit a prediction, invent an obligation or infer stakeholder acceptance.
+
+Check package loading and exact prompt delivery through the existing compiled
+prototype-correction journey, including preservation of the EXP rule in independent
+verification context and observation guidance. These checks establish delivery and
+binding, not better judgment. A controlled cloud experiment must freeze its criteria
+and preserve before/after evidence, independent judgments and inconclusive results
+before claiming benefit. Cloud checks do not establish EC2 installed qualification.
+When operation exposes a missed comparison, update the smallest owning guidance
+and preserve what the observation did and did not establish.
