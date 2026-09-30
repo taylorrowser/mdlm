@@ -124,7 +124,8 @@ export async function inspectDirectExpectations(root:string,action?:string,subje
 }
 /**
  * A revision draft starts from its predecessor's authored payload and body. It carries a predecessor link only when
- * the author owns that relation and its target is still current. Not carried: relations any package action fixes for
+ * the author owns that relation and its target is still current. Verification activities also retain exact interface
+ * revisions required by their carried targets. Not carried: relations any package action fixes for
  * the type (context such as corrects or responds-to, supplied fresh from this action's inputs), relations the kernel
  * generates for requirement tracing, and product verification selections, which need a fresh author choice.
  */
@@ -144,8 +145,14 @@ function carryPredecessors(current: State, candidates: DirectCandidate[]) {
     const payload = structuredClone(prior.payload);
     for (const field of resolved.type.kernelManagedPayloadPaths) delete payload[field];
     const contextRelations = new Set(Object.values(current.pkg.actions).flatMap(action => Object.keys(action.links?.[candidate.type] ?? {})));
+    const authoredLinks = prior.links.filter(link => !contextRelations.has(link.type) && !kernelRelations.has(link.type));
+    const carriedLinks = authoredLinks.filter(link => latest(link.target));
+    const requiredInterfaces = new Set(candidate.type === independentBinding(current.pkg)?.type
+      ? [...candidate.links, ...carriedLinks].filter(link => link.type === "verifies").flatMap(link =>
+        current.data.find(datum => datum.revision_id === link.target)?.links.filter(link => link.type === "uses-interface").map(link => link.target) ?? [])
+      : []);
     candidate.payload = {...payload, ...candidate.payload};
-    candidate.links = [...candidate.links, ...prior.links.filter(link => !contextRelations.has(link.type) && !kernelRelations.has(link.type) && latest(link.target)).map(link => ({...link}))];
+    candidate.links = [...candidate.links, ...authoredLinks.filter(link => latest(link.target) || (link.type === "uses-interface" && requiredInterfaces.has(link.target))).map(link => ({...link}))];
     candidate.body = prior.body;
   }
 }
