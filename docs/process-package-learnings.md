@@ -404,6 +404,29 @@ fail for assessed requirement violations. Keep all required field and state chec
 unrequired fields and prior source hashes are not behavioral expected results.
 Use the same package/routing checks and later uncoached authoring loop above.
 
+Issue #1013 follows configuration-label-01 on 2.5.9. The requirement prohibited a
+counting result on invalid input, but its title suggested empty stdout. The
+verifier required zero stdout bytes and its first adequacy review passed. Root
+then supplied a permitted diagnostic-only stdout counterexample; the reviewer
+confirmed FAIL before registration. Requirements clarification preserved nonzero
+refusal and no counting result while making diagnostic-stream freedom explicit.
+This is class 6 application guidance with class 10 content expectations. Existing
+rules already require valid alternatives and contradictory results to be checked;
+no accepted-invalid behavior was demonstrated in the original method.
+
+Make that existing check concrete in the verification-review prompt: distinguish
+a permitted diagnostic from a forbidden result, retain both refusal duties, and
+resolve a title/statement mismatch before adopting a stronger reading. Use the
+complete relevant case path. This adds no parser, requirement tier or review gate.
+
+Check package loading and exact version references without wording-only tests.
+The pinned lane's correction establishes recovery after coaching. Observe the
+first submission and independent judgment in the next naturally scheduled fresh
+refusal-method episode before root supplies a counterexample; record permitted
+alternative acceptance and contradiction rejection in existing evidence. No
+preventive or causal benefit is established yet. When operation exposes another
+application gap, clarify its existing owning check and record the evidence here.
+
 ## Operation-specific contracts and executed coverage, #935
 
 The recovery-allocation experiment initially applied a request quantity comparison
