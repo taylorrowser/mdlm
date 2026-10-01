@@ -119,7 +119,7 @@ coverage.
 | Filesystem and user | Read-only container root and source mounts; non-root user, all capabilities dropped and no new privileges. Independent verification uses the non-root caller's UID/GID, or `65534:65534` for a root caller. Product-owned verification uses `65534:65534`. |
 | Processes | Fixed Docker PID limit of 128. |
 | Shared memory | Writable `/dev/shm`, fixed at 128 MiB (`--shm-size=128m`). |
-| Temporary files | Writable `/tmp` tmpfs, limited to 64 MiB, with `nosuid,nodev`. |
+| Temporary files | Writable `/tmp` tmpfs, limited to 64 MiB, with effective `noexec,nosuid,nodev`. Docker supplies the `noexec` default; the runtime does not override it with `exec`. |
 | Execution time | The public command uses a 60-second wait for container completion. Timeout kills the container and records an error. Docker create and start each also have a 60-second timeout; this is not a 60-second limit for the whole CLI invocation. |
 | Captured output | Combined stdout and stderr capture is limited to 16 MiB. Exceeding it records an incomplete-capture error. |
 
@@ -134,6 +134,15 @@ at `/verification`, both read-only, and starts in `/verification`. It supplies
 verification instead mounts its committed source read-only at `/workspace` and
 starts there. Image tools and committed dependencies must be usable without
 network downloads or writes to those source directories.
+
+Do not directly execute binaries or executable scripts copied into `/tmp`;
+`noexec` prevents that even when their executable mode bits are preserved. For
+independent verification that needs a writable executable copy, prepare it in a
+subdirectory of `/evidence` and preserve executable modes. That bind mount uses
+the host backing filesystem, which must permit execution; MDLM does not override
+a host `noexec` restriction. Keep preparation files separate from report artifacts
+and reference only the evidence needed for each case. Product-owned verification
+has no `/evidence` mount.
 
 An independent activity selects `repository_path`, `source_commit`,
 `verification_script`, `verification_command`, `verification_image` and
