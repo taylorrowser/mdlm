@@ -705,6 +705,21 @@ needed. It does not require the old case id, stimulus or count to survive. Check
 package loading and exact references; a later change lane must show whether
 authors keep the evidence without review prompting.
 
+Issue #1017 follows the configuration counter's current verified status alongside
+coverage rationale saying a setup correction remained unexecuted. The method
+review treated that wording as historical, and all ten requirements had current
+passing evidence. This is class 6 author guidance with class 10 interpretation,
+not an execution or currentness defect.
+
+The verification authoring prompt now separates reusable method rationale and
+limits from retained preparation history and current execution/review records.
+Keep real method gaps and inspection applicability explicit. Existing accepted
+activities need no status-only revision. Check package loading and exact references
+without wording-only tests; a fresh authoring/reuse cycle must establish whether
+the rationale stays clear as execution and review state change. Current recovery
+does not establish that benefit. Preserve this distinction when later operation
+changes the owning guidance.
+
 ## 7. Generated artifacts are not committed
 
 Issues: #478, #498, #553, #557, #561, #563, #574, #577, #589, #601, #634,

@@ -1,6 +1,6 @@
 ---
 id: plan-verification
-version: 18
+version: 19
 skills: []
 ---
 
@@ -10,7 +10,7 @@ Give a fresh verification author `mdlm verification context <exact-RQS-or-EXP> -
 
 The receiving author checks the saved bytes against those digests and confirms that the projected package matches the intent export's package. The verification author defines methods, cases, expected results and inspection criteria without product source, implementation explanations or product-authored expectations. Necessary source inspection follows the criteria freeze described below; source provides evidence, never the required behavior. Copy the intent export's subject into authoring_subject and its authoringContext digest into authoring_context. Ask for requirement clarification when two readings of the public contract give different stakeholder-visible results; otherwise choose a check that accepts both readings and record that choice in the coverage rationale.
 
-Commit the verifier in a separate Git repository. Define each activity's method and objective, exact REQ or EXP targets, cases and coverage. Each case has preconditions, intended actions, expected results and a rationale.
+Commit the verifier in a separate Git repository. Define each activity's method and objective, exact REQ or EXP targets, cases and coverage. Each case has preconditions, intended actions, expected results and a rationale. Keep coverage rationale about the method and its limits; label retained preparation notes as historical, and read current execution and review state from their exact records and verification status.
 
 Create exactly one `coverage` entry for each exact target selected by the activity's `verifies` links. Combine that target's obligations in its `obligations` array. Its `case_ids` must list every declared case whose `targets` contains that exact target, once each, with no other case IDs. Do not split one target into several coverage entries by obligation or case. A single EXP therefore has one coverage entry even when its criterion has several obligations and cases.
 
