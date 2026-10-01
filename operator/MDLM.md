@@ -80,6 +80,18 @@ mdlm verification context <exact-RQS-or-EXP> --output verification-context.json 
 mdlm verification status <exact-product> --json
 ```
 
+When the installed package requests a six-field source-free guidance projection,
+copy those unchanged fields from the saved `expectations show` response:
+
+```sh
+jq '{action, subject, package, prompt, payloadSchemas, candidates}' saved-guidance.json
+```
+
+Save the output to a new file and include its path, byte count and SHA256 in the
+handoff alongside the required verification-context export and public operation
+contact. The installed package controls the permitted fields. Keep full guidance
+with the lifecycle author; the projection does not replace the intent export.
+
 Follow that package's plan and review guidance. Keep verifier authoring separate from implementation source and explanations. Select exact activities on the product, then execute each with `mdlm execution run <exact-product> <operation-id> --activity <exact-VFY> --json`. Read case results and evidence before publishing the assessment. Shared scripts are supported; complete requirement coverage still needs an explicit adequacy judgment.
 
 For a package using product-owned verification, commit the product source and verification script, then run:
@@ -133,6 +145,17 @@ mdlm review context <action> <exact-subject> --output review-context.json --json
 ```
 
 Pass the returned handoff to the review manager. It contains the saved file's absolute path, byte count and SHA256, with the exact action, subject, snapshot and package. The fresh reviewer reads that file. Choose a new path for each export; existing files are preserved and cause an error. Omitting `--output` returns the full context on stdout. The export SHA256 identifies the saved bytes; registration's canonical context digest is a separate value.
+
+For a requirements review, read the exact assessment rows from the saved context:
+
+```sh
+jq '.requirementGraphs[] | {selection, requirements: .assessment.requirements, groups: .assessment.groups}' review-context.json
+```
+
+Use these requirement IDs and group/child coordinates for structured assessments,
+not `allowedRequirements` or every record in the graph. Review the full graph and
+relevant adjacent lifecycle context; the row list only defines output membership.
+The reviewer supplies every disposition and rationale independently.
 
 For related lifecycle context within the review's input boundary, use existing
 inspection commands:
