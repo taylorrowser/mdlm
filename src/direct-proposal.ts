@@ -289,6 +289,7 @@ export async function exportDirectExecution(root:string,operation:string,destina
   });
   files.push({path:"stdout",bytes:Buffer.from(result.stdoutBase64,"base64")},{path:"stderr",bytes:Buffer.from(result.stderrBase64,"base64")});
   if(result.rawReportBase64!==undefined) files.push({path:"report.json",bytes:Buffer.from(result.rawReportBase64,"base64")});
+  await fs.mkdir(path.dirname(destination),{recursive:true});
   await fs.mkdir(destination);
   for(const file of files) {const target=path.join(destination,file.path);await fs.mkdir(path.dirname(target),{recursive:true});await fs.writeFile(target,file.bytes,{flag:"wx"});}
   return {ok:true,contract:"mdlm-execution-export@1",operation,path:destination,files:files.map(file=>({path:file.path,bytes:file.bytes.length,sha256:createHash("sha256").update(file.bytes).digest("hex")}))};
