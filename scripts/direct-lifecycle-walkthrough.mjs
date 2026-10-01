@@ -11,8 +11,9 @@ const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const fixtureAuthority = 'Operator-selected engineering fixture. Stakeholder decisions are scripted fixture inputs, not acceptance by the actual product user. Review registration exercises a separate manager transport and exact verdict binding; it does not claim human or model review independence.';
 
 /** Ordinary public operations only. Preserve both repositories and external evidence on every outcome. */
-export async function runDirectJourney({process: processName = 'tiny', corrections = false, partialAcceptance = false, operationalUse = false, newRootChange = false, lateRequirementCorrection = false, executable = process.env.MDLM_DIRECT_EXECUTABLE ?? process.env.MDLM_EXECUTABLE, root}) {
+export async function runDirectJourney({process: processName = 'tiny', corrections = false, partialAcceptance = false, operationalUse = false, newRootChange = false, configurationImpact = false, lateRequirementCorrection = false, executable = process.env.MDLM_DIRECT_EXECUTABLE ?? process.env.MDLM_EXECUTABLE, root}) {
   assert.ok(['tiny', 'exploratory', 'iterative'].includes(processName));
+  assert.ok(!configurationImpact || processName === 'iterative');
   assert.ok(!lateRequirementCorrection || processName === 'iterative');
   assert.ok(!newRootChange || processName === 'iterative', 'New root change fixture requires the iterative package');
   assert.ok(!operationalUse || processName === 'iterative', 'Operational-use fixture requires the iterative package');
@@ -446,11 +447,66 @@ raise SystemExit(0 if all(row['outcome'] == 'pass' for row in rows) else 1)
       const set = initial.find(d => d.type === 'RQS');
       const originalReview = reviewRequirements(set).review;
       const activity = planVerification(set, countCases);
-      const imp = submit('implement-product', set.revision_id, [candidate('implementation', 'IMP', {...sourceVersion(count.id), file_roles: {'count.py': 'production'}}, [link('implements', set.revision_id), link('verification', activity.revision_id)])]).find(d => d.type === 'IMP');
+      const initialSource = sourceVersion(count.id);
+      if (configurationImpact) {
+        writeFileSync(path.join(source, '.gitignore'), '__pycache__/\n');
+        commit(source, 'Keep interpreter caches outside source inventory');
+        initialSource.source_commit = git(['rev-parse', 'HEAD'], source);
+        sourceCommits.push(initialSource.source_commit);
+        initialSource.source_ranges = [
+          {path: 'count.py', name: 'count', start: 1, end: 4, requirements: [count.id]},
+          {path: '.gitignore', name: 'Ignore interpreter caches', start: 1, end: 1, requirements: [count.id]},
+        ];
+      }
+      const imp = submit('implement-product', set.revision_id, [candidate('implementation', 'IMP', {...initialSource, file_roles: {'count.py': 'production', ...(configurationImpact ? {'.gitignore': 'configuration'} : {})}}, [link('implements', set.revision_id), link('verification', activity.revision_id)])]).find(d => d.type === 'IMP');
       if (operationalUse) recordUse(imp, ['red', 'blue'], {negativeChecks: true, wrongSubject: set.revision_id});
       const acceptance = finishProduct(set, imp);
       assert.equal(cli(['expectations']).outcome, 'profile-boundary-reached');
       if (operationalUse) recordUse(imp, ['green']);
+      if (configurationImpact) {
+        const change = submit('request-change', set.revision_id, [candidate('clarify-count', 'CHG', {
+          reason: 'Clarify count representation without changing cache housekeeping.',
+          requested_outcome: 'State that the count is a decimal integer.',
+        }, [link('baseline', acceptance.revision_id), link('changes', count.revision_id)])]).find(d => d.type === 'CHG');
+        submit('approve-change', change.revision_id, [candidate('approval', 'REV', {outcome: 'pass', findings: fixtureAuthority}, [link('reviews', change.revision_id)])]);
+        const nextSet = submit('revise-requirements', change.revision_id, [
+          candidate('count', 'REQ', {...count.payload, ears: {...count.payload.ears, response: 'print the number of supplied command-line items as a decimal integer'}}, [], count.revision_id),
+          candidate('requirements', 'RQS', {}, [], set.revision_id),
+        ]).find(d => d.type === 'RQS');
+        reviewRequirements(nextSet);
+        const activity = planVerification(nextSet, countCases);
+        const context = cli(['review', 'context', 'rebind-product', nextSet.revision_id]);
+        const required = context.requirementGraphs.find(g => g.selection === nextSet.revision_id).assessment.sourceScopes;
+        const scopes = required.map(exact);
+        const configuration = scopes.find(d => d.payload.path === '.gitignore');
+        assert.equal(configuration.payload.role, 'configuration');
+        assert.equal(required.length, 2, 'Both count and configuration are required impact targets');
+        const dispositions = scopes.map(d => ({source_scope: d.revision_id, disposition: 'valid', rationale: 'The unchanged exact region remains valid for the clarified count.'}));
+        const output = candidate('implementation', 'IMP', {...imp.payload, product_files: undefined, source_inventory: undefined, source_changes: undefined, impact_dispositions: dispositions}, [link('implements', nextSet.revision_id), link('verification', activity.revision_id)], imp.revision_id);
+        const g = guidance('rebind-product', nextSet.revision_id);
+        for (const [operation, rows, diagnostic] of [
+          ['wrong-configuration-role', dispositions.map(row => row.source_scope === configuration.revision_id ? {...row, candidate: {path: '.gitignore', name: configuration.payload.name, role: 'production'}} : row), 'change-source-candidate'],
+          ['missing-configuration-target', dispositions.filter(row => row.source_scope !== configuration.revision_id), 'change-source-coverage'],
+          ['unsupported-impact-role', dispositions.map(row => row.source_scope === configuration.revision_id ? {...row, candidate: {path: '.gitignore', name: configuration.payload.name, role: 'unsupported'}} : row), 'change-source-candidate'],
+        ]) {
+          const rejected = cli(['proposal', 'submit', '-'], {operation, action: g.action, package: g.package, snapshot: g.snapshot, subject: g.subject, inputs: g.inputs, candidates: [{...output, payload: {...output.payload, impact_dispositions: rows}}]}, {expected: 1});
+          assert.ok(JSON.stringify(rejected.diagnostics).includes(diagnostic), JSON.stringify(rejected));
+          assert.equal(cli(['proposal', 'settlement', operation]).outcome, 'not-published');
+          assert.equal(guidance('rebind-product', nextSet.revision_id).snapshot, g.snapshot);
+        }
+        // Omitted candidate coordinates must survive automatic derivation and final stored-payload validation.
+        const maintained = submit('rebind-product', nextSet.revision_id, [output]).find(d => d.type === 'IMP');
+        const stored = exact(maintained.revision_id);
+        const mapping = stored.payload.impact_dispositions.find(row => row.source_scope === configuration.revision_id);
+        assert.deepEqual(mapping.candidate, {path: '.gitignore', name: configuration.payload.name, role: 'configuration'});
+        assert.deepEqual(stored.payload.impact_dispositions.map(row => row.source_scope).sort(), [...required].sort());
+        assert.ok(data().some(d => d.type === 'SCP' && d.payload.path === '.gitignore' && d.payload.role === 'configuration' && d.links.some(l => l.type === 'belongs-to' && l.target === maintained.revision_id)));
+        assert.deepEqual(exact(imp.revision_id), imp, 'Baseline implementation remains immutable');
+        terminal = cli(['expectations']);
+        cli(['doctor']);
+        save('configuration-impact-proof.json', {implementation: maintained.revision_id, required, mapping, rejected: ['wrong-configuration-role', 'missing-configuration-target', 'unsupported-impact-role']});
+        return;
+      }
       if (newRootChange) {
         const statement = 'The caller shall undo the latest recorded count.';
         const change = submit('request-change', set.revision_id, [candidate('add-undo', 'CHG', {reason: 'Add one separate stakeholder obligation.', requested_outcome: statement, new_roots: [statement]})]).find(d => d.type === 'CHG');
@@ -680,7 +736,7 @@ raise SystemExit(0 if all(row['outcome'] == 'pass' for row in rows) else 1)
     if (existsSync(lifecycle)) { try { lifecycleData = [...new Set(revisions)].map(exact); } catch (error) { lifecycleData = {error: String(error)}; captureFailures.push(`Lifecycle data capture failed: ${error.message}`); } }
     save('lifecycle-data.json', lifecycleData ?? []);
     if (captureFailures.length && !caught) caught = new Error(`Final evidence is incomplete: ${captureFailures.join('; ')}`);
-    const result = {ok: !caught, outcome: caught ? 'failed' : terminal?.outcome ?? 'failed', process: processName, corrections, operationalUse, newRootChange, lateRequirementCorrection, operationalUses, root, lifecycle, source, verificationRepositories, evidenceFile, publications, revisions, receipts, sourceCommits, commands, terminal, gitState, captureFailures, scope: fixtureAuthority, error: caught ? {message: caught.message, stack: caught.stack} : undefined};
+    const result = {ok: !caught, outcome: caught ? 'failed' : terminal?.outcome ?? 'failed', process: processName, corrections, operationalUse, newRootChange, configurationImpact, lateRequirementCorrection, operationalUses, root, lifecycle, source, verificationRepositories, evidenceFile, publications, revisions, receipts, sourceCommits, commands, terminal, gitState, captureFailures, scope: fixtureAuthority, error: caught ? {message: caught.message, stack: caught.stack} : undefined};
     save('result.json', result);
     if (caught) { caught.message += `\nPreserved journey evidence: ${evidenceFile}`; throw caught; }
     return result;
@@ -691,5 +747,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const args = process.argv.slice(2);
   const option = name => args.includes(name) ? args[args.indexOf(name) + 1] : undefined;
   const executable = option('--executable') ?? process.env.MDLM_DIRECT_EXECUTABLE ?? process.env.MDLM_EXECUTABLE;
-  runDirectJourney({process: option('--process') ?? 'tiny', corrections: args.includes('--corrections'), partialAcceptance: args.includes('--partial-acceptance'), operationalUse: args.includes('--operational-use'), newRootChange: args.includes('--new-root-change'), lateRequirementCorrection: args.includes('--late-requirement-correction'), executable, root: option('--root')}).then(result => console.log(JSON.stringify({ok: result.ok, outcome: result.outcome, publications: result.publications, receipts: result.receipts, commands: result.commands, evidenceFile: result.evidenceFile}))).catch(error => { console.error(error.stack); process.exitCode = 1; });
+  runDirectJourney({process: option('--process') ?? 'tiny', corrections: args.includes('--corrections'), partialAcceptance: args.includes('--partial-acceptance'), operationalUse: args.includes('--operational-use'), newRootChange: args.includes('--new-root-change'), configurationImpact: args.includes('--configuration-impact'), lateRequirementCorrection: args.includes('--late-requirement-correction'), executable, root: option('--root')}).then(result => console.log(JSON.stringify({ok: result.ok, outcome: result.outcome, publications: result.publications, receipts: result.receipts, commands: result.commands, evidenceFile: result.evidenceFile}))).catch(error => { console.error(error.stack); process.exitCode = 1; });
 }
