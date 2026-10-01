@@ -20,14 +20,15 @@ test("activity review includes its exact authoring graph without expanding verif
     git("add", ".");
     git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgSign=false", "commit", "--no-verify", "-qm", "Verifier");
     const parent = {...datum("REQ", "parent"), payload: {kind: "stakeholder", rationale: "Keep the website separate from the API"}};
-    const child = {...datum("REQ", "child"), payload: {kind: "software"}};
+    const observation = {...datum("OBS", "prior"), body: "Historical product result must not prime method review"};
+    const child = {...datum("REQ", "child"), payload: {kind: "software"}, links: [{type: "informed-by", target: observation.revision_id}]};
     const group = {...datum("DCP", "group"), links: [{type: "parent", target: parent.revision_id}, {type: "child", target: child.revision_id}]};
     const set = {...datum("RQS", "set"), links: [parent, child].map(d => ({type: "contains", target: d.revision_id})).concat({type: "decomposition", target: group.revision_id})};
     const newerSet = {...set, revision: 2, revision_id: `${set.id}-r00002`};
     const unrelated = {...set, ...datum("RQS", "unrelated"), links: set.links};
     const criterion = datum("EXP", "criterion");
     const activity = {...datum("VFY", "activity"), payload: {repository_path: repository, source_commit: git("rev-parse", "HEAD"), authoring_subject: set.revision_id}, links: [{type: "verifies", target: child.revision_id}]};
-    const context: DirectContext = {root: repository, pkg: loaded.package, package: {reference: "fixture@1", digest: "fixture", language: "fixture"}, snapshot: "exact", action: loaded.package.actions["review-verification"]!, subject: activity.revision_id, inputs: {activity: [activity.revision_id]}, data: [parent, child, group, set, newerSet, unrelated, criterion, activity]};
+    const context: DirectContext = {root: repository, pkg: loaded.package, package: {reference: "fixture@1", digest: "fixture", language: "fixture"}, snapshot: "exact", action: loaded.package.actions["review-verification"]!, subject: activity.revision_id, inputs: {activity: [activity.revision_id]}, data: [parent, child, group, set, newerSet, unrelated, criterion, activity, observation]};
     const authoring = verificationAuthoringContext(context, set.revision_id);
     activity.payload = {...activity.payload, authoring_context: authoring.authoringContext} as typeof activity.payload;
     const original = JSON.stringify(context);
@@ -39,6 +40,16 @@ test("activity review includes its exact authoring graph without expanding verif
     expect(reviewed.records.find(d => d.revision_id === activity.revision_id)!.links).toEqual([{type: "verifies", target: child.revision_id}]);
     expect(reviewed.verifierSources?.[0]?.files).toEqual([{path: "verify.js", blob: git("rev-parse", "HEAD:verify.js"), content: "// Public assertions live here.\n"}]);
     expect(JSON.stringify(context)).toBe(original);
+    expect(reviewed.records).not.toContainEqual(observation);
+    expect(JSON.stringify(reviewed)).not.toContain(observation.body);
+
+    // Origin expansion belongs to derivation review; explicit review inputs remain exact.
+    const requirementsReview = await buildDirectReviewContext({...context, action: loaded.package.actions["review-requirements"]!, subject: set.revision_id, inputs: {requirements: [set.revision_id]}});
+    expect(requirementsReview.records).toContainEqual(observation);
+    expect(requirementsReview.requirementGraphs).toEqual(reviewed.requirementGraphs);
+    const explicitOrigin = await buildDirectReviewContext({...context, inputs: {...context.inputs, origin: [observation.revision_id]}});
+    expect(explicitOrigin.records).toContainEqual(observation);
+    expect(explicitOrigin.inputs.origin).toEqual([observation.revision_id]);
 
     // A full activity and an already selected RQS still yield one graph.
     const full = {...activity, links: [parent, child].map(d => ({type: "verifies", target: d.revision_id}))};

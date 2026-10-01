@@ -189,12 +189,16 @@ export async function buildDirectReviewContext(context: DirectContext): Promise<
     for (const link of baseline?.links ?? []) if (link.type === "confirms") selectedIds.add(link.target);
   }
   const implementations = selected.filter(datum => datum.type === trace.implementation_type);
+  const reviewedActivity = independent && context.action.capability === "review" && selected.find(datum => datum.type === independent.type && datum.revision_id === context.subject);
   const authoringSubject = independent && selected.find(datum => datum.type === independent.type && datum.revision_id === context.subject)?.payload.authoring_subject;
   const sets = data.filter(datum => datum.type === trace.type && (selectedIds.has(datum.revision_id) || datum.revision_id === authoringSubject || implementations.some(implementation => implementation.links.some(link => link.type === "implements" && link.target === datum.revision_id))));
   for (const set of sets) {
     const graph = selectedRequirementGraph(data, set, trace);
     if (graph.diagnostics.length) throw new Error(`Review requirement graph '${set.revision_id}' is invalid: ${JSON.stringify(graph.diagnostics)}`);
     result.requirementGraphs.push({selection: set.revision_id, assessment: assessRequirements(data, trace, set), groups: graph.groups, requirements: graph.requirements.map(datum => ({...datum, leaf: graph.leaves.has(datum.revision_id)}))});
+    // Method review starts from intent; derivation origins may contain prior product observations.
+    // Explicit inputs remain in records. Other review roles retain their direct origins.
+    if (reviewedActivity) continue;
     // Origins explain derivation. Include only direct exact links, never their source or evidence graph.
     for (const requirement of graph.requirements) {
       for (const link of requirement.links) {
