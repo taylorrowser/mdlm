@@ -720,6 +720,15 @@ the rationale stays clear as execution and review state change. Current recovery
 does not establish that benefit. Preserve this distinction when later operation
 changes the owning guidance.
 
+Issue #1019 follows an approved default-label change whose refreshed DCP links
+selected the new requirements while its copied body still asserted the old label.
+The author followed the membership-only guidance; the kernel already supports an
+explicit same-membership revision. Class 6 guidance now permits correcting that
+misleading prose during approved maintenance, with class 10's shared interpretation.
+Preserve exact predecessor and endpoint rules, unchanged records and ordinary
+whole review. Check package loading and references; only a fresh maintenance
+author and reader can establish improved clarity. Current recovery does not.
+
 ## 7. Generated artifacts are not committed
 
 Issues: #478, #498, #553, #557, #561, #563, #574, #577, #589, #601, #634,
