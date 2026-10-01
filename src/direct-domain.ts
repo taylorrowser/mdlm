@@ -166,12 +166,15 @@ export async function finalizeDirectDomain(context: DirectFinalizationContext): 
       if (context.action.capability === "observation") {
         const product = state.data.find(d => d.type === independent.prototype_type && [context.subject, ...Object.values(context.inputs).flat()].includes(d.revision_id));
         if (!product) throw new Error("Observation needs one exact prototype");
-        const results = selectedActivities(state, product).flatMap(a => {
+        const activities = selectedActivities(state, product);
+        const results = activities.flatMap(a => {
           const current = currentVerificationResults(state, product.revision_id, a.revision_id);
-          if (current.length !== 1) throw new Error("Record a current result for each selected activity before observation");
+          if (current.length > 1) throw new Error("Observation needs one unambiguous current result per selected activity");
           return current;
         });
-        const outcome = results.some(r => r.payload.outcome === "error") ? "error" : results.some(r => r.payload.outcome === "fail") ? "fail" : "pass";
+        if (!results.length) throw new Error("Observation needs at least one current selected activity result");
+        // Missing evidence is non-passing; it does not invent an execution result.
+        const outcome = results.length < activities.length || results.some(r => r.payload.outcome === "error") ? "error" : results.some(r => r.payload.outcome === "fail") ? "fail" : "pass";
         datum.payload.outcome = outcome;
         if (outcome !== "pass" && !["revise", "drop"].includes(String(datum.payload.recommendation))) throw new Error("Failed/incomplete observations allow revise or drop only");
         managedOutputs.push(datum);

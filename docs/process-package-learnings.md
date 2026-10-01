@@ -291,6 +291,25 @@ must leave formal eligibility and endpoints unchanged. The iterative public
 journey exercises distinct uses on unchanged and changed source, exact-link
 rejection, and unchanged verification and acceptance records.
 
+## Partial prototype evidence can still need correction, #1026
+
+Kit Loan Desk replaced two faulty verification activities while retaining three
+others. Its current TRY had only the two new results, and the predecessor OBS
+was consumed by that successor. Requiring every current activity result before
+observation blocked truthful product correction. This is class 1 correction-route
+completeness with classes 3 and 6 for matching validation and guidance.
+
+Allow OBS from nonempty exact current selected evidence. Missing activity results
+produce the existing non-passing error outcome and permit only revise/drop.
+The assessment and limitations distinguish absent evidence from captured product
+execution errors. Link only available exact results; never reparent prior receipts.
+Keep/nominate and formal acceptance retain complete passing evidence requirements.
+The existing compiled public correction regression now checks partial observation,
+correction, rejected partial nomination, exact receipt rejection and later complete
+nomination. Fresh qualified operation must still establish recovery at the real
+seam. When another incomplete state prevents useful correction, update the owning
+route, validator and guidance together and retain this improve-and-record rule.
+
 ## Product-only prototype correction, #868
 
 The requirements-report demonstration corrected one product warning under an

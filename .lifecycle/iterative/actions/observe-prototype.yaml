@@ -1,9 +1,9 @@
 kind: action-definition
 id: observe-prototype
-version: 2
+version: 3
 description: Assess the exact prototype execution and recommend a next step
 capability: observation
-prompt_ref: prompts/direct-observation.md@3
+prompt_ref: prompts/direct-observation.md@4
 types:
 - OBS
 subjects: select("current-trials@2", {})
@@ -12,7 +12,7 @@ inputs:
   experiment: 'one("experiment-for@1", {trial: subject})'
   results: 'select("results-for@1", {implementation: subject})'
 when: 'none("observations-for@1", {trial: subject}) && exists("selected-verification-activities@1", {product: subject})
-  && every("selected-verification-activities@1", {product: subject}, activity => exists("activity-results@1", {activity:
+  && !every("selected-verification-activities@1", {product: subject}, activity => none("activity-results@1", {activity:
   activity, product: subject}))'
 links:
   OBS:
