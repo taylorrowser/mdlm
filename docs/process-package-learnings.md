@@ -780,6 +780,21 @@ Check: resolve that skill in each affected prompt, then inspect fresh lifecycle
 Review findings for consistent application. Structural checks do not prove that
 a reviewer applied the semantic standard.
 
+Issue #1015 follows the configuration counter's input-parser correction. The
+corrected input case passed, but the next whole review identified the same
+recursion limit in unchanged configuration decoding. The first whole review
+missed that path. This is a preexisting source-derived defect, not a new runtime
+failure or correction-induced regression, under classes 10 and 6.
+
+The implementation-correction prompt now asks the author to inspect other relevant
+paths sharing the identified cause against their selected obligations, within
+authorized scope. Whole-contract review remains required by the shared standard.
+Check package loading and exact prompt references without wording-only tests. A
+fresh correction must show whether the author finds another relevant use before
+review prompting without unnecessary edits; current coached recovery does not
+establish that benefit. Keep this learning with the owning guidance when further
+operation changes the diagnosis.
+
 Issue #833 applies this shared-content rule to semantic source attribution. River
 and packing reviews found missing links from state writers to the observable
 contracts their updates maintain. The iterative source-trace example now shows
