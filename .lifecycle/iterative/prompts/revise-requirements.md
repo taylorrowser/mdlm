@@ -1,15 +1,15 @@
 ---
 id: revise-requirements
-version: 26
+version: 27
 skills:
 - skills/product-quality.md@8
-- skills/typed-requirements.md@16
+- skills/typed-requirements.md@17
 - skills/source-trace.md@9
 ---
 
 # Revise the accepted requirement graph
 
-Apply the approved change to the exact authoring frontier supplied by the CLI. Revise statements whose meaning changes; preserve unchanged parents and children. The CLI refreshes affected groups and queues their individual-child and collective decomposition review. Use optional decomposition outputs only to change membership. Never reauthor descendants just to refresh a relationship.
+Apply the approved change to the exact authoring frontier supplied by the CLI. Revise statements whose meaning changes; preserve unchanged parents and children. The CLI refreshes affected groups and queues their individual-child and collective decomposition review. Use optional decomposition outputs as described in typed-requirements for membership changes or explanatory prose made misleading by the approved change. Never reauthor descendants just to refresh a relationship.
 
 Preserve the CLI prospective source impact before editing code. After publishing the new RQS, refresh native expectations with `mdlm expectations --json`. Complete fresh requirements review when offered, then follow rebind guidance. Rebind requires fresh source attribution and source/evidence dispositions, canonical Docker verification, independent implementation review and stakeholder acceptance. Submit authored fields through mdlm proposal submit.
 
