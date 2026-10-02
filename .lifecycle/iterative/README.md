@@ -67,9 +67,14 @@ separate execution-assessment contracts.
 After an OBS recommends revision, choose `correct-prototype` on the current EXP
 when only product code needs correction. It preserves the observed TRY lineage,
 exact EXP, triggering OBS, selected independent VFY and public ICD links. Commit
-the correction and execute the unchanged verification against the new TRY before
-observing it. Prior failures remain history. The observation no longer requests
-product or experiment correction once its trial has an accepted successor.
+the correction and execute the unchanged verification against the new TRY.
+With at least one exact current selected result, an observation may recommend
+revise or drop before all activities have results. Missing results make OBS
+non-passing with outcome error; explain which evidence is missing rather than
+claiming a product execution error. Keep and nomination require every selected
+activity to have a current passing result. Prior failures remain history. The
+observation no longer requests product or experiment correction once its trial
+has an accepted successor.
 
 Use `revise-experiment` for changed intent or provisional approach, with independent
 verification bound to the revised context. Use independent `revise-verification`

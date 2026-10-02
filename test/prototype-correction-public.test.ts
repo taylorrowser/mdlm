@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import {expect, test} from "vitest";
 
-test("a failed prototype is corrected under the exact experiment and verifier, with fresh evidence", async () => {
+test("partial current prototype evidence permits correction but cannot nominate, with receipts staying exact", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-prototype-correction-"));
   const repository = path.join(root, "lifecycle"), product = path.join(root, "product"), verifier = path.join(root, "verifier");
   const executable = process.env.MDLM_DIRECT_EXECUTABLE ?? path.join(process.cwd(), "dist/mdlm.js");
@@ -61,17 +61,21 @@ test("a failed prototype is corrected under the exact experiment and verifier, w
     pc.payload = {...pc.payload, title: "Independent readiness check", method: "CLI black-box check", objective: "Check the declared readiness output", cases: [{id: "ready", targets: [expId], preconditions: ["Fresh process"], actions: ["Invoke the CLI"], expected_results: ["stdout ready newline and exit zero"], coverage_rationale: "Directly checks the complete bounded criterion"}], coverage: [{target: expId, obligations: ["Readiness output and successful exit"], case_ids: ["ready"], rationale: "One invocation checks the complete criterion"}], repository_path: verifier, source_commit: verifierCommit, verification_image: "python@sha256:7415fbc3c9e4979cc717d92377ab2bc7b2b4a2af1ac03cc52b5f3f88efedaf3a", verification_script: "verify.py", verification_command: ["python3", "verify.py"], results_path: "results.json", authoring_subject: expId, authoring_context: context.authoringContext};
     pc.links = [{type: "verifies", target: expId}];
     const activity = (await submit(pg, "plan", pc)).revisions[0], originalActivity = datum(activity);
+    const secondPlan = guidance("plan-criterion-verification", expId), secondCandidate = secondPlan.candidates[0];
+    secondCandidate.payload = {...pc.payload, title: "Additional selected readiness check"};
+    secondCandidate.links = pc.links;
+    const secondActivity = (await submit(secondPlan, "second-plan", secondCandidate)).revisions[0];
     await fs.writeFile(path.join(product, "app.py"), "print('wrong')\n");
     const wrongSource = commit(product);
     const tg = guidance("prepare-prototype", expId), tc = tg.candidates[0];
     tc.payload = {...tc.payload, title: "Readiness trial", repository_path: product, source_commit: wrongSource, command: ["python3", "app.py"]};
-    tc.links.push({type: "verification", target: activity}, {type: "uses-interface", target: interfaceId});
+    tc.links.push({type: "verification", target: activity}, {type: "verification", target: secondActivity}, {type: "uses-interface", target: interfaceId});
     const failedTrial = (await submit(tg, "trial", tc)).revisions[0];
-    const run = async (id: string, op: string) => {
-      const execution = cli(["execution", "run", id, op, "--activity", activity]);
+    const run = async (id: string, op: string, selectedActivity = activity) => {
+      const execution = cli(["execution", "run", id, op, "--activity", selectedActivity]);
       const g = guidance("execute-criterion-verification", id), c = g.candidates[0];
       c.payload = {...c.payload, title: "Readiness output compared with the declared criterion", assessment: "Captured output compared with unchanged independent criterion", correction_target: execution.value.receipt.result.outcome === "pass" ? "none" : "implementation"};
-      c.links.push({type: "evaluates", target: activity});
+      c.links.push({type: "evaluates", target: selectedActivity});
       if (op === "failed-run") {
         const altered = structuredClone(c);
         altered.payload.publication = "draft";
@@ -87,11 +91,13 @@ test("a failed prototype is corrected under the exact experiment and verifier, w
     expect(failed.execution.value.receipt.result.outcome).toBe("fail");
     const originalResult = datum(failed.resultId);
     const og = guidance("observe-prototype", failedTrial), oc = og.candidates[0];
-    oc.payload = {...oc.payload, title: "Wrong readiness output", assessment: "The product prints wrong, while intent and verifier require ready", observation_origin: "scripted", interaction_observation: "Captured wrong newline", limitations: "One bounded CLI criterion", recommendation: "nominate", next_action: "Correct product code under unchanged intent"};
+    oc.payload = {...oc.payload, title: "Wrong readiness output", assessment: "The product prints wrong, while intent and verifier require ready", observation_origin: "scripted", interaction_observation: "Captured wrong newline", limitations: "The second selected activity has no current result; this is incomplete evidence, not a captured execution error", recommendation: "nominate", next_action: "Correct product code under unchanged intent"};
     const rejectedNomination = await submit(og, "false-nomination", oc, undefined, 1);
     expect(JSON.stringify(rejectedNomination)).toContain("revise or drop");
     oc.payload.recommendation = "revise";
     const observation = (await submit(og, "failed-observation", oc)).revisions[0], originalObservation = datum(observation);
+    expect(originalObservation.payload.outcome).toBe("error");
+    expect(originalObservation.links.filter((l: any) => l.type === "uses-evidence")).toEqual([{type: "uses-evidence", target: failed.resultId}]);
     expect(actions()).toEqual(expect.arrayContaining(["correct-prototype", "revise-experiment"]));
     expect(actions()).not.toContain("record-feedback");
 
@@ -100,7 +106,7 @@ test("a failed prototype is corrected under the exact experiment and verifier, w
     cli(["proposal", "draft", "correct-prototype", expId, "--operation", "correct", "--output", draftFile]);
     const draft = JSON.parse(await fs.readFile(draftFile, "utf8")), corrected = draft.candidates[0];
     expect(corrected.predecessor).toBe(failedTrial);
-    expect(corrected.links).toEqual([{type: "explores", target: expId}, {type: "responds-to", target: observation}, {type: "verification", target: activity}, {type: "uses-interface", target: interfaceId}]);
+    expect(corrected.links).toEqual([{type: "explores", target: expId}, {type: "responds-to", target: observation}, {type: "verification", target: activity}, {type: "verification", target: secondActivity}, {type: "uses-interface", target: interfaceId}]);
     expect(corrected.payload).toEqual(tc.payload);
     await fs.writeFile(path.join(product, "app.py"), "print('ready')\n");
     const correctedSource = commit(product);
@@ -127,9 +133,17 @@ test("a failed prototype is corrected under the exact experiment and verifier, w
     const passed = await run(correctedTrial, "corrected-run");
     expect(passed.execution.value.receipt.result.outcome).toBe("pass");
     expect(passed.execution.value.evidence).not.toBe(failed.execution.value.evidence);
+    expect(cli(["verification", "status", correctedTrial]).complete).toBe(false);
+    const partial = guidance("observe-prototype", correctedTrial), partialCandidate = partial.candidates[0];
+    partialCandidate.payload = {...oc.payload, title: "One passing check, one missing check", recommendation: "nominate"};
+    expect(JSON.stringify(await submit(partial, "partial-nomination", partialCandidate, undefined, 1))).toContain("revise or drop");
+    expect(cli(["proposal", "settlement", "partial-nomination"]).outcome).toBe("not-published");
+    expect(actions()).not.toContain("record-feedback");
+    expect(actions()).not.toContain("accept-product");
+    await run(correctedTrial, "second-corrected-run", secondActivity);
     expect(cli(["verification", "status", correctedTrial]).complete).toBe(true);
     const good = guidance("observe-prototype", correctedTrial), goodCandidate = good.candidates[0];
-    goodCandidate.payload = {...oc.payload, title: "Corrected readiness output", assessment: "The unchanged case passes on the corrected product", interaction_observation: "Captured ready newline", recommendation: "nominate", next_action: "Ask stakeholder for feedback"};
+    goodCandidate.payload = {...oc.payload, title: "Corrected readiness output", assessment: "The unchanged case passes on the corrected product", interaction_observation: "Captured ready newline", limitations: "Both selected activities have current passing results for this bounded CLI criterion", recommendation: "nominate", next_action: "Ask stakeholder for feedback"};
     const passingObservation = (await submit(good, "passing-observation", goodCandidate)).revisions[0];
     const feedback = guidance("record-feedback", passingObservation), fc = feedback.candidates[0];
     fc.payload = {...fc.payload, title: "Try a different readiness signal", action: "revise-criteria", feedback: "The correction works; next compare a different readiness signal", source: "Fixture stakeholder"};
