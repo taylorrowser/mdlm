@@ -1,6 +1,6 @@
 ---
 id: plan-verification
-version: 20
+version: 21
 skills: []
 ---
 
@@ -13,6 +13,8 @@ The receiving author checks the saved bytes against those digests and confirms t
 Commit the verifier in a separate Git repository. Define each activity's method and objective, exact REQ or EXP targets, cases and coverage. Each case has preconditions, intended actions, expected results and a rationale. Keep coverage rationale about the method and its limits; label retained preparation notes as historical, and read current execution and review state from their exact records and verification status.
 
 Create exactly one `coverage` entry for each exact target selected by the activity's `verifies` links. Combine that target's obligations in its `obligations` array. Its `case_ids` must list every declared case whose `targets` contains that exact target, once each, with no other case IDs. Do not split one target into several coverage entries by obligation or case. A single EXP therefore has one coverage entry even when its criterion has several obligations and cases.
+
+Write shared method criteria or predecessor class reconciliation once in a named passage of the activity's objective. Each coverage rationale names the applicable passage and explains how its exact target obligations and listed cases use it, including target-specific sufficiency and remaining gaps. Keep each target's exact links, obligations and complete case_ids, frozen expectations, captured evidence and independent judgments. A common account explains shared evidence; each target still needs its own coverage argument.
 
 Before publication, check the final cases and coverage against every selected
 requirement and its incorporated normative ICD clauses, including required request
