@@ -160,8 +160,12 @@ export async function draftDirectProposal(root: string, action: string, subject:
   const current = await directState(root);
   const selected = await guidance(current, action, subject);
   carryPredecessors(current, selected.candidates);
+  const context = directContext(current, action, subject), binding = independentBinding(current.pkg);
+  if (activity === undefined && context.action.capability === "independent-result" && binding) {
+    const activities = selectedActivities(current, executionSubject(context));
+    if (activities.length === 1) activity = activities[0]!.revision_id;
+  }
   if (activity !== undefined) {
-    const context = directContext(current, action, subject), binding = independentBinding(current.pkg);
     if (context.action.capability !== "independent-result" || !binding) fail("--activity requires an independent-result action");
     if (!selectedActivities(current, executionSubject(context)).some(candidate => candidate.revision_id === activity)) fail("Draft activity must belong to the subject's selected verification activities");
     const results = selected.candidates.filter(candidate => candidate.type === binding.result_type);

@@ -269,7 +269,7 @@ test("independent verification reports complete requirements, failures, stale ev
     const execute=async(op:string,id:string,activityId=activity) => {
       const execution=cli(["execution","run",id,op,"--activity",activityId]);
       const g=guidance("execute-verification",id), file=path.join(root,`${op}-result.json`);
-      cli(["proposal","draft","execute-verification",id,"--activity",activityId,"--operation",`${op}-result`,"--output",file]);
+      cli(["proposal","draft","execute-verification",id,...(op === "pass" ? [] : ["--activity",activityId]),"--operation",`${op}-result`,"--output",file]);
       const proposal=JSON.parse(await fs.readFile(file,"utf8")),c=proposal.candidates[0];
       expect(c.links).toEqual([...g.candidates[0].links,{type:"evaluates",target:activityId}]);
       expect(proposal).toMatchObject({action:g.action,package:g.package,snapshot:g.snapshot,subject:id,inputs:g.inputs});
