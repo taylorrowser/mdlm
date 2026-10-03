@@ -6,6 +6,17 @@ This document turns the recurring defect classes into package rules and names
 the check that should catch each class before a demo does. Update it when a new
 class appears or when a check makes a class unreachable.
 
+## Current architecture navigation after maintenance (#1039)
+
+Accepted monitor maintenance retained an unchanged requirement whose rationale
+still described removed Control, while a newer selected requirement owned the
+current two-component architecture note. The obligations remained coherent, but
+finding the current note required searching the selected graph. This is class 6
+(authoring guidance): use an already affected DCP explanation as the locator and
+existing review findings to identify the owner, preserving unaffected obligations
+and history. Check existing package loading and exact reference consistency; no
+new lifecycle field or review transaction is needed.
+
 ## Current applicability after the direct-work cutover
 
 The numbered entries below preserve historical patterns, issue references and
