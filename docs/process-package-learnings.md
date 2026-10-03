@@ -208,6 +208,21 @@ then use a fresh independent review on the qualified package to assess whether t
 clarification prevents this rejection. When operation exposes another assessment
 ambiguity, update the owning prompt and this learning in the same session.
 
+Stock's withdrawal review on iterative 2.5.15 exposed a further class 6 ambiguity,
+#1031. The complete context contained twenty requirements and nine groups, while
+the exported change assessment frontier required sixteen requirement rows and
+eight group rows. The reviewer initially included retained context in the arrays;
+root clarified their exact shape before submission. No native failure occurred.
+
+The requirements-review prompt now names the exported graph selected by the
+reviewed RQS and the exact requirement, group and child identity lists that fill
+the assessment arrays. Review the complete graph and record retained-context
+judgments in findings, including their effect on the set-level outcome. Check
+package loading and existing frontier behavior without wording-only tests. A fresh
+independent review on the qualified package must establish whether this removes
+the handoff ambiguity. Preserve whole-content judgment and update this owning
+guidance when operation exposes another mismatch between context and authored rows.
+
 ## Change approval impact handoff, #886
 
 The Hearts integration author supplied a CHG and its authored impact narrative

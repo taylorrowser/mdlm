@@ -1,6 +1,6 @@
 kind: process-package-manifest
 id: mdlm-iterative
-version: 2.5.15
+version: 2.5.16
 status: experimental
 description: Explore a useful product, then progressively baseline necessary behavior.
 kernel_contract:
