@@ -1,6 +1,6 @@
 ---
 id: plan-verification
-version: 21
+version: 22
 skills: []
 ---
 
@@ -76,7 +76,7 @@ the source happens to do.
 
 For an activity targeting formal REQs selected by an IMP, you may opt into a two-stage method named "formal collection and independent postrun inspection". Before product source access or observation, freeze the complete semantic criteria and evidence sufficiency criteria in the existing objective, coverage obligations and rationale. Associate every criterion with its exact requirement and case. State separately which assertions complete during execution and which obligations the independent implementation REV must judge. The complete selected plan and its independent REV must establish every selected requirement, including integrated meaning and relevant failures. Keep reusable deterministic cases and assertions unchanged.
 
-The executable stage exercises the frozen stimuli, preserves complete observations and checks its declared collection assertions. A case may report pass only for those assertions, with actual_results stating that semantic judgment remains for implementation review. Its expected_results and coverage rationale must make that limited claim explicit. Capture complete messages, exact inputs, stimulus associations and required before/after state, with sufficient context for every frozen criterion. A missing collection artifact or failed assertion retains its truthful fail, error or skipped outcome. Collection PASS is not complete verification or a semantic PASS.
+The executable stage exercises the frozen stimuli, preserves complete observations and checks its declared collection assertions. A case may report pass only for those assertions, with actual_results stating that semantic judgment remains for implementation review. Its expected_results and coverage rationale must make that limited claim explicit. Capture complete messages, exact inputs, stimulus associations and required before/after state, with sufficient context for every frozen criterion. When a claim needs a complete session capture, establish stream and process closure, retain exit and forced-termination evidence, and report an observation limit or incomplete capture as `error` or `skipped` rather than collection pass. A missing collection artifact or failed assertion retains its truthful fail, error or skipped outcome. Collection PASS is not complete verification or a semantic PASS.
 
 The adequacy review judges this combined method before relying on it. After native execution and truthful RES publication, export the full existing implementation-review context, including exact verifier source, receipt, streams and captured artifacts. A fresh independent implementation reviewer judges every frozen semantic criterion against those bytes and records conclusions and evidence references in findings and the relevant coverage_assessments rationale. Formal verification and acceptance remain blocked until that review supports every obligation. Supply missing already-retained context before registration and preserve intermediate assessments; a genuine evidence gap remains incomplete. A registered failure or raw fail/error/skipped result cannot be overridden by inspection.
 

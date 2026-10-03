@@ -6,6 +6,16 @@ This document turns the recurring defect classes into package rules and names
 the check that should catch each class before a demo does. Update it when a new
 class appears or when a check makes a class unreachable.
 
+## Complete-session collection criteria (#1041)
+
+Pair maintenance adequacy found that waiting before draining shutdown pipes,
+silent forced termination and a short tail capture could report collection pass
+while omitting evidence needed for semantic judgment. This is class 6 authoring
+guidance: claims requiring a complete session need stream/process closure and
+retained exit/termination evidence; incomplete capture uses existing error/skipped
+outcomes. Existing presentation-flexibility and stimulus-coverage rules remain
+sufficient. Check exact package loading; guidance efficacy awaits fresh operation.
+
 ## Current applicability after the direct-work cutover
 
 The numbered entries below preserve historical patterns, issue references and
