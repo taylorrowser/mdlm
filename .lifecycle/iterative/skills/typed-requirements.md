@@ -1,11 +1,11 @@
 ---
 id: typed-requirements
-version: 18
+version: 19
 ---
 
 # Author one normal-link requirement graph
 
-Read the exact input records in guidance.context. For an existing RQS, follow its contains and decomposition links with `mdlm show <exact-revision> --json` to inspect REQs and DCPs. A software leaf is a selected software requirement with no selected children. Write one REQ per obligation in the direct requirements batch. Stakeholder requirements use kind: stakeholder and statement for the user outcome or a constraint the stakeholder imposes; record the constraint's reason and the components it binds, and allocate it to those components rather than restating it product-wide. All non-stakeholder levels use kind: software and ears for required behavior, including system, software high-level and software low-level roles. Give each a useful title and keep source or rationale when needed to explain intent. The CLI supplies ordinary identities and generates one RQS containing the complete selected graph. The set receives one independent Review; individual requirements need no extra authoring or review turns.
+Read the exact input records in guidance.context. For an existing RQS, follow every contains and decomposition link and inspect the complete exact REQ and DCP content. Prefer an authenticated native export when its selected revisions match the current graph; retain its path, digest and exact revision bindings. Use `mdlm show <exact-revision> --json` or contextual search for missing content or changed related context. Obtain current native guidance and authenticate its action, subject, snapshot, package and fixed envelope separately; reuse unchanged content, never a stale action or proposal envelope. A software leaf is a selected software requirement with no selected children. Write one REQ per obligation in the direct requirements batch. Stakeholder requirements use kind: stakeholder and statement for the user outcome or a constraint the stakeholder imposes; record the constraint's reason and the components it binds, and allocate it to those components rather than restating it product-wide. All non-stakeholder levels use kind: software and ears for required behavior, including system, software high-level and software low-level roles. Give each a useful title and keep source or rationale when needed to explain intent. The CLI supplies ordinary identities and generates one RQS containing the complete selected graph. The set receives one independent Review; individual requirements need no extra authoring or review turns.
 
 Author REQs and DCPs in the proposal's `candidates` array, each with a unique `localId`. A group names its parent's complete immediate children:
 

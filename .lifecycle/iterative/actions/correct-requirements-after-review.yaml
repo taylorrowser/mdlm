@@ -1,9 +1,9 @@
 kind: action-definition
 id: correct-requirements-after-review
-version: 16
+version: 17
 description: Correct requirements after set or implementation Review
 capability: requirements
-prompt_ref: prompts/correct-requirements-after-review.md@22
+prompt_ref: prompts/correct-requirements-after-review.md@23
 types:
 - REQ
 - DCP

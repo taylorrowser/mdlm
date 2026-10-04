@@ -1,9 +1,9 @@
 ---
 id: review-implementation
-version: 29
+version: 30
 skills:
 - skills/product-quality.md@8
-- skills/typed-requirements.md@18
+- skills/typed-requirements.md@19
 - skills/source-trace.md@9
 ---
 
