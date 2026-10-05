@@ -6,6 +6,26 @@ This document turns the recurring defect classes into package rules and names
 the check that should catch each class before a demo does. Update it when a new
 class appears or when a check makes a class unreachable.
 
+## Shared definition change scope (#1051)
+
+Reading-summary maintenance changed admissible input while its first request
+called the citing refusal requirement unaffected. Refusal membership changed,
+but an unchanged complement relationship could still resolve against the selected
+graph. This extends class 6 and the #909/#911 incorporation lessons. Inspect
+citing requirements, include dependents with changed required inputs or outcomes,
+and state exact-definition or selected-graph resolution in the change request.
+Inclusion need not reauthor an unchanged relationship. Preserve unchanged abstract
+parents and keep shared source responsibility separate from semantic scope.
+
+Evidence: `operations/autonomous-quality-20260929/next-experiment-2521/TITLE-IMPACT-LEARNING-001.md`
+and its input manifest in the successor demos repository. This observed ambiguity
+establishes neither a kernel limitation nor wrong product behavior. Check package
+loading and exact references without wording-only tests. Effectiveness awaits a
+fresh uncoached definition-change request preserving first target selection and
+citation-resolution rationale, after separate qualification and root selection.
+Current pinned maintenance remains unchanged. Record later ambiguity in the owning
+guidance and this learning in the same session.
+
 ## Current architecture navigation after maintenance (#1039)
 
 Accepted monitor maintenance retained an unchanged requirement whose rationale
