@@ -79,6 +79,7 @@ test("compatible direct upgrades preserve accepted authority, expose required wo
       a.when = 'none("current-interfaces@1", {})';
     });
     await edit(original, "manifest.yaml", (m) => {
+      delete m.kernel_capabilities["review-correction@1"];
       m.terminal = {
         when: 'exists("current-interfaces@1", {})',
         outcome: "profile-boundary-reached",
@@ -101,6 +102,7 @@ test("compatible direct upgrades preserve accepted authority, expose required wo
     expect(cli(0, "expectations").outcome).toBe("profile-boundary-reached");
     await fs.cp(original, promptTarget, { recursive: true });
     await edit(promptTarget, "manifest.yaml", (m) => {
+      m.kernel_capabilities["review-correction@1"] = {type: "RQS", review_type: "REV"};
       m.version = "2.5.24";
       m.compatibility.repository_migration = "compatible";
     });

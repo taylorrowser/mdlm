@@ -72,13 +72,16 @@ export async function previewProcessUpgrade(
     );
   for (const key of [
     "kernel_contract",
-    "kernel_capabilities",
     "artifact_format",
     "language",
   ] as const) {
     if (!isDeepStrictEqual(current.pkg.manifest[key], target.manifest[key]))
       throw new Error(`Incompatible upgrade ${key}`);
   }
+  // The only additive compatible service currently implemented preserves all existing bindings.
+  const oldCapabilities = current.pkg.manifest.kernel_capabilities as Record<string, unknown>;
+  const newCapabilities = target.manifest.kernel_capabilities as Record<string, unknown>;
+  if (Object.entries(oldCapabilities).some(([name, binding]) => !isDeepStrictEqual(binding, newCapabilities[name])) || Object.keys(newCapabilities).some(name => !(name in oldCapabilities) && name !== "review-correction@1")) throw new Error("Incompatible upgrade kernel_capabilities");
   if (
     !isDeepStrictEqual(
       repositorySummary(current.pkg),
