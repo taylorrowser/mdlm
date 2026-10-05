@@ -17,18 +17,21 @@ import {
   packagesRelativePath,
   repositorySummary,
 } from "./repository-contract.js";
-import { readSelection } from "./selected-package.js";
+import {
+  readSelection,
+  selectedRepositoryPackage,
+} from "./selected-package.js";
 import { withRepositoryLock } from "./repository-lock.js";
-import { upgradeGit } from "./process-upgrade-selection.js";
+import {
+  upgradeGit,
+  upgradeDescriptor,
+  readUpgradeReceipt,
+  upgradeReceiptsPath,
+} from "./process-upgrade-selection.js";
 
-const operationRef = (operation: string) =>
-  `refs/mdlm/upgrades/${createHash("sha256").update(operation).digest("hex")}`;
 const operationValid = (operation: string) =>
   /^[a-zA-Z0-9-]{1,80}$/.test(operation);
 const json = (value: unknown) => `${JSON.stringify(value, null, 2)}\n`;
-async function receipt(root: string, oid: string) {
-  return JSON.parse(await upgradeGit(root, ["cat-file", "blob", oid]));
-}
 async function kernelIdentity() {
   return JSON.parse(
     await fs.readFile(new URL("../package.json", import.meta.url), "utf8"),
@@ -138,44 +141,48 @@ export async function previewProcessUpgrade(
 }
 export async function settleProcessUpgrade(root: string, operation: string) {
   if (!operationValid(operation)) throw new Error("Invalid operation identity");
-  let oid: string;
-  try {
-    oid = await upgradeGit(root, [
-      "rev-parse",
-      "--verify",
-      operationRef(operation),
-    ]);
-  } catch {
-    return { ok: true, operation, outcome: "not-published" };
-  }
-  const saved = await receipt(root, oid);
+  // Authenticate the visible selection before any negative publication answer.
+  const selected = await selectedRepositoryPackage(root);
+  if (!selected.ok) throw new Error(JSON.stringify(selected.diagnostics));
   const selection = (await readSelection(root)) as Awaited<
     ReturnType<typeof readSelection>
   > & { upgradeReceipt?: string };
-  if (selection) {
-    const { upgradeDescriptor } = await import(
-      "./process-upgrade-selection.js"
-    );
-    await upgradeDescriptor(root, selection);
-  }
-  let current = selection?.upgradeReceipt;
-  const seen = new Set<string>();
-  while (current && !seen.has(current)) {
-    seen.add(current);
-    const entry = await receipt(root, current);
-    if (entry.contract !== "mdlm-process-upgrade@1")
-      throw new Error("Invalid upgrade history");
-    if (current === oid)
+  if (!selection) throw new Error("No initialized process selection");
+  await upgradeDescriptor(root, selection);
+  let current = selection.upgradeReceipt;
+  while (current) {
+    const value = await readUpgradeReceipt(root, current);
+    if (value.operation === operation)
       return {
         ok: true,
         operation,
         outcome: "published",
-        receipt: oid,
-        value: saved,
+        receipt: current,
+        value,
       };
-    current = entry.previousReceipt;
+    current = value.previousReceipt;
   }
-  return { ok: true, operation, outcome: "not-published", receipt: oid };
+  let files: string[];
+  try {
+    files = await fs.readdir(path.join(root, upgradeReceiptsPath));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    files = [];
+  }
+  let prepared: { receipt: string; value: any } | undefined;
+  for (const file of files) {
+    if (!/^[a-f0-9]{64}\.json$/.test(file))
+      throw new Error("Invalid upgrade receipt filename");
+    const digest = `sha256:${file.slice(0, -5)}`;
+    const value = await readUpgradeReceipt(root, digest);
+    if (value.contract !== "mdlm-process-upgrade@1")
+      throw new Error("Invalid prepared upgrade receipt");
+    if (value.operation === operation) {
+      if (prepared) throw new Error("Ambiguous upgrade operation receipts");
+      prepared = { receipt: digest, value };
+    }
+  }
+  return { ok: true, operation, outcome: "not-published", ...prepared };
 }
 export async function applyProcessUpgrade(
   root: string,
@@ -206,6 +213,10 @@ export async function applyProcessUpgrade(
           );
         return saved;
       }
+      if (saved.value && saved.value.previewDigest !== previewDigest)
+        throw new Error(
+          "Upgrade operation identity reused with different preview",
+        );
       const fresh = await previewProcessUpgrade(root, proposed.targetPath);
       if (!isDeepStrictEqual(fresh, proposed))
         throw new Error(
@@ -281,10 +292,23 @@ export async function applyProcessUpgrade(
             ? { previousReceipt: oldSelection.upgradeReceipt }
             : {}),
         };
-        const receiptFile = path.join(staging, ".upgrade-receipt");
-        await fs.writeFile(receiptFile, json(value));
-        const oid = await upgradeGit(root, ["hash-object", "-w", receiptFile]);
-        await fs.unlink(receiptFile);
+        const receiptBytes = json(value);
+        const oid = directDigest(receiptBytes);
+        const receiptDirectory = path.join(root, upgradeReceiptsPath);
+        await fs.mkdir(receiptDirectory, { recursive: true });
+        const receiptFile = path.join(receiptDirectory, `${oid.slice(7)}.json`);
+        const preparedReceipt = path.join(staging, ".upgrade-receipt");
+        await fs.writeFile(preparedReceipt, receiptBytes, { flag: "wx" });
+        try {
+          await fs.link(preparedReceipt, receiptFile);
+        } catch (error) {
+          if (
+            (error as NodeJS.ErrnoException).code !== "EEXIST" ||
+            (await fs.readFile(receiptFile, "utf8")) !== receiptBytes
+          )
+            throw error;
+        }
+        await fs.unlink(preparedReceipt);
         const temporaryPin = path.join(
           root,
           ".lifecycle",
@@ -309,19 +333,6 @@ export async function applyProcessUpgrade(
             await fs.rename(staging, packageRoot);
             installed = true;
           }
-          const ref = operationRef(operation);
-          let previous = "0".repeat(oid.length);
-          try {
-            previous = await upgradeGit(root, ["rev-parse", "--verify", ref]);
-          } catch {}
-          if (
-            previous !== "0".repeat(oid.length) &&
-            (await receipt(root, previous)).previewDigest !== previewDigest
-          )
-            throw new Error(
-              "Upgrade operation identity reused with different preview",
-            );
-          await upgradeGit(root, ["update-ref", ref, oid, previous]);
           await fs.rename(temporaryPin, selectionFile);
           published = true;
         } finally {

@@ -15,16 +15,23 @@ export async function upgradeGit(root: string, args: string[]) {
     })
   ).stdout.trim();
 }
+export const upgradeReceiptsPath = ".lifecycle/upgrades";
+export async function readUpgradeReceipt(root: string, digest: string) {
+  if (!/^sha256:[a-f0-9]{64}$/.test(digest))
+    throw new Error("Invalid upgrade receipt identity");
+  const bytes = await fs.readFile(
+    path.join(root, upgradeReceiptsPath, `${digest.slice(7)}.json`),
+  );
+  if (`sha256:${createHash("sha256").update(bytes).digest("hex")}` !== digest)
+    throw new Error("Upgrade receipt bytes differ from their exact digest");
+  return JSON.parse(bytes.toString("utf8"));
+}
 export async function upgradeDescriptor(
   root: string,
   selection: ProcessSelection & { upgradeReceipt?: string },
 ): Promise<Record<string, unknown> | undefined> {
   if (!selection.upgradeReceipt) return undefined;
-  if (!/^[a-f0-9]{40,64}$/.test(selection.upgradeReceipt))
-    throw new Error("Invalid upgrade receipt object identity");
-  const receipt = JSON.parse(
-    await upgradeGit(root, ["cat-file", "blob", selection.upgradeReceipt]),
-  );
+  const receipt = await readUpgradeReceipt(root, selection.upgradeReceipt);
   const { upgradeReceipt: _receipt, ...pin } = selection;
   if (
     receipt.contract !== "mdlm-process-upgrade@1" ||
@@ -44,24 +51,22 @@ export async function upgradeDescriptor(
       "Upgrade baseline descriptor or repository contracts changed",
     );
   let entry = receipt;
-  let oid = selection.upgradeReceipt;
+  let digest = selection.upgradeReceipt;
   const seen = new Set<string>();
+  const operations = new Set<string>();
   while (true) {
-    if (seen.has(oid)) throw new Error("Cyclic upgrade receipt history");
-    seen.add(oid);
+    if (seen.has(digest)) throw new Error("Cyclic upgrade receipt history");
+    seen.add(digest);
     if (
       entry.contract !== "mdlm-process-upgrade@1" ||
       typeof entry.operation !== "string" ||
       !/^[a-zA-Z0-9-]{1,80}$/.test(entry.operation) ||
+      operations.has(entry.operation) ||
       !entry.previousSelection ||
       !isDeepStrictEqual(entry.baselineDescriptor, baseline)
     )
       throw new Error("Invalid upgrade receipt history");
-    const operationRef = `refs/mdlm/upgrades/${createHash("sha256").update(entry.operation).digest("hex")}`;
-    if (
-      (await upgradeGit(root, ["rev-parse", "--verify", operationRef])) !== oid
-    )
-      throw new Error("Upgrade receipt lacks its exact operation binding");
+    operations.add(entry.operation);
     if (entry.previousReceipt !== entry.previousSelection.upgradeReceipt)
       throw new Error("Upgrade receipt history binding differs");
     if (!entry.previousReceipt) {
@@ -75,14 +80,12 @@ export async function upgradeDescriptor(
         );
       break;
     }
-    const prior = JSON.parse(
-      await upgradeGit(root, ["cat-file", "blob", entry.previousReceipt]),
-    );
+    const prior = await readUpgradeReceipt(root, entry.previousReceipt);
     const { upgradeReceipt: _previous, ...previousPin } =
       entry.previousSelection;
     if (!isDeepStrictEqual(previousPin, prior.selection))
       throw new Error("Upgrade predecessor selection differs");
-    oid = entry.previousReceipt;
+    digest = entry.previousReceipt;
     entry = prior;
   }
   return receipt.descriptor;

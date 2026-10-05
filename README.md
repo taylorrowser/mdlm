@@ -57,8 +57,8 @@ unsupported. A stale preview or changed artifact requires a fresh preview.
 
 Apply atomically replaces `.lifecycle/process-selection.json`, which remains the
 visible current pin. It retains old packages and lifecycle data. Its `upgradeReceipt`
-binds an immutable Git object containing the exact descriptor, previous selection,
-notes and operation; settlement recovers the result after response loss.
+binds a content-digested receipt in `.lifecycle/upgrades/` containing the exact descriptor, previous selection,
+notes and operation; settlement recovers the result after response loss. Commit the receipts with the product so ordinary Git clones retain selection and settlement history.
 `.lifecycle/repository.json` remains the original repository compatibility contract.
 The kernel checks that contract and the receipt chain rather than rewriting
 historical review or acceptance evidence. Current expectations follow the selected

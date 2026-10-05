@@ -1,4 +1,5 @@
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -13,11 +14,12 @@ test("compatible direct upgrades preserve accepted authority, expose required wo
     original = path.join(root, "original"),
     promptTarget = path.join(root, "prompt-target"),
     obligationTarget = path.join(root, "obligation-target");
+  let commandRepository = repository;
   const cli = (status: number, ...args: string[]) => {
     const result = spawnSync(
       process.execPath,
       [path.join(process.cwd(), "dist/mdlm.js"), ...args, "--json"],
-      { cwd: repository, encoding: "utf8", timeout: 30_000 },
+      { cwd: commandRepository, encoding: "utf8", timeout: 30_000 },
     );
     expect(result.status, result.stdout + result.stderr).toBe(status);
     return JSON.parse(result.stdout);
@@ -188,6 +190,58 @@ test("compatible direct upgrades preserve accepted authority, expose required wo
     expect(cli(0, "show", accepted.revisions[0]).lifecycleDatum).toEqual(
       oldDatum.lifecycleDatum,
     );
+    const upgradeRef = `refs/mdlm/upgrades/${createHash("sha256").update("required-upgrade").digest("hex")}`;
+    execFileSync("git", ["-C", repository, "update-ref", "-d", upgradeRef]);
+    expect(cli(0, "upgrade", "settlement", "required-upgrade").outcome).toBe(
+      "published",
+    );
+    execFileSync("git", ["-C", repository, "add", "--all"]);
+    execFileSync("git", [
+      "-C",
+      repository,
+      "-c",
+      "user.name=Fixture",
+      "-c",
+      "user.email=fixture@example.invalid",
+      "-c",
+      "commit.gpgSign=false",
+      "commit",
+      "--no-verify",
+      "-qm",
+      "Preserve upgraded product",
+    ]);
+    const clone = path.join(root, "clone");
+    execFileSync("git", ["clone", "--no-local", "--quiet", repository, clone]);
+    commandRepository = clone;
+    expect(cli(0, "doctor").ok).toBe(true);
+    expect(cli(0, "expectations").outcome).toBe("profile-boundary-reached");
+    expect(cli(0, "upgrade", "settlement", "prompt-upgrade").outcome).toBe(
+      "published",
+    );
+    expect(cli(0, "upgrade", "settlement", "required-upgrade").outcome).toBe(
+      "published",
+    );
+    expect(cli(0, "show", accepted.revisions[0]).lifecycleDatum).toEqual(
+      oldDatum.lifecycleDatum,
+    );
+    const clonedPin = JSON.parse(
+      await fs.readFile(
+        path.join(clone, ".lifecycle/process-selection.json"),
+        "utf8",
+      ),
+    );
+    const clonedReceiptPath = path.join(
+      clone,
+      ".lifecycle/upgrades",
+      `${clonedPin.upgradeReceipt.slice(7)}.json`,
+    );
+    const clonedReceiptBytes = await fs.readFile(clonedReceiptPath);
+    await fs.unlink(clonedReceiptPath);
+    expect(cli(1, "upgrade", "settlement", "unrelated-operation").ok).toBe(
+      false,
+    );
+    await fs.writeFile(clonedReceiptPath, clonedReceiptBytes);
+    commandRepository = repository;
     const pin = await fs.readFile(
       path.join(repository, ".lifecycle/process-selection.json"),
       "utf8",
