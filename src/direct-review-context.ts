@@ -32,6 +32,7 @@ export interface DirectReviewContext {
     requirements: DatumEnvelope; change: DatumEnvelope; acceptance: DatumEnvelope; implementation: DatumEnvelope;
     source: DirectReviewContext["sources"][number]; scopes: DatumEnvelope[]; comparison: ReturnType<typeof compareImplementationScopes>;
   }}[];
+  priorNormativeContext?: {selection: string; change: DatumEnvelope; approvals: DatumEnvelope[]; requirements: DatumEnvelope[]};
   prospectiveChange?: unknown;
   sources: {implementation: string; repositoryPath: string; sourceCommit: string; acceptanceScope: "whole-product" | "partial"; files: {path: string; role: string; mode: string; blob: string; content: string; formal: boolean}[]}[];
   verifierSources?: {activity: string; sourceCommit: string; files: {path: string; blob: string; content: string; encoding?: "base64"}[]}[];
@@ -106,6 +107,26 @@ async function acceptedBaseline(data: DatumEnvelope[], trace: RequirementTraceBi
   return {requirements, change, acceptance, implementation: previous, source: await reviewSource(previous),
     scopes: data.filter(datum => datum.type === trace.scope_type && datum.links.some(link => link.type === "belongs-to" && link.target === previous.revision_id)),
     comparison: compareImplementationScopes(data, trace, previous.revision_id, implementation.revision_id)};
+}
+
+/** Directly changed obligations only; historical exact approvals survive later change amendments. */
+function priorNormativeContext(data: DatumEnvelope[], trace: RequirementTraceBinding, set: DatumEnvelope): DirectReviewContext["priorNormativeContext"] {
+  const links = set.links.filter(link => link.type === "changes-under");
+  if (!links.length || !trace.change_type || !trace.review_type) return undefined;
+  const exact = (target: string, type: string): DatumEnvelope => {
+    const matches = data.filter(datum => datum.revision_id === target);
+    if (matches.length !== 1 || matches[0]!.type !== type) throw new Error(`Prior normative context: '${target}' must name one available exact ${type} revision`);
+    return matches[0]!;
+  };
+  if (links.length !== 1) throw new Error(`Prior normative context: '${set.revision_id}' must bind one exact changes-under revision`);
+  const change = exact(links[0]!.target, trace.change_type);
+  // This is the native change-approval rule, not a latest-revision selection.
+  // Stakeholder authority is enforced when the approval is published.
+  const approvals = data.filter(datum => datum.type === trace.review_type && datum.payload.outcome === "pass"
+    && datum.links.some(link => link.type === "reviews" && link.target === change.revision_id));
+  if (!approvals.length) throw new Error(`Prior normative context: '${change.revision_id}' has no exact passing approval`);
+  const requirements = change.links.filter(link => link.type === "changes").map(link => exact(link.target, trace.requirement_type));
+  return {selection: set.revision_id, change, approvals, requirements};
 }
 
 /** Exact earlier revisions of a reviewed subject and the recorded judgments bound to them or to its change. */
@@ -243,6 +264,15 @@ export async function buildDirectReviewContext(context: DirectContext): Promise<
     const registered = (await exec("git", ["-C", root, "rev-parse", "--verify", `${verificationRef(binding)}/attempt-${saved.receipt.attempt}-receipt`], {env: repositoryGitEnvironment()})).stdout.trim();
     if (registered !== saved.oid || verified.outcome !== datum.payload.outcome) throw new Error("Result conflicts with its registered execution receipt");
     result.verificationReceipts.push({result: datum.revision_id, implementation: implementation.revision_id, requirements: requirements.revision_id, locator: datum.payload.receipt as string, execution: transaction.id, binding: "validated", receipt: saved.receipt});
+  }
+  if (context.action.capability === "review") {
+    const product = implementations.find(datum => datum.revision_id === context.subject);
+    const set = sets.find(datum => reviewedActivity ? datum.revision_id === authoringSubject
+      : product?.links.some(link => link.type === "implements" && link.target === datum.revision_id));
+    if (set) {
+      const prior = priorNormativeContext(data, trace, set);
+      if (prior) result.priorNormativeContext = prior;
+    }
   }
   return withLineage();
 }

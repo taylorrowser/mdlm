@@ -59,6 +59,24 @@ The extra object is absent without a change baseline. Missing or conflicting
 references fail explicitly; no latest acceptance or review-history inference is
 used. Activity reviews do not receive this product-source context.
 
+Verification-method and implementation reviews also receive `priorNormativeContext`
+when their exact selected requirement set names an approved `changes-under` revision.
+It contains the set locator as `selection`, the exact `change`, its passing
+`approvals`, and only the prior `requirements` directly named by the change's
+`changes` links. Approval uses the native rule: a configured review-type record
+with outcome `pass` and an exact `reviews` link to that change. Publication enforces
+stakeholder authority. All matching passing approvals are retained, without
+substituting a newer change revision or guessing a latest decision. Each set binds
+at most one change, as required by the native contract. Missing or conflicting
+references and missing approval fail explicitly.
+
+This addition is absent for initial work without a change and for authoring
+contexts. It follows no prior requirement links or earlier change history, adds
+no product source to method review, and leaves the current graph, selected
+verification targets, assessment rows and existing history fields unchanged.
+The complete added records participate in the normal canonical review-context
+digest, so changing their content invalidates an earlier registration.
+
 A review of a revised subject additionally receives `lineage`: every earlier
 revision of the subject's stable ID as `predecessors`, the subject's exact
 `corrects` targets as `answers`, its exact `changes-under` targets as `changes`,
