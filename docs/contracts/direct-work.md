@@ -1,6 +1,6 @@
 # Direct lifecycle work contract
 
-`src/direct-contract.ts` owns the shared types. This cutover is fresh-only.
+`src/direct-contract.ts` owns the shared types. Legacy assignment cutover is fresh-only. Compatible upgrades between direct-contract packages use the public upgrade commands documented in README.md and retain exact authoring provenance.
 
 Packages declare `actions/<id>.yaml` with kind `action-definition`, integer version, semantic capability, allowed `types`, and `prompt_ref`. Optional subject/input expressions provide context; `when` is an eligibility expression evaluated before inputs, with the exact subject bound. Authority names are explicit per action. Optional actions, such as requesting a post-acceptance change, do not prevent completion. `priority` is display order, never a claim on work.
 
