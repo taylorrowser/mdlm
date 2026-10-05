@@ -1,3 +1,4 @@
+import { installedProcessPackageRoot } from "../src/installed-process-package.js";
 import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
@@ -47,7 +48,7 @@ test("stakeholder decisions require exact supplied authority and cannot borrow r
 test("review output schema omits managed fields while records keep their computed values", async () => {
   const {loadProcessPackage, resolveType} = await import("../src/index.js");
   const {buildDirectReviewContext} = await import("../src/direct-review-context.js");
-  const loaded = await loadProcessPackage(`${process.cwd()}/.lifecycle/process`);
+  const loaded = await loadProcessPackage(installedProcessPackageRoot("tiny"));
   if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
   const record = {id: "REV-prior", revision: 1, revision_id: "REV-prior-r00001", type: "REV", payload: {scope_amendment_required: true}, links: [], body: "Prior judgment", created_by: {process_ref: "fixture"}};
   const context = await buildDirectReviewContext({root: ".", pkg: loaded.package, package: identity, snapshot: "fixture", action: loaded.package.actions["review-requirements"]!, data: [record], inputs: {prior: [record.revision_id]}});

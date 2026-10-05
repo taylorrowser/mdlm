@@ -21,10 +21,9 @@ import {
   type RepositorySummary,
 } from "./repository-contract.js";
 
+import { installedProcessPackageRoot } from "./installed-process-package.js";
+
 const executeFile = promisify(execFile);
-const bundledProcessPackage = fileURLToPath(
-  new URL("../.lifecycle/process/", import.meta.url),
-);
 const operatorAssetRoot = fileURLToPath(new URL("../operator/", import.meta.url));
 
 const operatorGuide = "MDLM.md";
@@ -354,13 +353,10 @@ export function initializeRepositoryFromProcessPackage(
   );
 }
 
-/** Initialize one destination with MDLM's bundled Example Process Package. */
+/** Initialize one destination with the independently installed Example Process Package. */
 export function initializeBundledRepository(
   destination: string,
   process: "tiny" | "exploratory" | "iterative" = "tiny",
 ): Promise<RepositoryInitialization> {
-  const packageRoot = process !== "tiny"
-    ? fileURLToPath(new URL(`../.lifecycle/${process}/`, import.meta.url))
-    : bundledProcessPackage;
-  return initializeRepositoryFromProcessPackage(destination, packageRoot);
+  return initializeRepositoryFromProcessPackage(destination, installedProcessPackageRoot(process));
 }

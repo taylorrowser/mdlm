@@ -1,10 +1,11 @@
+import { installedProcessPackageRoot } from "../src/installed-process-package.js";
 import {readFile} from "node:fs/promises";
 import path from "node:path";
 import {test, expect} from "vitest";
 import {parse} from "yaml";
 import { Ajv2020 } from "ajv/dist/2020.js";
 
-const definition = async (name: string) => parse(await readFile(path.join(process.cwd(), ".lifecycle/iterative", name), "utf8"));
+const definition = async (name: string) => parse(await readFile(path.join(installedProcessPackageRoot("iterative"), name), "utf8"));
 
 test("verification activities require explicit intentions and allow shared cases across targets", async () => {
   const vfy = await definition("types/VFY.yaml");

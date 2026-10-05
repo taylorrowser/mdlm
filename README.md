@@ -28,6 +28,10 @@ The target directory must be absent or empty. Open it in your agent and have it:
 2. Use `node /absolute/path/to/mdlm/dist/mdlm.js` wherever the guide says `mdlm`.
 3. Start with your intended outcome, stakeholder contact and independent review contact.
 
-The [operator guide](operator/MDLM.md) explains the work loop. The [iterative package](.lifecycle/iterative/README.md) explains the process. For an existing project, keep its selected release and package.
+The [operator guide](operator/MDLM.md) explains the work loop. The [iterative package](https://github.com/taylorrowser/mdlm-process-package/blob/main/iterative/README.md) explains the process. For an existing project, keep its selected release and package.
 
 To change MDLM itself, read [development operations](docs/agents/mdlm-development.md).
+
+Kernel and Process Packages release independently. `npm ci` installs the exact private package commit pinned in the lockfile and requires GitHub SSH access. Bare initialization uses tiny; named alternatives keep their existing behavior. To initialize with separately installed data, run `node dist/mdlm.js init ../my-product --package /absolute/path/to/package-root`. Existing products retain their selected local package. See [release notes](RELEASE-NOTES.md) for update impact.
+
+Before replacing a kernel, inspect its installed binary with `mdlm --version` and `mdlm release-notes`. These read the installed artifact and need no product repository.
