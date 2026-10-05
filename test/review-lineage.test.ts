@@ -1,3 +1,4 @@
+import { installedProcessPackageRoot } from "../src/installed-process-package.js";
 import {execFileSync} from "node:child_process";
 import {mkdtemp, writeFile, rm} from "node:fs/promises";
 import os from "node:os";
@@ -12,7 +13,7 @@ const datum = (type: string, name: string, revision = 1): DatumEnvelope => ({id:
 const link = (type: string, target: DatumEnvelope) => ({type, target: target.revision_id});
 let context: DirectContext, parent: DatumEnvelope, oldChild: DatumEnvelope, oldGroup: DatumEnvelope, first: DatumEnvelope, second: DatumEnvelope, current: DatumEnvelope, firstReview: DatumEnvelope, secondReview: DatumEnvelope, change: DatumEnvelope, approval: DatumEnvelope;
 beforeAll(async () => {
-  const loaded = await loadProcessPackage(path.join(process.cwd(), ".lifecycle/iterative"));
+  const loaded = await loadProcessPackage(path.join(installedProcessPackageRoot("iterative")));
   if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
   parent = {...datum("REQ", "purpose"), payload: {kind: "stakeholder", statement: "Provide the answer"}};
   oldChild = {...datum("REQ", "behavior"), payload: {kind: "software", statement: "A"}};

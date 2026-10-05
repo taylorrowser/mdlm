@@ -1,3 +1,4 @@
+import { installedProcessPackageRoot } from "../src/installed-process-package.js";
 import {readFile} from "node:fs/promises";
 import path from "node:path";
 import {expect, test} from "vitest";
@@ -5,7 +6,7 @@ import {parse} from "yaml";
 import {Ajv2020} from "ajv/dist/2020.js";
 
 const validator = async () => {
-  const req = parse(await readFile(path.join(process.cwd(), ".lifecycle/iterative/types/REQ.yaml"), "utf8"));
+  const req = parse(await readFile(path.join(installedProcessPackageRoot("iterative"), "types/REQ.yaml"), "utf8"));
   return new Ajv2020({strict: false}).compile(req.payload_schema);
 };
 const stakeholder = {publication: "recorded", kind: "stakeholder", statement: "Staff see the seat count"};

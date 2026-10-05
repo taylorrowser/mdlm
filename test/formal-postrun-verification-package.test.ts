@@ -1,3 +1,4 @@
+import { installedProcessPackageRoot } from "../src/installed-process-package.js";
 import path from "node:path";
 import {beforeAll, expect, test} from "vitest";
 import {loadProcessPackage, type DatumEnvelope, type ProcessPackage} from "../src/index.js";
@@ -6,7 +7,7 @@ import {finalizeDirectDomain} from "../src/direct-domain.js";
 
 let pkg: ProcessPackage;
 beforeAll(async () => {
-  const loaded = await loadProcessPackage(path.join(process.cwd(), ".lifecycle/iterative"));
+  const loaded = await loadProcessPackage(path.join(installedProcessPackageRoot("iterative")));
   expect(loaded.diagnostics).toEqual([]);
   if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
   pkg = loaded.package;

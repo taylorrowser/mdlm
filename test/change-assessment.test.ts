@@ -1,3 +1,4 @@
+import { installedProcessPackageRoot } from "../src/installed-process-package.js";
 import {expect, test} from "vitest";
 import type {DatumEnvelope} from "../src/index.js";
 import {assessRequirements, changeImpact, requirementAuthoringFrontier, deriveSourceDispositionCandidates, validateChangeDatum} from "../src/change-assessment.js";
@@ -308,7 +309,7 @@ test("rejected change scope can narrow while every previously approved root rema
 test("changed review guidance names affected baseline scopes, not current evidence scopes", async () => {
   const {loadProcessPackage} = await import("../src/index.js");
   const {sourceAssessmentTargets} = await import("../src/direct-guidance.js");
-  const loaded = await loadProcessPackage(`${process.cwd()}/.lifecycle/process`);
+  const loaded = await loadProcessPackage(installedProcessPackageRoot("tiny"));
   if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
   const f = fixture(); baseline(f);
   // Seven affected baseline regions, followed by nine current evidence regions.
@@ -344,7 +345,7 @@ test("review-derived authoring frontier preserves exact child and membership cor
   expect(requirementAuthoringFrontier(f.data, binding, change, candidate.set)).toEqual({requirements: [id(f.leaf)], groups: [id(candidate.groups[1]!)]});
   const {loadProcessPackage} = await import("../src/index.js");
   const {requirementAuthoringTargets} = await import("../src/direct-guidance.js");
-  const loaded = await loadProcessPackage(`${process.cwd()}/.lifecycle/process`);
+  const loaded = await loadProcessPackage(installedProcessPackageRoot("tiny"));
   if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
   const targets = requirementAuthoringTargets({root: ".", pkg: loaded.package, package: {reference: "fixture@1", digest: "fixture", language: "fixture"}, snapshot: "fixture", data: f.data, inputs: {subject: [id(candidate.set)]}, subject: id(candidate.set), action: loaded.package.actions["correct-requirements-after-review"]!});
   expect(targets?.frontier).toEqual({requirements: [id(f.leaf)], groups: [id(candidate.groups[1]!)]});
