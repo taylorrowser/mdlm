@@ -232,3 +232,7 @@ mdlm proposal draft draft-requirements --operation requirements-001 --output pro
 mdlm proposal submit proposal.json --json
 mdlm proposal settlement requirements-001 --json
 ```
+
+## Correcting an independent requirements judgment
+
+Packages declaring `review-correction@1` may offer independent same-subject recovery for a current unaccepted failed requirement-set review. Publish a new review identity, one exact `supersedes` link to the active failed judgment, and a nonblank `correction_reason`. The action requires independent review authority and fixes its supersession link from the exact failure input. Original review bytes and registration remain historical evidence. Current review selection omits superseded judgments; normal scoped requirement correction follows the corrected assessments. Recovery does not grant stakeholder scope or revise accepted subjects.

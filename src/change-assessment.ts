@@ -6,7 +6,13 @@ const unique = (xs: string[]) => [...new Set(xs)].sort();
 const rows = (value: unknown): Record<string, unknown>[] => Array.isArray(value) ? value.filter(v => v && typeof v === "object") : [];
 const find = (data: DatumEnvelope[], id: string | undefined) => data.find(d => d.revision_id === id);
 const accepted = (data: DatumEnvelope[], b: RequirementTraceBinding) => data.filter(d => d.type === b.acceptance_type && d.payload.decision === "accept");
-const reviews = (data: DatumEnvelope[], b: RequirementTraceBinding, id: string) => data.filter(d => d.type === b.review_type && targets(d, "reviews").includes(id));
+/** Historical reviews remain immutable; only explicitly superseded judgments stop allocating work. */
+export function currentReviews(data: DatumEnvelope[], reviewType: string | undefined): DatumEnvelope[] {
+  const reviews = data.filter(d => d.type === reviewType);
+  const superseded = new Set(reviews.flatMap(d => targets(d, "supersedes")));
+  return reviews.filter(d => !superseded.has(d.revision_id));
+}
+const reviews = (data: DatumEnvelope[], b: RequirementTraceBinding, id: string) => currentReviews(data, b.review_type).filter(d => targets(d, "reviews").includes(id));
 
 export function approvedChanges(data: DatumEnvelope[], b: RequirementTraceBinding): DatumEnvelope[] {
   return data.filter(d => d.type === b.change_type && !data.some(newer => newer.id === d.id && newer.revision > d.revision) && reviews(data, b, d.revision_id).some(r => r.payload.outcome === "pass"));
@@ -158,7 +164,7 @@ export function assessRequirements(data: DatumEnvelope[], b: RequirementTraceBin
   const baseSet = find(data, targets(baseline, "confirms")[0]);
   const baseRequirements = baseSet ? selectedRequirementGraph(data, baseSet, b).requirements : [];
   const changed = graph.requirements.filter(r => !baseRequirements.some(old => old.revision_id === r.revision_id));
-  const passing = data.filter(d => d.type === b.review_type && d.payload.outcome === "pass" && targets(d, "reviews").some(id => { const prior = find(data, id); return prior?.type === b.type && prior.id === set.id && prior.revision < set.revision; }));
+  const passing = currentReviews(data, b.review_type).filter(d => d.payload.outcome === "pass" && targets(d, "reviews").some(id => { const prior = find(data, id); return prior?.type === b.type && prior.id === set.id && prior.revision < set.revision; }));
   const passedRequirements = new Set(passing.flatMap(r => rows(r.payload.requirement_assessments).filter(a => a.disposition === "valid").map(a => String(a.requirement))));
   const passedGroups = new Set(passing.flatMap(r => rows(r.payload.decomposition_assessments).filter(a => a.disposition === "adequate" && a.membership_action === "none" && rows(a.children).every(c => c.disposition === "valid")).map(a => String(a.group))));
   const groups = graph.groups.filter(g => !passedGroups.has(g.revision_id)).map(g => ({revision: g.revision_id, parent: targets(g, "parent")[0]!, children: targets(g, "child")}));
@@ -377,6 +383,14 @@ export function validateChangeDatum(data: DatumEnvelope[], b: RequirementTraceBi
   }
   if (datum.type === b.review_type) {
     const subject = find(all, targets(datum, "reviews")[0]);
+    const supersedes = targets(datum, "supersedes");
+    if (supersedes.length) {
+      const previous = find(others, supersedes[0]);
+      const subjectReviews = subject ? reviews(others, b, subject.revision_id) : [];
+      if (supersedes.length !== 1 || subject?.type !== b.type || !previous || previous.type !== b.review_type || previous.payload.outcome !== "fail" || !targets(previous, "reviews").includes(subject.revision_id) || !subjectReviews.some(r => r.revision_id === previous.revision_id)) fail("review-correction-target", "Review correction requires one current failed review of the same exact requirement set");
+      if (typeof datum.payload.correction_reason !== "string" || !datum.payload.correction_reason.trim()) fail("review-correction-reason", "Review correction must explain the acknowledged judgment error");
+      if (datum.id === previous?.id) fail("review-correction-history", "Corrected judgment requires a new review identity; preserve the original review");
+    }
     if (subject?.type === b.change_type && datum.payload.outcome === "pass") {
       const active = approvedChanges(others, b).filter(c => !closed(c.revision_id) && c.id !== subject.id);
       if (!closed(subject.revision_id) && active.some(c => targets(c, "baseline").some(id => targets(subject, "baseline").includes(id)))) fail("change-already-active", "An approved change is already open for this baseline; close or amend it before approving another");

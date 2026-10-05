@@ -81,6 +81,16 @@ gh api repos/<owner>/<repo>/issues/<number> --jq .id
 
 If native dependencies are unavailable, include a `## Blocked by` section containing issue references.
 
+## Claiming work
+
+Claim with the authenticated GitHub assignee and remove the waiting label in the same edit:
+
+```sh
+gh issue edit <number> --add-assignee @me --remove-label ready-for-agent --add-label agent:in-progress
+```
+
+Read back assignees and labels before editing source. Assignment alone leaves the issue advertised as unclaimed.
+
 ## Frontier
 
 The frontier consists of open child tickets whose blockers are all closed and

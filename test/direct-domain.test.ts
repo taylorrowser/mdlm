@@ -103,3 +103,26 @@ test("initial late implementation correction admits only the exact marked requir
   const acceptance = {...datum("ACC", 1), payload: {decision: "accept"}, links: [{type: "confirms", target: selected.revision_id}, {type: "accepts", target: successorProduct.revision_id}]};
   expect(validateChangeDatum([...data, ...finalized.outputs, successorProduct, acceptance], binding, selected)).toEqual([]);
 });
+
+test('review recovery rejects foreign targets, ordinary authors, accepted and stale subjects', async () => {
+  const loaded = await loadProcessPackage(installedProcessPackageRoot('iterative'));
+  if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
+  const requirement = {...datum('REQ', 91), payload: {kind: 'stakeholder'}};
+  const set = {...datum('RQS', 91), links: [{type: 'contains', target: requirement.revision_id}]};
+  const failure = {...datum('REV', 91), payload: {outcome: 'fail'}, links: [{type: 'reviews', target: set.revision_id}]};
+  const replacement = {...datum('REV', 92), payload: {outcome: 'fail', correction_reason: 'Acknowledged wrong allocation', requirement_assessments: [{requirement: requirement.revision_id, disposition: 'needs-change', rationale: 'Fixture'}], decomposition_assessments: []}, links: [{type: 'reviews', target: set.revision_id}, {type: 'supersedes', target: failure.revision_id}]};
+  const ctx = await context([requirement, set, failure], [replacement]);
+  ctx.pkg = loaded.package; ctx.action = loaded.package.actions['correct-requirements-review']!;
+  ctx.subject = set.revision_id; ctx.inputs = {subject: [set.revision_id], failure: [failure.revision_id]};
+  await expect(finalizeDirectDomain(ctx)).resolves.toBeDefined();
+  await expect(finalizeDirectDomain({...ctx, action: loaded.package.actions['review-requirements']!})).rejects.toThrow('review-correction-action');
+  const foreign = {...failure, id: 'REV-FOREIGN', revision_id: 'REV-FOREIGN-r00001', links: [{type: 'reviews', target: 'RQS-FOREIGN-r00001'}]};
+  const foreignOutput = {...replacement, links: [replacement.links[0]!, {type: 'supersedes', target: foreign.revision_id}]};
+  await expect(finalizeDirectDomain({...ctx, data: [...ctx.data, foreign], inputs: {...ctx.inputs, failure: [foreign.revision_id]}, outputs: [foreignOutput]})).rejects.toThrow('review-correction-target');
+  await expect(finalizeDirectDomain({...ctx, outputs: [{...replacement, payload: {...replacement.payload, requirement_assessments: [{requirement: 'REQ-FOREIGN-r00001', disposition: 'needs-change', rationale: 'Unauthorized scope'}]}}]})).rejects.toThrow('change-review-coverage');
+  const accepted = {...datum('ACC', 91), payload: {decision: 'accept'}, links: [{type: 'confirms', target: set.revision_id}]};
+  await expect(finalizeDirectDomain({...ctx, data: [...ctx.data, accepted]})).rejects.toThrow('review-correction-stale');
+  const stale = {...set, revision: 2, revision_id: `${set.id}-r00002`};
+  await expect(finalizeDirectDomain({...ctx, data: [...ctx.data, stale]})).rejects.toThrow('review-correction-stale');
+  await expect(finalizeDirectDomain({...ctx, outputs: [{...replacement, payload: {...replacement.payload, correction_reason: ' '}}]})).rejects.toThrow('review-correction-reason');
+});

@@ -51,9 +51,9 @@ Preview includes the executing kernel version, exact old and target packages,
 release notes, and required and optional work before and after the upgrade.
 The target must declare `compatibility.repository_migration: compatible`.
 This release supports the same package family and direct contract with unchanged
-kernel contracts and capabilities, and preserved data valid under both authoring
+kernel contracts and existing capability bindings, and preserved data valid under both authoring
 and target schemas. Legacy assignment products and transforming migrations are
-unsupported. A stale preview or changed artifact requires a fresh preview.
+unsupported. The supported additive `review-correction@1` service may be introduced by a compatible upgrade; older kernels reject packages declaring it. A stale preview or changed artifact requires a fresh preview.
 
 Apply atomically replaces `.lifecycle/process-selection.json`, which remains the
 visible current pin. It retains old packages and lifecycle data. Its `upgradeReceipt`

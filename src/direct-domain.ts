@@ -114,8 +114,10 @@ export async function finalizeDirectDomain(context: DirectFinalizationContext): 
   if (trace?.decomposition_type) {
     const allData = [...context.data, ...outputData.map(o => o.datum)];
     for (const output of outputData.filter(o => o.datum.type === trace.review_type)) {
+      if (output.datum.links.some(l => l.type === "supersedes") && (!context.pkg.kernelCapabilities["review-correction@1"] || context.action.links?.[output.datum.type]?.supersedes !== "failure" || context.action.authority?.kind !== "independent-review" || output.datum.links.filter(l => l.type === "supersedes").map(l => l.target).join() !== context.inputs.failure?.join())) reject([{code: "review-correction-action", message: "Review supersession requires the independently authorized recovery action and its exact failure input"}]);
       if ("scope_amendment_required" in output.datum.payload) reject([{code: "change-derived-review-field", message: "The CLI derives scope amendment work"}]);
       const set = reviewedRequirementSet(allData, trace, output.datum);
+      if (output.datum.links.some(l => l.type === "supersedes") && (!set || context.data.some(d => d.id === set.id && d.revision > set.revision) || context.data.some(d => d.type === trace.acceptance_type && d.links.some(l => l.type === "confirms" && l.target === set.revision_id)))) reject([{code: "review-correction-stale", message: "Review correction requires an unaccepted current exact requirement set"}]);
       const assessment = set ? assessRequirements(allData, trace, set) : undefined;
       const allowed = new Set(assessment?.allowedRequirements.map(id => allData.find(d => d.revision_id === id)?.id));
       output.datum.payload.scope_amendment_required = Boolean(assessment?.change && assessment.correction.requirements.some(id => !allowed.has(allData.find(d => d.revision_id === id)?.id)));
