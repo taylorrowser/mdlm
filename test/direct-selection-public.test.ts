@@ -1,3 +1,4 @@
+import { installedProcessPackageRoot } from "../src/installed-process-package.js";
 import { createHash } from "node:crypto";
 import { spawnSync, execFileSync } from "node:child_process";
 import { promises as fs } from "node:fs";
@@ -90,7 +91,7 @@ test("proposal drafts preserve selected guidance, accept authored work and rejec
   try {
     // Custom package paths are not a CLI init feature. Use the existing package
     // initializer for this test fixture; every lifecycle operation is public CLI.
-    await fs.cp(path.join(process.cwd(),".lifecycle/exploratory"),fixture,{recursive:true});
+    await fs.cp(path.join(installedProcessPackageRoot("exploratory")),fixture,{recursive:true});
     const template = parse(await fs.readFile(path.join(fixture,"actions/frame-experiment.yaml"),"utf8"));
     await fs.rm(path.join(fixture,"actions"),{recursive:true});await fs.mkdir(path.join(fixture,"actions"));
     for (const [id,priority] of [["first-experiment",10],["second-experiment",20]] as const) {
@@ -195,7 +196,7 @@ test("stakeholder drafts prepare the role but still require explicit submission 
   };
   try {
     // Keep this authority boundary independent of a full stakeholder journey.
-    await fs.cp(path.join(process.cwd(), ".lifecycle/exploratory"), fixture, {recursive: true});
+    await fs.cp(path.join(installedProcessPackageRoot("exploratory")), fixture, {recursive: true});
     const actionPath = path.join(fixture, "actions/frame-experiment.yaml");
     const action = parse(await fs.readFile(actionPath, "utf8"));
     action.authority = {kind: "stakeholder", name: "product-owner"};
@@ -248,7 +249,7 @@ test("saved review context provides exact handoff metadata without replacing exp
     // A small package fixture publishes origins without running a prototype journey.
     // The requirements graph, transactions and exported review use the public CLI.
     const fixture = path.join(root, "package");
-    await fs.cp(path.join(process.cwd(), ".lifecycle/process"), fixture, {recursive: true});
+    await fs.cp(path.join(installedProcessPackageRoot("tiny")), fixture, {recursive: true});
     const requirement = parse(await fs.readFile(path.join(fixture, "types/REQ.yaml"), "utf8"));
     const originLink = (id: string, types: string[]) => ({id, description: id, targets: [{kind: "datum", types, identity: "revision"}], cardinality: {minimum: 0, maximum: "many"}, freeze_resolution: "already-exact", inverse_label: `incoming-${id}`});
     requirement.outgoing_links.push(originLink("informed-by", ["EXP", "OBS"]));

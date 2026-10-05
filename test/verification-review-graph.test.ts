@@ -1,3 +1,4 @@
+import { installedProcessPackageRoot } from "../src/installed-process-package.js";
 import {execFileSync} from "node:child_process";
 import {mkdtemp, writeFile, rm} from "node:fs/promises";
 import os from "node:os";
@@ -9,7 +10,7 @@ import {verificationAuthoringContext} from "../src/independent-verification.js";
 import type {DirectContext} from "../src/direct-contract.js";
 
 test("activity review includes its exact authoring graph without expanding verification targets or product access", async () => {
-  const loaded = await loadProcessPackage(path.join(process.cwd(), ".lifecycle/iterative"));
+  const loaded = await loadProcessPackage(path.join(installedProcessPackageRoot("iterative")));
   if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
   const repository = await mkdtemp(path.join(os.tmpdir(), "mdlm-review-graph-"));
   const git = (...args: string[]) => execFileSync("git", ["-C", repository, ...args], {encoding: "utf8"}).trim();

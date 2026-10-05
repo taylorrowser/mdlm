@@ -1,4 +1,5 @@
 import {previewProcessUpgrade, applyProcessUpgrade, settleProcessUpgrade} from "./process-upgrade.js";
+import { fileURLToPath } from "node:url";
 import { promises as fs } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -13,7 +14,7 @@ import { evaluateProcessDefinition, evaluateProcessExpression, type ProcessDirec
 import { processCapabilities, processInspection } from "./process-package-inspection.js";
 import { diffExactBaselines, verifyExactBaseline } from "./exact-baseline-repository.js";
 import { datumHistory, inspectBacklinks, listData, showDatum, traceGraph, readRepositoryData } from "./lifecycle-repository.js";
-import { initializeBundledRepository } from "./repository-initialization.js";
+import { initializeBundledRepository, initializeRepositoryFromProcessPackage } from "./repository-initialization.js";
 import { selectedPackage, selectedRepositoryPackage } from "./selected-package.js";
 import { packageSummary, packagesRelativePath } from "./repository-contract.js";
 
@@ -26,11 +27,15 @@ interface CommandResult {
 
 const help = `Usage: mdlm <command> [--json]
 
+Release information:
+  mdlm --version [--json]
+  mdlm release-notes [--json]
+
 Direct lifecycle work:
   mdlm upgrade preview <package-directory> [--json]
   mdlm upgrade apply <preview-file> <operation-id> [--json]
   mdlm upgrade settlement <operation-id> [--json]
-  mdlm init <destination> [--process exploratory|iterative]
+  mdlm init <destination> [--process exploratory|iterative | --package <directory>]
   mdlm expectations [show <action> [<exact-subject>]] [--json]
   mdlm proposal draft <action> [<exact-subject>] --operation <operation-id> --output <new-file> [--activity <exact-activity>] [--json]
   mdlm proposal submit <proposal-file|-> [--authority <authority-id>] [--json]
@@ -650,6 +655,8 @@ async function showSelectedPackage(
 function renderCommandResult(result: CommandResult): string {
   if (typeof result.help === "string") return result.help;
   if (!result.ok) return result.diagnostics.map(d => `Error [${d.code}]: ${d.message}`).join("\n");
+  if (result.command === "version") return `mdlm ${result.version}`;
+  if (result.command === "release-notes") return String(result.notes);
   if (result.command === "trace" && typeof result.summary === "string") return result.summary;
   if (result.command === "verification.status" && Array.isArray(result.requirements)) {
     return ["Requirement | Coverage | Execution | Currentness | Result | Next action", ...result.requirements.map((r: any) => `${r.requirement} | ${r.coverage} | ${r.execution} | ${r.currentness} | ${r.overall} | ${r.nextAction}`), `Complete: ${result.complete ? "yes" : "no"}`].join("\n");
@@ -731,27 +738,30 @@ async function dispatchCommand(
   ) {
     return { ok: true, command: "help", help, diagnostics: [] };
   }
+  if (arguments_.filter(arg => arg !== "--json").length === 1 && arguments_.includes("--version")) {
+    const metadata = JSON.parse(await fs.readFile(fileURLToPath(new URL("../package.json", import.meta.url)), "utf8")) as {version: string};
+    return {ok: true, command: "version", version: metadata.version, diagnostics: []};
+  }
+  if (operands.length === 1 && operands[0] === "release-notes") {
+    const notes = await fs.readFile(fileURLToPath(new URL("../RELEASE-NOTES.md", import.meta.url)), "utf8");
+    return {ok: true, command: "release-notes", notes, diagnostics: []};
+  }
   if (operands[0] === "init") {
     const selectedProcess = optionValue(arguments_, "--process");
-    if (arguments_.includes("--process") && selectedProcess !== "exploratory" && selectedProcess !== "iterative") {
-      return failure(
-        "init-custom-process-unsupported",
-        "Named alternatives are '--process exploratory' and '--process iterative'; custom Process Package paths are unsupported",
-      );
-    }
+    const packageDirectory = optionValue(arguments_, "--package");
     const initArguments = arguments_.filter((argument) => argument !== "--json");
-    const expected = selectedProcess ? 4 : 2;
-    if (initArguments.length !== expected || initArguments[1]?.startsWith("--") ||
-      (expected === 4 && (initArguments[2] !== "--process" || initArguments[3] !== selectedProcess))) {
-      return failure(
-        "init-destination-required",
-        "Expected 'mdlm init <destination> [--process exploratory|iterative]'",
-      );
+    const option = packageDirectory ? "--package" : selectedProcess ? "--process" : undefined;
+    if ((arguments_.includes("--process") && selectedProcess !== "exploratory" && selectedProcess !== "iterative") ||
+      (arguments_.includes("--package") && !packageDirectory) ||
+      (arguments_.includes("--package") && arguments_.includes("--process")) ||
+      initArguments.length !== (option ? 4 : 2) || initArguments[1]?.startsWith("--") ||
+      (option && (initArguments[2] !== option || initArguments[3]?.startsWith("--")))) {
+      return failure("init-destination-required", "Expected 'mdlm init <destination> [--process exploratory|iterative | --package <directory>]'");
     }
-    const initialized = await initializeBundledRepository(
-      path.resolve(repositoryRoot, initArguments[1]!),
-      selectedProcess === "exploratory" || selectedProcess === "iterative" ? selectedProcess : "tiny",
-    );
+    const destination = path.resolve(repositoryRoot, initArguments[1]!);
+    const initialized = packageDirectory
+      ? await initializeRepositoryFromProcessPackage(destination, path.resolve(repositoryRoot, packageDirectory))
+      : await initializeBundledRepository(destination, selectedProcess === "exploratory" || selectedProcess === "iterative" ? selectedProcess : "tiny");
     return { ...initialized, command: "init" };
   }
   if (operands[0] === "upgrade") {

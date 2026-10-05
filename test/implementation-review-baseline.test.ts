@@ -1,3 +1,4 @@
+import { installedProcessPackageRoot } from "../src/installed-process-package.js";
 import {execFileSync} from "node:child_process";
 import {mkdtemp, writeFile, rm} from "node:fs/promises";
 import os from "node:os";
@@ -14,7 +15,7 @@ const datum = (type: string, name: string, revision = 1): DatumEnvelope => ({id:
 const link = (type: string, target: DatumEnvelope) => ({type, target: target.revision_id});
 let context: DirectContext, repository: string, accepted: DatumEnvelope, previous: DatumEnvelope, current: DatumEnvelope, set: DatumEnvelope, change: DatumEnvelope, acceptance: DatumEnvelope, oldScope: DatumEnvelope, oldRequirement: DatumEnvelope, oldRefusal: DatumEnvelope, approval: DatumEnvelope;
 beforeAll(async () => {
-  const loaded = await loadProcessPackage(path.join(process.cwd(), ".lifecycle/iterative"));
+  const loaded = await loadProcessPackage(path.join(installedProcessPackageRoot("iterative")));
   if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
   repository = await mkdtemp(path.join(os.tmpdir(), "mdlm-review-baseline-"));
   const git = (...args: string[]) => execFileSync("git", ["-C", repository, ...args], {encoding: "utf8"}).trim();

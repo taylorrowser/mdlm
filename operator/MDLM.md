@@ -184,3 +184,15 @@ separate file, and open that file. Preserve the original export for registration
 The review manager registers the exact proposal and verdict through `mdlm review register <proposal-file> <verdict-file> --json`. The author must not register its own judgment. Submit the exact registered proposal bytes.
 
 For a fresh useful-product-to-baseline experiment, initialize with `mdlm init /path/to/lifecycle --process iterative`, then read the installed package overview using the selection lookup above. Its accepted formal scope is a profile boundary; compare that exact scope with the agreed whole product before declaring the experiment complete.
+
+## Explicit compatible upgrades
+
+Kernel selection and Process Package selection are independent. Before an explicit
+package upgrade, read its distribution notes and use `mdlm upgrade preview
+<package-directory> --json` to inspect required work before and after. Save the JSON
+outside the product, apply it with `mdlm upgrade apply <preview-file> <operation-id>
+--json`, and recover uncertain publication with `mdlm upgrade settlement
+<operation-id> --json`. Use current expectations to handle resulting loose ends.
+The visible process-selection pin changes atomically; historical data and authoring
+packages remain intact. README.md defines compatibility limits. Process definition
+changes belong in the independent mdlm-process-package repository.

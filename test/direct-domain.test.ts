@@ -1,3 +1,4 @@
+import { installedProcessPackageRoot } from "../src/installed-process-package.js";
 import path from "node:path";
 import { expect, test } from "vitest";
 import { loadProcessPackage, type DatumEnvelope } from "../src/index.js";
@@ -12,7 +13,7 @@ const datum = (type: string, n: number, revision = 1): DatumEnvelope => {
   return {id, type, revision, revision_id: `${id}-r${String(revision).padStart(5,"0")}`, payload: {}, links: [], body: "Fixture", created_by: {process_ref: "test"}};
 };
 async function context(data: DatumEnvelope[], outputs: DatumEnvelope[]): Promise<DirectFinalizationContext> {
-  const loaded = await loadProcessPackage(path.join(process.cwd(), ".lifecycle/process"));
+  const loaded = await loadProcessPackage(path.join(installedProcessPackageRoot("tiny")));
   if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
   const identity = {reference: "fixture@1", digest: "fixture", language: "fixture"};
   const action = {id: "requirements", version: 1, kind: "action-definition" as const, capability: "requirements" as const, types: ["REQ", "DCP", "RQS"], prompt_ref: "fixture"};
@@ -72,7 +73,7 @@ test("implementation requirement findings derive scope amendment through their e
 
 
 test("initial late implementation correction admits only the exact marked requirement", async () => {
-  const loaded = await loadProcessPackage(path.join(process.cwd(), ".lifecycle/iterative"));
+  const loaded = await loadProcessPackage(path.join(installedProcessPackageRoot("iterative")));
   if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
   const parent = {...datum("REQ", 1), payload: {kind: "stakeholder"}};
   const marked = {...datum("REQ", 2), payload: {kind: "software"}};

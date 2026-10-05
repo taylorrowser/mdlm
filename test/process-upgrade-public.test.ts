@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { parse, stringify } from "yaml";
 import { expect, test } from "vitest";
+import { installedProcessPackageRoot } from "../src/installed-process-package.js";
 import { initializeRepositoryFromProcessPackage } from "../src/repository-initialization.js";
 
 test("compatible direct upgrades preserve accepted authority, expose required work and settle exact operations", async () => {
@@ -67,7 +68,7 @@ test("compatible direct upgrades preserve accepted authority, expose required wo
   };
   try {
     // A small authority-bearing process fixture isolates upgrades from Docker verification.
-    await fs.cp(path.join(process.cwd(), ".lifecycle/iterative"), original, {
+    await fs.cp(installedProcessPackageRoot("iterative"), original, {
       recursive: true,
     });
     await edit(original, "actions/record-interface.yaml", (a) => {

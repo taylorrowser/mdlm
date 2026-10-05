@@ -1,3 +1,4 @@
+import { installedProcessPackageRoot } from "../src/installed-process-package.js";
 import path from 'node:path';
 import {beforeAll, expect, test} from 'vitest';
 import {loadProcessPackage, type ProcessPackage} from '../src/index.js';
@@ -5,7 +6,7 @@ import {compileExpressionValue} from '../src/expression.js';
 import {evaluateExpressionValue, type DatumEnvelope, type LifecycleSnapshot} from '../src/evaluator.js';
 let pkg: ProcessPackage;
 beforeAll(async () => {
-  const loaded = await loadProcessPackage(path.join(process.cwd(), '.lifecycle/iterative'));
+  const loaded = await loadProcessPackage(path.join(installedProcessPackageRoot("iterative")));
   if (!loaded.ok) throw new Error(JSON.stringify(loaded.diagnostics));
   pkg = loaded.package;
 });
