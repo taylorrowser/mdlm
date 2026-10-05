@@ -1,6 +1,6 @@
 ---
 id: review-implementation
-version: 30
+version: 31
 skills:
 - skills/product-quality.md@8
 - skills/typed-requirements.md@19
@@ -10,6 +10,8 @@ skills:
 # Review product implementation and current evidence
 
 A fresh reviewer inspects the exact product against reviewed requirements and public ICD obligations. Check production attribution and honest file roles using source-trace guidance. Review the selected independent activities, their adequacy judgments, current case results and actual captured evidence. Compare the union of obligations covered by all selected activities with every requirement as written, including parent-level integration claims. Return fail if any obligation is missing even when each individual activity has a passing adequacy review. A passing process exit alone does not establish complete coverage.
+
+For each unchanged selected verification activity, authenticate the exact accepted passing independent adequacy REV and its scope. Where that activity permits reliance, its independently reviewed synthetic controls may establish the method's ability to accept permitted presentations and reject contradictions; implementation review need not repeat those same control judgments solely to establish independence. Preserve every explicit activity obligation. Reassess controls when the method, execution assumptions or relevant evidence differs, or a concrete adequacy concern remains. Independently assess every current product requirement, frozen semantic criterion and complete current observation and source scope. Method adequacy never substitutes for product conformance.
 
 Implementation review has source access, unlike independent verification authoring and coverage review. Preserve that distinction. Judge whether the exercised product matches the recorded exact source and intended operational scope. Include coverage_assessments for every exact selected requirement, with disposition adequate or needs-change and rationale explaining how the selected activity cases collectively cover its obligations. Return concrete findings or pass. The manager registers the complete independent proposal and the author submits those exact bytes.
 
