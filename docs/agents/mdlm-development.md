@@ -179,6 +179,8 @@ The host operating policy alone owns lifecycle pauses and every reservation and 
 
 ### Release assembly
 
+Before packaging a kernel candidate, ensure `mdlm --version` has a matching section in the shipped `mdlm release-notes` output. Describe bundled package adoption and compatibility from tested behavior; do not claim installed qualification or native acceptance from source checks. Keep this check in the existing process-distribution public regression.
+
 Build releases around changes that unblock demonstrations. Batch related reviewed component fixes into one candidate unless useful operation requires an earlier release. Do not wait for unrelated cleanup.
 
 Every included change must have focused green evidence and a fresh-context review PASS. Merge eligible changes, fetch `origin/main`, and record its exact commit and tree in `/home/ubuntu/git/mdlm-successor-demos/operations/releases.json`. The candidate record also names included commits, pull requests, and issues, Process Package identity and digest, artifacts and digests, runner commit, model, harness, public targets, expected demo unblocks, integration status, and carried blockers.
