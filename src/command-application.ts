@@ -1,3 +1,4 @@
+import {previewProcessUpgrade, applyProcessUpgrade, settleProcessUpgrade} from "./process-upgrade.js";
 import { fileURLToPath } from "node:url";
 import { promises as fs } from "node:fs";
 import { createHash } from "node:crypto";
@@ -31,6 +32,9 @@ Release information:
   mdlm release-notes [--json]
 
 Direct lifecycle work:
+  mdlm upgrade preview <package-directory> [--json]
+  mdlm upgrade apply <preview-file> <operation-id> [--json]
+  mdlm upgrade settlement <operation-id> [--json]
   mdlm init <destination> [--process exploratory|iterative | --package <directory>]
   mdlm expectations [show <action> [<exact-subject>]] [--json]
   mdlm proposal draft <action> [<exact-subject>] --operation <operation-id> --output <new-file> [--activity <exact-activity>] [--json]
@@ -759,6 +763,12 @@ async function dispatchCommand(
       ? await initializeRepositoryFromProcessPackage(destination, path.resolve(repositoryRoot, packageDirectory))
       : await initializeBundledRepository(destination, selectedProcess === "exploratory" || selectedProcess === "iterative" ? selectedProcess : "tiny");
     return { ...initialized, command: "init" };
+  }
+  if (operands[0] === "upgrade") {
+    if (operands[1] === "preview" && operands.length === 3) return {...await previewProcessUpgrade(repositoryRoot, operands[2]!), command: "upgrade.preview", diagnostics: []};
+    if (operands[1] === "apply" && operands.length === 4) return {...await applyProcessUpgrade(repositoryRoot, await fs.readFile(path.resolve(repositoryRoot, operands[2]!), "utf8"), operands[3]!), command: "upgrade.apply", diagnostics: []};
+    if (operands[1] === "settlement" && operands.length === 3) return {...await settleProcessUpgrade(repositoryRoot, operands[2]!), command: "upgrade.settlement", diagnostics: []};
+    return failure("upgrade-arguments-invalid", "Expected upgrade preview <package-directory>, apply <preview-file> <operation-id>, or settlement <operation-id>");
   }
   if (operands[0] === "doctor") return doctorRepository(repositoryRoot);
   if (operands[0] === "verification") {

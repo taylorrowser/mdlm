@@ -1,3 +1,4 @@
+import {upgradeDescriptor} from "./process-upgrade-selection.js";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import {
@@ -103,6 +104,8 @@ export async function selectedPackage(
       }],
     };
   }
+  try { await upgradeDescriptor(repositoryRoot, selection); }
+  catch (error) { return {ok: false, selected: true, diagnostics: [{code: "process-upgrade-receipt-invalid", message: error instanceof Error ? error.message : String(error)}]}; }
   const packageRoot = path.resolve(repositoryRoot, selection.package.path);
   const loaded = await loadProcessPackage(packageRoot, options);
   if (!loaded.ok) {
@@ -137,7 +140,8 @@ export async function selectedRepositoryPackage(
   const descriptorPath = path.join(repositoryRoot, ".lifecycle/repository.json");
   let descriptor: Record<string, unknown>;
   try {
-    const parsed = JSON.parse(await fs.readFile(descriptorPath, "utf8")) as unknown;
+    const selection = await readSelection(repositoryRoot);
+    const parsed = (selection ? await upgradeDescriptor(repositoryRoot, selection) : undefined) ?? JSON.parse(await fs.readFile(descriptorPath, "utf8")) as unknown;
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
       throw new Error("repository descriptor must be a JSON object");
     }

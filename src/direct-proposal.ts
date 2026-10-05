@@ -117,6 +117,9 @@ async function guidance(current: State,ref: string,subject?: string) {
 export async function inspectDirectExpectations(root:string,action?:string,subject?:string) {
   const current=await directState(root);
   if(action) return guidance(current,action,subject);
+  return directExpectations(current);
+}
+export function directExpectations(current: State) {
   const all=available(current); const items=all.filter(i=>!i.optional); const optional=all.filter(i=>i.optional);
   const terminal=current.pkg.manifest.terminal as {when?:unknown;outcome?:string}|undefined;
   const completed=terminal?.when!==undefined && expression(current,terminal.when)===true;

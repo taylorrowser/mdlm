@@ -28,9 +28,41 @@ The target directory must be absent or empty. Open it in your agent and have it:
 2. Use `node /absolute/path/to/mdlm/dist/mdlm.js` wherever the guide says `mdlm`.
 3. Start with your intended outcome, stakeholder contact and independent review contact.
 
-The [operator guide](operator/MDLM.md) explains the work loop. The [iterative package](https://github.com/taylorrowser/mdlm-process-package/blob/main/iterative/README.md) explains the process. For an existing project, keep its selected release and package.
+The [operator guide](operator/MDLM.md) explains the work loop. The [iterative package](https://github.com/taylorrowser/mdlm-process-package/blob/main/iterative/README.md) explains the process. Existing products retain their selected release and package until an explicit compatible upgrade.
 
 To change MDLM itself, read [development operations](docs/agents/mdlm-development.md).
+
+## Upgrade an existing direct product
+
+Run the chosen kernel executable inside the existing product. Installing or
+choosing another kernel does not change the selected Process Package. Obtain an
+exact compatible process release and its distribution `RELEASE-NOTES.md` locally;
+upgrade commands perform no network lookup.
+
+```bash
+mdlm upgrade preview /absolute/path/to/distribution/iterative --json > /tmp/upgrade-preview.json
+mdlm upgrade apply /tmp/upgrade-preview.json my-upgrade-001 --json
+mdlm upgrade settlement my-upgrade-001 --json
+mdlm process show --json
+mdlm expectations --json
+```
+
+Preview includes the executing kernel version, exact old and target packages,
+release notes, and required and optional work before and after the upgrade.
+The target must declare `compatibility.repository_migration: compatible`.
+This release supports the same package family and direct contract with unchanged
+kernel contracts and capabilities, and preserved data valid under both authoring
+and target schemas. Legacy assignment products and transforming migrations are
+unsupported. A stale preview or changed artifact requires a fresh preview.
+
+Apply atomically replaces `.lifecycle/process-selection.json`, which remains the
+visible current pin. It retains old packages and lifecycle data. Its `upgradeReceipt`
+binds a content-digested receipt in `.lifecycle/upgrades/` containing the exact descriptor, previous selection,
+notes and operation; settlement recovers the result after response loss. Commit the receipts with the product so ordinary Git clones retain selection and settlement history.
+`.lifecycle/repository.json` remains the original repository compatibility contract.
+The kernel checks that contract and the receipt chain rather than rewriting
+historical review or acceptance evidence. Current expectations follow the selected
+process; a new required action can reopen work without erasing historic acceptance.
 
 Kernel and Process Packages release independently. `npm ci` installs the exact private package commit pinned in the lockfile and requires GitHub SSH access. Bare initialization uses tiny; named alternatives keep their existing behavior. To initialize with separately installed data, run `node dist/mdlm.js init ../my-product --package /absolute/path/to/package-root`. Existing products retain their selected local package. See [release notes](RELEASE-NOTES.md) for update impact.
 

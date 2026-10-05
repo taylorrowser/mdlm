@@ -19,11 +19,21 @@ authority is unavailable.
 
 The host operating policy at `/home/ubuntu/git/mdlm-successor-demos/operations/OPERATING-POLICY.md` owns portfolio slot composition, nonlearning controls, defect lead-time tracking, resource scheduling, and pointers to the exact evidence, recovery, and one-shot release runbooks. Follow both documents. If they conflict, preserve evidence and stop for a policy decision.
 
+## Independent Process Package development
+
+Edit and version process definitions in the private `taylorrowser/mdlm-process-package`
+repository. The kernel installs an exact distribution commit; each product retains
+its exact selected local copy. A process-only release advances its manifest and
+distribution versions independently of the kernel. Before publishing compatible
+migration support, exercise the public upgrade route on preserved product history;
+update distribution release notes with changed expectations and tested kernel/source
+identities. See README.md for the supported unchanged-contract route.
+
 ## Operator-contract work
 
 Use the direct CLI described in `operator/MDLM.md` and `docs/contracts/direct-work.md`. Discovery and guidance are read-only. The agent chooses useful work; the kernel validates exact package/snapshot/subject, candidate graphs, receipts, authority and atomic publication. Package priorities are display suggestions.
 
-Preserve exact submitted proposal bytes and caller operation IDs. Recover uncertain commands through proposal or execution settlement before doing more work. Independent review must remain separate from the author, and real stakeholder decisions come from the stakeholder. Historical products remain pinned to their installed release and are not rewritten by the fresh-only cutover.
+Preserve exact submitted proposal bytes and caller operation IDs. Recover uncertain commands through proposal or execution settlement before doing more work. Independent review must remain separate from the author, and real stakeholder decisions come from the stakeholder. Legacy assignment products remain pinned to their historical installed release. Compatible direct products adopt a newer local package only through the explicit preview/apply/settlement route in README.md; preserve installed authoring packages and historical authority. Kernel installation alone does not change product selection.
 
 Keep adapters as transports. They may expose package guidance, collect attended input and preserve operation journals. They do not recreate eligibility rules or deterministic work selection.
 

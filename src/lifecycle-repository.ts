@@ -697,8 +697,22 @@ export async function readRepositoryData(
     else parsed.push(result.value);
   }
   const capturedTransactions = await captureTransactionSources(root, parsed);
+  const authoringPackages = new Map<string, {pkg: ProcessPackage; digest: string}>();
+  authoringPackages.set(`${processPackage.manifest.id}@${processPackage.manifest.version}#${selectedDigest}`, {pkg: processPackage, digest: selectedDigest});
   for (const item of parsed) {
-    const valid = directProvenance(item, processPackage, selectedDigest, capturedTransactions ?? new Map());
+    const ref = item.lifecycleDatum.datum.created_by.process_ref;
+    if (authoringPackages.has(ref)) continue;
+    const match = /^([a-z][a-z0-9-]*@[0-9]+\.[0-9]+\.[0-9]+)#(sha256:[a-f0-9]{64})$/.exec(ref);
+    if (!match) continue;
+    const packageRoot = path.join(root, ".lifecycle/packages", match[1]!);
+    const loaded = await loadProcessPackage(packageRoot);
+    if (!loaded.ok) continue;
+    const actualDigest = await processPackageDigest(packageRoot);
+    if (`${loaded.package.manifest.id}@${loaded.package.manifest.version}` === match[1] && actualDigest === match[2]) authoringPackages.set(ref, {pkg: loaded.package, digest: actualDigest});
+  }
+  for (const item of parsed) {
+    const authoring = authoringPackages.get(item.lifecycleDatum.datum.created_by.process_ref);
+    const valid = !!authoring && directProvenance(item, authoring.pkg, authoring.digest, capturedTransactions ?? new Map());
     item.lifecycleDatum.integrity.transaction_valid = valid;
     if (!valid) diagnostics.push({code:"direct-transaction-provenance-invalid",path:item.relativePath,message:"Lifecycle datum requires its exact authenticated direct publication transaction"});
   }
@@ -707,7 +721,14 @@ export async function readRepositoryData(
   recordWork("repository.validation.records", parsed.length);
   await measureAsync("repository.validation", async () => {
     const validators = createDatumValidatorCache();
+    const historicalValidators = new Map<ProcessPackage, ReturnType<typeof createDatumValidatorCache>>();
     for (const item of parsed) {
+      const authoring = authoringPackages.get(item.lifecycleDatum.datum.created_by.process_ref);
+      if (authoring && authoring.pkg !== processPackage) {
+        let cache = historicalValidators.get(authoring.pkg);
+        if (!cache) {cache = createDatumValidatorCache(); historicalValidators.set(authoring.pkg, cache);}
+        diagnostics.push(...validateDatum(authoring.pkg, item.lifecycleDatum.datum, lifecycleData, cache).map(d => ({...d, path: `${item.relativePath}#${d.path ?? ""}`})));
+      }
       diagnostics.push(...validateDatum(
         processPackage,
         item.lifecycleDatum.datum,
