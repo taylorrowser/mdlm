@@ -482,6 +482,8 @@ alternative acceptance and contradiction rejection in existing evidence. No
 preventive or causal benefit is established yet. When operation exposes another
 application gap, clarify its existing owning check and record the evidence here.
 
+Issue #1048 follows packing baseline F1 and an independently authored pending-view method. Both promised refusal-meaning controls, but current synthetic contradiction source changes successful output while refusal paths retain ordinary diagnostics apart from an exit-code contradiction. Fresh whole adequacy review now confirms F1: all1080 retained captures across initial and corrected controls omit the required nonzero refusal-meaning contrast; five targets are adequate while classification and its parent need correction. Clarify the existing control rule in plan-verification: bind each promised claim to its executed stimulus and captured judgment on the applicable case path. Share representative witnesses where applicability is explained rather than requiring every control on every input. Preserve frozen claims, failures and independent judgment. Check package loading and exact dependent references; observe the next fresh qualified authoring episode before claiming prevention.
+
 ## Operation-specific contracts and executed coverage, #935
 
 The recovery-allocation experiment initially applied a request quantity comparison
