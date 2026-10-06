@@ -186,6 +186,41 @@ test("a draft from one fresh repository is rejected by another with the same ini
   } finally {await fs.rm(root,{recursive:true,force:true});}
 },60_000);
 
+test("selected guidance states effective authority without changing proposal evidence", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-guidance-authority-"));
+  const fixture = path.join(root, "package"), repository = path.join(root, "lifecycle");
+  const cases = [
+    {id: "autonomous", authority: undefined},
+    {id: "stakeholder", authority: {kind: "stakeholder", name: "product-owner"}},
+    {id: "independent", authority: {kind: "independent-review", name: "reviewer"}},
+  ] as const;
+  const cli = (...args: string[]) => {
+    const result = spawnSync(process.execPath, [path.join(process.cwd(), "dist/mdlm.js"), ...args, "--json"], {cwd: repository, encoding: "utf8", timeout: 30_000});
+    expect(result.status, result.stdout + result.stderr).toBe(0);
+    return JSON.parse(result.stdout);
+  };
+  try {
+    await fs.cp(installedProcessPackageRoot("exploratory"), fixture, {recursive: true});
+    const template = parse(await fs.readFile(path.join(fixture, "actions/frame-experiment.yaml"), "utf8"));
+    for (const {id, authority} of cases) {
+      await fs.writeFile(path.join(fixture, "actions", `${id}.yaml`), stringify({...template, id, when: "true", ...(authority ? {authority} : {})}));
+    }
+    const initialized = await initializeRepositoryFromProcessPackage(repository, fixture);
+    expect(initialized.ok, JSON.stringify(initialized)).toBe(true);
+    for (const {id, authority} of cases) {
+      const guidance = cli("expectations", "show", id);
+      expect(guidance.effectiveAuthority).toEqual(authority ?? {kind: "autonomous"});
+      if (authority) expect(guidance.authority).toEqual(authority);
+      else expect(guidance).not.toHaveProperty("authority");
+      const file = path.join(root, `${id}.json`);
+      cli("proposal", "draft", id, "--operation", `draft-${id}`, "--output", file);
+      const proposal = JSON.parse(await fs.readFile(file, "utf8"));
+      expect(proposal).toEqual({operation: `draft-${id}`, action: guidance.action, package: guidance.package, snapshot: guidance.snapshot, inputs: guidance.inputs, candidates: guidance.candidates,
+        ...(authority?.kind === "stakeholder" ? {evidence: {authority: [authority.name]}} : {})});
+    }
+  } finally {await fs.rm(root, {recursive: true, force: true});}
+}, 60_000);
+
 test("stakeholder drafts prepare the role but still require explicit submission authority", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-draft-authority-"));
   const fixture = path.join(root, "package"), repository = path.join(root, "lifecycle");
