@@ -99,6 +99,7 @@ export interface DirectGuidance {
   sourceAssessmentTargets?: SourceAssessmentTargets | undefined;
   context: DatumEnvelope[];
   candidates: DirectCandidate[];
+  effectiveAuthority: NonNullable<DirectAction["authority"]> | {kind: "autonomous"};
   authority?: DirectAction["authority"];
   evidence?: unknown;
   executionCommand?: string;

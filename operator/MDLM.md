@@ -124,6 +124,8 @@ control result and command capture. Continue the existing operation/context and
 artifact-byte authentication and independent review. This composition does not
 require another execution or export.
 
+Selected guidance states `effectiveAuthority`: `{kind: "autonomous"}` for work that requires no authority supply, or the declared stakeholder/independent-review kind and exact name. The existing `authority` field remains present only for a declared authority requirement. Both fields describe the selected action; a stakeholder decision about product meaning does not change that action's submission authority. Preserve the generated draft's evidence and use the matching submission route.
+
 For stakeholder decisions, ask the named stakeholder using the exact guidance context. For change approval, follow the package prompt's review-context export instructions to include CLI-derived prospective impact in the request. When the required authority name is `stakeholder`, drafting prepares this top-level proposal field. Include it yourself when authoring a proposal without drafting:
 
 ```json
