@@ -189,7 +189,21 @@ export function parseDirectProposal(source:string):DirectProposal {
   const p:unknown=JSON.parse(source);
   if(!object(p)||Object.keys(p).some(k=>!["operation","action","package","snapshot","subject","inputs","candidates","evidence"].includes(k))||typeof p.operation!=="string"||typeof p.action!=="string"||!object(p.package)||typeof p.snapshot!=="string"||!Array.isArray(p.candidates)||!p.candidates.length) fail("Expected operation, action, exact package/snapshot and candidate batch");
   checkOperation(p.operation);
-  if(!p.candidates.every((c:unknown)=>object(c)&&Object.keys(c).every(k=>["localId","type","predecessor","payload","links","body"].includes(k))&&typeof c.localId==="string"&&/^[a-zA-Z0-9_-]+$/.test(c.localId)&&typeof c.type==="string"&&object(c.payload)&&Array.isArray(c.links)&&c.links.every((l:unknown)=>object(l)&&typeof l.type==="string"&&typeof l.target==="string"&&Object.keys(l).every(k=>["type","target"].includes(k)))&&typeof c.body==="string"&&(c.predecessor===undefined||typeof c.predecessor==="string"))) fail("Invalid candidate datum");
+  p.candidates.forEach((c:unknown,index:number)=>{
+    const location=`candidates[${index}]`;
+    function invalid(field:string,expected:string):never { fail(`Invalid candidate datum at ${location}${field}: ${expected}`); }
+    if(!object(c)) invalid("","expected object");
+    for(const key of Object.keys(c)) if(!["localId","type","predecessor","payload","links","body"].includes(key)) invalid(`.${key}`,"unexpected field");
+    if(typeof c.localId!=="string"||!/^[a-zA-Z0-9_-]+$/.test(c.localId)) invalid(".localId","expected string matching /^[a-zA-Z0-9_-]+$/");
+    if(typeof c.type!=="string") invalid(".type","expected string");
+    if(!object(c.payload)) invalid(".payload","expected object");
+    if(!Array.isArray(c.links)) invalid(".links","expected array");
+    c.links.forEach((l:unknown,linkIndex:number)=>{
+      if(!object(l)||typeof l.type!=="string"||typeof l.target!=="string"||Object.keys(l).some(k=>!["type","target"].includes(k))) invalid(`.links[${linkIndex}]`,"expected an object containing only string fields type and target");
+    });
+    if(typeof c.body!=="string") invalid(".body","expected string");
+    if(c.predecessor!==undefined&&typeof c.predecessor!=="string") invalid(".predecessor","expected string when supplied");
+  });
   return p as DirectProposal;
 }
 async function settlement(root:string,operation:string) {
