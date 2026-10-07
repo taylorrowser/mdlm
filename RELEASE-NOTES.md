@@ -1,5 +1,7 @@
 # 0.1.1
 
+Review context file export now offers explicit `--format shared-verifier-trees` with `--output FILE`. The self-contained archive retains every complete verifier file list, ordered activity occurrence and receipt while storing identical file lists once. `mdlm review expand-context ARCHIVE --output NEW_FILE` restores the full expanded context without lifecycle or source repositories. Default expanded exports and native registration/publication hashes remain unchanged; existing packets keep their recorded identities.
+
 The kernel supports independently correcting an acknowledged error in a failed requirements judgment. Process Packages declaring `review-correction@1` can offer recovery on the same current, unaccepted requirement set. The corrected judgment needs independent reviewer authorship and manager registration, an exact link to the original failure, and a correction reason. Original failure and authority bytes remain history. Current judgments determine the ordinary scoped requirement and decomposition correction frontier; recovery grants no additional stakeholder scope.
 
 The default dependency is Process Package distribution2.5.26 at exact commit `f2e5e45da40a64783ae835bf3c835778fde558ce`. Its iterative package offers this recovery action and requires the new capability, which older kernels reject. Kernel installation alone leaves existing products on their selected package. Compatible `mdlm upgrade` may add this supported service while retaining existing capability bindings, repository contracts and historical data.
