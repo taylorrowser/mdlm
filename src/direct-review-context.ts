@@ -15,6 +15,8 @@ import { authorablePayloadSchema, sourceAssessmentTargets } from "./direct-guida
 
 import { independentBinding, independentExecutionBinding, verificationStatus, type VerificationCase } from "./independent-verification.js";
 
+import { validateHistoricalResult, type HistoricalObservation } from "./verification-applicability.js";
+
 const exec = promisify(execFile);
 export interface DirectReviewContext {
   contract: "mdlm-direct-review-context@1";
@@ -44,7 +46,7 @@ export interface DirectReviewContext {
     removedCases: {caseId: string; oldTargets: string[]; retiredTargets: string[];
       survivingTargets: {previousRequirement: string; currentRequirement: string; currentCaseIds: string[]}[]}[];
   };
-  verificationReceipts: {result: string; implementation: string; requirements: string; locator: string; execution: string; binding: "validated"; receipt: Awaited<ReturnType<typeof readVerificationReceiptBlob>>["receipt"]}[];
+  verificationReceipts: {result: string; implementation: string; requirements: string; locator: string; execution: string; binding: "validated"; historicalObservation?: HistoricalObservation; receipt: Awaited<ReturnType<typeof readVerificationReceiptBlob>>["receipt"]}[];
   lineage?: {predecessors: DatumEnvelope[]; answers: string[]; changes: DatumEnvelope[]; decisions: DatumEnvelope[];
     predecessorGraph?: {selection: string; groups: DatumEnvelope[]; requirements: (DatumEnvelope & {leaf: boolean})[]; diagnostics: unknown[]}};
 }
@@ -251,6 +253,12 @@ export async function buildDirectReviewContext(context: DirectContext): Promise<
     const implementation = implementations.find(value => datum.links.some(link => link.target === value.revision_id));
     const requirements = sets.find(value => datum.links.some(link => link.target === value.revision_id));
     if (!implementation || !requirements || !isDeepStrictEqual(transaction.package, context.package)) throw new Error("Verification result does not bind the selected implementation, requirements and package");
+    if (datum.payload.historical_observation !== undefined) {
+      const historical = await validateHistoricalResult(context, datum);
+      for (const origin of [historical.original, historical.prior]) if (!result.records.some(d => d.revision_id === origin.revision_id)) result.records.push(origin);
+      result.verificationReceipts.push({result: datum.revision_id, implementation: implementation.revision_id, requirements: requirements.revision_id, locator: datum.payload.receipt as string, execution: transaction.id, binding: "validated", historicalObservation: historical.stored, receipt: historical.verified.saved.receipt});
+      continue;
+    }
     const binding = saved.receipt.binding;
     if (!binding.operation || !/^[a-zA-Z0-9-]{1,80}$/.test(binding.operation) || !Number.isInteger(saved.receipt.attempt) || saved.receipt.attempt < 1) throw new Error("Review requires a direct execution receipt");
     const independentExpected = independent && binding.independentVerification ? independentExecutionBinding(context, implementation, binding.independentVerification.activityRevision, binding.operation) : undefined;

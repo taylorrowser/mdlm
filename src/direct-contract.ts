@@ -37,7 +37,7 @@ export interface DirectProposal {
   subject?: string;
   inputs?: Record<string, string[]>;
   candidates: DirectCandidate[];
-  evidence?: {receipt?: string; review?: unknown; authority?: string[]};
+  evidence?: {historicalResult?: string; receipt?: string; review?: unknown; authority?: string[]};
 }
 export interface DirectContext {
   root: string;

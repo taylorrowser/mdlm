@@ -100,7 +100,8 @@ export function verificationStatus(state: State, subjectId: string) {
         return {id, outcome: actual?.outcome ?? "not-run", actualResults: actual?.actual_results ?? [], evidenceRefs: actual?.evidence_refs ?? []};
       });
       const currentness = !result && history.length ? "stale" : "current";
-      return [{activity: activity.revision_id, method: activity.payload.method, rationale: claim.rationale, obligations: claim.obligations, adequacy, reviews: reviews.map(r => r.revision_id), cases, result: result?.revision_id ?? null, resultOutcome: current.length > 1 ? "error" : result?.payload.outcome ?? "not-run", currentness, reason: currentness === "stale" ? "Historical results do not bind this exact product and activity revision" : result ? `Captured execution ${String(result.payload.outcome)}` : "No execution result is selected", historicalResults: history.map(r => r.revision_id)}];
+      const historicalObservation = result?.payload.historical_observation;
+      return [{activity: activity.revision_id, method: activity.payload.method, rationale: claim.rationale, obligations: claim.obligations, adequacy, reviews: reviews.map(r => r.revision_id), cases, result: result?.revision_id ?? null, resultOutcome: current.length > 1 ? "error" : result?.payload.outcome ?? "not-run", currentness, ...(historicalObservation ? {observation: "historical", historicalObservation} : {}), reason: historicalObservation ? "Historical passing observation applied to this selection; current review judges applicability and freshness" : currentness === "stale" ? "Historical results do not bind this exact product and activity revision" : result ? `Captured execution ${String(result.payload.outcome)}` : "No execution result is selected", historicalResults: history.map(r => r.revision_id)}];
     });
     const outcomes = claims.flatMap(c => c.cases.map(r => r.outcome));
     const formal = requirement.type === b.requirement_type;
