@@ -143,6 +143,18 @@ The fresh iterative package opts into `requirement-trace@4` and `independent-ver
 
 `mdlm verification context <exact-RQS-or-EXP> --output <new-file> --json` exports requirements, decomposition and necessary public ICDs for a fresh verifier author, excluding implementation source. The activity records its authoring subject/context, method, cases, expected results and target coverage. Independence is an authoring and review boundary; co-mounted source directories do not constitute an operating-system prohibition on reading source.
 
+After a compatible package upgrade, an unchanged authenticated existing activity
+may retain its original authoring-package identity. Its exact original publication
+and package must authenticate through retained repository provenance and selection
+history. All current semantic context, instructions and capability bindings still
+match; package identity alone may differ. Caller copies and new/revised proposal
+outputs receive no historical authoring evidence and must match the current export.
+Execution and fresh RES bind the current selected package. Older package receipts
+cannot support current target-package review or historical RES applicability.
+Fresh observations can supersede older results on the same exact IMP and VFY
+without rewriting either method or product history. Current independent review
+still judges current obligations, method adequacy and complete execution evidence.
+
 `mdlm execution run <exact-IMP-or-TRY> <operation> --activity <exact-VFY> --json` binds separate product and verifier commits, exact activity/cases and pinned environment. The report contract `mdlm-verification-results@1` contains cases with case_id, outcome, actual_results and evidence_refs. The complete activity is selected before execution. Missing, duplicate or unknown case output is an error. Case outcomes and artifact identities are kernel-managed RES fields. Exact executes, verifies and evaluates links bind product, requirement/criterion selection and activity. A new result supersedes prior current results only for that exact product/activity; old evidence is retained.
 
 `mdlm verification status <exact-product> --json` reports coverage, adequacy review, current case outcomes and missing or stale evidence. Formal verified requires sufficient independently reviewed coverage and current passing results for every required case. The exact product review assesses the union of selected activity coverage for every requirement, so several individually adequate partial activities do not automatically establish complete coverage. EXP outcomes remain provisional observations. Acceptance checks the complete selected requirement graph. An old product or criterion pass does not automatically verify a successor source or promoted requirement.

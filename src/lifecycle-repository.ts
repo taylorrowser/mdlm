@@ -127,6 +127,14 @@ export interface ParsedDatum {
   sourceDigest: string;
 }
 
+// Only the canonical loader can associate an authenticated authoring package.
+// Proposed outputs and caller-supplied datum copies never acquire this evidence.
+const authenticatedAuthoringPackages = new WeakMap<DatumEnvelope, {pkg: ProcessPackage; source: string}>();
+export function authenticatedAuthoringPackage(datum: DatumEnvelope) {
+  const evidence = authenticatedAuthoringPackages.get(datum);
+  return evidence?.source === JSON.stringify(datum) ? evidence.pkg : undefined;
+}
+
 export interface KernelFinalizedOutput {
   capability: "exact-baseline@1" | "docker-verification@1" | "requirement-trace@1" | "requirement-trace@2";
   datum: DatumEnvelope;
@@ -742,6 +750,12 @@ export async function readRepositoryData(
       ));
     }
   });
+  if (diagnostics.length === 0) for (const item of parsed) {
+    authenticatedAuthoringPackages.set(item.lifecycleDatum.datum, {
+      pkg: authoringPackages.get(item.lifecycleDatum.datum.created_by.process_ref)!.pkg,
+      source: JSON.stringify(item.lifecycleDatum.datum),
+    });
+  }
   return diagnostics.length > 0
     ? { ok: false, diagnostics }
     : { ok: true, value: parsed, diagnostics: [] };

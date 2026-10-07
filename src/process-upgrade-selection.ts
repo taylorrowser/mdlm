@@ -29,6 +29,7 @@ export async function readUpgradeReceipt(root: string, digest: string) {
 export async function upgradeDescriptor(
   root: string,
   selection: ProcessSelection & { upgradeReceipt?: string },
+  retainPredecessor?: (selection: ProcessSelection) => void,
 ): Promise<Record<string, unknown> | undefined> {
   if (!selection.upgradeReceipt) return undefined;
   const receipt = await readUpgradeReceipt(root, selection.upgradeReceipt);
@@ -69,6 +70,7 @@ export async function upgradeDescriptor(
     operations.add(entry.operation);
     if (entry.previousReceipt !== entry.previousSelection.upgradeReceipt)
       throw new Error("Upgrade receipt history binding differs");
+    retainPredecessor?.(entry.previousSelection);
     if (!entry.previousReceipt) {
       if (
         entry.previousSelection.package.reference !==
