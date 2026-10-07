@@ -53,7 +53,7 @@ The target must declare `compatibility.repository_migration: compatible`.
 This release supports the same package family and direct contract with unchanged
 kernel contracts and existing capability bindings, and preserved data valid under both authoring
 and target schemas. Legacy assignment products and transforming migrations are
-unsupported. The supported additive `review-correction@1` service may be introduced by a compatible upgrade; older kernels reject packages declaring it. A stale preview or changed artifact requires a fresh preview.
+unsupported. The supported additive `review-correction@1` and `verification-applicability@1` services may be introduced by a compatible upgrade; older kernels reject unsupported capabilities. A stale preview or changed artifact requires a fresh preview.
 
 Apply atomically replaces `.lifecycle/process-selection.json`, which remains the
 visible current pin. It retains old packages and lifecycle data. Its `upgradeReceipt`
@@ -63,6 +63,21 @@ notes and operation; settlement recovers the result after response loss. Commit 
 The kernel checks that contract and the receipt chain rather than rewriting
 historical review or acceptance evidence. Current expectations follow the selected
 process; a new required action can reopen work without erasing historic acceptance.
+
+Unchanged independent verification activities retain their exact revisions and
+adequacy judgments through a compatible upgrade. The kernel authenticates each
+activity's original package and requirements-only authoring context, then checks
+the current exact requirements, decomposition and interfaces. New or revised
+activities must use the current package's authoring context. Current guidance
+and independent review may still require a method change.
+
+New execution and result publication bind the selected target package. For pending
+product review, run the retained activities freshly and record their results on
+the same implementation; new results supersede the old observations while
+preserving their bytes and times. Old-package results cannot satisfy a new-package
+review or historical applicability. Historical reuse starts with an original
+observation under the target package and retains its immediate-predecessor rule.
+Completed acceptance history requires no execution solely for package selection.
 
 Kernel and Process Packages release independently. `npm ci` installs the exact private package commit pinned in the lockfile and requires GitHub SSH access. Bare initialization uses tiny; named alternatives keep their existing behavior. To initialize with separately installed data, run `node dist/mdlm.js init ../my-product --package /absolute/path/to/package-root`. Existing products retain their selected local package. See [release notes](RELEASE-NOTES.md) for update impact.
 

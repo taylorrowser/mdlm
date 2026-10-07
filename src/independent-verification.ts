@@ -1,10 +1,13 @@
 import path from "node:path";
 import { createHash } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import type { DatumEnvelope, ProcessPackage } from "./index.js";
+import type { ProcessSelection } from "./repository-contract.js";
+import { authenticatedAuthoringPackage } from "./lifecycle-repository.js";
 import { requirementTraceBinding, selectedRequirementGraph } from "./requirement-trace.js";
 import type { VerificationBinding } from "./verification-receipt.js";
 
-type State = {pkg: ProcessPackage; package: unknown; data: DatumEnvelope[]};
+type State = {pkg: ProcessPackage; package: unknown; data: DatumEnvelope[]; authoringSelections?: readonly ProcessSelection[]};
 export interface VerificationCase {id: string; targets: string[]; preconditions: string[]; actions: string[]; expected_results: string[]; coverage_rationale: string}
 export interface CoverageClaim {target: string; obligations: string[]; case_ids: string[]; rationale: string}
 const targets = (datum: DatumEnvelope, relation: string) => datum.links.filter(link => link.type === relation).map(link => link.target);
@@ -33,7 +36,22 @@ export function validateVerificationActivity(state: State, activity: DatumEnvelo
   if (activity.type !== b.type) throw new Error("Selected activity has the wrong type");
   const p = activity.payload;
   const context = verificationAuthoringContext(state, String(p.authoring_subject));
-  if (p.authoring_context !== context.authoringContext) throw new Error("Verification authoring_context must match the exact requirements-only export");
+  if (p.authoring_context !== context.authoringContext) {
+    const original = authenticatedAuthoringPackage(activity);
+    const selection = state.authoringSelections?.find(s =>
+      `${s.package.reference}#${s.package.digest}` === activity.created_by.process_ref);
+    if (!original || !selection || original.manifest.id !== state.pkg.manifest.id
+      || original.manifest.direct_contract !== "mdlm-direct@1"
+      || state.pkg.manifest.direct_contract !== "mdlm-direct@1"
+      || ["kernel_contract", "artifact_format", "language"].some(k => !isDeepStrictEqual(original.manifest[k], state.pkg.manifest[k]))
+      || ["independent-verification@1", "requirement-trace@4"].some(k => !isDeepStrictEqual(original.kernelCapabilities[k], state.pkg.kernelCapabilities[k])))
+      throw new Error("Verification authoring_context must match the exact requirements-only export or its authenticated compatible authoring package");
+    const originalIdentity = {reference: selection.package.reference, digest: selection.package.digest, language: selection.language.expressions};
+    // Recompute every current semantic input and instruction with only the
+    // authenticated original package identity. Execution still binds state.package.
+    if (p.authoring_context !== verificationAuthoringContext({...state, package: originalIdentity}, String(p.authoring_subject)).authoringContext)
+      throw new Error("Retained verification authoring_context differs from current exact semantic inputs");
+  }
   const allowed = new Set(context.requirements.map(r => r.revision_id));
   const selected = targets(activity, "verifies");
   if (!selected.length || new Set(selected).size !== selected.length || selected.some(id => !allowed.has(id))) throw new Error("Activity verifies links must select distinct exact requirements or criterion from its authoring context");

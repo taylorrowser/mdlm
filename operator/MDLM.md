@@ -199,6 +199,17 @@ The visible process-selection pin changes atomically; historical data and author
 packages remain intact. README.md defines compatibility limits. Process definition
 changes belong in the independent mdlm-process-package repository.
 
+An unchanged independently authored method can retain its exact VFY and adequacy
+review when its original package/publication and current semantic intent authenticate.
+New execution and RES bind the target package. Before pending product review,
+execute the selected methods freshly on the same IMP and record target-package
+results; older results remain preserved and become superseded. An old-package
+receipt does not become current review or historical-applicability evidence.
+Current independent review can require revised methods or fresh observations.
+An accepted product needs no rerun solely for selection when the target still
+declares its completed boundary. Inspect release notes and before/after expectations
+for actual new process duties. New and revised VFY use the current authoring export.
+
 When guidance exposes `historicalEvidenceMode`, a result proposal may explicitly
 name an original passing `evidence.historicalResult` from the immediate predecessor
 IMP instead of a receipt. Only an unchanged selection-only successor qualifies.

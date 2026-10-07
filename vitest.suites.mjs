@@ -3,11 +3,11 @@
 const fast = [
   "review-recovery-public", "process-upgrade-public", "process-distribution-public", "configuration-impact-public", "late-requirement-correction-public", "new-root-change-public", "preacceptance-refinement-public", "preacceptance-refinement-package",
   "prototype-interface-public", "requirement-levels-package", "requirement-levels-public", "route-expectations-public", "prototype-correction-package", "prototype-correction-public", "optional-formalization-public",
-  "independent-verification-package", "independent-verification-public", "verification-applicability-public", "verification-coverage-changes-public", "array-expression", "change-assessment", "direct-authority", "direct-domain", "direct-package", "direct-receipt",
+  "independent-verification-package", "independent-verification-public", "verification-applicability-public", "verification-authoring-upgrade", "verification-coverage-changes-public", "array-expression", "change-assessment", "direct-authority", "direct-domain", "direct-package", "direct-receipt",
   "direct-selection-public", "iterative-public", "iterative-maintenance-reuse", "kernel-cutover", "lifecycle-schema-diagnostics", "mdlm-cli-output",
   "release-candidate-gate", "requirement-trace-v2", "source-scopes", "review-lineage",
 ];
-const release = ["maintenance-summary-public", "independent-verification-execution","docker-verification-dialogue", "direct-lifecycle-public"];
+const release = ["maintenance-summary-public", "independent-verification-execution","docker-verification-dialogue", "direct-lifecycle-public", "verification-applicability-upgrade-public"];
 export const rootTestManifest = Object.freeze([
   ...fast.map(name => ({file:`test/${name}.test.ts`, qualificationGate:"pr", runtimeClass:"cheap-in-process", weight:1})),
   ...release.map(name => ({file:`test/${name}.test.ts`, qualificationGate:"release", runtimeClass:"process-repository-safe", weight:1})),

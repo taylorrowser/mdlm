@@ -1,4 +1,5 @@
 import type { DatumEnvelope, ProcessPackage } from "./index.js";
+import type { ProcessSelection } from "./repository-contract.js";
 
 export interface DirectPackageIdentity { reference: string; digest: string; language: string }
 export type DirectActionKind = "verification-activity" | "independent-result" | "requirements" | "implementation" | "verification-result" | "review" | "acceptance" | "change" | "experiment" | "prototype" | "observation" | "feedback";
@@ -45,6 +46,8 @@ export interface DirectContext {
   package: DirectPackageIdentity;
   snapshot: string;
   data: DatumEnvelope[];
+  /** Internal authenticated upgrade history; never supplied by a proposal. */
+  authoringSelections?: readonly ProcessSelection[];
   action: DirectAction;
   subject?: string;
   inputs: Record<string, string[]>;

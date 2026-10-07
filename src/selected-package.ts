@@ -20,6 +20,8 @@ export type SelectedPackageResolution =
       ok: true;
       processPackage: ProcessPackage;
       summary: PackageSummary;
+      /** Exact predecessor selections from the authenticated upgrade receipt chain. */
+      authoringSelections?: readonly ProcessSelection[];
     }
   | {
       ok: false;
@@ -139,9 +141,10 @@ export async function selectedRepositoryPackage(
   if (!selected.ok) return selected;
   const descriptorPath = path.join(repositoryRoot, ".lifecycle/repository.json");
   let descriptor: Record<string, unknown>;
+  const authoringSelections: ProcessSelection[] = [];
   try {
     const selection = await readSelection(repositoryRoot);
-    const parsed = (selection ? await upgradeDescriptor(repositoryRoot, selection) : undefined) ?? JSON.parse(await fs.readFile(descriptorPath, "utf8")) as unknown;
+    const parsed = (selection ? await upgradeDescriptor(repositoryRoot, selection, prior => authoringSelections.push(prior)) : undefined) ?? JSON.parse(await fs.readFile(descriptorPath, "utf8")) as unknown;
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
       throw new Error("repository descriptor must be a JSON object");
     }
@@ -179,5 +182,5 @@ export async function selectedRepositoryPackage(
       }],
     };
   }
-  return selected;
+  return {...selected, authoringSelections};
 }

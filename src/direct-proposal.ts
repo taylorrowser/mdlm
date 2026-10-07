@@ -39,7 +39,7 @@ export async function directState(root: string) {
   const {reference,digest: packageDigest,language} = selected.summary;
   const identity = {reference,digest:packageDigest,language};
   const repository = await repositoryIdentity(root);
-  return {root,pkg:selected.processPackage,package:identity,repository,snapshot:digest({package:identity,repository,data}),data,parsed:loaded.value};
+  return {root,pkg:selected.processPackage,package:identity,repository,snapshot:digest({package:identity,repository,data}),data,parsed:loaded.value,authoringSelections:selected.authoringSelections ?? []};
 }
 /** The first-parent root commit identifies one lifecycle repository lineage; `mdlm init` makes it unique with a nonce. */
 async function repositoryIdentity(root: string) {
@@ -84,7 +84,7 @@ export function directContext(current: State, reference: string, subject?: strin
   const action=resolveAction(current,reference);
   const work=available(current).find(item=>item.action===actionRef(action)&&item.subject===subject);
   if (!work) fail("This action is not currently eligible for this exact subject; refresh expectations");
-  return {root:current.root,pkg:current.pkg,package:current.package,snapshot:current.snapshot,data:current.data,action,...(subject?{subject}:{}),inputs:work.inputs??{}};
+  return {root:current.root,pkg:current.pkg,package:current.package,snapshot:current.snapshot,data:current.data,authoringSelections:current.authoringSelections,action,...(subject?{subject}:{}),inputs:work.inputs??{}};
 }
 /** Every fixed relation selects the exact complete input set, including multiplicity. */
 export function validateFixedContextLinks(links: DatumEnvelope["links"], required: DatumEnvelope["links"]) {

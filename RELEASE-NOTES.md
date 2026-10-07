@@ -1,5 +1,16 @@
 # 0.1.1
 
+Compatible direct upgrades can opt into `verification-applicability@1` while
+preserving existing capability bindings and repository contracts. Unchanged
+authenticated VFY retain their exact authoring package and method revision when
+all current semantic context matches. New/revised method publication remains
+current-package-authored. Pending product review needs fresh target-package
+execution/results on the existing IMP; old observations retain their original
+packages, bytes and times and cannot become target-package historical evidence.
+Current independent review and stakeholder acceptance remain required. This
+source change does not select a package for any existing product, change the
+default dependency or establish installed qualification/live adoption.
+
 Review context file export now offers explicit `--format shared-verifier-trees` with `--output FILE`. The self-contained archive retains every complete verifier file list, ordered activity occurrence and receipt while storing identical file lists once. `mdlm review expand-context ARCHIVE --output NEW_FILE` restores the full expanded context without lifecycle or source repositories. Default expanded exports and native registration/publication hashes remain unchanged; existing packets keep their recorded identities.
 
 The kernel supports independently correcting an acknowledged error in a failed requirements judgment. Process Packages declaring `review-correction@1` can offer recovery on the same current, unaccepted requirement set. The corrected judgment needs independent reviewer authorship and manager registration, an exact link to the original failure, and a correction reason. Original failure and authority bytes remain history. Current judgments determine the ordinary scoped requirement and decomposition correction frontier; recovery grants no additional stakeholder scope.

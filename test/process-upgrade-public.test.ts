@@ -103,8 +103,13 @@ test("compatible direct upgrades preserve accepted authority, expose required wo
     await fs.cp(original, promptTarget, { recursive: true });
     await edit(promptTarget, "manifest.yaml", (m) => {
       m.kernel_capabilities["review-correction@1"] = {type: "RQS", review_type: "REV"};
+      m.kernel_capabilities["verification-applicability@1"] = {type: "RES"};
       m.version = "2.5.24";
       m.compatibility.repository_migration = "compatible";
+    });
+    await edit(promptTarget, "types/RES.yaml", (t) => {
+      t.payload_schema.properties.historical_observation = {type: "object"};
+      t.kernel_managed_payload_paths.push("historical_observation");
     });
     const previewFile = path.join(root, "preview.json");
     const prompt = await preview(promptTarget, previewFile);
@@ -248,6 +253,16 @@ test("compatible direct upgrades preserve accepted authority, expose required wo
       path.join(repository, ".lifecycle/process-selection.json"),
       "utf8",
     );
+    await edit(promptTarget, "manifest.yaml", (m) => {
+      m.kernel_capabilities["independent-verification@1"].requirement_type = "ICD";
+    });
+    expect(JSON.stringify(cli(1, "upgrade", "preview", promptTarget))).toContain(
+      "Incompatible upgrade kernel_capabilities",
+    );
+    expect(await fs.readFile(path.join(repository, ".lifecycle/process-selection.json"), "utf8")).toBe(pin);
+    await edit(promptTarget, "manifest.yaml", (m) => {
+      m.kernel_capabilities["independent-verification@1"].requirement_type = "REQ";
+    });
     expect(cli(1, "upgrade", "apply", previewFile, "stale").ok).toBe(false);
     expect(
       await fs.readFile(
