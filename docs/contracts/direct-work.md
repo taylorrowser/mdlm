@@ -261,3 +261,46 @@ mdlm proposal settlement requirements-001 --json
 ## Correcting an independent requirements judgment
 
 Packages declaring `review-correction@1` may offer independent same-subject recovery for a current unaccepted failed requirement-set review. Publish a new review identity, one exact `supersedes` link to the active failed judgment, and a nonblank `correction_reason`. The action requires independent review authority and fixes its supersession link from the exact failure input. Original review bytes and registration remain historical evidence. Current review selection omits superseded judgments; normal scoped requirement correction follows the corrected assessments. Recovery does not grant stakeholder scope or revise accepted subjects.
+
+### Historical verification applicability
+
+The opt-in `verification-applicability@1` capability binds `type` to the existing
+independent-verification result type. That type declares optional
+`historical_observation` as kernel-managed. Older kernels reject the capability;
+packages without it retain exact execution bindings and reject historical mode.
+This extends result publication, with no new lifecycle type or execution state.
+
+An ordinary `independent-result` proposal may use `evidence.historicalResult` to
+name one exact original passing RES instead of `evidence.receipt`. Guidance
+advertises this field as `historicalEvidenceMode`. The original RES must bind the
+immediate predecessor IMP of the same stable lineage and exact package. Only one
+selection-only successor qualifies. The kernel compares the complete product
+payload except derived source_changes, retains source commit/tree, inventory,
+roles/ranges, command and acceptance scope/formal files, and verifies exact
+requirements, activity authoring context/interfaces and verifier execution
+contract. Changed sibling activities alone do not invalidate the unchanged method.
+Reused observations, prototypes, longer lineages, source reverts and cross-package
+reuse are unsupported.
+
+Publication authenticates the original direct transaction, registered completed
+receipt, retained report/case/artifact bytes, passing outcome and pinned image
+identity. It derives unchanged outcome, receipt, case_results, artifacts and
+historical_observation containing contract, original_result,
+original_implementation, receipt, execution_operation, started_at, finished_at and
+applied_at. The latter is publication time, separate from original execution times.
+The original receipt/operation/RES remain unchanged. Authors cannot supply managed
+provenance. Successor executes/verifies/evaluates links scope the applicability
+claim and do not assert a new execution. Original execution export remains the
+supported way to read saved bytes.
+
+Registered relevant attempts include unrecorded failures and errors. An unresolved
+latest started marker or later failing/errored observation blocks applicability.
+The same validator runs at publication, status, current review export/registration
+and acceptance. Complete current review context includes the original RES,
+predecessor IMP and full original receipt, source, verifier and observations, with
+historical labeling. Current review independently judges every obligation, shared
+assumptions, changed siblings, environmental relevance and freshness, and may
+require fresh execution. Applicability transfers no earlier implementation Review
+or accepted conformance. It proves neither determinism nor current-host equivalence;
+unknown relevant conditions and explicit fresh-run obligations need fresh evidence.
+Acceptance retains current independent review and stakeholder authority.

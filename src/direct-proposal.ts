@@ -20,6 +20,8 @@ import { authorablePayloadSchema, sourceAssessmentTargets, requirementAuthoringT
 
 import { independentBinding, independentExecutionBinding, selectedActivities, verificationAuthoringContext, verificationStatus, currentVerificationResults } from "./independent-verification.js";
 
+import { historicalApplicability, validateCurrentHistoricalResults } from "./verification-applicability.js";
+
 const exec = promisify(execFile);
 export const directDigest = (source: string) => `sha256:${createHash("sha256").update(source).digest("hex")}`;
 const digest = (value: unknown) => directDigest(JSON.stringify(value));
@@ -112,7 +114,7 @@ async function guidance(current: State,ref: string,subject?: string) {
   }
   const execution=(["verification-result","independent-result"].includes(context.action.capability) || (context.action.capability === "observation" && !independentBinding(context.pkg)));
   const implementation=execution?executionSubject(context):undefined;
-  return {ok:true,contract:"mdlm-direct-guidance@1",action:actionRef(context.action),...(subject?{subject}:{}),package:current.package,snapshot:current.snapshot,inputs:context.inputs,prompt:prompt.prompt,payloadSchemas:schemas,sourceAssessmentTargets:sourceAssessmentTargets(context),requirementAuthoringTargets:requirementAuthoringTargets(context),context:current.data.filter(d=>Object.values(context.inputs).flat().includes(d.revision_id)||d.revision_id===subject),candidates,effectiveAuthority:context.action.authority??{kind:"autonomous"},...(context.action.authority?{authority:context.action.authority}:{}),...(implementation?{executionSubject:implementation.revision_id,executionCommand:`mdlm execution run ${implementation.revision_id} <operation>${independentBinding(current.pkg)?" --activity <exact-VFY>":""} --json`,evidence:await availableReceipts(current,implementation),receiptDetails:await receiptDetails(current,implementation)}:{})};
+  return {ok:true,contract:"mdlm-direct-guidance@1",action:actionRef(context.action),...(subject?{subject}:{}),package:current.package,snapshot:current.snapshot,inputs:context.inputs,prompt:prompt.prompt,payloadSchemas:schemas,sourceAssessmentTargets:sourceAssessmentTargets(context),requirementAuthoringTargets:requirementAuthoringTargets(context),context:current.data.filter(d=>Object.values(context.inputs).flat().includes(d.revision_id)||d.revision_id===subject),candidates,effectiveAuthority:context.action.authority??{kind:"autonomous"},...(context.action.authority?{authority:context.action.authority}:{}),...(context.action.capability === "independent-result" && current.pkg.kernelCapabilities["verification-applicability@1"] ? {historicalEvidenceMode: {field: "evidence.historicalResult", instruction: "Explicit original passing RES on the immediate predecessor IMP; selection-only successor, unchanged source/attribution/requirements/exact method. Omit evidence.receipt. Kernel derives historical_observation; current independent review may require fresh execution."}} : {}),...(implementation?{executionSubject:implementation.revision_id,executionCommand:`mdlm execution run ${implementation.revision_id} <operation>${independentBinding(current.pkg)?" --activity <exact-VFY>":""} --json`,evidence:await availableReceipts(current,implementation),receiptDetails:await receiptDetails(current,implementation)}:{})};
 }
 export async function inspectDirectExpectations(root:string,action?:string,subject?:string) {
   const current=await directState(root);
@@ -231,12 +233,18 @@ export async function submitDirectProposal(root:string,source:string,authorities
     const context=directContext(current,proposal.action,proposal.subject);
     if(proposal.inputs&&!isDeepStrictEqual(proposal.inputs,context.inputs))fail("Proposal exact inputs changed");
     const prompt=await resolvePrompt(current.pkg,context.action.prompt_ref);if(!prompt.prompt||prompt.diagnostics.length)fail("Package prompt unavailable");
+    if (proposal.evidence?.historicalResult !== undefined && (context.action.capability !== "independent-result" || typeof proposal.evidence.historicalResult !== "string" || proposal.evidence.receipt !== undefined)) fail("Historical applicability requires independent-result evidence.historicalResult alone");
+    for (const product of context.data.filter(d => d.type === independentBinding(context.pkg)?.implementation_type && [context.subject, ...Object.values(context.inputs).flat()].includes(d.revision_id))) {
+      if (["review", "acceptance"].includes(context.action.capability)) await validateCurrentHistoricalResults(context, product);
+    }
     const authority=await validateDirectAuthority(context,proposal,source);
     const candidates=outputData(context,proposal,prompt.prompt.skills.map(s=>s.reference));
     const finalized=await finalizeDirectDomain({...context,proposal,outputs:candidates});
     if((["verification-result","independent-result"].includes(context.action.capability) || (context.action.capability === "observation" && !independentBinding(context.pkg)))){
       if(finalized.outputs.length!==1)fail("Evidence assessment publishes one result");
-      const target=executionSubject(context);const d=finalized.outputs[0]!;const activity=d.links.find(l=>l.type==="evaluates")?.target;const receipt=await receiptFor(current,proposal.evidence?.receipt??"",target,activity);
+      const target=executionSubject(context);const d=finalized.outputs[0]!;const activity=d.links.find(l=>l.type==="evaluates")?.target;const historical = proposal.evidence?.historicalResult === undefined ? undefined : await historicalApplicability(current, target, activity ?? "", proposal.evidence.historicalResult);
+      const receipt=historical?.verified ?? await receiptFor(current,proposal.evidence?.receipt??"",target,activity);
+      if (historical) d.payload.historical_observation = {...historical.provenance, applied_at: new Date().toISOString()};
       d.payload.outcome=receipt.outcome;d.payload.receipt=receipt.receipt;
       if(context.action.capability==="observation"&&receipt.outcome!=="pass"&&!["revise","drop"].includes(String(d.payload.recommendation)))fail("Failed execution allows revise or drop only");
       if(context.action.capability==="verification-result"&&((receipt.outcome==="pass")!==(d.payload.correction_target==="none")))fail("Result correction target must match execution outcome");
@@ -281,7 +289,7 @@ export async function registerDirectReviewFiles(root:string,source:string,verdic
 async function receiptDetails(current:State,implementation:DatumEnvelope){return Promise.all((await availableReceipts(current,implementation)).map(async evidence=>({evidence,...await readVerificationReceiptBlob(current.root,evidence.slice(9))})));}
 
 export async function inspectVerificationContext(root:string,subject:string){const current=await directState(root);return {ok:true,...verificationAuthoringContext(current,subject),snapshot:current.snapshot};}
-export async function inspectVerificationStatus(root:string,subject:string){const current=await directState(root);return {ok:true,...verificationStatus(current,subject),package:current.package,snapshot:current.snapshot};}
+export async function inspectVerificationStatus(root:string,subject:string){const current=await directState(root);const product=current.data.find(d=>d.revision_id===subject);if(product && product.type===independentBinding(current.pkg)?.implementation_type)await validateCurrentHistoricalResults(current,product);return {ok:true,...verificationStatus(current,subject),package:current.package,snapshot:current.snapshot};}
 
 /** Recover captured evidence without executing or changing lifecycle data. Destination is exclusive. */
 export async function exportDirectExecution(root:string,operation:string,destination:string) {

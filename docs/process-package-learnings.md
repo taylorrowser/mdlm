@@ -1155,3 +1155,17 @@ complete frozen criteria and supported independent conclusions. Count supplement
 exports and failed/incomplete recovery honestly; source checks prove neither semantic
 quality nor operational savings. When operation exposes a missed obligation or
 context gap, update the smallest owning guidance and record its evidence here.
+
+## Explicit historical execution applicability
+
+Issue #947 is class 3 declaration-contract agreement with class 6 guidance.
+Selection-only IMP successors previously required all unchanged activities to run
+again. A package opting in to verification-applicability@1 must declare optional
+kernel-managed historical_observation on its existing RES and explain the ordinary
+result proposal's evidence.historicalResult mode. Keep exact successor links and
+current independent review/acceptance gates. Historical execution times remain
+visible and unchanged. A transaction-only provenance note would omit the visible
+package contract and older-kernel refusal. The compiled X/Y public regression owns
+this boundary, including unresolved/later unrecorded attempts; do not duplicate it
+at every layer. Longer lineages, cross-package reuse and host-equivalence claims
+remain outside this rule.

@@ -198,3 +198,12 @@ outside the product, apply it with `mdlm upgrade apply <preview-file> <operation
 The visible process-selection pin changes atomically; historical data and authoring
 packages remain intact. README.md defines compatibility limits. Process definition
 changes belong in the independent mdlm-process-package repository.
+
+When guidance exposes `historicalEvidenceMode`, a result proposal may explicitly
+name an original passing `evidence.historicalResult` from the immediate predecessor
+IMP instead of a receipt. Only an unchanged selection-only successor qualifies.
+The kernel derives `historical_observation`, keeps original execution times and
+bytes, and checks relevant unresolved or later failing attempts. Inspect its
+historical labels and complete original evidence. A current independent reviewer
+still judges every obligation and may require a fresh run; this mode supplies no
+new sample, current-host-equivalence claim or inherited implementation Review.
