@@ -28,6 +28,31 @@ content is UTF-8 text. Files containing invalid UTF-8 or NUL bytes instead have
 `encoding: "base64"`; decode their content as base64 to recover the exact bytes.
 Export, review registration and publication bind the same complete content.
 Activity review continues to exclude product implementation source.
+
+For smaller self-contained transport, opt in explicitly:
+
+```sh
+mdlm review context <action> <exact-subject> --output review.archive.json --format shared-verifier-trees --json
+mdlm review expand-context review.archive.json --output review.expanded.json --json
+```
+
+The archive payload contract is `mdlm-review-context-archive@1`. Its `context`
+retains every other expanded field. Each `verifierSources` occurrence retains
+its activity and source commit and uses `filesRef`, a zero-based index into the
+embedded `verifierSourceTrees` array of complete ordered file lists. Follow that
+index inside the same file to read every source path, blob, encoding and content.
+Only exactly equal lists share an entry; repeated files and activity occurrences
+remain intact. Receipts and other evidence are unchanged. Expansion requires
+only the archive and CLI, with no lifecycle or source repository access. Unknown
+versions or missing embedded references fail before output creation. Outputs
+are new files, and existing outputs are never overwritten.
+
+Default context stdout and file exports remain expanded v1. Consumers expecting
+`verifierSources[].files` must expand an archive first. Export receipts still
+use `mdlm-review-export@1` and pin the actual saved bytes. Archives are transport,
+not native registration inputs; registration and publication continue to build
+and hash the complete expanded context. Existing packets keep their bindings.
+
 When an activity's exact authoring subject is a requirement set, its review
 context includes that set's complete requirement graph. This contextual graph
 does not expand the activity's selected verification or assessment targets.
