@@ -159,7 +159,19 @@ still judges current obligations, method adequacy and complete execution evidenc
 
 `mdlm verification status <exact-product> --json` reports coverage, adequacy review, current case outcomes and missing or stale evidence. Formal verified requires sufficient independently reviewed coverage and current passing results for every required case. The exact product review assesses the union of selected activity coverage for every requirement, so several individually adequate partial activities do not automatically establish complete coverage. EXP outcomes remain provisional observations. Acceptance checks the complete selected requirement graph. An old product or criterion pass does not automatically verify a successor source or promoted requirement.
 
-`mdlm execution export <operation> <new-directory> --json` materializes the authenticated saved receipt, raw stdout/stderr, report and captured artifacts without rerunning execution or changing lifecycle data. Missing parent directories are created. The destination must be new; existing evidence is preserved.
+`mdlm execution export <operation> <new-directory> --json` materializes saved raw
+stdout/stderr, report and captured artifacts, with file paths, sizes and SHA256
+values in its response. Inspect the complete receipt in the preserved execution
+response or `mdlm execution settlement <operation> --json` response. Match
+`value.evidence` to the exact `git-blob:` locator selected for the result.
+
+Settlement and export select the operation's latest receipt. For historical
+inspection, compare that locator with the original result's receipt before using
+exported files. If they differ, inspect the exact original receipt and its embedded
+artifacts in the preserved response or with `git cat-file blob <receipt-oid>` in
+the lifecycle repository. Export never reruns execution or changes lifecycle
+data. Missing parent directories are created. The destination must be new;
+existing evidence is preserved.
 
 ## Native verification runtime
 
