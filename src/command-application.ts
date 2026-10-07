@@ -1,3 +1,4 @@
+import {archiveReviewContext, expandReviewContextArchive} from "./review-context-archive.js";
 import {previewProcessUpgrade, applyProcessUpgrade, settleProcessUpgrade} from "./process-upgrade.js";
 import { fileURLToPath } from "node:url";
 import { promises as fs } from "node:fs";
@@ -45,7 +46,8 @@ Direct lifecycle work:
   mdlm execution run <exact-subject> <operation-id> [--activity <exact-activity>] [--json]
   mdlm execution settlement <operation-id> [--json]
   mdlm execution export <operation-id> <new-directory> [--json]
-  mdlm review context <action> [<exact-subject>] [--output <file>] [--json]
+  mdlm review context <action> [<exact-subject>] [--output <file> [--format shared-verifier-trees]] [--json]
+  mdlm review expand-context <archive-file> --output <new-file> [--json]
   mdlm review register <proposal-file> <verdict-file> [--json]
 
 Inspect lifecycle data:
@@ -719,7 +721,12 @@ async function dispatchCommand(
   const outputOptions = optionValues(arguments_, "--output");
   const draftingProposal = arguments_[0] === "proposal" && arguments_[1] === "draft";
   const exportingReview = ["review", "verification"].includes(arguments_[0]!) && arguments_[1] === "context";
-  if (arguments_.includes("--output") && (!(exportingReview || draftingProposal) || arguments_.filter(argument => argument === "--output").length !== 1 || outputOptions.length !== 1 || !outputOptions[0] || outputOptions[0].startsWith("--"))) {
+  const expandingReview = arguments_[0] === "review" && arguments_[1] === "expand-context";
+  const formatOptions = optionValues(arguments_, "--format");
+  if (arguments_.includes("--format") && (arguments_[0] !== "review" || arguments_[1] !== "context" || outputOptions.length !== 1 || arguments_.filter(arg => arg === "--format").length !== 1 || formatOptions.length !== 1 || formatOptions[0] !== "shared-verifier-trees")) {
+    return failure("review-format-invalid", "--format shared-verifier-trees requires review context --output <new-file>");
+  }
+  if (arguments_.includes("--output") && (!(exportingReview || expandingReview || draftingProposal) || arguments_.filter(argument => argument === "--output").length !== 1 || outputOptions.length !== 1 || !outputOptions[0] || outputOptions[0].startsWith("--"))) {
     return failure("review-output-invalid", "--output requires one file path for context export or proposal draft");
   }
   const operationOptions = optionValues(arguments_, "--operation");
@@ -730,7 +737,7 @@ async function dispatchCommand(
   if (draftingProposal && arguments_.includes("--activity") && (arguments_.filter(argument => argument === "--activity").length !== 1 || activityOptions.length !== 1 || !activityOptions[0] || activityOptions[0].startsWith("--"))) {
     return failure("proposal-draft-arguments-invalid", "proposal draft --activity requires one exact activity revision");
   }
-  const optionsToRemove = [...(exportingReview || draftingProposal ? ["--output"] : []), ...(draftingProposal ? ["--operation"] : [])];
+  const optionsToRemove = [...(exportingReview || expandingReview || draftingProposal ? ["--output"] : []), ...(formatOptions.length ? ["--format"] : []), ...(draftingProposal ? ["--operation"] : [])];
   const operands = commandOperands(arguments_.filter((argument, index) => !optionsToRemove.includes(argument) && !optionsToRemove.includes(arguments_[index - 1]!)));
   if (
     (arguments_.length === 1 && arguments_[0] === "--help") ||
@@ -827,12 +834,22 @@ async function dispatchCommand(
     } catch (error) { return {...failure("direct-proposal-invalid", String(error)), command: "proposal"}; }
   }
   if (operands[0] === "review") {
+    if (operands[1] === "expand-context") {
+      if (operands.length !== 3 || outputOptions.length !== 1) return failure("review-arguments-invalid", "review expand-context requires <archive-file> --output <new-file>");
+      const archive = JSON.parse(await fs.readFile(path.resolve(repositoryRoot, operands[2]!), "utf8"));
+      const context = expandReviewContextArchive(archive);
+      const file = path.resolve(repositoryRoot, outputOptions[0]!);
+      const bytes = Buffer.from(`${JSON.stringify(context, null, 2)}\n`, "utf8");
+      await fs.writeFile(file, bytes, {flag: "wx"});
+      return {ok: true, command: "review.expand-context", contract: "mdlm-review-export@1", export: {path: file, bytes: bytes.length, exportSha256: createHash("sha256").update(bytes).digest("hex")}, diagnostics: []};
+    }
     if (operands[1] === "context" && [3, 4].includes(operands.length)) {
       const context = await inspectDirectReview(repositoryRoot, operands[2]!, operands[3]);
       const result = {...context, command: "review.context", diagnostics: []};
       if (!outputOptions.length) return result;
       const file = path.resolve(repositoryRoot, outputOptions[0]!);
-      const bytes = Buffer.from(`${JSON.stringify(result, null, 2)}\n`, "utf8");
+      const saved = formatOptions.length ? archiveReviewContext(result) : result;
+      const bytes = Buffer.from(`${JSON.stringify(saved, null, 2)}\n`, "utf8");
       await fs.writeFile(file, bytes, {flag: "wx"});
       return {
         ok: true, command: "review.context", contract: "mdlm-review-export@1",

@@ -5,7 +5,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { parse, stringify } from "yaml";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { initializeRepositoryFromProcessPackage } from "../src/repository-initialization.js";
 
 test("verification correction drafts retain the exact interface revisions required by unchanged targets", async () => {
@@ -372,3 +372,76 @@ test("saved review context provides exact handoff metadata without replacing exp
     expect(cli(...args, "--output", path.join(root, "missing", "export.json")).status).toBe(1);
   } finally {await fs.rm(root, {recursive: true, force: true});}
 }, 60_000);
+
+
+test("shared verifier tree archive expands complete review evidence without source repositories", async () => {
+  const {executeCommandApplication} = await import("../src/command-application.js");
+  const selection = await import("../src/direct-proposal.js");
+  const {canonicalReviewPacket} = await import("../src/external-review.js");
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "mdlm-shared-review-"));
+  const offline = path.join(root, "offline");
+  const screenshot = Buffer.from([0, 137, 80, 78, 71, 255]);
+  const files = [
+    {path: "verify.ts", blob: "1".repeat(40), content: "// Full verifier source\n".repeat(1000)},
+    {path: "screen.png", blob: "2".repeat(40), content: screenshot.toString("base64"), encoding: "base64"},
+    {path: "second-screen.png", blob: "2".repeat(40), content: screenshot.toString("base64"), encoding: "base64"},
+  ];
+  // Selection is frozen at the export boundary. Native source selection and
+  // registration have their existing regressions; this checks real CLI file I/O.
+  const context = {
+    ok: true, contract: "mdlm-direct-review-context@1", package: {reference: "fixture@1", digest: "exact", language: "fixture"},
+    snapshot: "exact", action: {id: "review", version: 1}, subject: "IMP-exact", inputs: {verification: ["VFY-a", "VFY-b", "VFY-c"]},
+    prompt: "Read the complete evidence", payloadSchemas: {}, records: [{revision_id: "OBS-exact", body: "Distinct observation"}],
+    requirementGraphs: [], sourceScopes: [], sources: [],
+    verifierSources: [
+      {activity: "VFY-a", sourceCommit: "a".repeat(40), files},
+      {activity: "VFY-b", sourceCommit: "a".repeat(40), files},
+      {activity: "VFY-c", sourceCommit: "b".repeat(40), files: [{...files[0], content: "// Changed full verifier source\n"}]},
+    ],
+    verificationReceipts: [{result: "VER-a", receipt: {occurrence: 1, contentBase64: screenshot.toString("base64")}}, {result: "VER-b", receipt: {occurrence: 2, contentBase64: screenshot.toString("base64")}}],
+  };
+  const original = JSON.stringify(context);
+  const frozen = vi.spyOn(selection, "inspectDirectReview").mockResolvedValue(context as unknown as Awaited<ReturnType<typeof selection.inspectDirectReview>>);
+  const cli = async (args: string[], cwd = root, status = 0) => {
+    const result = await executeCommandApplication([...args, "--json"], cwd);
+    expect(result.exitCode, result.output).toBe(status);
+    return JSON.parse(result.output);
+  };
+  const assertPin = (result: any, bytes: Buffer, file: string) => expect(result.export).toEqual({path: file, bytes: bytes.length, exportSha256: createHash("sha256").update(bytes).digest("hex")});
+  try {
+    await fs.mkdir(offline);
+    const ordinary = await cli(["review", "context", "review@1", "IMP-exact"]);
+    const expandedFile = path.join(root, "expanded.json"), archiveFile = path.join(offline, "archive.json");
+    const expanded = await cli(["review", "context", "review@1", "IMP-exact", "--output", expandedFile]);
+    const expandedBytes = await fs.readFile(expandedFile);
+    expect(JSON.parse(expandedBytes.toString())).toEqual(ordinary);
+    assertPin(expanded, expandedBytes, expandedFile);
+    const exported = await cli(["review", "context", "review@1", "IMP-exact", "--output", archiveFile, "--format", "shared-verifier-trees"]);
+    const archiveBytes = await fs.readFile(archiveFile), archive = JSON.parse(archiveBytes.toString());
+    assertPin(exported, archiveBytes, archiveFile);
+    expect(archive.contract).toBe("mdlm-review-context-archive@1");
+    expect(archive.verifierSourceTrees).toEqual([files, context.verifierSources[2]!.files]);
+    expect(archive.verifierSources.map((s: any) => s.filesRef)).toEqual([0, 0, 1]);
+    expect(archiveBytes.length).toBeLessThan(expandedBytes.length);
+    frozen.mockRestore(); // The reader must not call native selection at all.
+    const recoveredFile = path.join(offline, "recovered.json");
+    const recovered = await cli(["review", "expand-context", "archive.json", "--output", recoveredFile], offline);
+    const recoveredBytes = await fs.readFile(recoveredFile), full = JSON.parse(recoveredBytes.toString());
+    assertPin(recovered, recoveredBytes, recoveredFile);
+    expect(full).toEqual(ordinary);
+    expect(canonicalReviewPacket(full)).toBe(canonicalReviewPacket(ordinary));
+    expect(Buffer.from(full.verifierSources[1].files[2].content, "base64")).toEqual(screenshot);
+    await cli(["review", "expand-context", "archive.json", "--output", recoveredFile], offline, 1);
+    expect(await fs.readFile(recoveredFile)).toEqual(recoveredBytes);
+    for (const broken of [{...archive, contract: "mdlm-review-context-archive@2"}, {...archive, verifierSources: [{...archive.verifierSources[0], filesRef: 99}]}]) {
+      await fs.writeFile(path.join(offline, "broken.json"), JSON.stringify(broken));
+      await cli(["review", "expand-context", "broken.json", "--output", "refused.json"], offline, 1);
+      await expect(fs.stat(path.join(offline, "refused.json"))).rejects.toMatchObject({code: "ENOENT"});
+    }
+    expect(await fs.readFile(archiveFile)).toEqual(archiveBytes);
+    expect(JSON.stringify(context)).toBe(original);
+  } finally {
+    frozen.mockRestore();
+    await fs.rm(root, {recursive: true, force: true});
+  }
+});
