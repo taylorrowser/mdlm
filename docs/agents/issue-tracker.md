@@ -1,6 +1,6 @@
 # Issue tracker: GitHub
 
-Issues and PRDs for this repo live as GitHub issues. Use the `gh` CLI for all operations.
+Issues and PRDs for this repo live as GitHub issues. Use the authenticated `gh` CLI or the environment's GitHub integration. The commands below show the CLI form. If shell authentication is unavailable, use the integration for the same operations and read back the results; repository checkout access alone does not authorize shell API requests.
 
 ## Conventions
 
@@ -35,7 +35,7 @@ Put exact commits, logs, timings, diagnostics, and implementation constraints in
 3. Add `agent:in-progress`, remove `ready-for-agent`, and assign `@me`.
 4. Re-read the issue. Begin work only when the claim is visible.
 
-Read-only triage needed to decide whether an issue is claimable may happen before the claim. All implementation work starts after it. Treat any existing `agent:in-progress` label as another claim even when every agent shares one GitHub login. Only durable local controller state may resume the exact claim it created. Otherwise choose different work.
+Read-only triage needed to decide whether an issue is claimable may happen before the claim. All implementation work starts after it. Treat any existing `agent:in-progress` label as another claim even when every agent shares one GitHub login. Only a durable task handoff identifying the issue, branch, owner and prior claim may resume the exact claim it created. Otherwise choose different work.
 
 Release the claim when ownership ends. Remove `agent:in-progress` and unassign the owner in every case. Closed work gets no waiting triage role. For open work, remove any old triage role before adding exactly one next role:
 
@@ -95,5 +95,5 @@ Read back assignees and labels before editing source. Assignment alone leaves th
 
 The frontier consists of open child tickets whose blockers are all closed and
 which are not already assigned. Independent frontier tickets may proceed in
-parallel. Give each ticket its own claim, isolated worktree, and sole writer, and
+parallel. Give each ticket its own claim, isolated task checkout or worktree, and sole writer, and
 serialize updates to any shared evidence record.
